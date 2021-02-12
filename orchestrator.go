@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"io"
@@ -16,7 +15,7 @@ const (
 	TekuCatalystImage          = "silesiacoin/ssc20-client:v002"
 	CatalystClientName         = "catalyst"
 	CatalystContainerName      = "luksoCatalyst"
-	LuksoContainerNameSelector = "lukso_container_name"
+	LuksoContainerNameSelector = "label"
 	TekuClientName             = "teku"
 	TekuArguments              = `./teku/bin/teku --Xinterop-enabled=true \
 --Xinterop-owned-validator-count=%d \
@@ -49,28 +48,31 @@ var (
 )
 
 type Orchestrator struct {
-	params    Params
+	params    *Params
 	dockerCli *client.Client
 }
 
 type Params struct{}
 
-func New(params *Params) (orchestrator *Orchestrator, err error) {
-	orchestrator = &Orchestrator{params: *params}
-	dockerClient, err := orchestrator.newDockerClient()
-	orchestrator.dockerCli = dockerClient
+func New(params *Params) (orchestratorClient *Orchestrator, err error) {
+	orchestratorClient = &Orchestrator{params: params}
+	dockerClient, err := orchestratorClient.newDockerClient()
+	orchestratorClient.dockerCli = dockerClient
 
 	return
 }
 
-func (orchestrator *Orchestrator) SpinEth1(clientName string) (eth1Client *interface{}, err error) {
+func (orchestratorClient *Orchestrator) SpinEth1(clientName string) (
+	containerBody container.ContainerCreateCreatedBody,
+	err error,
+) {
 	if CatalystClientName != clientName {
 		err = fmt.Errorf("client %s not supported, valid %s", clientName, CatalystClientName)
 
 		return
 	}
 
-	imageList, err := orchestrator.findRunningContainer(CatalystContainerName)
+	imageList, err := orchestratorClient.findRunningContainerByImage(TekuCatalystImage)
 
 	if nil != err {
 		return
@@ -82,20 +84,30 @@ func (orchestrator *Orchestrator) SpinEth1(clientName string) (eth1Client *inter
 		return
 	}
 
-	err = orchestrator.createCatalystContainer()
+	containerBody, err = orchestratorClient.createCatalystContainer()
+
+	if nil != err {
+		return
+	}
+
+	err = orchestratorClient.dockerCli.ContainerStart(
+		context.Background(),
+		containerBody.ID,
+		types.ContainerStartOptions{},
+	)
 
 	return
 }
 
-func (orchestrator *Orchestrator) SpinEth2(clientName string) (eth2Client *interface{}, err error) {
-	orchestrator.assureDockerClient()
+func (orchestratorClient *Orchestrator) SpinEth2(clientName string) (eth2Client *interface{}, err error) {
+	orchestratorClient.assureDockerClient()
 
 	return
 }
 
 // For now lets steer from ENV variables,
 // TODO: provide documentation of possible env that you can use, and --help in cli
-func (orchestrator *Orchestrator) newDockerClient() (dockerCli *client.Client, err error) {
+func (orchestratorClient *Orchestrator) newDockerClient() (dockerCli *client.Client, err error) {
 	dockerCli, err = client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 
 	if nil != err {
@@ -116,40 +128,46 @@ func (orchestrator *Orchestrator) newDockerClient() (dockerCli *client.Client, e
 	return
 }
 
-func (orchestrator *Orchestrator) assureDockerClient() (dockerCli *client.Client) {
-	dockerCli = orchestrator.dockerCli
+func (orchestratorClient *Orchestrator) assureDockerClient() (dockerCli *client.Client) {
+	dockerCli = orchestratorClient.dockerCli
 
 	if nil == dockerCli {
-		panic(fmt.Errorf("orchestrator only works in docker mode for now, please use New() func"))
+		panic(fmt.Errorf("orchestratorClient only works in docker mode for now, please use New() func"))
 	}
 
 	return
 }
 
-func (orchestrator *Orchestrator) findRunningContainer(containerName string) (
-	containerList []types.ImageSummary,
+func (orchestratorClient *Orchestrator) findRunningContainerByImage(imageName string) (
+	containerList []types.Container,
 	err error,
 ) {
 	ctx := context.Background()
-	dockerCli := orchestrator.assureDockerClient()
+	dockerCli := orchestratorClient.assureDockerClient()
+	allContainers, err := dockerCli.ContainerList(ctx, types.ContainerListOptions{})
 
-	containerFilter := filters.NewArgs(filters.KeyValuePair{
-		Key:   LuksoContainerNameSelector,
-		Value: containerName,
-	})
+	if nil != err {
+		return
+	}
 
-	containerList, err = dockerCli.ImageList(ctx, types.ImageListOptions{
-		All:     true,
-		Filters: containerFilter,
-	})
+	containerList = make([]types.Container, 0)
+
+	for _, runningContainer := range allContainers {
+		if imageName == runningContainer.Image {
+			containerList = append(containerList, runningContainer)
+		}
+	}
 
 	return
 }
 
-func (orchestrator *Orchestrator) createCatalystContainer() (err error) {
-	dockerCli := orchestrator.assureDockerClient()
+func (orchestratorClient *Orchestrator) createCatalystContainer() (
+	containerBody container.ContainerCreateCreatedBody,
+	err error,
+) {
+	dockerCli := orchestratorClient.assureDockerClient()
 	ctx := context.Background()
-	_, err = dockerCli.ContainerCreate(
+	containerBody, err = dockerCli.ContainerCreate(
 		ctx,
 		&container.Config{
 			// For now lets try with root
@@ -168,7 +186,7 @@ func (orchestrator *Orchestrator) createCatalystContainer() (err error) {
 		&container.HostConfig{},
 		&network.NetworkingConfig{},
 		nil,
-		CatalystContainerName,
+		"",
 	)
 
 	return
