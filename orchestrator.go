@@ -4,17 +4,20 @@ import (
 	"context"
 	"fmt"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"io"
 	"os"
 )
 
 const (
-	TekuCatalystImage  = "silesiacoin/ssc20-client:v002"
-	CatalystClientName = "catalyst"
-	TekuClientName     = "teku"
-	CatalystArguments  = "./geth --rpc --rpcapi net,eth,eth2,web3,personal,admin,db,debug,miner,shh,txpool --etherbase %s --datadir %s --rpccorsdomain \"*\" --rpcaddr \"localhost\" --verbosity 5 --unlock 0 --password \"/root/multinet/repo/data/common/node.pwds\" --targetgaslimit '9000000000000' --allow-insecure-unlock --txpool.processtxs  --txpool.accountslots 10000 --txpool.accountqueue 20000"
-	TekuArguments      = `./teku/bin/teku --Xinterop-enabled=true \
+	TekuCatalystImage          = "silesiacoin/ssc20-client:v002"
+	CatalystClientName         = "catalyst"
+	CatalystContainerName      = "luksoCatalyst"
+	LuksoContainerNameSelector = "lukso_container_name"
+	TekuClientName             = "teku"
+	CatalystArguments          = "./geth --rpc --rpcapi net,eth,eth2,web3,personal,admin,db,debug,miner,shh,txpool --etherbase %s --datadir %s --rpccorsdomain \"*\" --rpcaddr \"localhost\" --verbosity 5 --unlock 0 --password \"/root/multinet/repo/data/common/node.pwds\" --targetgaslimit '9000000000000' --allow-insecure-unlock --txpool.processtxs  --txpool.accountslots 10000 --txpool.accountqueue 20000"
+	TekuArguments              = `./teku/bin/teku --Xinterop-enabled=true \
 --Xinterop-owned-validator-count=%d \
 --network=minimal \
 --p2p-enabled=true \
@@ -47,18 +50,21 @@ func New(params *Params) (orchestrator *Orchestrator, err error) {
 	return
 }
 
-func (orchestrator *Orchestrator) SpinEth1(clientName string) (eth1Client *interface{}, err error) {
+func (orchestrator *Orchestrator) SpinEth1(ctx *context.Context, clientName string) (eth1Client *interface{}, err error) {
 	if CatalystClientName != clientName {
 		err = fmt.Errorf("client %s not supported, valid %s", clientName, CatalystClientName)
 
 		return
 	}
 
-	dockerCli := orchestrator.dockerCli
+	imageList, err := orchestrator.findRunningContainer(LuksoContainerNameSelector)
 
-	// Possible nil-pointer here
-	if nil == dockerCli {
-		err = fmt.Errorf("orchestrator only works in docker mode for now, please use New() func")
+	if nil != err {
+		return
+	}
+
+	if len(imageList) > 0 {
+		err = fmt.Errorf("%s container should not be running in docker, but it is", CatalystContainerName)
 
 		return
 	}
@@ -66,7 +72,9 @@ func (orchestrator *Orchestrator) SpinEth1(clientName string) (eth1Client *inter
 	return
 }
 
-func (orchestrator *Orchestrator) SpinEth2(clientName string) (eth2Client *interface{}, err error) {
+func (orchestrator *Orchestrator) SpinEth2(ctx *context.Context, clientName string) (eth2Client *interface{}, err error) {
+	orchestrator.assureDockerClient()
+
 	return
 }
 
@@ -89,6 +97,36 @@ func (orchestrator *Orchestrator) newDockerClient() (dockerCli *client.Client, e
 	}
 
 	_, err = io.Copy(os.Stdout, out)
+
+	return
+}
+
+func (orchestrator *Orchestrator) assureDockerClient() (dockerCli *client.Client) {
+	dockerCli = orchestrator.dockerCli
+
+	if nil == dockerCli {
+		panic(fmt.Errorf("orchestrator only works in docker mode for now, please use New() func"))
+	}
+
+	return
+}
+
+func (orchestrator *Orchestrator) findRunningContainer(containerName string) (
+	containerList []types.ImageSummary,
+	err error,
+) {
+	ctx := context.Background()
+	dockerCli := orchestrator.assureDockerClient()
+
+	containerFilter := filters.NewArgs(filters.KeyValuePair{
+		Key:   LuksoContainerNameSelector,
+		Value: containerName,
+	})
+
+	containerList, err = dockerCli.ImageList(ctx, types.ImageListOptions{
+		All:     true,
+		Filters: containerFilter,
+	})
 
 	return
 }
