@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"io"
 	"os"
@@ -16,7 +18,6 @@ const (
 	CatalystContainerName      = "luksoCatalyst"
 	LuksoContainerNameSelector = "lukso_container_name"
 	TekuClientName             = "teku"
-	CatalystArguments          = "./geth --rpc --rpcapi net,eth,eth2,web3,personal,admin,db,debug,miner,shh,txpool --etherbase %s --datadir %s --rpccorsdomain \"*\" --rpcaddr \"localhost\" --verbosity 5 --unlock 0 --password \"/root/multinet/repo/data/common/node.pwds\" --targetgaslimit '9000000000000' --allow-insecure-unlock --txpool.processtxs  --txpool.accountslots 10000 --txpool.accountqueue 20000"
 	TekuArguments              = `./teku/bin/teku --Xinterop-enabled=true \
 --Xinterop-owned-validator-count=%d \
 --network=minimal \
@@ -35,6 +36,18 @@ const (
 --Xinterop-owned-validator-start-index "%d"`
 )
 
+var (
+	catalystArguments = []string{
+		"./geth",
+		"--rpc",
+		"--rpcapi", "net,eth,eth2,web3,personal,admin,db,debug,miner,shh,txpool",
+		"--rpccorsdomain", "*",
+		"--rpcaddr", "0.0.0.0",
+		"--verbosity", "5",
+		"--txpool.processtxs", "--txpool.accountslots", "10000", "--txpool.accountqueue", "20000",
+	}
+)
+
 type Orchestrator struct {
 	params    Params
 	dockerCli *client.Client
@@ -50,7 +63,7 @@ func New(params *Params) (orchestrator *Orchestrator, err error) {
 	return
 }
 
-func (orchestrator *Orchestrator) SpinEth1(ctx *context.Context, clientName string) (eth1Client *interface{}, err error) {
+func (orchestrator *Orchestrator) SpinEth1(clientName string) (eth1Client *interface{}, err error) {
 	if CatalystClientName != clientName {
 		err = fmt.Errorf("client %s not supported, valid %s", clientName, CatalystClientName)
 
@@ -69,10 +82,12 @@ func (orchestrator *Orchestrator) SpinEth1(ctx *context.Context, clientName stri
 		return
 	}
 
+	err = orchestrator.createCatalystContainer()
+
 	return
 }
 
-func (orchestrator *Orchestrator) SpinEth2(ctx *context.Context, clientName string) (eth2Client *interface{}, err error) {
+func (orchestrator *Orchestrator) SpinEth2(clientName string) (eth2Client *interface{}, err error) {
 	orchestrator.assureDockerClient()
 
 	return
@@ -127,6 +142,34 @@ func (orchestrator *Orchestrator) findRunningContainer(containerName string) (
 		All:     true,
 		Filters: containerFilter,
 	})
+
+	return
+}
+
+func (orchestrator *Orchestrator) createCatalystContainer() (err error) {
+	dockerCli := orchestrator.assureDockerClient()
+	ctx := context.Background()
+	_, err = dockerCli.ContainerCreate(
+		ctx,
+		&container.Config{
+			// For now lets try with root
+			User:         "root",
+			AttachStdin:  true,
+			AttachStdout: true,
+			AttachStderr: true,
+			Tty:          false,
+			OpenStdin:    false,
+			StdinOnce:    false,
+			Env:          nil,
+			Cmd:          catalystArguments,
+			Image:        TekuCatalystImage,
+			Labels:       map[string]string{LuksoContainerNameSelector: CatalystContainerName},
+		},
+		&container.HostConfig{},
+		&network.NetworkingConfig{},
+		nil,
+		CatalystContainerName,
+	)
 
 	return
 }
