@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/client"
 	"io"
 	"os"
+	"time"
 )
 
 const (
@@ -155,6 +156,26 @@ func (orchestratorClient *Orchestrator) findRunningContainerByImage(imageName st
 	for _, runningContainer := range allContainers {
 		if imageName == runningContainer.Image {
 			containerList = append(containerList, runningContainer)
+		}
+	}
+
+	return
+}
+
+func (orchestratorClient *Orchestrator) stopContainers(
+	containerList []types.Container,
+	timeout *time.Duration,
+) (err error, errList []error) {
+	dockerClient := orchestratorClient.assureDockerClient()
+	ctx := context.Background()
+	errList = make([]error, 0)
+
+	for _, containerToStop := range containerList {
+		latestError := dockerClient.ContainerStop(ctx, containerToStop.ID, timeout)
+
+		if nil != latestError {
+			err = latestError
+			errList = append(errList, latestError)
 		}
 	}
 
