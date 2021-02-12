@@ -57,7 +57,7 @@ func (orchestrator *Orchestrator) SpinEth1(ctx *context.Context, clientName stri
 		return
 	}
 
-	imageList, err := orchestrator.findRunningContainer(LuksoContainerNameSelector)
+	imageList, err := orchestrator.findRunningContainer(CatalystContainerName)
 
 	if nil != err {
 		return
