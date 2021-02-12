@@ -121,6 +121,22 @@ func (orchestratorClient *Orchestrator) SpinEth2(clientName string) (
 	return
 }
 
+func (orchestratorClient *Orchestrator) Run() (err error) {
+	//TODO: write what must happen here
+	containerList, _ := orchestratorClient.findRunningContainerByImage(TekuCatalystImage)
+	timeout, _ := time.ParseDuration("2s")
+
+	// Kill all leftovers
+	if len(containerList) > 0 {
+		_, _ = orchestratorClient.stopContainers(containerList, &timeout)
+	}
+
+	_, _ = orchestratorClient.SpinEth1(CatalystClientName)
+	_, _ = orchestratorClient.SpinEth2(TekuClientName)
+
+	return
+}
+
 func (orchestratorClient *Orchestrator) isContainerRunningWithImage(imageName string) (err error) {
 	imageList, err := orchestratorClient.findRunningContainerByImage(imageName)
 

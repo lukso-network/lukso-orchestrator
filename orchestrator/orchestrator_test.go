@@ -52,6 +52,11 @@ func TestOrchestrator_SpinEth2(t *testing.T) {
 	})
 }
 
+// TODO: fill this up
+func TestOrchestrator_Run(t *testing.T) {
+
+}
+
 func stopAllContainers(orchestratorClient *Orchestrator) {
 	containerList, _ := orchestratorClient.findRunningContainerByImage(TekuCatalystImage)
 	timeout, _ := time.ParseDuration("2s")
