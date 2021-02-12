@@ -18,22 +18,6 @@ const (
 	CatalystContainerName      = "luksoCatalyst"
 	LuksoContainerNameSelector = "label"
 	TekuClientName             = "teku"
-	TekuArguments              = `./teku/bin/teku --Xinterop-enabled=true \
---Xinterop-owned-validator-count=%d \
---network=minimal \
---p2p-enabled=true \
---p2p-discovery-enabled=true \
---initial-state %s \
---eth1-engine http://%s:8545 \
---rest-api-interface=%s \
---rest-api-host-allowlist="*" \
---rest-api-port=5051 \
---logging=all \
---log-file=%s \
---rest-api-enabled=true \
---metrics-enabled=true \
---p2p-discovery-bootnodes=%s \
---Xinterop-owned-validator-start-index "%d"`
 )
 
 var (
@@ -45,6 +29,16 @@ var (
 		"--rpcaddr", "0.0.0.0",
 		"--verbosity", "5",
 		"--txpool.processtxs", "--txpool.accountslots", "10000", "--txpool.accountqueue", "20000",
+	}
+
+	tekuArguments = []string{
+		"./teku/bin/teku",
+		"--network=minimal",
+		"--p2p-enabled=true",
+		`--rest-api-host-allowlist="*"`,
+		"--rest-api-port=5051",
+		"--rest-api-enabled=true",
+		"--metrics-enabled=true",
 	}
 )
 
@@ -73,15 +67,9 @@ func (orchestratorClient *Orchestrator) SpinEth1(clientName string) (
 		return
 	}
 
-	imageList, err := orchestratorClient.findRunningContainerByImage(TekuCatalystImage)
+	err = orchestratorClient.isContainerRunningWithImage(TekuCatalystImage)
 
 	if nil != err {
-		return
-	}
-
-	if len(imageList) > 0 {
-		err = fmt.Errorf("%s container should not be running in docker, but it is", CatalystContainerName)
-
 		return
 	}
 
@@ -100,8 +88,51 @@ func (orchestratorClient *Orchestrator) SpinEth1(clientName string) (
 	return
 }
 
-func (orchestratorClient *Orchestrator) SpinEth2(clientName string) (eth2Client *interface{}, err error) {
+func (orchestratorClient *Orchestrator) SpinEth2(clientName string) (
+	containerBody container.ContainerCreateCreatedBody,
+	err error,
+) {
 	orchestratorClient.assureDockerClient()
+
+	if TekuClientName != clientName {
+		err = fmt.Errorf("client %s not supported, valid %s", clientName, CatalystClientName)
+
+		return
+	}
+
+	err = orchestratorClient.isContainerRunningWithImage(TekuCatalystImage)
+
+	if nil != err {
+		return
+	}
+
+	containerBody, err = orchestratorClient.createTekuContainer()
+
+	if nil != err {
+		return
+	}
+
+	err = orchestratorClient.dockerCli.ContainerStart(
+		context.Background(),
+		containerBody.ID,
+		types.ContainerStartOptions{},
+	)
+
+	return
+}
+
+func (orchestratorClient *Orchestrator) isContainerRunningWithImage(imageName string) (err error) {
+	imageList, err := orchestratorClient.findRunningContainerByImage(imageName)
+
+	if nil != err {
+		return
+	}
+
+	if len(imageList) > 0 {
+		err = fmt.Errorf("container from image %s should not be running in docker", TekuCatalystImage)
+
+		return
+	}
 
 	return
 }
@@ -203,6 +234,36 @@ func (orchestratorClient *Orchestrator) createCatalystContainer() (
 			Cmd:          catalystArguments,
 			Image:        TekuCatalystImage,
 			Labels:       map[string]string{LuksoContainerNameSelector: CatalystContainerName},
+		},
+		&container.HostConfig{},
+		&network.NetworkingConfig{},
+		nil,
+		"",
+	)
+
+	return
+}
+
+func (orchestratorClient *Orchestrator) createTekuContainer() (
+	containerBody container.ContainerCreateCreatedBody,
+	err error,
+) {
+	dockerCli := orchestratorClient.assureDockerClient()
+	ctx := context.Background()
+	containerBody, err = dockerCli.ContainerCreate(
+		ctx,
+		&container.Config{
+			// For now lets try with root
+			User:         "root",
+			AttachStdin:  true,
+			AttachStdout: true,
+			AttachStderr: true,
+			Tty:          false,
+			OpenStdin:    false,
+			StdinOnce:    false,
+			Env:          nil,
+			Cmd:          tekuArguments,
+			Image:        TekuCatalystImage,
 		},
 		&container.HostConfig{},
 		&network.NetworkingConfig{},
