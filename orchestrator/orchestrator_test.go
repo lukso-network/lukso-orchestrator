@@ -1,10 +1,39 @@
 package orchestrator
 
 import (
+	"github.com/docker/docker/api/types"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
 )
+
+const (
+	DarwinDefaultVolumePath = "/var/lib/docker/volumes/orchestrator-volume/_data"
+)
+
+func TestOrchestrator_PrepareVolume(t *testing.T) {
+	orchestratorClient, err := New(nil)
+	assert.Nil(t, err)
+	assert.IsType(t, &Orchestrator{}, orchestratorClient)
+	stopAllContainers(orchestratorClient)
+	defer stopAllContainers(orchestratorClient)
+	t.Run("Should be volume create failure", func(t *testing.T) {
+		exceptedVolumeOption := types.Volume{}
+		volume, err := orchestratorClient.PrepareVolume("", "")
+		assert.Error(t, err)
+		assert.Equal(t, exceptedVolumeOption, volume)
+	})
+	t.Run("Should be volume create success", func(t *testing.T) {
+		exceptedVolumeOption := types.Volume{
+			Mountpoint: DarwinDefaultVolumePath,
+			Name:       OrchestratorVolumeName,
+		}
+		volume, err := orchestratorClient.PrepareVolume(OrchestratorVolumeName, OrchestratorVolumePath)
+		assert.Nil(t, err)
+		assert.Equal(t, exceptedVolumeOption.Mountpoint, volume.Mountpoint)
+		assert.Equal(t, exceptedVolumeOption.Name, volume.Name)
+	})
+}
 
 func TestOrchestrator_SpinEth1(t *testing.T) {
 	orchestratorClient, err := New(nil)

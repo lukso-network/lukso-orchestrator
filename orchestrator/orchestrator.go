@@ -2,10 +2,12 @@ package orchestrator
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
+	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 	"io"
@@ -20,6 +22,8 @@ const (
 	CatalystContainerName      = "luksoCatalyst"
 	LuksoContainerNameSelector = "label"
 	TekuClientName             = "teku"
+	OrchestratorVolumeName     = "orchestrator-volume"
+	OrchestratorVolumePath     = "/tmp/lukso-orchestrator"
 )
 
 var (
@@ -42,6 +46,8 @@ var (
 		"--rest-api-enabled=true",
 		"--metrics-enabled=true",
 	}
+
+	orchestratorVolumePath = "/tmp/lukso-orchestrator"
 )
 
 type Orchestrator struct {
@@ -57,6 +63,22 @@ func New(params *Params) (orchestratorClient *Orchestrator, err error) {
 	orchestratorClient.dockerCli = dockerClient
 
 	return
+}
+
+func (orchestratorClient *Orchestrator) PrepareVolume(name, path string) (
+	volume types.Volume, err error,
+) {
+	if 0 == len(path) || 0 == len(name) {
+		return volume, errors.New("you need to provide proper name or path - not empty")
+	}
+	volumeOptions := volumetypes.VolumeCreateBody{
+		Name: name,
+	}
+	volume, err = orchestratorClient.dockerCli.VolumeCreate(
+		context.Background(),
+		volumeOptions,
+	)
+	return volume, nil
 }
 
 func (orchestratorClient *Orchestrator) SpinEth1(clientName string) (
@@ -134,6 +156,11 @@ func (orchestratorClient *Orchestrator) Run(timeout *time.Duration) (
 	runningContainers = make([]container.ContainerCreateCreatedBody, 0)
 	err, errList = orchestratorClient.stopTekuCatalystImages(timeout)
 
+	if nil != err {
+		return
+	}
+
+	_, err = orchestratorClient.PrepareVolume(OrchestratorVolumePath, OrchestratorVolumeName)
 	if nil != err {
 		return
 	}
