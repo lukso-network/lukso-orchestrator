@@ -54,7 +54,23 @@ func TestOrchestrator_SpinEth2(t *testing.T) {
 
 // TODO: fill this up
 func TestOrchestrator_Run(t *testing.T) {
+	orchestratorClient, err := New(nil)
+	assert.Nil(t, err)
+	assert.IsType(t, &Orchestrator{}, orchestratorClient)
 
+	timeout, err := time.ParseDuration("2s")
+	assert.Nil(t, err)
+
+	err, errList, runningContainers := orchestratorClient.Run(&timeout)
+	assert.Nil(t, err)
+	assert.Empty(t, errList)
+	assert.Len(t, runningContainers, 2)
+
+	defer func() {
+		err, errList = orchestratorClient.stopTekuCatalystImages(&timeout)
+		assert.Nil(t, err)
+		assert.Empty(t, errList)
+	}()
 }
 
 func TestOrchestrator_LogsFromContainers(t *testing.T) {
