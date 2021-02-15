@@ -213,13 +213,30 @@ func (orchestratorClient *Orchestrator) newDockerClient() (dockerCli *client.Cli
 	// This logic will be removed from here, but right now we have common docker image for teku and catalyst
 	// so we pull it once
 	ctx := context.Background()
-	out, err := dockerCli.ImagePull(ctx, CatalystImage, types.ImagePullOptions{})
+	catalystPullOutput, err := dockerCli.ImagePull(ctx, CatalystImage, types.ImagePullOptions{})
 
 	if nil != err {
 		return
 	}
 
-	_, err = io.Copy(os.Stdout, out)
+	tekuPullOutput, err := dockerCli.ImagePull(ctx, TekuImage, types.ImagePullOptions{})
+
+	if nil != err {
+		return
+	}
+
+	defer func() {
+		_ = catalystPullOutput.Close()
+		_ = tekuPullOutput.Close()
+	}()
+
+	_, err = io.Copy(os.Stdout, catalystPullOutput)
+
+	if nil != err {
+		return
+	}
+
+	_, err = io.Copy(os.Stderr, tekuPullOutput)
 
 	return
 }
