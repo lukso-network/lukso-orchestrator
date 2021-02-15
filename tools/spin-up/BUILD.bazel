@@ -1,0 +1,15 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "spin-up_lib",
+    srcs = ["main.go"],
+    importpath = "github.com/lukso-network/lukso-orchestrator/tools/spin-up",
+    visibility = ["//visibility:private"],
+     deps = ["//tools/spin-up/spinner"],
+)
+
+go_binary(
+    name = "spin-up",
+    embed = [":spin-up_lib"],
+    visibility = ["//visibility:public"],
+)

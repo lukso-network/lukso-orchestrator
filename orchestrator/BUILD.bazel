@@ -6,7 +6,7 @@ go_library(
         "log.go",
         "main.go",
     ],
-    importpath = "github.com/lukso-orchestrator/orchestrator",
+    importpath = "github.com/lukso-network/lukso-orchestrator/orchestrator",
     visibility = ["//visibility:private"],
     deps = ["//vendor/github.com/urfave/cli/v2:cli"],
 )

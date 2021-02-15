@@ -1,0 +1,26 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "spinner",
+    srcs = ["spinner.go"],
+    importpath = "github.com/lukso-network/lukso-orchestrator/tools/spin-up/spinner",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//vendor/github.com/docker/docker/api/types",
+        "//vendor/github.com/docker/docker/api/types/container",
+        "//vendor/github.com/docker/docker/api/types/network",
+        "//vendor/github.com/docker/docker/api/types/volume",
+        "//vendor/github.com/docker/docker/client",
+        "//vendor/github.com/docker/docker/pkg/stdcopy",
+    ],
+)
+
+go_test(
+    name = "spinner_test",
+    srcs = ["spinner_test.go"],
+    embed = [":spinner"],
+    deps = [
+        "//vendor/github.com/docker/docker/api/types",
+        "//vendor/github.com/stretchr/testify/assert",
+    ],
+)
