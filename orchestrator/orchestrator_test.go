@@ -7,10 +7,6 @@ import (
 	"time"
 )
 
-const (
-	DarwinDefaultVolumePath = "/var/lib/docker/volumes/orchestrator-volume/_data"
-)
-
 func TestOrchestrator_PrepareVolume(t *testing.T) {
 	orchestratorClient, err := New(nil)
 	assert.Nil(t, err)
@@ -26,9 +22,9 @@ func TestOrchestrator_PrepareVolume(t *testing.T) {
 	t.Run("Should be volume create success", func(t *testing.T) {
 		exceptedVolumeOption := types.Volume{
 			Mountpoint: DarwinDefaultVolumePath,
-			Name:       OrchestratorVolumeName,
+			Name:       VolumeName,
 		}
-		volume, err := orchestratorClient.PrepareVolume(OrchestratorVolumeName, OrchestratorVolumePath)
+		volume, err := orchestratorClient.PrepareVolume(VolumeName, VolumePath)
 		assert.Nil(t, err)
 		assert.Equal(t, exceptedVolumeOption.Mountpoint, volume.Mountpoint)
 		assert.Equal(t, exceptedVolumeOption.Name, volume.Name)

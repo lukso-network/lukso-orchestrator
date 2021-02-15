@@ -22,8 +22,9 @@ const (
 	CatalystContainerName      = "luksoCatalyst"
 	LuksoContainerNameSelector = "label"
 	TekuClientName             = "teku"
-	OrchestratorVolumeName     = "orchestrator-volume"
-	OrchestratorVolumePath     = "/tmp/lukso-orchestrator"
+	VolumeName                 = "orchestrator-volume"
+	VolumePath                 = "/tmp/lukso-orchestrator"
+	DarwinDefaultVolumePath    = "/var/lib/docker/volumes/orchestrator-volume/_data"
 )
 
 var (
@@ -35,6 +36,7 @@ var (
 		"--rpcaddr", "0.0.0.0",
 		"--verbosity", "4",
 		"--txpool.processtxs", "--txpool.accountslots", "10000", "--txpool.accountqueue", "20000",
+		"--datadir", DarwinDefaultVolumePath,
 	}
 
 	tekuArguments = []string{
@@ -45,6 +47,9 @@ var (
 		"--rest-api-port=5051",
 		"--rest-api-enabled=true",
 		"--metrics-enabled=true",
+		"--eth1-endpoint=http://34.78.227.45:8545",
+		"--eth1-deposit-contract-address=0xEEBbf8e25dB001f4EC9b889978DC79B302DF9Efd",
+		fmt.Sprintf("--data-base-path=%s", DarwinDefaultVolumePath),
 	}
 
 	orchestratorVolumePath = "/tmp/lukso-orchestrator"
@@ -160,7 +165,7 @@ func (orchestratorClient *Orchestrator) Run(timeout *time.Duration) (
 		return
 	}
 
-	_, err = orchestratorClient.PrepareVolume(OrchestratorVolumePath, OrchestratorVolumeName)
+	_, err = orchestratorClient.PrepareVolume(VolumePath, VolumeName)
 	if nil != err {
 		return
 	}
@@ -355,12 +360,24 @@ func (orchestratorClient *Orchestrator) stopContainers(
 	return
 }
 
+func (orchestratorClient *Orchestrator) getVolume(name string) (volume types.Volume, err error) {
+	volume, err = orchestratorClient.dockerCli.VolumeInspect(context.Background(), name)
+	if nil != err {
+		return volume, err
+	}
+	return volume, nil
+}
+
 func (orchestratorClient *Orchestrator) createCatalystContainer() (
 	containerBody container.ContainerCreateCreatedBody,
 	err error,
 ) {
 	dockerCli := orchestratorClient.assureDockerClient()
 	ctx := context.Background()
+	volume, err := orchestratorClient.getVolume(VolumeName)
+	if nil != err {
+		return
+	}
 	containerBody, err = dockerCli.ContainerCreate(
 		ctx,
 		&container.Config{
@@ -377,7 +394,11 @@ func (orchestratorClient *Orchestrator) createCatalystContainer() (
 			Image:        CatalystImage,
 			Labels:       map[string]string{LuksoContainerNameSelector: CatalystContainerName},
 		},
-		&container.HostConfig{},
+		&container.HostConfig{
+			Binds: []string{
+				volume.Name + ":" + volume.Mountpoint,
+			},
+		},
 		&network.NetworkingConfig{},
 		nil,
 		"",
@@ -392,6 +413,10 @@ func (orchestratorClient *Orchestrator) createTekuContainer() (
 ) {
 	dockerCli := orchestratorClient.assureDockerClient()
 	ctx := context.Background()
+	volume, err := orchestratorClient.getVolume(VolumeName)
+	if nil != err {
+		return
+	}
 	containerBody, err = dockerCli.ContainerCreate(
 		ctx,
 		&container.Config{
@@ -407,7 +432,11 @@ func (orchestratorClient *Orchestrator) createTekuContainer() (
 			Cmd:          tekuArguments,
 			Image:        CatalystImage,
 		},
-		&container.HostConfig{},
+		&container.HostConfig{
+			Binds: []string{
+				volume.Name + ":" + volume.Mountpoint,
+			},
+		},
 		&network.NetworkingConfig{},
 		nil,
 		"",
