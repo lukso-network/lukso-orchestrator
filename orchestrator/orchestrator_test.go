@@ -57,8 +57,12 @@ func TestOrchestrator_Run(t *testing.T) {
 
 }
 
+func TestOrchestrator_LogsFromContainers(t *testing.T) {
+
+}
+
 func stopAllContainers(orchestratorClient *Orchestrator) {
-	containerList, _ := orchestratorClient.findRunningContainerByImage(TekuCatalystImage)
+	containerList, _ := orchestratorClient.findRunningContainerByImage(CatalystImage)
 	timeout, _ := time.ParseDuration("2s")
 
 	// Kill all leftovers

@@ -13,7 +13,8 @@ import (
 )
 
 const (
-	TekuCatalystImage          = "silesiacoin/ssc20-client:v002"
+	CatalystImage              = "silesiacoin/ssc20-client:v002"
+	TekuImage                  = "consensys/teku:latest"
 	CatalystClientName         = "catalyst"
 	CatalystContainerName      = "luksoCatalyst"
 	LuksoContainerNameSelector = "label"
@@ -67,7 +68,7 @@ func (orchestratorClient *Orchestrator) SpinEth1(clientName string) (
 		return
 	}
 
-	err = orchestratorClient.isContainerRunningWithImage(TekuCatalystImage)
+	err = orchestratorClient.isContainerRunningWithImage(CatalystImage)
 
 	if nil != err {
 		return
@@ -95,12 +96,12 @@ func (orchestratorClient *Orchestrator) SpinEth2(clientName string) (
 	orchestratorClient.assureDockerClient()
 
 	if TekuClientName != clientName {
-		err = fmt.Errorf("client %s not supported, valid %s", clientName, CatalystClientName)
+		err = fmt.Errorf("client %s not supported, valid %s", clientName, TekuClientName)
 
 		return
 	}
 
-	err = orchestratorClient.isContainerRunningWithImage(TekuCatalystImage)
+	err = orchestratorClient.isContainerRunningWithImage(TekuImage)
 
 	if nil != err {
 		return
@@ -121,20 +122,67 @@ func (orchestratorClient *Orchestrator) SpinEth2(clientName string) (
 	return
 }
 
-func (orchestratorClient *Orchestrator) Run() (err error) {
-	//TODO: write what must happen here
-	containerList, _ := orchestratorClient.findRunningContainerByImage(TekuCatalystImage)
-	timeout, _ := time.ParseDuration("2s")
+// Run will return err if any of errors happened, and errList with all of the errors that had happened.
+// Best to assume that if errList is not empty run was faulty
+func (orchestratorClient *Orchestrator) Run(timeout *time.Duration) (
+	err error,
+	errList []error,
+	runningContainers []container.ContainerCreateCreatedBody,
+) {
+	errList = make([]error, 0)
+	runningContainers = make([]container.ContainerCreateCreatedBody, 0)
+	err, errList = orchestratorClient.stopTekuCatalystImages(timeout)
 
-	// Kill all leftovers
-	if len(containerList) > 0 {
-		_, _ = orchestratorClient.stopContainers(containerList, &timeout)
+	if nil != err {
+		return
 	}
 
-	_, _ = orchestratorClient.SpinEth1(CatalystClientName)
-	_, _ = orchestratorClient.SpinEth2(TekuClientName)
+	eth1Container, err := orchestratorClient.SpinEth1(CatalystClientName)
+
+	if nil != err {
+		return
+	}
+
+	runningContainers = append(runningContainers, eth1Container)
+	eth2Container, err := orchestratorClient.SpinEth2(TekuClientName)
+
+	if nil != err {
+		return
+	}
+
+	runningContainers = append(runningContainers, eth2Container)
 
 	return
+}
+
+func (orchestratorClient *Orchestrator) LogsFromContainers(
+	containerList []container.ContainerCreateCreatedBody,
+	stopChan chan bool,
+) (err error) {
+	dockerClient := orchestratorClient.assureDockerClient()
+
+	for _, runningContainer := range containerList {
+		go func(stopChan chan bool, runningContainer container.ContainerCreateCreatedBody) {
+			ctx := context.Background()
+			options := types.ContainerLogsOptions{ShowStdout: true}
+			output, err := dockerClient.ContainerLogs(ctx, runningContainer.ID, options)
+
+			if err != nil {
+				fmt.Printf("\n Error occured in container: %s, err: %s", runningContainer.ID, err.Error())
+			}
+
+			defer func() {
+				_ = output.Close()
+			}()
+
+			<-stopChan
+		}(stopChan, runningContainer)
+	}
+
+	select {
+	case <-stopChan:
+		return
+	}
 }
 
 func (orchestratorClient *Orchestrator) isContainerRunningWithImage(imageName string) (err error) {
@@ -145,7 +193,7 @@ func (orchestratorClient *Orchestrator) isContainerRunningWithImage(imageName st
 	}
 
 	if len(imageList) > 0 {
-		err = fmt.Errorf("container from image %s should not be running in docker", TekuCatalystImage)
+		err = fmt.Errorf("container from image %s should not be running in docker", CatalystImage)
 
 		return
 	}
@@ -165,7 +213,7 @@ func (orchestratorClient *Orchestrator) newDockerClient() (dockerCli *client.Cli
 	// This logic will be removed from here, but right now we have common docker image for teku and catalyst
 	// so we pull it once
 	ctx := context.Background()
-	out, err := dockerCli.ImagePull(ctx, TekuCatalystImage, types.ImagePullOptions{})
+	out, err := dockerCli.ImagePull(ctx, CatalystImage, types.ImagePullOptions{})
 
 	if nil != err {
 		return
@@ -248,7 +296,7 @@ func (orchestratorClient *Orchestrator) createCatalystContainer() (
 			StdinOnce:    false,
 			Env:          nil,
 			Cmd:          catalystArguments,
-			Image:        TekuCatalystImage,
+			Image:        CatalystImage,
 			Labels:       map[string]string{LuksoContainerNameSelector: CatalystContainerName},
 		},
 		&container.HostConfig{},
@@ -279,13 +327,35 @@ func (orchestratorClient *Orchestrator) createTekuContainer() (
 			StdinOnce:    false,
 			Env:          nil,
 			Cmd:          tekuArguments,
-			Image:        TekuCatalystImage,
+			Image:        CatalystImage,
 		},
 		&container.HostConfig{},
 		&network.NetworkingConfig{},
 		nil,
 		"",
 	)
+
+	return
+}
+
+func (orchestratorClient *Orchestrator) stopTekuCatalystImages(timeout *time.Duration) (err error, errList []error) {
+	containerList := make([]types.Container, 0)
+	catalystContainerList, err := orchestratorClient.findRunningContainerByImage(CatalystImage)
+
+	if nil != err {
+		return
+	}
+
+	tekuContainerList, err := orchestratorClient.findRunningContainerByImage(TekuClientName)
+
+	if nil != err {
+		return
+	}
+
+	containerList = append(containerList, catalystContainerList...)
+	containerList = append(containerList, tekuContainerList...)
+
+	err, errList = orchestratorClient.stopContainers(catalystContainerList, timeout)
 
 	return
 }

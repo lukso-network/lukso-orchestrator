@@ -1,6 +1,10 @@
 package main
 
-import "github.com/lukso-network/lukso-orchestrator/orchestrator"
+import (
+	"fmt"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator"
+	"time"
+)
 
 func main() {
 	orchestratorClient, err := orchestrator.New(nil)
@@ -9,7 +13,20 @@ func main() {
 		panic(err.Error())
 	}
 
-	err = orchestratorClient.Run()
+	timeout, _ := time.ParseDuration("3s")
+	err, errList, runningContainers := orchestratorClient.Run(&timeout)
+
+	// This will print all encountered errors
+	for _, currentErr := range errList {
+		fmt.Printf("\n Encountered err: %s", currentErr.Error())
+	}
+
+	if nil != err {
+		panic(err.Error())
+	}
+
+	stopChan := make(chan bool)
+	err = orchestratorClient.LogsFromContainers(runningContainers, stopChan)
 
 	if nil != err {
 		panic(err.Error())
