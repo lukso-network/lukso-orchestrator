@@ -209,7 +209,7 @@ func (orchestratorClient *Orchestrator) LogsFromContainers(
 				}
 			}
 
-			//stopChan <- true
+			stopChan <- true
 		}(stopChan, runningContainer)
 	}
 

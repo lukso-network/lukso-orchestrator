@@ -67,6 +67,7 @@ func TestOrchestrator_Run(t *testing.T) {
 	assert.Len(t, runningContainers, 2)
 
 	// This test is very naive, but you should have output in your console from docker images.
+	// It tests by logic if stopSignal works, in other way this would be infinite
 	// TODO: copy stdout and crawl or assume if received informations are received from container
 	t.Run("Should attach logs from containers", func(t *testing.T) {
 		stopChan := make(chan bool)
