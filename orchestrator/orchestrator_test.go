@@ -58,7 +58,7 @@ func TestOrchestrator_Run(t *testing.T) {
 	assert.Nil(t, err)
 	assert.IsType(t, &Orchestrator{}, orchestratorClient)
 
-	timeout, err := time.ParseDuration("2s")
+	timeout, err := time.ParseDuration("10s")
 	assert.Nil(t, err)
 
 	err, errList, runningContainers := orchestratorClient.Run(&timeout)
@@ -66,15 +66,23 @@ func TestOrchestrator_Run(t *testing.T) {
 	assert.Empty(t, errList)
 	assert.Len(t, runningContainers, 2)
 
+	// This test is very naive, but you should have output in your console from docker images.
+	// TODO: copy stdout and crawl or assume if received informations are received from container
+	t.Run("Should attach logs from containers", func(t *testing.T) {
+		stopChan := make(chan bool)
+		go time.AfterFunc(timeout, func() {
+			stopChan <- true
+		})
+
+		err := orchestratorClient.LogsFromContainers(runningContainers, stopChan)
+		assert.Nil(t, err)
+	})
+
 	defer func() {
 		err, errList = orchestratorClient.stopTekuCatalystImages(&timeout)
 		assert.Nil(t, err)
 		assert.Empty(t, errList)
 	}()
-}
-
-func TestOrchestrator_LogsFromContainers(t *testing.T) {
-
 }
 
 func stopAllContainers(orchestratorClient *Orchestrator) {

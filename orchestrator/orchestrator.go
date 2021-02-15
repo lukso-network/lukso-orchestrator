@@ -7,6 +7,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/stdcopy"
 	"io"
 	"os"
 	"time"
@@ -164,10 +165,23 @@ func (orchestratorClient *Orchestrator) LogsFromContainers(
 	for _, runningContainer := range containerList {
 		go func(stopChan chan bool, runningContainer container.ContainerCreateCreatedBody) {
 			ctx := context.Background()
+			statusCh, errCh := dockerClient.ContainerWait(ctx, runningContainer.ID, container.WaitConditionNotRunning)
+
+			select {
+			case err := <-errCh:
+				fmt.Printf("\n Error occured in container: %s, err: %s", runningContainer.ID, err.Error())
+
+				return
+			case <-stopChan:
+				fmt.Printf("\n Received stop signal in container id: %s", runningContainer.ID)
+				return
+			case <-statusCh:
+			}
+
 			options := types.ContainerLogsOptions{ShowStdout: true}
 			output, err := dockerClient.ContainerLogs(ctx, runningContainer.ID, options)
 
-			if err != nil {
+			if nil != err {
 				fmt.Printf("\n Error occured in container: %s, err: %s", runningContainer.ID, err.Error())
 			}
 
@@ -175,7 +189,13 @@ func (orchestratorClient *Orchestrator) LogsFromContainers(
 				_ = output.Close()
 			}()
 
-			<-stopChan
+			_, err = stdcopy.StdCopy(os.Stdout, os.Stderr, output)
+
+			if nil != err {
+				fmt.Printf("\n Error occured in container: %s, err: %s", runningContainer.ID, err.Error())
+			}
+
+			stopChan <- true
 		}(stopChan, runningContainer)
 	}
 
