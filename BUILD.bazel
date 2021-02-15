@@ -3,5 +3,5 @@ load("@bazel_gazelle//:def.bzl", "gazelle")
 gazelle(
     name = "gazelle",
     # you project name here!
-    prefix = "github.com/lukso-orchestrator",
+    prefix = "github.com/lukso-network/lukso-orchestrator",
 )

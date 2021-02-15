@@ -5,7 +5,7 @@ go_library(
     srcs = ["main.go"],
     importpath = "github.com/lukso-network/lukso-orchestrator/tools/spin-up",
     visibility = ["//visibility:private"],
-     deps = ["//tools/spin-up/spinner"],
+    deps = ["//tools/spin-up/spinner"],
 )
 
 go_binary(

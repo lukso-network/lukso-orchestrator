@@ -6,12 +6,12 @@ go_library(
     importpath = "github.com/lukso-network/lukso-orchestrator/tools/spin-up/spinner",
     visibility = ["//visibility:public"],
     deps = [
-        "//vendor/github.com/docker/docker/api/types",
-        "//vendor/github.com/docker/docker/api/types/container",
-        "//vendor/github.com/docker/docker/api/types/network",
-        "//vendor/github.com/docker/docker/api/types/volume",
-        "//vendor/github.com/docker/docker/client",
-        "//vendor/github.com/docker/docker/pkg/stdcopy",
+        "@com_github_docker_docker//api/types",
+        "@com_github_docker_docker//api/types/container",
+        "@com_github_docker_docker//api/types/network",
+        "@com_github_docker_docker//api/types/volume",
+        "@com_github_docker_docker//client",
+        "@com_github_docker_docker//pkg/stdcopy",
     ],
 )
 
@@ -20,7 +20,7 @@ go_test(
     srcs = ["spinner_test.go"],
     embed = [":spinner"],
     deps = [
-        "//vendor/github.com/docker/docker/api/types",
-        "//vendor/github.com/stretchr/testify/assert",
+        "@com_github_docker_docker//api/types",
+        "@com_github_stretchr_testify//assert:go_default_library",
     ],
 )
