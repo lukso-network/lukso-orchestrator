@@ -31,4 +31,9 @@ func main() {
 	if nil != err {
 		panic(err.Error())
 	}
+
+	select {
+	case <-stopChan:
+		fmt.Printf("\n Received stop signal")
+	}
 }

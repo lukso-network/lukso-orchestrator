@@ -29,7 +29,7 @@ var (
 		"--rpcapi", "net,eth,eth2,web3,personal,admin,db,debug,miner,shh,txpool",
 		"--rpccorsdomain", "*",
 		"--rpcaddr", "0.0.0.0",
-		"--verbosity", "5",
+		"--verbosity", "4",
 		"--txpool.processtxs", "--txpool.accountslots", "10000", "--txpool.accountqueue", "20000",
 	}
 
@@ -165,37 +165,51 @@ func (orchestratorClient *Orchestrator) LogsFromContainers(
 	for _, runningContainer := range containerList {
 		go func(stopChan chan bool, runningContainer container.ContainerCreateCreatedBody) {
 			ctx := context.Background()
-			statusCh, errCh := dockerClient.ContainerWait(ctx, runningContainer.ID, container.WaitConditionNotRunning)
+			statusCh, errChan := dockerClient.ContainerWait(ctx, runningContainer.ID, container.WaitConditionNotRunning)
 
 			select {
-			case err := <-errCh:
-				fmt.Printf("\n Error occured in container: %s, err: %s", runningContainer.ID, err.Error())
-
-				return
 			case <-stopChan:
 				fmt.Printf("\n Received stop signal in container id: %s", runningContainer.ID)
 				return
-			case <-statusCh:
+			case err := <-errChan:
+				fmt.Printf(
+					"\n Received error signal in container id: %s, err: %s",
+					runningContainer.ID,
+					err.Error(),
+				)
+				stopChan <- true
+
+				return
+			case status := <-statusCh:
+				fmt.Printf(
+					"\n Received not running signal in container id: %s, statusCode: %d, err: %s",
+					runningContainer.ID,
+					status.StatusCode,
+					status.Error,
+				)
+				stopChan <- true
+
+				return
+			default:
+				options := types.ContainerLogsOptions{ShowStdout: true, ShowStderr: true, Follow: true}
+				output, err := dockerClient.ContainerLogs(ctx, runningContainer.ID, options)
+
+				if nil != err {
+					fmt.Printf("\n Error occured in container: %s, err: %s", runningContainer.ID, err.Error())
+				}
+
+				defer func() {
+					_ = output.Close()
+				}()
+
+				_, err = stdcopy.StdCopy(os.Stdout, os.Stderr, output)
+
+				if nil != err {
+					fmt.Printf("\n Error occured in container: %s, err: %s", runningContainer.ID, err.Error())
+				}
 			}
 
-			options := types.ContainerLogsOptions{ShowStdout: true}
-			output, err := dockerClient.ContainerLogs(ctx, runningContainer.ID, options)
-
-			if nil != err {
-				fmt.Printf("\n Error occured in container: %s, err: %s", runningContainer.ID, err.Error())
-			}
-
-			defer func() {
-				_ = output.Close()
-			}()
-
-			_, err = stdcopy.StdCopy(os.Stdout, os.Stderr, output)
-
-			if nil != err {
-				fmt.Printf("\n Error occured in container: %s, err: %s", runningContainer.ID, err.Error())
-			}
-
-			stopChan <- true
+			//stopChan <- true
 		}(stopChan, runningContainer)
 	}
 
