@@ -71,13 +71,13 @@ func TestOrchestrator_SpinEth2(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	t.Run("Should return error when container is already running", func(t *testing.T) {
-		_, err := orchestratorClient.SpinEth2(TekuClientName)
-		assert.Error(t, err)
-	})
+	// TODO: Maintain or discard this design choice.
+	//t.Run("Should return error when container is already running", func(t *testing.T) {
+	//	_, err := orchestratorClient.SpinEth2(TekuClientName)
+	//	assert.Error(t, err)
+	//})
 }
 
-// TODO: fill this up
 func TestOrchestrator_Run(t *testing.T) {
 	orchestratorClient, err := New(nil)
 	assert.Nil(t, err)
@@ -112,11 +112,26 @@ func TestOrchestrator_Run(t *testing.T) {
 }
 
 func stopAllContainers(orchestratorClient *Orchestrator) {
-	containerList, _ := orchestratorClient.findRunningContainerByImage(CatalystImage)
+	containerList := make([]types.Container, 0)
+	catalystList, err := orchestratorClient.findRunningContainerByImage(CatalystImage)
+
+	if nil != err {
+		panic(err.Error())
+	}
+
+	containerList = append(containerList, catalystList...)
+	tekuList, err := orchestratorClient.findRunningContainerByImage(TekuImage)
+
+	if nil != err {
+		panic(err.Error())
+	}
+
+	containerList = append(containerList, tekuList...)
+
 	timeout, _ := time.ParseDuration("2s")
 
 	// Kill all leftovers
 	if len(containerList) > 0 {
-		_, _ = orchestratorClient.stopContainers(containerList, &timeout)
+		_, _ = orchestratorClient.stopContainers(catalystList, &timeout)
 	}
 }

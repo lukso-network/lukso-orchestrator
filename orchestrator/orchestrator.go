@@ -96,7 +96,7 @@ func (orchestratorClient *Orchestrator) SpinEth1(clientName string) (
 		return
 	}
 
-	err = orchestratorClient.isContainerRunningWithImage(CatalystImage)
+	err = orchestratorClient.guardContainerUniqueness(CatalystImage)
 
 	if nil != err {
 		return
@@ -129,7 +129,9 @@ func (orchestratorClient *Orchestrator) SpinEth2(clientName string) (
 		return
 	}
 
-	err = orchestratorClient.isContainerRunningWithImage(TekuImage)
+	// TODO: This should be handled in other manner. Docker labeling seems most reasonable, or use two separate images
+	// for each other. I leave it as it is (common image). Switch to Teku image, that is not used for now.
+	err = orchestratorClient.guardContainerUniqueness(TekuImage)
 
 	if nil != err {
 		return
@@ -251,7 +253,7 @@ func (orchestratorClient *Orchestrator) LogsFromContainers(
 	}
 }
 
-func (orchestratorClient *Orchestrator) isContainerRunningWithImage(imageName string) (err error) {
+func (orchestratorClient *Orchestrator) guardContainerUniqueness(imageName string) (err error) {
 	imageList, err := orchestratorClient.findRunningContainerByImage(imageName)
 
 	if nil != err {
