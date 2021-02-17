@@ -86,7 +86,7 @@ func (orchestratorClient *Orchestrator) PrepareVolume(name, path string) (
 	return volume, nil
 }
 
-func (orchestratorClient *Orchestrator) SpinEth1(clientName string) (
+func (orchestratorClient *Orchestrator) StartExecutionEngine(clientName string) (
 	containerBody container.ContainerCreateCreatedBody,
 	err error,
 ) {
@@ -117,7 +117,7 @@ func (orchestratorClient *Orchestrator) SpinEth1(clientName string) (
 	return
 }
 
-func (orchestratorClient *Orchestrator) SpinEth2(clientName string) (
+func (orchestratorClient *Orchestrator) StartConsensusEngine(clientName string) (
 	containerBody container.ContainerCreateCreatedBody,
 	err error,
 ) {
@@ -172,14 +172,14 @@ func (orchestratorClient *Orchestrator) Run(timeout *time.Duration) (
 		return
 	}
 
-	eth1Container, err := orchestratorClient.SpinEth1(CatalystClientName)
+	eth1Container, err := orchestratorClient.StartExecutionEngine(CatalystClientName)
 
 	if nil != err {
 		return
 	}
 
 	runningContainers = append(runningContainers, eth1Container)
-	eth2Container, err := orchestratorClient.SpinEth2(TekuClientName)
+	eth2Container, err := orchestratorClient.StartConsensusEngine(TekuClientName)
 
 	if nil != err {
 		return
