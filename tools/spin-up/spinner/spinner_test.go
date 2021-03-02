@@ -31,7 +31,7 @@ func TestOrchestrator_PrepareVolume(t *testing.T) {
 	})
 }
 
-func TestOrchestrator_SpinEth1(t *testing.T) {
+func TestOrchestrator_SpinExecutionEngine(t *testing.T) {
 	orchestratorClient, err := New(nil)
 	assert.Nil(t, err)
 	assert.IsType(t, &Orchestrator{}, orchestratorClient)
@@ -39,22 +39,22 @@ func TestOrchestrator_SpinEth1(t *testing.T) {
 	stopAllContainers(orchestratorClient)
 	defer stopAllContainers(orchestratorClient)
 
-	containerBody, err := orchestratorClient.SpinEth1(CatalystClientName)
+	containerBody, err := orchestratorClient.SpinExecutionEngine(CatalystClientName)
 	assert.Nil(t, err)
 	assert.Len(t, containerBody.ID, 64)
 
 	t.Run("Should return error when client is not supported", func(t *testing.T) {
-		_, err := orchestratorClient.SpinEth1("Dummy")
+		_, err := orchestratorClient.SpinExecutionEngine("Dummy")
 		assert.Error(t, err)
 	})
 
 	t.Run("Should return error when container is already running", func(t *testing.T) {
-		_, err := orchestratorClient.SpinEth1(CatalystClientName)
+		_, err := orchestratorClient.SpinExecutionEngine(CatalystClientName)
 		assert.Error(t, err)
 	})
 }
 
-func TestOrchestrator_SpinEth2(t *testing.T) {
+func TestOrchestrator_SpinConsensusEngine(t *testing.T) {
 	orchestratorClient, err := New(nil)
 	assert.Nil(t, err)
 	assert.IsType(t, &Orchestrator{}, orchestratorClient)
@@ -62,18 +62,18 @@ func TestOrchestrator_SpinEth2(t *testing.T) {
 	stopAllContainers(orchestratorClient)
 	defer stopAllContainers(orchestratorClient)
 
-	containerBody, err := orchestratorClient.SpinEth2(TekuClientName)
+	containerBody, err := orchestratorClient.SpinConsensusEngine(TekuClientName)
 	assert.Nil(t, err)
 	assert.Len(t, containerBody.ID, 64)
 
 	t.Run("Should return error when client is not supported", func(t *testing.T) {
-		_, err := orchestratorClient.SpinEth2("Dummy")
+		_, err := orchestratorClient.SpinConsensusEngine("Dummy")
 		assert.Error(t, err)
 	})
 
 	// TODO: Maintain or discard this design choice.
 	//t.Run("Should return error when container is already running", func(t *testing.T) {
-	//	_, err := orchestratorClient.SpinEth2(TekuClientName)
+	//	_, err := orchestratorClient.SpinConsensusEngine(TekuClientName)
 	//	assert.Error(t, err)
 	//})
 }
