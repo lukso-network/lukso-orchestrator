@@ -1,5 +1,5 @@
 package main
 
-//import "github.com/sirupsen/logrus"
+//import "github.com/Sirupsen/logrus"
 //
 //var log = logrus.WithField("prefix", "main")
