@@ -35,7 +35,7 @@ type Service struct {
 	sortedSlots              []types.Slot
 	genesisTime              uint64
 	secondsPerSlot           uint64
-	isEpochProcessed        map[types.Epoch]bool
+	isEpochProcessed         map[types.Epoch]bool
 }
 
 type Config struct {
@@ -58,7 +58,7 @@ func NewService(ctx context.Context, pandoraHttpEndpoint string, vanguardHttpEnd
 		secondsPerSlot:           6,
 		genesisTime:              genesisTime,
 		sortedSlots:              make([]types.Slot, 64),
-		isEpochProcessed:        make(map[types.Epoch]bool),
+		isEpochProcessed:         make(map[types.Epoch]bool),
 	}, nil
 }
 

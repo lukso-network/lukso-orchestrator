@@ -16,13 +16,13 @@ var (
 	}
 
 	PandoraRPCEndpoint = &cli.StringFlag{
-		Name: "pandora-rpc-endpoint",
+		Name:  "pandora-rpc-endpoint",
 		Usage: "Pandora node RP provider endpoint(Default: http://127.0.0.1:8545",
 		Value: "http://127.0.0.1:8545",
 	}
 
-	GenesisTime = &cli.Uint64Flag {
-		Name: "genesis-time",
+	GenesisTime = &cli.Uint64Flag{
+		Name:  "genesis-time",
 		Usage: "Genesis time of the network",
 		Value: uint64(Now),
 	}

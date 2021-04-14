@@ -5,9 +5,9 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/shared/cmd"
 	"github.com/lukso-network/lukso-orchestrator/shared/version"
 	"github.com/sirupsen/logrus"
-	runtimeDebug "runtime/debug"
 	"github.com/urfave/cli/v2"
 	"os"
+	runtimeDebug "runtime/debug"
 )
 
 var appFlags = []cli.Flag{
