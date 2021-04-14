@@ -15,6 +15,8 @@ import (
 const (
 	// ConsensusInfosCacheSize with 1024 consensus infos will be 1.5MB.
 	ConsensusInfosCacheSize = 1 << 10
+	// HeaderHashesCacheSize with
+	HeaderHashesCacheSize = 1 << 20
 	// OrchestratorNodeDbDirName is the name of the directory containing the orchestrator node database.
 	OrchestratorNodeDbDirName = "orchestrator"
 	// DatabaseFileName is the name of the orchestrator node database.
@@ -34,7 +36,10 @@ type Store struct {
 	db                 *bolt.DB
 	databasePath       string
 	consensusInfoCache *ristretto.Cache
+	panHeaderCache     *ristretto.Cache
 	latestEpoch        uint64
+	latestPanSlot      uint64
+	latestPanBlockNum  uint64
 }
 
 // NewKVStore initializes a new boltDB key-value store at the directory
@@ -68,8 +73,17 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 	boltDB.AllocSize = boltAllocSize
 	consensusInfoCache, err := ristretto.NewCache(&ristretto.Config{
 		NumCounters: 1000,                    // number of keys to track frequency of (1000).
-		MaxCost:     ConsensusInfosCacheSize, // maximum cost of cache (1000 Blocks).
+		MaxCost:     ConsensusInfosCacheSize, // maximum cost of cache (1000 consensus info).
 		BufferItems: 64,                      // number of keys per Get buffer.
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	panHeaderCache, err := ristretto.NewCache(&ristretto.Config{
+		NumCounters: 1000,                  // number of keys to track frequency of (1000).
+		MaxCost:     HeaderHashesCacheSize, // maximum cost of cache (1000 headers).
+		BufferItems: 64,                    // number of keys per Get buffer.
 	})
 	if err != nil {
 		return nil, err
@@ -80,14 +94,15 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 		db:                 boltDB,
 		databasePath:       dirPath,
 		consensusInfoCache: consensusInfoCache,
+		panHeaderCache:     panHeaderCache,
 	}
 
 	if err := kv.db.Update(func(tx *bolt.Tx) error {
 		return createBuckets(
 			tx,
 			consensusInfosBucket,
-			pandoraHeadersBucket,
-			vanguardHeadersBucket,
+			pandoraHeaderHashesBucket,
+			vanguardHeaderHashesBucket,
 		)
 	}); err != nil {
 		return nil, err

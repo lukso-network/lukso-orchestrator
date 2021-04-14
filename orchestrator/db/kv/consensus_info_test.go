@@ -6,7 +6,6 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/require"
 	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
-	types "github.com/prysmaticlabs/eth2-types"
 	"math/rand"
 	"testing"
 )
@@ -15,16 +14,16 @@ func TestStore_ConsensusInfo_RetrieveByEpoch_FromCache(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	db := setupDB(t, true)
-	totalConsensusInfos := make([]*eventTypes.MinimalEpochConsensusInfo, 500)
-	for i := 0; i < 500; i++ {
-		consensusInfo := testutil.NewMinimalConsensusInfo(types.Epoch(i))
+	totalConsensusInfos := make([]*eventTypes.MinimalEpochConsensusInfo, 50)
+	for i := 0; i < 50; i++ {
+		consensusInfo := testutil.NewMinimalConsensusInfo(uint64(i))
 		totalConsensusInfos[i] = consensusInfo
 		require.NoError(t, db.SaveConsensusInfo(ctx, consensusInfo))
 	}
 
-	retrievedConsensusInfo, err := db.ConsensusInfo(ctx, 499)
+	retrievedConsensusInfo, err := db.ConsensusInfo(ctx, 49)
 	require.NoError(t, err)
-	assert.DeepEqual(t, totalConsensusInfos[499], retrievedConsensusInfo)
+	assert.DeepEqual(t, totalConsensusInfos[49], retrievedConsensusInfo)
 }
 
 func TestStore_ConsensusInfo_RetrieveByEpoch_FromDB(t *testing.T) {
@@ -33,7 +32,7 @@ func TestStore_ConsensusInfo_RetrieveByEpoch_FromDB(t *testing.T) {
 	db := setupDB(t, true)
 	totalConsensusInfos := make([]*eventTypes.MinimalEpochConsensusInfo, 2000)
 	for i := 0; i < 2000; i++ {
-		consensusInfo := testutil.NewMinimalConsensusInfo(types.Epoch(i))
+		consensusInfo := testutil.NewMinimalConsensusInfo(uint64(i))
 		totalConsensusInfos[i] = consensusInfo
 		require.NoError(t, db.SaveConsensusInfo(ctx, consensusInfo))
 	}
@@ -48,7 +47,7 @@ func TestStore_SaveConsensusInfo_AlreadyExist(t *testing.T) {
 	ctx := context.Background()
 	db := setupDB(t, true)
 
-	consensusInfo := testutil.NewMinimalConsensusInfo(types.Epoch(0))
+	consensusInfo := testutil.NewMinimalConsensusInfo(0)
 	require.NoError(t, db.SaveConsensusInfo(ctx, consensusInfo))
 	// again try to store same consensusInfo into cache and db
 	require.NoError(t, db.SaveConsensusInfo(ctx, consensusInfo))
@@ -58,27 +57,26 @@ func TestStore_ConsensusInfos_RetrieveByEpoch(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	db := setupDB(t, true)
-	db.latestEpoch = 1999
-	totalConsensusInfos := make([]*eventTypes.MinimalEpochConsensusInfo, 2000)
+	db.latestEpoch = 199
+	totalConsensusInfos := make([]*eventTypes.MinimalEpochConsensusInfo, 200)
 
-	for i := 0; i < 2000; i++ {
-		consensusInfo := testutil.NewMinimalConsensusInfo(types.Epoch(i))
+	for i := 0; i < 200; i++ {
+		consensusInfo := testutil.NewMinimalConsensusInfo(uint64(i))
 		totalConsensusInfos[i] = consensusInfo
 		require.NoError(t, db.SaveConsensusInfo(ctx, consensusInfo))
 	}
 
-	retrievedConsensusInfos, err := db.ConsensusInfos(ctx, 100)
+	retrievedConsensusInfos, err := db.ConsensusInfos(10)
 	require.NoError(t, err)
-	assert.DeepEqual(t, totalConsensusInfos[100:], retrievedConsensusInfos)
+	assert.DeepEqual(t, totalConsensusInfos[10:], retrievedConsensusInfos)
 }
 
 // TestStore_LatestSavedEpoch_ForFirstTime
 func TestStore_LatestSavedEpoch_ForFirstTime(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
 	db := setupDB(t, true)
 
-	latestEpoch, err := db.LatestSavedEpoch(ctx)
+	latestEpoch, err := db.LatestSavedEpoch()
 	require.NoError(t, err)
 	assert.Equal(t, db.latestEpoch, latestEpoch)
 }
@@ -94,7 +92,7 @@ func TestStore_SaveLatestSavedEpoch_RetrieveLatestEpoch(t *testing.T) {
 	require.NoError(t, db.SaveLatestEpoch(ctx))
 
 	// LatestSavedEpoch is called when db is going up
-	latestEpoch, err := db.LatestSavedEpoch(ctx)
+	latestEpoch, err := db.LatestSavedEpoch()
 	require.NoError(t, err)
 	assert.Equal(t, db.latestEpoch, latestEpoch)
 }
@@ -109,7 +107,6 @@ func TestDB_Close_Success(t *testing.T) {
 
 func TestStore_LatestEpoch_ClosingDB_OpeningDB(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
 	db := setupDB(t, false)
 	prevLatestEpoch := rand.Uint64()
 	db.latestEpoch = prevLatestEpoch
@@ -118,7 +115,7 @@ func TestStore_LatestEpoch_ClosingDB_OpeningDB(t *testing.T) {
 	restartedDB := setupDB(t, false)
 
 	// LatestSavedEpoch is called when db is going up
-	latestEpoch, err := restartedDB.LatestSavedEpoch(ctx)
+	latestEpoch, err := restartedDB.LatestSavedEpoch()
 	require.NoError(t, err)
 	assert.Equal(t, prevLatestEpoch, latestEpoch)
 }
