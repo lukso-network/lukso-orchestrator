@@ -57,12 +57,12 @@ type EventSystem struct {
 	lastEpoch *eth2Types.Epoch
 
 	// Subscriptions
-	consensusInfoSub    event.Subscription // Subscription for new epoch validator list
+	consensusInfoSub event.Subscription // Subscription for new epoch validator list
 
 	// Channels
-	install       		chan *subscription                 // install filter for event notification
-	uninstall     		chan *subscription               // remove filter for event notification
-	consensusInfoCh     chan *types.MinConsensusInfoEvent // Channel to receive new new consensus info event
+	install         chan *subscription                // install filter for event notification
+	uninstall       chan *subscription                // remove filter for event notification
+	consensusInfoCh chan *types.MinConsensusInfoEvent // Channel to receive new new consensus info event
 }
 
 // NewEventSystem creates a new manager that listens for event on the given mux,
@@ -73,10 +73,10 @@ type EventSystem struct {
 // or by stopping the given mux.
 func NewEventSystem(backend Backend, lightMode bool) *EventSystem {
 	m := &EventSystem{
-		backend:       	backend,
-		install:       	make(chan *subscription),
-		uninstall:     	make(chan *subscription),
-		consensusInfoCh:make(chan *types.MinConsensusInfoEvent, 1),
+		backend:         backend,
+		install:         make(chan *subscription),
+		uninstall:       make(chan *subscription),
+		consensusInfoCh: make(chan *types.MinConsensusInfoEvent, 1),
 	}
 
 	// Subscribe events
@@ -150,7 +150,7 @@ func (es *EventSystem) SubscribeConsensusInfo(consensusInfo chan *types.MinConse
 
 type filterIndex map[Type]map[rpc.ID]*subscription
 
-func (es *EventSystem) handleEpochEvent(filters filterIndex, ev *types.MinConsensusInfoEvent) {
+func (es *EventSystem) handleConsensusInfoEvent(filters filterIndex, ev *types.MinConsensusInfoEvent) {
 	for _, f := range filters[MinConsensusInfoSubscription] {
 		f.consensusInfo <- ev
 	}
@@ -171,7 +171,7 @@ func (es *EventSystem) eventLoop() {
 	for {
 		select {
 		case ev := <-es.consensusInfoCh:
-			es.handleEpochEvent(index, ev)
+			es.handleConsensusInfoEvent(index, ev)
 		case f := <-es.install:
 			index[f.typ][f.id] = f
 			close(f.installed)

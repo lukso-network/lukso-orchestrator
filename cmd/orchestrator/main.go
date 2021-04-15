@@ -15,6 +15,15 @@ var appFlags = []cli.Flag{
 	cmd.PandoraRPCEndpoint,
 	cmd.GenesisTime,
 	cmd.VerbosityFlag,
+	cmd.IPCDisabledFlag,
+	cmd.HTTPEnabledFlag,
+	cmd.HTTPListenAddrFlag,
+	cmd.HTTPPortFlag,
+	cmd.HTTPCORSDomainFlag,
+	cmd.HTTPVirtualHostsFlag,
+	cmd.WSEnabledFlag,
+	cmd.WSListenAddrFlag,
+	cmd.WSPortFlag,
 }
 
 func init() {

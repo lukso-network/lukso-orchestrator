@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/epochextractor"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc"
 	"github.com/lukso-network/lukso-orchestrator/shared"
 	"github.com/lukso-network/lukso-orchestrator/shared/cmd"
 	"github.com/lukso-network/lukso-orchestrator/shared/version"
@@ -36,7 +37,11 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 		services: registry,
 		stop:     make(chan struct{}),
 	}
-	if err := orchestrator.registerEpochExtractor(cliCtx); err != nil {
+	//if err := orchestrator.registerEpochExtractor(cliCtx); err != nil {
+	//	return nil, err
+	//}
+
+	if err := orchestrator.registerRPCService(cliCtx); err != nil {
 		return nil, err
 	}
 	return orchestrator, nil
@@ -52,6 +57,32 @@ func (o *OrchestratorNode) registerEpochExtractor(cliCtx *cli.Context) error {
 		"vanguardHttpUrl", vanguardHttpUrl).WithField("genesisTime", genesisTime).Debug("flag values")
 
 	svc, err := epochextractor.NewService(o.ctx, pandoraHttpUrl, vanguardHttpUrl, genesisTime)
+	if err != nil {
+		return nil
+	}
+	return o.services.RegisterService(svc)
+}
+
+// register RPC server
+func (o *OrchestratorNode) registerRPCService(cliCtx *cli.Context) error {
+	log.Info("Registering rpc server")
+	httpEnable := cliCtx.Bool(cmd.HTTPEnabledFlag.Name)
+	httpListenAddr := cliCtx.String(cmd.HTTPListenAddrFlag.Name)
+	httpPort := cliCtx.Int(cmd.HTTPPortFlag.Name)
+	wsEnable := cliCtx.Bool(cmd.WSEnabledFlag.Name)
+	wsListenerAddr := cliCtx.String(cmd.WSListenAddrFlag.Name)
+	wsPort := cliCtx.Int(cmd.WSPortFlag.Name)
+
+	log.WithField("httpEnable", httpEnable).WithField("httpListenAddr", httpListenAddr).WithField(
+		"httpPort", httpPort).WithField("wsEnable", wsEnable).WithField(
+		"wsListenerAddr", wsListenerAddr).WithField("wsPort", wsPort).Debug("rpc server configuration")
+
+	svc, err := rpc.NewService(o.ctx, &rpc.Config{
+		HTTPHost: httpListenAddr,
+		HTTPPort: httpPort,
+		WSHost:   wsListenerAddr,
+		WSPort:   wsPort,
+	})
 	if err != nil {
 		return nil
 	}

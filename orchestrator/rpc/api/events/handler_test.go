@@ -4,7 +4,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
-    eth2Types "github.com/prysmaticlabs/eth2-types"
+	eth2Types "github.com/prysmaticlabs/eth2-types"
 	"math/rand"
 	"strconv"
 	"testing"
@@ -16,12 +16,12 @@ var (
 )
 
 type testBackend struct {
-	mux             	*event.TypeMux
-	sections        	uint64
-	consensusInfoFeed   event.Feed
+	mux               *event.TypeMux
+	sections          uint64
+	consensusInfoFeed event.Feed
 }
 
-func(b *testBackend) SubscribeNewEpochEvent(ch chan<- *types.MinConsensusInfoEvent) event.Subscription {
+func (b *testBackend) SubscribeNewEpochEvent(ch chan<- *types.MinConsensusInfoEvent) event.Subscription {
 	return b.consensusInfoFeed.Subscribe(ch)
 }
 
@@ -34,8 +34,8 @@ func TestMinimalConsensusInfoSubscription(t *testing.T) {
 	t.Parallel()
 
 	var (
-		backend     		= &testBackend{}
-		api         		= NewPublicFilterAPI(backend, false, deadline)
+		backend             = &testBackend{}
+		api                 = NewPublicFilterAPI(backend, false, deadline)
 		consensusInfoEvents = []*types.MinConsensusInfoEvent{}
 	)
 
@@ -53,9 +53,9 @@ func TestMinimalConsensusInfoSubscription(t *testing.T) {
 
 		consensusInfoEvents = append(consensusInfoEvents,
 			&types.MinConsensusInfoEvent{
-				Epoch: epoch,
-				ValidatorList: validatorList,
-				EpochStartTime: epochStartTime,
+				Epoch:            epoch,
+				ValidatorList:    validatorList,
+				EpochStartTime:   epochStartTime,
 				SlotTimeDuration: slotTimeDuration,
 			})
 	}
@@ -94,4 +94,3 @@ func TestMinimalConsensusInfoSubscription(t *testing.T) {
 	<-sub0.Err()
 	<-sub1.Err()
 }
-
