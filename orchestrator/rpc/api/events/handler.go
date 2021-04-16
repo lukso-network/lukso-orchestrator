@@ -10,10 +10,6 @@ import (
 	"time"
 )
 
-type Backend interface {
-	SubscribeNewEpochEvent(chan<- *types.MinConsensusInfoEvent) event.Subscription
-}
-
 // Type determines the kind of filter and is used to put the filter in to
 // the correct bucket when added.
 type Type byte

@@ -2,26 +2,18 @@ package rpc
 
 import (
 	"context"
-	"github.com/ethereum/go-ethereum/event"
 	eth1Log "github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/epochextractor"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
-	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	"sync"
 	"time"
 )
 
-type DummyBackend struct {
-	mux               *event.TypeMux
-	sections          uint64
-	consensusInfoFeed event.Feed
-}
-
-func (b *DummyBackend) SubscribeNewEpochEvent(ch chan<- *types.MinConsensusInfoEvent) event.Subscription {
-	return b.consensusInfoFeed.Subscribe(ch)
-}
-
 type Config struct {
+	EpochExpractor epochextractor.EpochExtractor
+
 	// ipc config
 	IPCPath string
 
@@ -50,6 +42,7 @@ type Service struct {
 	log            eth1Log.Logger
 	stop           chan struct{} // Channel to wait for termination notifications
 
+	backend       *api.APIBackend
 	config        *Config
 	rpcAPIs       []rpc.API   // List of APIs currently provided by the node
 	http          *httpServer //
@@ -68,6 +61,7 @@ func NewService(ctx context.Context, cfg *Config) (*Service, error) {
 		log:           eth1Log.New(ctx),
 		config:        cfg,
 		inprocHandler: rpc.NewServer(),
+		backend:       &api.APIBackend{EpochExtractor: cfg.EpochExpractor},
 	}
 	// Configure RPC servers.
 	service.rpcAPIs = service.APIs()
@@ -153,7 +147,7 @@ func (s *Service) startRPC() error {
 		server := s.wsServerForPort(s.config.WSPort)
 		config := wsConfig{
 			Modules: nil,
-			Origins: nil,
+			Origins: []string{"*"},
 			prefix:  "",
 		}
 		if err := server.setListenAddr(s.config.WSHost, s.config.WSPort); err != nil {
@@ -215,7 +209,7 @@ func (s *Service) APIs() []rpc.API {
 		{
 			Namespace: "orc",
 			Version:   "1.0",
-			Service:   events.NewPublicFilterAPI(&DummyBackend{}, false, 5*time.Minute),
+			Service:   events.NewPublicFilterAPI(s.backend, false, 5*time.Minute),
 			Public:    true,
 		},
 	}

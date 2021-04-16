@@ -9,6 +9,7 @@
 
 # Ignore binary
 cmd/orchestrator/orchestrator
+cmd/subscriber/subscriber
 
 # Dist files
 dist

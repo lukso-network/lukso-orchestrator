@@ -37,9 +37,9 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 		services: registry,
 		stop:     make(chan struct{}),
 	}
-	//if err := orchestrator.registerEpochExtractor(cliCtx); err != nil {
-	//	return nil, err
-	//}
+	if err := orchestrator.registerEpochExtractor(cliCtx); err != nil {
+		return nil, err
+	}
 
 	if err := orchestrator.registerRPCService(cliCtx); err != nil {
 		return nil, err
@@ -66,6 +66,12 @@ func (o *OrchestratorNode) registerEpochExtractor(cliCtx *cli.Context) error {
 // register RPC server
 func (o *OrchestratorNode) registerRPCService(cliCtx *cli.Context) error {
 	log.Info("Registering rpc server")
+
+	var epochExtractorService *epochextractor.Service
+	if err := o.services.FetchService(&epochExtractorService); err != nil {
+		return err
+	}
+
 	httpEnable := cliCtx.Bool(cmd.HTTPEnabledFlag.Name)
 	httpListenAddr := cliCtx.String(cmd.HTTPListenAddrFlag.Name)
 	httpPort := cliCtx.Int(cmd.HTTPPortFlag.Name)
@@ -78,10 +84,11 @@ func (o *OrchestratorNode) registerRPCService(cliCtx *cli.Context) error {
 		"wsListenerAddr", wsListenerAddr).WithField("wsPort", wsPort).Debug("rpc server configuration")
 
 	svc, err := rpc.NewService(o.ctx, &rpc.Config{
-		HTTPHost: httpListenAddr,
-		HTTPPort: httpPort,
-		WSHost:   wsListenerAddr,
-		WSPort:   wsPort,
+		EpochExpractor: epochExtractorService,
+		HTTPHost:       httpListenAddr,
+		HTTPPort:       httpPort,
+		WSHost:         wsListenerAddr,
+		WSPort:         wsPort,
 	})
 	if err != nil {
 		return nil

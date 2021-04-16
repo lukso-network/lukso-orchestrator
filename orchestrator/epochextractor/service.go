@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/event"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/epochextractor/pandora"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/epochextractor/vanguard"
+	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
 	types "github.com/prysmaticlabs/eth2-types"
 	ethpb "github.com/prysmaticlabs/ethereumapis/eth/v1alpha1"
 	"sort"
@@ -36,6 +38,10 @@ type Service struct {
 	genesisTime              uint64
 	secondsPerSlot           uint64
 	isEpochProcessed         map[types.Epoch]bool
+
+	// subscription
+	consensusInfoFeed event.Feed
+	scope             event.SubscriptionScope
 }
 
 type Config struct {
@@ -83,6 +89,7 @@ func (s *Service) Stop() error {
 	if s.cancel != nil {
 		defer s.cancel()
 	}
+	s.scope.Close()
 	s.closeClients()
 	return nil
 }
@@ -113,13 +120,12 @@ func (s *Service) closeClients() {
 }
 
 func (s *Service) waitForConnection() {
-	err := s.connectToPandoraChain()
-	if err == nil {
-		s.connectedPandora = true
-	}
+	var err error
+	//if err = s.connectToPandoraChain(); err == nil {
+	//	s.connectedPandora = true
+	//}
 
-	err = s.connectToVanguardChain()
-	if err == nil {
+	if err = s.connectToVanguardChain(); err == nil {
 		s.connectedVanguard = true
 		return
 	}
@@ -131,15 +137,14 @@ func (s *Service) waitForConnection() {
 		select {
 		case <-ticker.C:
 			log.Debugf("Trying to dial pandora and vanguard endpoint: %s and %s", s.pandoraHttpEndpoint, s.vanguardHttpEndpoint)
-			errConnect := s.connectToPandoraChain()
-			if errConnect != nil {
-				log.Debug("Could not connect to pandora endpoint")
-				s.runError = errConnect
-				continue
-			}
-
-			errConnect = s.connectToVanguardChain()
-			if errConnect != nil {
+			var errConnect error
+			//if errConnect = s.connectToPandoraChain(); errConnect != nil {
+			//	log.Debug("Could not connect to pandora endpoint")
+			//	s.runError = errConnect
+			//	continue
+			//}
+			//
+			if errConnect = s.connectToVanguardChain(); errConnect != nil {
 				log.Debug("Could not connect to vanguard endpoint")
 				s.runError = errConnect
 				continue
@@ -292,13 +297,33 @@ func (s *Service) sendConsensusInfoToPandora(isBootstrapping bool) error {
 		log.WithField("epoch", s.curEpoch).WithField(
 			"curEpochProposerPubKeys", s.curEpochProposerPubKeys).Debug(
 			"Before sending consensus info to pandora in bootstrapping")
-		status, err = s.pandoraClient.InsertConsensusInfo(s.ctx, s.curEpoch, s.curEpochProposerPubKeys, curEpochStart)
+		//status, err = s.pandoraClient.InsertConsensusInfo(s.ctx, s.curEpoch, s.curEpochProposerPubKeys, curEpochStart)
+
+		// prepare minimal consensus info for event subscribers
+		minimalConsensusInfo := &eventTypes.MinConsensusInfoEvent{
+			Epoch:            s.curEpoch,
+			ValidatorList:    s.curEpochProposerPubKeys,
+			EpochStartTime:   curEpochStart,
+			SlotTimeDuration: s.secondsPerSlot,
+		}
+		// Sending consensusInfo to event subscribers
+		s.consensusInfoFeed.Send(minimalConsensusInfo)
 	} else {
 		nextEpochStart := s.genesisTime + uint64(s.nextEpoch.Mul(s.secondsPerSlot*32))
 		log.WithField("epoch", s.nextEpoch).WithField(
 			"nextEpochProposerPubKeys", s.nextEpochProposerPubKeys).Debug(
 			"Before sending consensus info to pandora")
-		status, err = s.pandoraClient.InsertConsensusInfo(s.ctx, s.nextEpoch, s.nextEpochProposerPubKeys, nextEpochStart)
+		//status, err = s.pandoraClient.InsertConsensusInfo(s.ctx, s.nextEpoch, s.nextEpochProposerPubKeys, nextEpochStart)
+
+		// prepare minimal consensus info for event subscribers
+		minimalConsensusInfo := &eventTypes.MinConsensusInfoEvent{
+			Epoch:            s.nextEpoch,
+			ValidatorList:    s.nextEpochProposerPubKeys,
+			EpochStartTime:   nextEpochStart,
+			SlotTimeDuration: s.secondsPerSlot,
+		}
+		// Sending consensusInfo to event subscribers
+		s.consensusInfoFeed.Send(minimalConsensusInfo)
 	}
 
 	if err != nil {
@@ -371,4 +396,9 @@ func (s *Service) connectToVanguardChain() error {
 		return err
 	}
 	return nil
+}
+
+// SubscribeChainHeadEvent registers a subscription of ChainHeadEvent.
+func (s *Service) SubscribeMinConsensusInfoEvent(ch chan<- *eventTypes.MinConsensusInfoEvent) event.Subscription {
+	return s.scope.Track(s.consensusInfoFeed.Subscribe(ch))
 }
