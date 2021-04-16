@@ -5,11 +5,14 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
+	types "github.com/prysmaticlabs/eth2-types"
 	"sync"
 	"time"
 )
 
 type Backend interface {
+	CurrentEpoch() types.Epoch
+	ConsensusInfoByEpochRange(fromEpoch, toEpoch types.Epoch) map[types.Epoch]*eventTypes.MinConsensusInfoEvent
 	SubscribeNewEpochEvent(chan<- *eventTypes.MinConsensusInfoEvent) event.Subscription
 }
 
@@ -76,7 +79,7 @@ func (api *PublicFilterAPI) timeoutLoop(timeout time.Duration) {
 	}
 }
 
-func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context) (*rpc.Subscription, error) {
+func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, epoch types.Epoch) (*rpc.Subscription, error) {
 	notifier, supported := rpc.NotifierFromContext(ctx)
 	if !supported {
 		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported
@@ -85,7 +88,8 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context) (*rpc.Subs
 
 	go func() {
 		consensusInfo := make(chan *eventTypes.MinConsensusInfoEvent)
-		consensusInfoSub := api.events.SubscribeConsensusInfo(consensusInfo)
+		consensusInfoSub := api.events.SubscribeConsensusInfo(consensusInfo, epoch)
+		log.WithField("fromEpoch", epoch).Debug("successfully requested new subscriber")
 
 		for {
 			select {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/epochextractor/pandora"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/epochextractor/vanguard"
 	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
@@ -40,8 +41,9 @@ type Service struct {
 	isEpochProcessed         map[types.Epoch]bool
 
 	// subscription
-	consensusInfoFeed event.Feed
-	scope             event.SubscriptionScope
+	consensusInfoFeed  event.Feed
+	scope              event.SubscriptionScope
+	consensusInfoCache *cache.ConsensusInfoCache
 }
 
 type Config struct {
@@ -65,6 +67,7 @@ func NewService(ctx context.Context, pandoraHttpEndpoint string, vanguardHttpEnd
 		genesisTime:              genesisTime,
 		sortedSlots:              make([]types.Slot, 64),
 		isEpochProcessed:         make(map[types.Epoch]bool),
+		consensusInfoCache:       cache.NewConsensusInfoCache(),
 	}, nil
 }
 
@@ -306,6 +309,7 @@ func (s *Service) sendConsensusInfoToPandora(isBootstrapping bool) error {
 			EpochStartTime:   curEpochStart,
 			SlotTimeDuration: s.secondsPerSlot,
 		}
+		s.consensusInfoCache.AddConsensusInfoCache(s.curEpoch, minimalConsensusInfo)
 		// Sending consensusInfo to event subscribers
 		s.consensusInfoFeed.Send(minimalConsensusInfo)
 	} else {
@@ -322,6 +326,7 @@ func (s *Service) sendConsensusInfoToPandora(isBootstrapping bool) error {
 			EpochStartTime:   nextEpochStart,
 			SlotTimeDuration: s.secondsPerSlot,
 		}
+		s.consensusInfoCache.AddConsensusInfoCache(s.nextEpoch, minimalConsensusInfo)
 		// Sending consensusInfo to event subscribers
 		s.consensusInfoFeed.Send(minimalConsensusInfo)
 	}
@@ -401,4 +406,21 @@ func (s *Service) connectToVanguardChain() error {
 // SubscribeChainHeadEvent registers a subscription of ChainHeadEvent.
 func (s *Service) SubscribeMinConsensusInfoEvent(ch chan<- *eventTypes.MinConsensusInfoEvent) event.Subscription {
 	return s.scope.Track(s.consensusInfoFeed.Subscribe(ch))
+}
+
+// CurrentEpoch
+func (s *Service) CurrentEpoch() types.Epoch {
+	s.processingLock.Lock()
+	defer s.processingLock.Unlock()
+	epoch := s.nextEpoch
+	return epoch
+}
+
+// ConsensusInfoByEpochRange
+func (s *Service) ConsensusInfoByEpochRange(
+	fromEpoch,
+	toEpoch types.Epoch,
+) map[types.Epoch]*eventTypes.MinConsensusInfoEvent {
+
+	return s.consensusInfoCache.ConsensusInfoByEpochRange(fromEpoch, toEpoch)
 }

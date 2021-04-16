@@ -38,11 +38,14 @@ const (
 )
 
 type subscription struct {
-	id            rpc.ID
-	typ           Type
-	created       time.Time
-	installed     chan struct{} // closed when the filter is installed
-	err           chan error    // closed when the filter is uninstalled
+	id        rpc.ID
+	typ       Type
+	created   time.Time
+	installed chan struct{} // closed when the filter is installed
+	err       chan error    // closed when the filter is uninstalled
+
+	isNew         bool
+	epoch         eth2Types.Epoch // last served epoch number
 	consensusInfo chan *types.MinConsensusInfoEvent
 }
 
@@ -132,11 +135,13 @@ func (es *EventSystem) subscribe(sub *subscription) *Subscription {
 
 // SubscribePendingTxs creates a subscription that writes transaction hashes for
 // transactions that enter the transaction pool.
-func (es *EventSystem) SubscribeConsensusInfo(consensusInfo chan *types.MinConsensusInfoEvent) *Subscription {
+func (es *EventSystem) SubscribeConsensusInfo(consensusInfo chan *types.MinConsensusInfoEvent, epoch eth2Types.Epoch) *Subscription {
 	sub := &subscription{
 		id:            rpc.NewID(),
 		typ:           MinConsensusInfoSubscription,
 		created:       time.Now(),
+		isNew:         true,
+		epoch:         epoch,
 		consensusInfo: consensusInfo,
 		installed:     make(chan struct{}),
 		err:           make(chan error),
@@ -148,6 +153,11 @@ type filterIndex map[Type]map[rpc.ID]*subscription
 
 func (es *EventSystem) handleConsensusInfoEvent(filters filterIndex, ev *types.MinConsensusInfoEvent) {
 	for _, f := range filters[MinConsensusInfoSubscription] {
+		if f.isNew {
+			es.sendConsensusInfo(f, ev)
+			f.isNew = false
+			continue
+		}
 		f.consensusInfo <- ev
 	}
 }
@@ -178,6 +188,30 @@ func (es *EventSystem) eventLoop() {
 		// System stopped
 		case <-es.consensusInfoSub.Err():
 			return
+		}
+	}
+}
+
+// sendConsensusInfo
+func (es *EventSystem) sendConsensusInfo(f *subscription, ev *types.MinConsensusInfoEvent) {
+	curEpoch := es.backend.CurrentEpoch()
+	log.WithField("curEpoch", curEpoch).Debug("current epoch in epoch extractor")
+	log.WithField("f.epoch", f.epoch).Debug("subscriber's epoch status")
+
+	if f.epoch >= curEpoch {
+		log.WithField("consensusInfo", ev).Debug("Sending consensus info to subscriber")
+		f.consensusInfo <- ev
+		return
+	}
+
+	consensusInfos := es.backend.ConsensusInfoByEpochRange(f.epoch, curEpoch)
+	log.WithField("consensusInfos", consensusInfos).Debug("start sending consensus infos")
+
+	for epoch := f.epoch; epoch <= curEpoch; epoch++ {
+		consensusInfo := consensusInfos[epoch]
+		if consensusInfo != nil {
+			log.WithField("consensusInfo", consensusInfo).Debug("Sending consensus info to subscriber")
+			f.consensusInfo <- consensusInfo
 		}
 	}
 }

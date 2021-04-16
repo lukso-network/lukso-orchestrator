@@ -5,6 +5,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/gorilla/websocket"
 	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
+	types "github.com/prysmaticlabs/eth2-types"
 	"net/http"
 )
 
@@ -24,13 +25,13 @@ func wsRequest(url, browserOrigin string) error {
 }
 
 // subscription
-func subscription(ctx context.Context, url string, subErr chan<- error) error {
+func subscription(ctx context.Context, url string, subErr chan<- error, epoch types.Epoch) error {
 	client, err := rpc.Dial(url)
 	if nil != err {
 		return err
 	}
 	minConsensusInfoCh := make(chan *eventTypes.MinConsensusInfoEvent)
-	subscription, err := client.Subscribe(ctx, "orc", minConsensusInfoCh, "minimalConsensusInfo")
+	subscription, err := client.Subscribe(ctx, "orc", minConsensusInfoCh, "minimalConsensusInfo", epoch)
 	if nil != err {
 		return err
 	}
@@ -58,8 +59,10 @@ func main() {
 	ctx := context.Background()
 	wsBase := "ws://127.0.0.1:8546"
 	subscriptionErrCh := make(chan error)
+	startingEpoch := types.Epoch(12)
 
-	if err := subscription(ctx, wsBase, subscriptionErrCh); err != nil {
+	log.WithField("startingEpoch", startingEpoch).Info("subscribing for consensus info")
+	if err := subscription(ctx, wsBase, subscriptionErrCh, startingEpoch); err != nil {
 		log.Error(err)
 		return
 	}
