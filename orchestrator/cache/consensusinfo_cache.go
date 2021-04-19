@@ -32,13 +32,13 @@ func NewConsensusInfoCache() *ConsensusInfoCache {
 
 // ConsensusInfoByEpoch fetches consensusInfo by epoch. Returns true with a
 // reference to the consensusInfo, if exists. Otherwise returns false, nil.
-func (c *ConsensusInfoCache) ConsensusInfoByEpoch(epoch types.Epoch) (*eventTypes.MinConsensusInfoEvent, error) {
+func (c *ConsensusInfoCache) ConsensusInfoByEpoch(epoch types.Epoch) (*eventTypes.MinimalEpochConsensusInfo, error) {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
 	item, exists := c.cache.Get(epoch)
 	if exists && item != nil {
-		return item.(*eventTypes.MinConsensusInfoEvent), nil
+		return item.(*eventTypes.MinimalEpochConsensusInfo), nil
 	}
 	return nil, nil
 }
@@ -46,7 +46,7 @@ func (c *ConsensusInfoCache) ConsensusInfoByEpoch(epoch types.Epoch) (*eventType
 // AddConsensusInfoCache adds ConsensusInfoCache object to the cache.
 func (c *ConsensusInfoCache) AddConsensusInfoCache(
 	epoch types.Epoch,
-	consensusInfo *eventTypes.MinConsensusInfoEvent,
+	consensusInfo *eventTypes.MinimalEpochConsensusInfo,
 ) error {
 
 	c.lock.Lock()
@@ -60,16 +60,16 @@ func (c *ConsensusInfoCache) AddConsensusInfoCache(
 
 // ConsensusInfoByEpochRange
 func (c *ConsensusInfoCache) ConsensusInfoByEpochRange(
-	fromEpoch, toEpoch types.Epoch) map[types.Epoch]*eventTypes.MinConsensusInfoEvent {
+	fromEpoch, toEpoch types.Epoch) map[types.Epoch]*eventTypes.MinimalEpochConsensusInfo {
 
 	log.WithField("fromEpoch", fromEpoch).WithField("toEpoch", toEpoch).Debug("method: ConsensusInfoByEpochRange")
-	consensusInfoMapping := make(map[types.Epoch]*eventTypes.MinConsensusInfoEvent)
+	consensusInfoMapping := make(map[types.Epoch]*eventTypes.MinimalEpochConsensusInfo)
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	for epoch := fromEpoch; epoch <= toEpoch; epoch++ {
 		item, exists := c.cache.Get(epoch)
 		if exists && item != nil {
-			consensusInfoMapping[epoch] = item.(*eventTypes.MinConsensusInfoEvent)
+			consensusInfoMapping[epoch] = item.(*eventTypes.MinimalEpochConsensusInfo)
 		} else {
 			log.WithField("epoch", epoch).Debug("consensus info not found")
 		}

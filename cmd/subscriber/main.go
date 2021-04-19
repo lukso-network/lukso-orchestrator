@@ -30,7 +30,7 @@ func subscription(ctx context.Context, url string, subErr chan<- error, epoch ty
 	if nil != err {
 		return err
 	}
-	minConsensusInfoCh := make(chan *eventTypes.MinConsensusInfoEvent)
+	minConsensusInfoCh := make(chan *eventTypes.MinimalEpochConsensusInfo)
 	subscription, err := client.Subscribe(ctx, "orc", minConsensusInfoCh, "minimalConsensusInfo", epoch)
 	if nil != err {
 		return err
@@ -59,7 +59,7 @@ func main() {
 	ctx := context.Background()
 	wsBase := "ws://127.0.0.1:8546"
 	subscriptionErrCh := make(chan error)
-	startingEpoch := types.Epoch(3)
+	startingEpoch := types.Epoch(0)
 
 	log.WithField("startingEpoch", startingEpoch).Info("subscribing for consensus info")
 	if err := subscription(ctx, wsBase, subscriptionErrCh, startingEpoch); err != nil {

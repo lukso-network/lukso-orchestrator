@@ -7,7 +7,7 @@ import (
 )
 
 type EpochExtractor interface {
-	SubscribeMinConsensusInfoEvent(chan<- *types.MinConsensusInfoEvent) event.Subscription
+	SubscribeMinConsensusInfoEvent(chan<- *types.MinimalEpochConsensusInfo) event.Subscription
 	CurrentEpoch() eth2Types.Epoch
-	ConsensusInfoByEpochRange(fromEpoch, toEpoch eth2Types.Epoch) map[eth2Types.Epoch]*types.MinConsensusInfoEvent
+	ConsensusInfoByEpochRange(fromEpoch, toEpoch eth2Types.Epoch) map[eth2Types.Epoch]*types.MinimalEpochConsensusInfo
 }

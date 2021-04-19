@@ -35,7 +35,7 @@ type subscription struct {
 
 	isNew         bool
 	epoch         eth2Types.Epoch // last served epoch number
-	consensusInfo chan *types.MinConsensusInfoEvent
+	consensusInfo chan *types.MinimalEpochConsensusInfo
 }
 
 // EventSystem creates subscriptions, processes events and broadcasts them to the
@@ -48,9 +48,9 @@ type EventSystem struct {
 	consensusInfoSub event.Subscription // Subscription for new epoch validator list
 
 	// Channels
-	install         chan *subscription                // install filter for event notification
-	uninstall       chan *subscription                // remove filter for event notification
-	consensusInfoCh chan *types.MinConsensusInfoEvent // Channel to receive new new consensus info event
+	install         chan *subscription                    // install filter for event notification
+	uninstall       chan *subscription                    // remove filter for event notification
+	consensusInfoCh chan *types.MinimalEpochConsensusInfo // Channel to receive new new consensus info event
 }
 
 // NewEventSystem creates a new manager that listens for event on the given mux,
@@ -64,7 +64,7 @@ func NewEventSystem(backend Backend) *EventSystem {
 		backend:         backend,
 		install:         make(chan *subscription),
 		uninstall:       make(chan *subscription),
-		consensusInfoCh: make(chan *types.MinConsensusInfoEvent, 1),
+		consensusInfoCh: make(chan *types.MinimalEpochConsensusInfo, 1),
 	}
 
 	// Subscribe events
@@ -124,7 +124,7 @@ func (es *EventSystem) subscribe(sub *subscription) *Subscription {
 
 // SubscribePendingTxs creates a subscription that writes transaction hashes for
 // transactions that enter the transaction pool.
-func (es *EventSystem) SubscribeConsensusInfo(consensusInfo chan *types.MinConsensusInfoEvent, epoch eth2Types.Epoch) *Subscription {
+func (es *EventSystem) SubscribeConsensusInfo(consensusInfo chan *types.MinimalEpochConsensusInfo, epoch eth2Types.Epoch) *Subscription {
 	sub := &subscription{
 		id:            rpc.NewID(),
 		typ:           MinConsensusInfoSubscription,
@@ -141,7 +141,7 @@ func (es *EventSystem) SubscribeConsensusInfo(consensusInfo chan *types.MinConse
 type filterIndex map[Type]map[rpc.ID]*subscription
 
 // handleConsensusInfoEvent
-func (es *EventSystem) handleConsensusInfoEvent(filters filterIndex, ev *types.MinConsensusInfoEvent) {
+func (es *EventSystem) handleConsensusInfoEvent(filters filterIndex, ev *types.MinimalEpochConsensusInfo) {
 	for _, f := range filters[MinConsensusInfoSubscription] {
 		if f.isNew {
 			es.sendConsensusInfo(f, ev)
@@ -183,7 +183,7 @@ func (es *EventSystem) eventLoop() {
 }
 
 // sendConsensusInfo
-func (es *EventSystem) sendConsensusInfo(f *subscription, ev *types.MinConsensusInfoEvent) {
+func (es *EventSystem) sendConsensusInfo(f *subscription, ev *types.MinimalEpochConsensusInfo) {
 	curEpoch := es.backend.CurrentEpoch()
 	log.WithField("curEpoch", curEpoch).Debug("current epoch in epoch extractor")
 	log.WithField("f.epoch", f.epoch).Debug("subscriber's epoch status")

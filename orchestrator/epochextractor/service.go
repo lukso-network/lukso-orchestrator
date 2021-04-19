@@ -303,11 +303,11 @@ func (s *Service) sendConsensusInfoToPandora(isBootstrapping bool) error {
 		//status, err = s.pandoraClient.InsertConsensusInfo(s.ctx, s.curEpoch, s.curEpochProposerPubKeys, curEpochStart)
 
 		// prepare minimal consensus info for event subscribers
-		minimalConsensusInfo := &eventTypes.MinConsensusInfoEvent{
-			Epoch:            s.curEpoch,
+		minimalConsensusInfo := &eventTypes.MinimalEpochConsensusInfo{
+			Epoch:            uint64(s.curEpoch),
 			ValidatorList:    s.curEpochProposerPubKeys,
 			EpochStartTime:   curEpochStart,
-			SlotTimeDuration: s.secondsPerSlot,
+			SlotTimeDuration: time.Duration(s.secondsPerSlot),
 		}
 		s.consensusInfoCache.AddConsensusInfoCache(s.curEpoch, minimalConsensusInfo)
 		// Sending consensusInfo to event subscribers
@@ -320,11 +320,11 @@ func (s *Service) sendConsensusInfoToPandora(isBootstrapping bool) error {
 		//status, err = s.pandoraClient.InsertConsensusInfo(s.ctx, s.nextEpoch, s.nextEpochProposerPubKeys, nextEpochStart)
 
 		// prepare minimal consensus info for event subscribers
-		minimalConsensusInfo := &eventTypes.MinConsensusInfoEvent{
-			Epoch:            s.nextEpoch,
+		minimalConsensusInfo := &eventTypes.MinimalEpochConsensusInfo{
+			Epoch:            uint64(s.nextEpoch),
 			ValidatorList:    s.nextEpochProposerPubKeys,
 			EpochStartTime:   nextEpochStart,
-			SlotTimeDuration: s.secondsPerSlot,
+			SlotTimeDuration: time.Duration(s.secondsPerSlot),
 		}
 		s.consensusInfoCache.AddConsensusInfoCache(s.nextEpoch, minimalConsensusInfo)
 		// Sending consensusInfo to event subscribers
@@ -404,7 +404,7 @@ func (s *Service) connectToVanguardChain() error {
 }
 
 // SubscribeChainHeadEvent registers a subscription of ChainHeadEvent.
-func (s *Service) SubscribeMinConsensusInfoEvent(ch chan<- *eventTypes.MinConsensusInfoEvent) event.Subscription {
+func (s *Service) SubscribeMinConsensusInfoEvent(ch chan<- *eventTypes.MinimalEpochConsensusInfo) event.Subscription {
 	return s.scope.Track(s.consensusInfoFeed.Subscribe(ch))
 }
 
@@ -420,7 +420,7 @@ func (s *Service) CurrentEpoch() types.Epoch {
 func (s *Service) ConsensusInfoByEpochRange(
 	fromEpoch,
 	toEpoch types.Epoch,
-) map[types.Epoch]*eventTypes.MinConsensusInfoEvent {
+) map[types.Epoch]*eventTypes.MinimalEpochConsensusInfo {
 
 	return s.consensusInfoCache.ConsensusInfoByEpochRange(fromEpoch, toEpoch)
 }

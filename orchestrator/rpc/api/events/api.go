@@ -11,8 +11,8 @@ import (
 
 type Backend interface {
 	CurrentEpoch() types.Epoch
-	ConsensusInfoByEpochRange(fromEpoch, toEpoch types.Epoch) map[types.Epoch]*eventTypes.MinConsensusInfoEvent
-	SubscribeNewEpochEvent(chan<- *eventTypes.MinConsensusInfoEvent) event.Subscription
+	ConsensusInfoByEpochRange(fromEpoch, toEpoch types.Epoch) map[types.Epoch]*eventTypes.MinimalEpochConsensusInfo
+	SubscribeNewEpochEvent(chan<- *eventTypes.MinimalEpochConsensusInfo) event.Subscription
 }
 
 // PublicFilterAPI offers support to create and manage filters. This will allow external clients to retrieve various
@@ -43,7 +43,7 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, epoch type
 	rpcSub := notifier.CreateSubscription()
 
 	go func() {
-		consensusInfo := make(chan *eventTypes.MinConsensusInfoEvent)
+		consensusInfo := make(chan *eventTypes.MinimalEpochConsensusInfo)
 		consensusInfoSub := api.events.SubscribeConsensusInfo(consensusInfo, epoch)
 		log.WithField("fromEpoch", epoch).Debug("registered new subscriber for consensus info")
 

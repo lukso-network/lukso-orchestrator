@@ -6,9 +6,10 @@ import (
 	types "github.com/prysmaticlabs/eth2-types"
 	"math/rand"
 	"strconv"
+	"time"
 )
 
-func NewMinimalConsensusInfo(epoch types.Epoch) *eventTypes.MinConsensusInfoEvent {
+func NewMinimalConsensusInfo(epoch types.Epoch) *eventTypes.MinimalEpochConsensusInfo {
 	validatorList := make([]string, 32)
 
 	for idx := 0; idx < 32; idx++ {
@@ -16,10 +17,10 @@ func NewMinimalConsensusInfo(epoch types.Epoch) *eventTypes.MinConsensusInfoEven
 		pubKey := common.Bytes2Hex(bs)
 		validatorList[idx] = pubKey
 	}
-	return &eventTypes.MinConsensusInfoEvent{
-		Epoch:            epoch,
+	return &eventTypes.MinimalEpochConsensusInfo{
+		Epoch:            uint64(epoch),
 		ValidatorList:    validatorList,
 		EpochStartTime:   rand.Uint64(),
-		SlotTimeDuration: uint64(6),
+		SlotTimeDuration: time.Duration(6),
 	}
 }

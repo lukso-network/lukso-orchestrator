@@ -10,7 +10,7 @@ import (
 
 // setup
 func setup(t *testing.T) (*MockBackend, *PublicFilterAPI) {
-	consensusInfoMapping := make(map[types.Epoch]*eventTypes.MinConsensusInfoEvent, 10)
+	consensusInfoMapping := make(map[types.Epoch]*eventTypes.MinimalEpochConsensusInfo, 10)
 	for i := 0; i < 5; i++ {
 		consensusInfoMapping[types.Epoch(i)] = testutil.NewMinimalConsensusInfo(types.Epoch(i))
 	}
@@ -25,7 +25,7 @@ func setup(t *testing.T) (*MockBackend, *PublicFilterAPI) {
 }
 
 func subscribe(t *testing.T, eventApi *PublicFilterAPI, backend *MockBackend, fromEpoch types.Epoch, curEpoch types.Epoch) *Subscription {
-	receiverChan := make(chan *eventTypes.MinConsensusInfoEvent)
+	receiverChan := make(chan *eventTypes.MinimalEpochConsensusInfo)
 	subscriber := eventApi.events.SubscribeConsensusInfo(receiverChan, fromEpoch)
 	totalEvents := len(backend.ConsensusInfoMapping) - int(fromEpoch)
 

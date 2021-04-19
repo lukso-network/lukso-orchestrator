@@ -1,10 +1,10 @@
 package types
 
-import types "github.com/prysmaticlabs/eth2-types"
+import "time"
 
-type MinConsensusInfoEvent struct {
-	Epoch            types.Epoch
-	ValidatorList    []string
-	EpochStartTime   uint64
-	SlotTimeDuration uint64
+type MinimalEpochConsensusInfo struct {
+	Epoch            uint64        `json:"epoch"`
+	ValidatorList    []string      `json:"validatorList"`
+	EpochStartTime   uint64        `json:"epochTimeStart"`
+	SlotTimeDuration time.Duration `json:"slotTimeDuration"`
 }

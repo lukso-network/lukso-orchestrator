@@ -11,7 +11,7 @@ type APIBackend struct {
 	EpochExtractor epochextractor.EpochExtractor
 }
 
-func (backend *APIBackend) SubscribeNewEpochEvent(ch chan<- *types.MinConsensusInfoEvent) event.Subscription {
+func (backend *APIBackend) SubscribeNewEpochEvent(ch chan<- *types.MinimalEpochConsensusInfo) event.Subscription {
 	return backend.EpochExtractor.SubscribeMinConsensusInfoEvent(ch)
 }
 
@@ -22,7 +22,7 @@ func (backend *APIBackend) CurrentEpoch() eth2Types.Epoch {
 func (backend *APIBackend) ConsensusInfoByEpochRange(
 	fromEpoch,
 	toEpoch eth2Types.Epoch,
-) map[eth2Types.Epoch]*types.MinConsensusInfoEvent {
+) map[eth2Types.Epoch]*types.MinimalEpochConsensusInfo {
 
 	return backend.EpochExtractor.ConsensusInfoByEpochRange(fromEpoch, toEpoch)
 }
