@@ -54,13 +54,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          go version
-          go get -u golang.org/x/lint/golint
+          go get -v -t -d ./...
 
       - name: Run build
-        run: go build ./cmd/orchestrator -o lukso-orchestrator
-
-      - name: Run vet & lint
-        run: |
-          go vet .
-          golint .
+        run: go build -v
