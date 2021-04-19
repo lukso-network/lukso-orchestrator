@@ -29,14 +29,14 @@ jobs:
           args: release --rm-dist
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-      - name: Deploy
-        uses: deliverybot/helm@master
-        with:
-          token: ${{ secrets.GH_TOKEN }}
-          # still in tests
-          #secrets: ${{ toJSON(secrets) }}
-          chart: app
-          namespace: production
-          release: production-myapp
-        env:
-          KUBECONFIG_FILE: ${{ secrets.KUBECONFIG }}
+#      - name: Deploy
+#        uses: deliverybot/helm@master
+#        with:
+#          token: ${{ secrets.GH_TOKEN }}
+#          # still in tests
+#          #secrets: ${{ toJSON(secrets) }}
+#          chart: app
+#          namespace: production
+#          release: production-myapp
+#        env:
+#          KUBECONFIG_FILE: ${{ secrets.KUBECONFIG }}
