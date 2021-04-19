@@ -18,25 +18,14 @@ const (
 	// UnknownSubscription indicates an unknown subscription type
 	UnknownSubscription Type = iota
 
-	//
+	// MinConsensusInfoSubscription
 	MinConsensusInfoSubscription
 
 	// LastSubscription keeps track of the last index
 	LastIndexSubscription
 )
 
-const (
-	// txChanSize is the size of channel listening to NewTxsEvent.
-	// The number is referenced from the size of tx pool.
-	txChanSize = 4096
-	// rmLogsChanSize is the size of channel listening to RemovedLogsEvent.
-	rmLogsChanSize = 10
-	// logsChanSize is the size of channel listening to LogsEvent.
-	logsChanSize = 10
-	// chainEvChanSize is the size of channel listening to ChainEvent.
-	chainEvChanSize = 10
-)
-
+// subscription
 type subscription struct {
 	id        rpc.ID
 	typ       Type
@@ -70,7 +59,7 @@ type EventSystem struct {
 //
 // The returned manager has a loop that needs to be stopped with the Stop function
 // or by stopping the given mux.
-func NewEventSystem(backend Backend, lightMode bool) *EventSystem {
+func NewEventSystem(backend Backend) *EventSystem {
 	m := &EventSystem{
 		backend:         backend,
 		install:         make(chan *subscription),
@@ -151,6 +140,7 @@ func (es *EventSystem) SubscribeConsensusInfo(consensusInfo chan *types.MinConse
 
 type filterIndex map[Type]map[rpc.ID]*subscription
 
+// handleConsensusInfoEvent
 func (es *EventSystem) handleConsensusInfoEvent(filters filterIndex, ev *types.MinConsensusInfoEvent) {
 	for _, f := range filters[MinConsensusInfoSubscription] {
 		if f.isNew {
@@ -198,6 +188,7 @@ func (es *EventSystem) sendConsensusInfo(f *subscription, ev *types.MinConsensus
 	log.WithField("curEpoch", curEpoch).Debug("current epoch in epoch extractor")
 	log.WithField("f.epoch", f.epoch).Debug("subscriber's epoch status")
 
+	// when requested from epoch is greater or equal than current epoch.
 	if f.epoch >= curEpoch {
 		log.WithField("consensusInfo", ev).Debug("Sending consensus info to subscriber")
 		f.consensusInfo <- ev
@@ -207,6 +198,7 @@ func (es *EventSystem) sendConsensusInfo(f *subscription, ev *types.MinConsensus
 	consensusInfos := es.backend.ConsensusInfoByEpochRange(f.epoch, curEpoch)
 	log.WithField("consensusInfos", consensusInfos).Debug("start sending consensus infos")
 
+	// sending previous epoch consensus infos
 	for epoch := f.epoch; epoch <= curEpoch; epoch++ {
 		consensusInfo := consensusInfos[epoch]
 		if consensusInfo != nil {

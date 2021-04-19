@@ -1,19 +1,23 @@
 package cmd
 
 import (
-	"github.com/ethereum/go-ethereum/node"
 	"github.com/urfave/cli/v2"
-	"strings"
 	"time"
 )
 
 var (
 	Now = time.Now().Unix()
 
-	// RPC settings
-	IPCDisabledFlag = &cli.BoolFlag{
-		Name:  "ipcdisable",
-		Usage: "Disable the IPC-RPC server",
+	// DataDirFlag defines a path on disk.
+	DataDirFlag = &cli.StringFlag{
+		Name:  "datadir",
+		Usage: "Data directory for storing metadata",
+		Value: DefaultConfigDir(),
+	}
+
+	IPCPathFlag = &cli.StringFlag{
+		Name:  "ipcpath",
+		Usage: "Filename for IPC socket/pipe within the datadir (explicit paths escape it)",
 	}
 
 	HTTPEnabledFlag = &cli.BoolFlag{
@@ -24,25 +28,13 @@ var (
 	HTTPListenAddrFlag = &cli.StringFlag{
 		Name:  "http.addr",
 		Usage: "HTTP-RPC server listening interface",
-		Value: node.DefaultHTTPHost,
+		Value: DefaultHTTPHost,
 	}
 
 	HTTPPortFlag = &cli.IntFlag{
 		Name:  "http.port",
 		Usage: "HTTP-RPC server listening port",
-		Value: node.DefaultHTTPPort,
-	}
-
-	HTTPCORSDomainFlag = &cli.StringFlag{
-		Name:  "http.corsdomain",
-		Usage: "Comma separated list of domains from which to accept cross origin requests (browser enforced)",
-		Value: "",
-	}
-
-	HTTPVirtualHostsFlag = &cli.StringFlag{
-		Name:  "http.vhosts",
-		Usage: "Comma separated list of virtual hostnames from which to accept requests (server enforced). Accepts '*' wildcard.",
-		Value: strings.Join(node.DefaultConfig.HTTPVirtualHosts, ","),
+		Value: DefaultHTTPPort,
 	}
 
 	WSEnabledFlag = &cli.BoolFlag{
@@ -53,26 +45,26 @@ var (
 	WSListenAddrFlag = &cli.StringFlag{
 		Name:  "ws.addr",
 		Usage: "WS-RPC server listening interface",
-		Value: node.DefaultWSHost,
+		Value: DefaultWSHost,
 	}
 
 	WSPortFlag = &cli.IntFlag{
 		Name:  "ws.port",
 		Usage: "WS-RPC server listening port",
-		Value: node.DefaultWSPort,
+		Value: DefaultWSPort,
 	}
 
 	// HTTPWeb3ProviderFlag provides an HTTP access endpoint to an ETH 1.0 RPC.
 	VanguardRPCEndpoint = &cli.StringFlag{
 		Name:  "vanguard-rpc-endpoint",
-		Usage: "Vanguard node RPC provider endpoint(Default: 127.0.0.1:4000",
-		Value: "127.0.0.1:4000",
+		Usage: "Vanguard node RPC provider endpoint",
+		Value: DefaultVanguardRPCEndpoint,
 	}
 
 	PandoraRPCEndpoint = &cli.StringFlag{
 		Name:  "pandora-rpc-endpoint",
-		Usage: "Pandora node RP provider endpoint(Default: http://127.0.0.1:8545",
-		Value: "http://127.0.0.1:8545",
+		Usage: "Pandora node RP provider endpoint",
+		Value: DefaultPandoraRPCEndpoint,
 	}
 
 	GenesisTime = &cli.Uint64Flag{

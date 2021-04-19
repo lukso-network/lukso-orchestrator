@@ -59,7 +59,7 @@ func main() {
 	ctx := context.Background()
 	wsBase := "ws://127.0.0.1:8546"
 	subscriptionErrCh := make(chan error)
-	startingEpoch := types.Epoch(12)
+	startingEpoch := types.Epoch(3)
 
 	log.WithField("startingEpoch", startingEpoch).Info("subscribing for consensus info")
 	if err := subscription(ctx, wsBase, subscriptionErrCh, startingEpoch); err != nil {

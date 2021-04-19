@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/epochextractor"
 	"github.com/lukso-network/lukso-orchestrator/shared/cmd"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/require"
@@ -9,37 +10,43 @@ import (
 	"testing"
 )
 
-func testServerConfig() *Config {
-	return &Config{
-		HTTPHost: cmd.DefaultHTTPHost,
-		HTTPPort: cmd.DefaultHTTPPort,
-		WSHost:   cmd.DefaultWSHost,
-		WSPort:   cmd.DefaultWSPort,
+func setup() (*Config, error) {
+	epochExtractor, err := epochextractor.NewService(context.Background(),
+		cmd.DefaultVanguardRPCEndpoint, cmd.DefaultPandoraRPCEndpoint, 13434434)
+
+	if err != nil {
+		return nil, err
 	}
+	return &Config{
+		EpochExpractor: epochExtractor,
+		IPCPath:        "orchestrator.ipc",
+		HTTPEnable:     true,
+		HTTPHost:       cmd.DefaultHTTPHost,
+		HTTPPort:       cmd.DefaultHTTPPort,
+		WSEnable:       true,
+		WSHost:         cmd.DefaultWSHost,
+		WSPort:         cmd.DefaultWSPort,
+	}, nil
 }
 
-// Tests that an empty protocol stack can be closed more than once.
-func TestServerStartMultipleTimes(t *testing.T) {
+// TestServerStart_Success
+func TestServerStart_Success(t *testing.T) {
 	hook := logTest.NewGlobal()
 	ctx := context.Background()
-	rpcService, err := NewService(ctx, testServerConfig())
+	config, err := setup()
+	require.NoError(t, err)
+
+	rpcService, err := NewService(ctx, config)
 	if err != nil {
 		t.Fatalf("failed to create protocol stack: %v", err)
 	}
+
 	// Ensure that a node can be successfully started, but only once
-	rpcService.Start()
+	assert.NoError(t, rpcService.startRPC())
+	require.LogsContain(t, hook, "IPC endpoint opened", "IPC server not started")
+	require.LogsContain(t, hook, "HTTP server started", "Http server not started")
+	require.LogsContain(t, hook, "WebSocket enabled", "Web socket server not started")
 
-	require.LogsContain(t, hook, "listening on port")
+	hook.Reset()
 	assert.NoError(t, rpcService.Stop())
-}
-
-func TestRPCServiceStart(t *testing.T) {
-	ctx := context.Background()
-	rpcService, err := NewService(ctx, testServerConfig())
-	if err != nil {
-		t.Fatalf("failed to create protocol stack: %v", err)
-	}
-	if err := rpcService.startRPC(); err != nil {
-		t.Fatalf("failed to start rpc service: %v", err)
-	}
 }

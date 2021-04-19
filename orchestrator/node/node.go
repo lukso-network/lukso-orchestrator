@@ -6,11 +6,13 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc"
 	"github.com/lukso-network/lukso-orchestrator/shared"
 	"github.com/lukso-network/lukso-orchestrator/shared/cmd"
+	"github.com/lukso-network/lukso-orchestrator/shared/fileutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/version"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"sync"
 	"syscall"
 )
@@ -72,6 +74,15 @@ func (o *OrchestratorNode) registerRPCService(cliCtx *cli.Context) error {
 		return err
 	}
 
+	var ipcapiURL string
+	if cliCtx.String(cmd.IPCPathFlag.Name) != "" {
+		ipcFilePath := cliCtx.String(cmd.IPCPathFlag.Name)
+		ipcapiURL = fileutil.IpcEndpoint(filepath.Join(ipcFilePath, "orchestrator.ipc"), "")
+
+		log.WithField("ipcFilePath", ipcFilePath).WithField(
+			"ipcPath", ipcapiURL).Info("ipc file path")
+	}
+
 	httpEnable := cliCtx.Bool(cmd.HTTPEnabledFlag.Name)
 	httpListenAddr := cliCtx.String(cmd.HTTPListenAddrFlag.Name)
 	httpPort := cliCtx.Int(cmd.HTTPPortFlag.Name)
@@ -85,8 +96,11 @@ func (o *OrchestratorNode) registerRPCService(cliCtx *cli.Context) error {
 
 	svc, err := rpc.NewService(o.ctx, &rpc.Config{
 		EpochExpractor: epochExtractorService,
+		IPCPath:        ipcapiURL,
+		HTTPEnable:     httpEnable,
 		HTTPHost:       httpListenAddr,
 		HTTPPort:       httpPort,
+		WSEnable:       wsEnable,
 		WSHost:         wsListenerAddr,
 		WSPort:         wsPort,
 	})

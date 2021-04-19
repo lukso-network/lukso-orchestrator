@@ -1,19 +1,3 @@
-// Copyright 2020 The go-ethereum Authors
-// This file is part of the go-ethereum library.
-//
-// The go-ethereum library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The go-ethereum library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
-
 package rpc
 
 import (
@@ -28,8 +12,8 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
-	eth1Log "github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/rs/cors"
 )
@@ -55,7 +39,6 @@ type rpcHandler struct {
 }
 
 type httpServer struct {
-	log      eth1Log.Logger
 	timeouts rpc.HTTPTimeouts
 	mux      http.ServeMux // registered handlers go here
 
@@ -80,8 +63,8 @@ type httpServer struct {
 	handlerNames map[string]string
 }
 
-func newHTTPServer(log eth1Log.Logger, timeouts rpc.HTTPTimeouts) *httpServer {
-	h := &httpServer{log: log, timeouts: timeouts, handlerNames: make(map[string]string)}
+func newHTTPServer(timeouts rpc.HTTPTimeouts) *httpServer {
+	h := &httpServer{timeouts: timeouts, handlerNames: make(map[string]string)}
 
 	h.httpHandler.Store((*rpcHandler)(nil))
 	h.wsHandler.Store((*rpcHandler)(nil))
@@ -126,7 +109,7 @@ func (h *httpServer) start() error {
 	// Initialize the server.
 	h.server = &http.Server{Handler: h}
 	if h.timeouts != (rpc.HTTPTimeouts{}) {
-		CheckTimeouts(&h.timeouts)
+		checkTimeouts(&h.timeouts)
 		h.server.ReadTimeout = h.timeouts.ReadTimeout
 		h.server.WriteTimeout = h.timeouts.WriteTimeout
 		h.server.IdleTimeout = h.timeouts.IdleTimeout
@@ -149,19 +132,17 @@ func (h *httpServer) start() error {
 		if h.wsConfig.prefix != "" {
 			url += h.wsConfig.prefix
 		}
-		h.log.Info("WebSocket enabled", "url", url)
+		log.WithField("url", url).Info("WebSocket enabled")
 	}
 	// if server is websocket only, return after logging
 	if !h.rpcAllowed() {
 		return nil
 	}
 	// Log http endpoint.
-	h.log.Info("HTTP server started",
-		"endpoint", listener.Addr(),
-		"prefix", h.httpConfig.prefix,
-		"cors", strings.Join(h.httpConfig.CorsAllowedOrigins, ","),
-		"vhosts", strings.Join(h.httpConfig.Vhosts, ","),
-	)
+	log.WithField("endpoint", listener.Addr()).WithField(
+		"prefix", h.httpConfig.prefix).WithField(
+		"cors", strings.Join(h.httpConfig.CorsAllowedOrigins, ",")).WithField(
+		"vhosts", strings.Join(h.httpConfig.Vhosts, ",")).Info("HTTP server started")
 
 	// Log all handlers mounted on server.
 	var paths []string
@@ -173,7 +154,8 @@ func (h *httpServer) start() error {
 	for _, path := range paths {
 		name := h.handlerNames[path]
 		if !logged[name] {
-			log.Info(name+" enabled", "url", "http://"+listener.Addr().String()+path)
+			log.WithField("server", name).WithField(
+				"url", "http://"+listener.Addr().String()+path).Info("listening on port")
 			logged[name] = true
 		}
 	}
@@ -262,7 +244,7 @@ func (h *httpServer) doStop() {
 	}
 	h.server.Shutdown(context.Background())
 	h.listener.Close()
-	h.log.Info("HTTP server stopped", "endpoint", h.listener.Addr())
+	log.WithField("endpoint", h.listener.Addr()).Info("HTTP server stopped")
 
 	// Clear out everything to allow re-configuring it later.
 	h.host, h.port, h.endpoint = "", 0, ""
@@ -471,7 +453,6 @@ func newGzipHandler(next http.Handler) http.Handler {
 }
 
 type ipcServer struct {
-	log      eth1Log.Logger
 	endpoint string
 
 	mu       sync.Mutex
@@ -479,8 +460,8 @@ type ipcServer struct {
 	srv      *rpc.Server
 }
 
-func newIPCServer(log eth1Log.Logger, endpoint string) *ipcServer {
-	return &ipcServer{log: log, endpoint: endpoint}
+func newIPCServer(endpoint string) *ipcServer {
+	return &ipcServer{endpoint: endpoint}
 }
 
 // Start starts the httpServer's http.Server
@@ -493,10 +474,10 @@ func (is *ipcServer) start(apis []rpc.API) error {
 	}
 	listener, srv, err := rpc.StartIPCEndpoint(is.endpoint, apis)
 	if err != nil {
-		is.log.Warn("IPC opening failed", "url", is.endpoint, "error", err)
+		log.WithField("url", is.endpoint).WithField("error", err).Warn("IPC opening failed")
 		return err
 	}
-	is.log.Info("IPC endpoint opened", "url", is.endpoint)
+	log.WithField("url", is.endpoint).Info("IPC endpoint opened")
 	is.listener, is.srv = listener, srv
 	return nil
 }
@@ -511,7 +492,7 @@ func (is *ipcServer) stop() error {
 	err := is.listener.Close()
 	is.srv.Stop()
 	is.listener, is.srv = nil, nil
-	is.log.Info("IPC endpoint closed", "url", is.endpoint)
+	log.WithField("url", is.endpoint).Info("IPC endpoint closed")
 	return err
 }
 
@@ -535,4 +516,42 @@ func RegisterApisFromWhitelist(apis []rpc.API, modules []string, srv *rpc.Server
 		}
 	}
 	return nil
+}
+
+// checkModuleAvailability checks that all names given in modules are actually
+// available API services. It assumes that the MetadataApi module ("rpc") is always available;
+// the registration of this "rpc" module happens in NewServer() and is thus common to all endpoints.
+func checkModuleAvailability(modules []string, apis []rpc.API) (bad, available []string) {
+	availableSet := make(map[string]struct{})
+	for _, api := range apis {
+		if _, ok := availableSet[api.Namespace]; !ok {
+			availableSet[api.Namespace] = struct{}{}
+			available = append(available, api.Namespace)
+		}
+	}
+	for _, name := range modules {
+		if _, ok := availableSet[name]; !ok && name != rpc.MetadataApi {
+			bad = append(bad, name)
+		}
+	}
+	return bad, available
+}
+
+// CheckTimeouts ensures that timeout values are meaningful
+func checkTimeouts(timeouts *rpc.HTTPTimeouts) {
+	if timeouts.ReadTimeout < time.Second {
+		log.WithField("provided", timeouts.ReadTimeout).WithField(
+			"updated", rpc.DefaultHTTPTimeouts.ReadTimeout).Warn("Sanitizing invalid HTTP read timeout")
+		timeouts.ReadTimeout = rpc.DefaultHTTPTimeouts.ReadTimeout
+	}
+	if timeouts.WriteTimeout < time.Second {
+		log.WithField("provided", timeouts.WriteTimeout).WithField(
+			"updated", rpc.DefaultHTTPTimeouts.WriteTimeout).Warn("Sanitizing invalid HTTP write timeout")
+		timeouts.WriteTimeout = rpc.DefaultHTTPTimeouts.WriteTimeout
+	}
+	if timeouts.IdleTimeout < time.Second {
+		log.WithField("provided", timeouts.IdleTimeout).WithField(
+			"updated", rpc.DefaultHTTPTimeouts.IdleTimeout).Warn("Sanitizing invalid HTTP idle timeout")
+		timeouts.IdleTimeout = rpc.DefaultHTTPTimeouts.IdleTimeout
+	}
 }

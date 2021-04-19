@@ -2,4 +2,4 @@ package events
 
 import "github.com/sirupsen/logrus"
 
-var log = logrus.WithField("prefix", "api")
+var log = logrus.WithField("prefix", "event")

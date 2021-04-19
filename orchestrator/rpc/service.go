@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"context"
-	eth1Log "github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/epochextractor"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api"
@@ -11,6 +10,7 @@ import (
 	"time"
 )
 
+// Config
 type Config struct {
 	EpochExpractor epochextractor.EpochExtractor
 
@@ -18,6 +18,7 @@ type Config struct {
 	IPCPath string
 
 	// http config
+	HTTPEnable       bool
 	HTTPHost         string
 	HTTPPort         int
 	HTTPCors         []string
@@ -27,19 +28,20 @@ type Config struct {
 	HTTPPathPrefix   string
 
 	// WebSocket config
+	WSEnable     bool
 	WSHost       string
 	WSPort       int
 	WSPathPrefix string
 	WSOrigins    []string
 }
 
+// Service
 type Service struct {
 	isRunning      bool
 	processingLock sync.RWMutex
 	ctx            context.Context
 	cancel         context.CancelFunc
 	runError       error
-	log            eth1Log.Logger
 	stop           chan struct{} // Channel to wait for termination notifications
 
 	backend       *api.APIBackend
@@ -58,15 +60,15 @@ func NewService(ctx context.Context, cfg *Config) (*Service, error) {
 	service := &Service{
 		ctx:           ctx,
 		cancel:        cancel,
-		log:           eth1Log.New(ctx),
 		config:        cfg,
 		inprocHandler: rpc.NewServer(),
 		backend:       &api.APIBackend{EpochExtractor: cfg.EpochExpractor},
 	}
 	// Configure RPC servers.
 	service.rpcAPIs = service.APIs()
-	service.http = newHTTPServer(service.log, rpc.DefaultHTTPTimeouts)
-	service.ws = newHTTPServer(service.log, rpc.DefaultHTTPTimeouts)
+	service.http = newHTTPServer(rpc.DefaultHTTPTimeouts)
+	service.ws = newHTTPServer(rpc.DefaultHTTPTimeouts)
+	service.ipc = newIPCServer(service.config.IPCPath)
 
 	return service, nil
 }
@@ -119,17 +121,18 @@ func (s *Service) startRPC() error {
 		return err
 	}
 
-	//// Configure IPC.
-	//if s.ipc.endpoint != "" {
-	//	if err := s.ipc.start(s.rpcAPIs); err != nil {
-	//		return err
-	//	}
-	//}
+	// Configure IPC.
+	if s.ipc.endpoint != "" {
+		log.WithField("ipcEndpoint", s.ipc.endpoint).Info("starting ipc endpoint")
+		if err := s.ipc.start(s.rpcAPIs); err != nil {
+			return err
+		}
+	}
 
 	// Configure HTTP.
-	if s.config.HTTPHost != "" {
+	if s.config.HTTPEnable && s.config.HTTPHost != "" {
 		config := httpConfig{
-			CorsAllowedOrigins: s.config.HTTPCors,
+			CorsAllowedOrigins: nil,
 			Vhosts:             nil,
 			Modules:            nil,
 			prefix:             "",
@@ -143,7 +146,7 @@ func (s *Service) startRPC() error {
 	}
 
 	// Configure WebSocket.
-	if s.config.WSHost != "" {
+	if s.config.WSEnable && s.config.WSHost != "" {
 		server := s.wsServerForPort(s.config.WSPort)
 		config := wsConfig{
 			Modules: nil,
@@ -189,7 +192,7 @@ func (s *Service) wsServerForPort(port int) *httpServer {
 func (s *Service) stopRPC() {
 	s.http.stop()
 	s.ws.stop()
-	//s.ipc.stop()
+	s.ipc.stop()
 	s.stopInProc()
 }
 
@@ -209,7 +212,7 @@ func (s *Service) APIs() []rpc.API {
 		{
 			Namespace: "orc",
 			Version:   "1.0",
-			Service:   events.NewPublicFilterAPI(s.backend, false, 5*time.Minute),
+			Service:   events.NewPublicFilterAPI(s.backend, 5*time.Minute),
 			Public:    true,
 		},
 	}
