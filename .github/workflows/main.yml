@@ -1,0 +1,66 @@
+name: Test and build
+
+on:
+  push:
+    branches:
+      - 'feature/13/gitactions-ci-cd'
+      -
+  pull_request:
+    branches:
+      - 'feature/13/gitactions-ci-cd'
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        go-version: [ 1.16 ]
+        platform: [ ubuntu-latest ]
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Test
+        run: go test ./...
+
+  build:
+    strategy:
+      matrix:
+        go-version: [ 1.16 ]
+        platform: [ ubuntu-latest ]
+
+    runs-on: ${{ matrix.platform }}
+
+    needs: [ test ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+        id: go
+
+      - name: Install dependencies
+        run: |
+          go version
+          go get -u golang.org/x/lint/golint
+
+      - name: Run build
+        run: go build ./cmd/orchestrator
+
+      - name: Run vet & lint
+        run: |
+          go vet .
+          golint .
