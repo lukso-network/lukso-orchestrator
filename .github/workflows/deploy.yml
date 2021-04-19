@@ -1,0 +1,23 @@
+name: Deploy
+
+on:
+  create:
+    tags:
+      - v*
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy
+        uses: deliverybot/helm@master
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+          # still in tests
+          #secrets: ${{ toJSON(secrets) }}
+          chart: app
+          namespace: production
+          release: production-myapp
+        env:
+          KUBECONFIG_FILE: ${{ secrets.KUBECONFIG }}
