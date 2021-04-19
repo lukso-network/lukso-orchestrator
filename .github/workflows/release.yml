@@ -28,4 +28,4 @@ jobs:
           workdir: ./cmd/orchestrator
           args: release --rm-dist
         env:
-          GITHUB_TOKEN: ${{ secrets.TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
