@@ -38,6 +38,5 @@ jobs:
           chart: app
           namespace: production
           release: production-myapp
-          value-files: ./config/production.yml
         env:
           KUBECONFIG_FILE: ${{ secrets.KUBECONFIG }}
