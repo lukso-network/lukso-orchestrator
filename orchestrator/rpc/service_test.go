@@ -19,7 +19,7 @@ func setup() (*Config, error) {
 	}
 	return &Config{
 		EpochExpractor: epochExtractor,
-		IPCPath:        "orchestrator.ipc",
+		IPCPath:        cmd.DefaultIpcPath,
 		HTTPEnable:     true,
 		HTTPHost:       cmd.DefaultHTTPHost,
 		HTTPPort:       cmd.DefaultHTTPPort,
