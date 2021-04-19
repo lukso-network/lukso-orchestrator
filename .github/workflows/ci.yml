@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - 'feature/13/gitactions-ci-cd'
-  pull_request:
-    branches:
-      - 'feature/13/gitactions-ci-cd'
 
 jobs:
   goreleaser:
@@ -22,11 +19,11 @@ jobs:
           go-version: 1.16
         id: go
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v2
+        uses: goreleaser/goreleaser-action@master
         with:
           version: latest
           workdir: ./cmd/orchestrator
-          args: release --rm-dist
+          args: release
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
 #      - name: Deploy
