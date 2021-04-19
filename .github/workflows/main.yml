@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - 'feature/13/gitactions-ci-cd'
-      -
+
   pull_request:
     branches:
       - 'feature/13/gitactions-ci-cd'
