@@ -28,11 +28,11 @@ jobs:
           workdir: ./cmd/orchestrator
           args: release --rm-dist
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
       - name: Deploy
         uses: deliverybot/helm@master
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_TOKEN }}
           # still in tests
           #secrets: ${{ toJSON(secrets) }}
           chart: app
