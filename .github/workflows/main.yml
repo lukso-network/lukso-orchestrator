@@ -58,7 +58,7 @@ jobs:
           go get -u golang.org/x/lint/golint
 
       - name: Run build
-        run: go build ./cmd/orchestrator
+        run: go build ./cmd/orchestrator -o lukso-orchestrator
 
       - name: Run vet & lint
         run: |
