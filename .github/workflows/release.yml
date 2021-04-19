@@ -1,9 +1,9 @@
-name: ci
+name: Release
 
 on:
-  push:
-    branches:
-      - 'feature/13/gitactions-ci-cd'
+  create:
+    tags:
+      - v*
 
 jobs:
   goreleaser:
