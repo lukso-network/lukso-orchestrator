@@ -17,9 +17,12 @@ func NewMinimalConsensusInfo(epoch types.Epoch) *eventTypes.MinimalEpochConsensu
 		pubKey := common.Bytes2Hex(bs)
 		validatorList[idx] = pubKey
 	}
+
+	var validatorList32 [32]string
+	copy(validatorList32[:], validatorList)
 	return &eventTypes.MinimalEpochConsensusInfo{
 		Epoch:            uint64(epoch),
-		ValidatorList:    validatorList,
+		ValidatorList:    validatorList32,
 		EpochStartTime:   rand.Uint64(),
 		SlotTimeDuration: time.Duration(6),
 	}

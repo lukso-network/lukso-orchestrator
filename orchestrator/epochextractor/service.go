@@ -302,10 +302,12 @@ func (s *Service) sendConsensusInfoToPandora(isBootstrapping bool) error {
 			"Before sending consensus info to pandora in bootstrapping")
 		//status, err = s.pandoraClient.InsertConsensusInfo(s.ctx, s.curEpoch, s.curEpochProposerPubKeys, curEpochStart)
 
+		var validatorList32 [32]string
+		copy(validatorList32[:], s.curEpochProposerPubKeys)
 		// prepare minimal consensus info for event subscribers
 		minimalConsensusInfo := &eventTypes.MinimalEpochConsensusInfo{
 			Epoch:            uint64(s.curEpoch),
-			ValidatorList:    s.curEpochProposerPubKeys,
+			ValidatorList:    validatorList32,
 			EpochStartTime:   curEpochStart,
 			SlotTimeDuration: time.Duration(s.secondsPerSlot),
 		}
@@ -319,10 +321,13 @@ func (s *Service) sendConsensusInfoToPandora(isBootstrapping bool) error {
 			"Before sending consensus info to pandora")
 		//status, err = s.pandoraClient.InsertConsensusInfo(s.ctx, s.nextEpoch, s.nextEpochProposerPubKeys, nextEpochStart)
 
+		var validatorList32 [32]string
+		copy(validatorList32[:], s.nextEpochProposerPubKeys)
+
 		// prepare minimal consensus info for event subscribers
 		minimalConsensusInfo := &eventTypes.MinimalEpochConsensusInfo{
 			Epoch:            uint64(s.nextEpoch),
-			ValidatorList:    s.nextEpochProposerPubKeys,
+			ValidatorList:    validatorList32,
 			EpochStartTime:   nextEpochStart,
 			SlotTimeDuration: time.Duration(s.secondsPerSlot),
 		}
