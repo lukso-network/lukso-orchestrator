@@ -1,6 +1,6 @@
 [submodule "lukso-network/pandora-execution-engine"]
 	path = lukso-network/pandora-execution-engine
-	url = https://github.com/lukso-network/pandora-execution-engine.git
+	url = git@github.com:lukso-network/pandora-execution-engine
 [submodule "lukso-network/vanguard-consensus-engine"]
 	path = lukso-network/vanguard-consensus-engine
-	url = https://github.com/lukso-network/vanguard-consensus-engine.git
+	url = git@github.com:lukso-network/vanguard-consensus-engine
