@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"github.com/lukso-network/lukso-orchestrator/shared/params"
 	"io"
 	"io/ioutil"
 	"os"
@@ -208,4 +209,30 @@ func IpcEndpoint(ipcPath, datadir string) string {
 		return filepath.Join(datadir, ipcPath)
 	}
 	return ipcPath
+}
+
+// MkdirAll takes in a path, expands it if necessary, and looks through the
+// permissions of every directory along the path, ensuring we are not attempting
+// to overwrite any existing permissions. Finally, creates the directory accordingly
+// with standardized, Prysm project permissions. This is the static-analysis enforced
+// method for creating a directory programmatically in Prysm.
+func MkdirAll(dirPath string) error {
+	expanded, err := ExpandPath(dirPath)
+	if err != nil {
+		return err
+	}
+	exists, err := HasDir(expanded)
+	if err != nil {
+		return err
+	}
+	if exists {
+		info, err := os.Stat(expanded)
+		if err != nil {
+			return err
+		}
+		if info.Mode().Perm() != params.OrchestratorIoConfig().ReadWriteExecutePermissions {
+			return errors.New("dir already exists without proper 0700 permissions")
+		}
+	}
+	return os.MkdirAll(expanded, params.OrchestratorIoConfig().ReadWriteExecutePermissions)
 }

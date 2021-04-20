@@ -3,7 +3,9 @@ module github.com/lukso-network/lukso-orchestrator
 go 1.16
 
 require (
+	github.com/boltdb/bolt v1.3.1
 	github.com/d4l3k/messagediff v1.2.1
+	github.com/dgraph-io/ristretto v0.0.3
 	github.com/ethereum/go-ethereum v1.10.2
 	github.com/gogo/protobuf v1.3.2
 	github.com/gorilla/websocket v1.4.2

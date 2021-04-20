@@ -2,6 +2,8 @@ package node
 
 import (
 	"context"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/db/kv"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/epochextractor"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc"
 	"github.com/lukso-network/lukso-orchestrator/shared"
@@ -25,6 +27,7 @@ type OrchestratorNode struct {
 	services *shared.ServiceRegistry
 	lock     sync.RWMutex
 	stop     chan struct{} // Channel to wait for termination notifications.
+	db       db.Database
 }
 
 // New creates a new node instance, sets up configuration options, and registers
@@ -47,6 +50,54 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 		return nil, err
 	}
 	return orchestrator, nil
+}
+
+func (o *OrchestratorNode) startDB(cliCtx *cli.Context) error {
+	baseDir := cliCtx.String(cmd.DataDirFlag.Name)
+	dbPath := filepath.Join(baseDir, kv.OrchestratorNodeDbDirName)
+	//clearDB := cliCtx.Bool(cmd.ClearDB.Name)
+	//forceClearDB := cliCtx.Bool(cmd.ForceClearDB.Name)
+
+	log.WithField("database-path", dbPath).Info("Checking DB")
+
+	d, err := db.NewDB(o.ctx, dbPath, &kv.Config{
+		InitialMMapSize: cliCtx.Int(cmd.BoltMMapInitialSizeFlag.Name),
+	})
+	if err != nil {
+		return err
+	}
+	//clearDBConfirmed := false
+	//if clearDB && !forceClearDB {
+	//	actionText := "This will delete your beacon chain database stored in your data directory. " +
+	//		"Your database backups will not be removed - do you want to proceed? (Y/N)"
+	//	deniedText := "Database will not be deleted. No changes have been made."
+	//	clearDBConfirmed, err = cmd.ConfirmAction(actionText, deniedText)
+	//	if err != nil {
+	//		return err
+	//	}
+	//}
+	//if clearDBConfirmed || forceClearDB {
+	//	log.Warning("Removing database")
+	//	if err := d.Close(); err != nil {
+	//		return errors.Wrap(err, "could not close db prior to clearing")
+	//	}
+	//	if err := d.ClearDB(); err != nil {
+	//		return errors.Wrap(err, "could not clear database")
+	//	}
+	//	d, err = db.NewDB(b.ctx, dbPath, &kv.Config{
+	//		InitialMMapSize: cliCtx.Int(cmd.BoltMMapInitialSizeFlag.Name),
+	//	})
+	//	if err != nil {
+	//		return errors.Wrap(err, "could not create new database")
+	//	}
+	//}
+	//
+	//if err := d.RunMigrations(b.ctx); err != nil {
+	//	return err
+	//}
+
+	o.db = d
+	return nil
 }
 
 // registerEpochExtractor

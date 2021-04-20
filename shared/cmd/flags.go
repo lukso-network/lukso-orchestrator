@@ -11,7 +11,7 @@ var (
 	// DataDirFlag defines a path on disk.
 	DataDirFlag = &cli.StringFlag{
 		Name:  "datadir",
-		Usage: "Data directory for storing metadata",
+		Usage: "Data directory for storing consensus metadata and block headers",
 		Value: DefaultConfigDir(),
 	}
 
@@ -78,5 +78,12 @@ var (
 		Name:  "verbosity",
 		Usage: "Logging verbosity (trace, debug, info=default, warn, error, fatal, panic)",
 		Value: "info",
+	}
+
+	// BoltMMapInitialSizeFlag specifies the initial size in bytes of boltdb's mmap syscall.
+	BoltMMapInitialSizeFlag = &cli.IntFlag{
+		Name:  "bolt-mmap-initial-size",
+		Usage: "Specifies the size in bytes of bolt db's mmap syscall allocation",
+		Value: 536870912, // 512 Mb as a default value.
 	}
 )
