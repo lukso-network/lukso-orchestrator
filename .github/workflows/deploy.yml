@@ -14,10 +14,9 @@ jobs:
         uses: deliverybot/helm@master
         with:
           token: ${{ secrets.GH_TOKEN }}
-          # still in tests
-          #secrets: ${{ toJSON(secrets) }}
           chart: app
-          namespace: production
-          release: production-myapp
+          namespace: test
+          release: eth20
+          dry-run: true
         env:
           KUBECONFIG_FILE: ${{ secrets.KUBECONFIG }}
