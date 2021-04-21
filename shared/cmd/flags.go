@@ -15,6 +15,17 @@ var (
 		Value: DefaultConfigDir(),
 	}
 
+	// ForceClearDB removes any previously stored data at the data directory.
+	ForceClearDB = &cli.BoolFlag{
+		Name:  "force-clear-db",
+		Usage: "Clear any previously stored data at the data directory",
+	}
+	// ClearDB prompts user to see if they want to remove any previously stored data at the data directory.
+	ClearDB = &cli.BoolFlag{
+		Name:  "clear-db",
+		Usage: "Prompt for clearing any previously stored data at the data directory",
+	}
+
 	IPCPathFlag = &cli.StringFlag{
 		Name:  "ipcpath",
 		Usage: "Filename for IPC socket/pipe within the datadir (explicit paths escape it)",

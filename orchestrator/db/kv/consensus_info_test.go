@@ -12,6 +12,7 @@ import (
 )
 
 func TestStore_ConsensusInfo_RetrieveByEpoch_FromCache(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	db := setupDB(t, true)
 	totalConsensusInfos := make([]*eventTypes.MinimalEpochConsensusInfo, 500)
@@ -27,6 +28,7 @@ func TestStore_ConsensusInfo_RetrieveByEpoch_FromCache(t *testing.T) {
 }
 
 func TestStore_ConsensusInfo_RetrieveByEpoch_FromDB(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	db := setupDB(t, true)
 	totalConsensusInfos := make([]*eventTypes.MinimalEpochConsensusInfo, 2000)
@@ -42,6 +44,7 @@ func TestStore_ConsensusInfo_RetrieveByEpoch_FromDB(t *testing.T) {
 }
 
 func TestStore_SaveConsensusInfo_AlreadyExist(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	db := setupDB(t, true)
 
@@ -52,6 +55,7 @@ func TestStore_SaveConsensusInfo_AlreadyExist(t *testing.T) {
 }
 
 func TestStore_ConsensusInfos_RetrieveByEpoch(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	db := setupDB(t, true)
 	db.latestEpoch = 1999
@@ -70,6 +74,7 @@ func TestStore_ConsensusInfos_RetrieveByEpoch(t *testing.T) {
 
 // TestStore_LatestSavedEpoch_ForFirstTime
 func TestStore_LatestSavedEpoch_ForFirstTime(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	db := setupDB(t, true)
 
@@ -80,6 +85,7 @@ func TestStore_LatestSavedEpoch_ForFirstTime(t *testing.T) {
 
 // TestStore_LatestSavedEpoch
 func TestStore_SaveLatestSavedEpoch_RetrieveLatestEpoch(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	db := setupDB(t, true)
 	db.latestEpoch = uint64(1000)
@@ -95,12 +101,14 @@ func TestStore_SaveLatestSavedEpoch_RetrieveLatestEpoch(t *testing.T) {
 
 // TestDB_Close_Success
 func TestDB_Close_Success(t *testing.T) {
+	t.Parallel()
 	db := setupDB(t, true)
 	db.latestEpoch = uint64(1000)
 	require.NoError(t, db.Close())
 }
 
 func TestStore_LatestEpoch_ClosingDB_OpeningDB(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	db := setupDB(t, false)
 	prevLatestEpoch := rand.Uint64()

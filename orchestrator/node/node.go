@@ -10,6 +10,7 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/shared/cmd"
 	"github.com/lukso-network/lukso-orchestrator/shared/fileutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/version"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"os"
@@ -42,6 +43,11 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 		services: registry,
 		stop:     make(chan struct{}),
 	}
+
+	if err := orchestrator.startDB(orchestrator.cliCtx); err != nil {
+		return nil, err
+	}
+
 	if err := orchestrator.registerEpochExtractor(cliCtx); err != nil {
 		return nil, err
 	}
@@ -55,8 +61,8 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 func (o *OrchestratorNode) startDB(cliCtx *cli.Context) error {
 	baseDir := cliCtx.String(cmd.DataDirFlag.Name)
 	dbPath := filepath.Join(baseDir, kv.OrchestratorNodeDbDirName)
-	//clearDB := cliCtx.Bool(cmd.ClearDB.Name)
-	//forceClearDB := cliCtx.Bool(cmd.ForceClearDB.Name)
+	clearDB := cliCtx.Bool(cmd.ClearDB.Name)
+	forceClearDB := cliCtx.Bool(cmd.ForceClearDB.Name)
 
 	log.WithField("database-path", dbPath).Info("Checking DB")
 
@@ -66,35 +72,33 @@ func (o *OrchestratorNode) startDB(cliCtx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	//clearDBConfirmed := false
-	//if clearDB && !forceClearDB {
-	//	actionText := "This will delete your beacon chain database stored in your data directory. " +
-	//		"Your database backups will not be removed - do you want to proceed? (Y/N)"
-	//	deniedText := "Database will not be deleted. No changes have been made."
-	//	clearDBConfirmed, err = cmd.ConfirmAction(actionText, deniedText)
-	//	if err != nil {
-	//		return err
-	//	}
-	//}
-	//if clearDBConfirmed || forceClearDB {
-	//	log.Warning("Removing database")
-	//	if err := d.Close(); err != nil {
-	//		return errors.Wrap(err, "could not close db prior to clearing")
-	//	}
-	//	if err := d.ClearDB(); err != nil {
-	//		return errors.Wrap(err, "could not clear database")
-	//	}
-	//	d, err = db.NewDB(b.ctx, dbPath, &kv.Config{
-	//		InitialMMapSize: cliCtx.Int(cmd.BoltMMapInitialSizeFlag.Name),
-	//	})
-	//	if err != nil {
-	//		return errors.Wrap(err, "could not create new database")
-	//	}
-	//}
-	//
-	//if err := d.RunMigrations(b.ctx); err != nil {
-	//	return err
-	//}
+
+	clearDBConfirmed := false
+	if clearDB && !forceClearDB {
+		actionText := "This will delete your orchestrator database stored in your data directory. " +
+			"Your database backups will not be removed - do you want to proceed? (Y/N)"
+		deniedText := "Database will not be deleted. No changes have been made."
+		clearDBConfirmed, err = cmd.ConfirmAction(actionText, deniedText)
+		if err != nil {
+			return err
+		}
+	}
+
+	if clearDBConfirmed || forceClearDB {
+		log.Warning("Removing database")
+		if err := d.Close(); err != nil {
+			return errors.Wrap(err, "could not close db prior to clearing")
+		}
+		if err := d.ClearDB(); err != nil {
+			return errors.Wrap(err, "could not clear database")
+		}
+		d, err = db.NewDB(o.ctx, dbPath, &kv.Config{
+			InitialMMapSize: cliCtx.Int(cmd.BoltMMapInitialSizeFlag.Name),
+		})
+		if err != nil {
+			return errors.Wrap(err, "could not create new database")
+		}
+	}
 
 	o.db = d
 	return nil
@@ -161,7 +165,7 @@ func (o *OrchestratorNode) registerRPCService(cliCtx *cli.Context) error {
 	return o.services.RegisterService(svc)
 }
 
-// Start the BeaconNode and kicks off every registered service.
+// Start the OrchestratorNode and kicks off every registered service.
 func (o *OrchestratorNode) Start() {
 	o.lock.Lock()
 
