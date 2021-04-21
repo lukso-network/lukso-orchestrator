@@ -3,7 +3,7 @@ name: Test and build
 on:
   push:
     branches:
-      - 'feature/13/gitactions-ci-cd'
+      - *
 
 jobs:
   test:
