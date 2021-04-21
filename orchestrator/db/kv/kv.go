@@ -28,13 +28,13 @@ type Config struct {
 	InitialMMapSize int
 }
 
-// Store defines an implementation of the Prysm Database interface
-// using BoltDB as the underlying persistent kv-store for eth2.
 type Store struct {
 	ctx                context.Context
+	isRunning          bool
 	db                 *bolt.DB
 	databasePath       string
 	consensusInfoCache *ristretto.Cache
+	latestEpoch        uint64
 }
 
 // NewKVStore initializes a new boltDB key-value store at the directory
@@ -93,6 +93,12 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 		return nil, err
 	}
 
+	latestEpoch, err := kv.LatestSavedEpoch(kv.ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	kv.latestEpoch = latestEpoch
 	return kv, err
 }
 
@@ -109,6 +115,7 @@ func (s *Store) ClearDB() error {
 
 // Close closes the underlying BoltDB database.
 func (s *Store) Close() error {
+	s.SaveLatestEpoch(s.ctx)
 	return s.db.Close()
 }
 

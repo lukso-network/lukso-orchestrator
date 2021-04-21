@@ -33,3 +33,6 @@ crash-*
 
 # deepsource cli
 bin
+
+# test data
+orchestrator/db/kv/test-data
