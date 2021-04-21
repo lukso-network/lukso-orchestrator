@@ -1,8 +1,8 @@
-package vanguard_chain
+package vanguardchain
 
 import (
 	"context"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguard-chain/client"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/client"
 	"sync"
 	"time"
 )

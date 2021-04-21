@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db/kv"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguard-chain"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc"
 	"github.com/lukso-network/lukso-orchestrator/shared"
 	"github.com/lukso-network/lukso-orchestrator/shared/cmd"
@@ -108,7 +108,7 @@ func (o *OrchestratorNode) registerEpochExtractor(cliCtx *cli.Context) error {
 	log.WithField("pandoraHttpUrl", pandoraHttpUrl).WithField(
 		"vanguardHttpUrl", vanguardHttpUrl).WithField("genesisTime", genesisTime).Debug("flag values")
 
-	svc, err := vanguard_chain.NewService(o.ctx, pandoraHttpUrl, vanguardHttpUrl, genesisTime)
+	svc, err := vanguardchain.NewService(o.ctx, pandoraHttpUrl, vanguardHttpUrl, genesisTime)
 	if err != nil {
 		return nil
 	}
@@ -119,7 +119,7 @@ func (o *OrchestratorNode) registerEpochExtractor(cliCtx *cli.Context) error {
 func (o *OrchestratorNode) registerRPCService(cliCtx *cli.Context) error {
 	log.Info("Registering rpc server")
 
-	var epochExtractorService *vanguard_chain.Service
+	var epochExtractorService *vanguardchain.Service
 	if err := o.services.FetchService(&epochExtractorService); err != nil {
 		return err
 	}

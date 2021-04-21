@@ -2,13 +2,13 @@ package api
 
 import (
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguard-chain"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	eth2Types "github.com/prysmaticlabs/eth2-types"
 )
 
 type APIBackend struct {
-	EpochExtractor vanguard_chain.EpochExtractor
+	EpochExtractor vanguardchain.EpochExtractor
 }
 
 func (backend *APIBackend) SubscribeNewEpochEvent(ch chan<- *types.MinimalEpochConsensusInfo) event.Subscription {

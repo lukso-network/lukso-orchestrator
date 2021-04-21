@@ -1,1 +1,0 @@
-package vanguard_chain

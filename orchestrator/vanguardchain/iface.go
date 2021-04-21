@@ -1,4 +1,4 @@
-package vanguard_chain
+package vanguardchain
 
 import (
 	"github.com/ethereum/go-ethereum/event"
