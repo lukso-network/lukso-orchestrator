@@ -3,7 +3,7 @@ package rpc
 import (
 	"context"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/epochextractor"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguard-chain"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
 	"sync"
@@ -12,7 +12,7 @@ import (
 
 // Config
 type Config struct {
-	EpochExpractor epochextractor.EpochExtractor
+	EpochExpractor vanguard_chain.EpochExtractor
 
 	// ipc config
 	IPCPath string

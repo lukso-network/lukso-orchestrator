@@ -1,4 +1,4 @@
-package epochextractor
+package vanguard_chain
 
 import "github.com/sirupsen/logrus"
 

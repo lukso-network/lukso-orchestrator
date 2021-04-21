@@ -2,7 +2,7 @@ package rpc
 
 import (
 	"context"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/epochextractor"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguard-chain"
 	"github.com/lukso-network/lukso-orchestrator/shared/cmd"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/require"
@@ -11,7 +11,7 @@ import (
 )
 
 func setup() (*Config, error) {
-	epochExtractor, err := epochextractor.NewService(context.Background(),
+	epochExtractor, err := vanguard_chain.NewService(context.Background(),
 		cmd.DefaultVanguardRPCEndpoint, cmd.DefaultPandoraRPCEndpoint, 13434434)
 
 	if err != nil {

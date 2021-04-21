@@ -4,12 +4,13 @@ import (
 	"context"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db/kv"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/epochextractor"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguard-chain"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc"
 	"github.com/lukso-network/lukso-orchestrator/shared"
 	"github.com/lukso-network/lukso-orchestrator/shared/cmd"
 	"github.com/lukso-network/lukso-orchestrator/shared/fileutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/version"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"os"
@@ -55,8 +56,8 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 func (o *OrchestratorNode) startDB(cliCtx *cli.Context) error {
 	baseDir := cliCtx.String(cmd.DataDirFlag.Name)
 	dbPath := filepath.Join(baseDir, kv.OrchestratorNodeDbDirName)
-	//clearDB := cliCtx.Bool(cmd.ClearDB.Name)
-	//forceClearDB := cliCtx.Bool(cmd.ForceClearDB.Name)
+	clearDB := cliCtx.Bool(cmd.ClearDB.Name)
+	forceClearDB := cliCtx.Bool(cmd.ForceClearDB.Name)
 
 	log.WithField("database-path", dbPath).Info("Checking DB")
 
@@ -66,35 +67,33 @@ func (o *OrchestratorNode) startDB(cliCtx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	//clearDBConfirmed := false
-	//if clearDB && !forceClearDB {
-	//	actionText := "This will delete your beacon chain database stored in your data directory. " +
-	//		"Your database backups will not be removed - do you want to proceed? (Y/N)"
-	//	deniedText := "Database will not be deleted. No changes have been made."
-	//	clearDBConfirmed, err = cmd.ConfirmAction(actionText, deniedText)
-	//	if err != nil {
-	//		return err
-	//	}
-	//}
-	//if clearDBConfirmed || forceClearDB {
-	//	log.Warning("Removing database")
-	//	if err := d.Close(); err != nil {
-	//		return errors.Wrap(err, "could not close db prior to clearing")
-	//	}
-	//	if err := d.ClearDB(); err != nil {
-	//		return errors.Wrap(err, "could not clear database")
-	//	}
-	//	d, err = db.NewDB(b.ctx, dbPath, &kv.Config{
-	//		InitialMMapSize: cliCtx.Int(cmd.BoltMMapInitialSizeFlag.Name),
-	//	})
-	//	if err != nil {
-	//		return errors.Wrap(err, "could not create new database")
-	//	}
-	//}
-	//
-	//if err := d.RunMigrations(b.ctx); err != nil {
-	//	return err
-	//}
+
+	clearDBConfirmed := false
+	if clearDB && !forceClearDB {
+		actionText := "This will delete your orchestrator database stored in your data directory. " +
+			"Your database backups will not be removed - do you want to proceed? (Y/N)"
+		deniedText := "Database will not be deleted. No changes have been made."
+		clearDBConfirmed, err = cmd.ConfirmAction(actionText, deniedText)
+		if err != nil {
+			return err
+		}
+	}
+
+	if clearDBConfirmed || forceClearDB {
+		log.Warning("Removing database")
+		if err := d.Close(); err != nil {
+			return errors.Wrap(err, "could not close db prior to clearing")
+		}
+		if err := d.ClearDB(); err != nil {
+			return errors.Wrap(err, "could not clear database")
+		}
+		d, err = db.NewDB(o.ctx, dbPath, &kv.Config{
+			InitialMMapSize: cliCtx.Int(cmd.BoltMMapInitialSizeFlag.Name),
+		})
+		if err != nil {
+			return errors.Wrap(err, "could not create new database")
+		}
+	}
 
 	o.db = d
 	return nil
@@ -109,7 +108,7 @@ func (o *OrchestratorNode) registerEpochExtractor(cliCtx *cli.Context) error {
 	log.WithField("pandoraHttpUrl", pandoraHttpUrl).WithField(
 		"vanguardHttpUrl", vanguardHttpUrl).WithField("genesisTime", genesisTime).Debug("flag values")
 
-	svc, err := epochextractor.NewService(o.ctx, pandoraHttpUrl, vanguardHttpUrl, genesisTime)
+	svc, err := vanguard_chain.NewService(o.ctx, pandoraHttpUrl, vanguardHttpUrl, genesisTime)
 	if err != nil {
 		return nil
 	}
@@ -120,7 +119,7 @@ func (o *OrchestratorNode) registerEpochExtractor(cliCtx *cli.Context) error {
 func (o *OrchestratorNode) registerRPCService(cliCtx *cli.Context) error {
 	log.Info("Registering rpc server")
 
-	var epochExtractorService *epochextractor.Service
+	var epochExtractorService *vanguard_chain.Service
 	if err := o.services.FetchService(&epochExtractorService); err != nil {
 		return err
 	}
@@ -161,7 +160,7 @@ func (o *OrchestratorNode) registerRPCService(cliCtx *cli.Context) error {
 	return o.services.RegisterService(svc)
 }
 
-// Start the BeaconNode and kicks off every registered service.
+// Start the OrchestratorNode and kicks off every registered service.
 func (o *OrchestratorNode) Start() {
 	o.lock.Lock()
 
@@ -187,7 +186,7 @@ func (o *OrchestratorNode) Start() {
 				log.WithField("times", i-1).Info("Already shutting down, interrupt more to panic")
 			}
 		}
-		panic("Panic closing the beacon node")
+		panic("Panic closing the orchestrator node")
 	}()
 
 	// Wait for stop channel to be closed.

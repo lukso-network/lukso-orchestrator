@@ -1,4 +1,4 @@
-package vanguard
+package client
 
 import "github.com/sirupsen/logrus"
 

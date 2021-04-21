@@ -22,6 +22,9 @@ var appFlags = []cli.Flag{
 	cmd.WSEnabledFlag,
 	cmd.WSListenAddrFlag,
 	cmd.WSPortFlag,
+	cmd.DataDirFlag,
+	cmd.ClearDB,
+	cmd.ForceClearDB,
 }
 
 func init() {

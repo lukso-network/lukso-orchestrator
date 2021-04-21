@@ -1,4 +1,4 @@
-package pandora
+package client
 
 import (
 	"context"
