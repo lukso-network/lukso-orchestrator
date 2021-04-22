@@ -2,27 +2,32 @@ package api
 
 import (
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
-	eth2Types "github.com/prysmaticlabs/eth2-types"
 )
 
 type APIBackend struct {
-	EpochExtractor vanguardchain.EpochExtractor
+	ConsensusInfoFeed vanguardchain.ConsensusInfoFeed
+	ConsensusInfoDB   db.ReadOnlyDatabase
 }
 
 func (backend *APIBackend) SubscribeNewEpochEvent(ch chan<- *types.MinimalEpochConsensusInfo) event.Subscription {
-	return backend.EpochExtractor.SubscribeMinConsensusInfoEvent(ch)
+	return backend.ConsensusInfoFeed.SubscribeMinConsensusInfoEvent(ch)
 }
 
-func (backend *APIBackend) CurrentEpoch() eth2Types.Epoch {
-	return backend.EpochExtractor.CurrentEpoch()
+func (backend *APIBackend) CurrentEpoch() uint64 {
+	curEpoch, err := backend.ConsensusInfoDB.LatestSavedEpoch()
+	if err != nil {
+		return 0
+	}
+	return curEpoch
 }
 
-func (backend *APIBackend) ConsensusInfoByEpochRange(
-	fromEpoch,
-	toEpoch eth2Types.Epoch,
-) map[eth2Types.Epoch]*types.MinimalEpochConsensusInfo {
-
-	return backend.EpochExtractor.ConsensusInfoByEpochRange(fromEpoch, toEpoch)
+func (backend *APIBackend) ConsensusInfoByEpochRange(fromEpoch uint64) []*types.MinimalEpochConsensusInfo {
+	consensusInfos, err := backend.ConsensusInfoDB.ConsensusInfos(fromEpoch)
+	if err != nil {
+		return nil
+	}
+	return consensusInfos
 }

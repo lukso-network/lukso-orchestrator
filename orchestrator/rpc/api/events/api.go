@@ -5,13 +5,12 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
-	types "github.com/prysmaticlabs/eth2-types"
 	"time"
 )
 
 type Backend interface {
-	CurrentEpoch() types.Epoch
-	ConsensusInfoByEpochRange(fromEpoch, toEpoch types.Epoch) map[types.Epoch]*eventTypes.MinimalEpochConsensusInfo
+	CurrentEpoch() uint64
+	ConsensusInfoByEpochRange(fromEpoch uint64) []*eventTypes.MinimalEpochConsensusInfo
 	SubscribeNewEpochEvent(chan<- *eventTypes.MinimalEpochConsensusInfo) event.Subscription
 }
 
@@ -35,7 +34,7 @@ func NewPublicFilterAPI(backend Backend, timeout time.Duration) *PublicFilterAPI
 }
 
 // MinimalConsensusInfo
-func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, epoch types.Epoch) (*rpc.Subscription, error) {
+func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, epoch uint64) (*rpc.Subscription, error) {
 	notifier, supported := rpc.NotifierFromContext(ctx)
 	if !supported {
 		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported

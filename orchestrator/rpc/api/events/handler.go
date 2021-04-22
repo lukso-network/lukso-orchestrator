@@ -5,7 +5,6 @@ import (
 	ethLog "github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
-	eth2Types "github.com/prysmaticlabs/eth2-types"
 	"sync"
 	"time"
 )
@@ -34,15 +33,14 @@ type subscription struct {
 	err       chan error    // closed when the filter is uninstalled
 
 	isNew         bool
-	epoch         eth2Types.Epoch // last served epoch number
+	epoch         uint64 // last served epoch number
 	consensusInfo chan *types.MinimalEpochConsensusInfo
 }
 
 // EventSystem creates subscriptions, processes events and broadcasts them to the
 // subscription which match the subscription criteria.
 type EventSystem struct {
-	backend   Backend
-	lastEpoch *eth2Types.Epoch
+	backend Backend
 
 	// Subscriptions
 	consensusInfoSub event.Subscription // Subscription for new epoch validator list
@@ -124,7 +122,7 @@ func (es *EventSystem) subscribe(sub *subscription) *Subscription {
 
 // SubscribePendingTxs creates a subscription that writes transaction hashes for
 // transactions that enter the transaction pool.
-func (es *EventSystem) SubscribeConsensusInfo(consensusInfo chan *types.MinimalEpochConsensusInfo, epoch eth2Types.Epoch) *Subscription {
+func (es *EventSystem) SubscribeConsensusInfo(consensusInfo chan *types.MinimalEpochConsensusInfo, epoch uint64) *Subscription {
 	sub := &subscription{
 		id:            rpc.NewID(),
 		typ:           MinConsensusInfoSubscription,
@@ -195,15 +193,12 @@ func (es *EventSystem) sendConsensusInfo(f *subscription, ev *types.MinimalEpoch
 		return
 	}
 
-	consensusInfos := es.backend.ConsensusInfoByEpochRange(f.epoch, curEpoch)
+	consensusInfos := es.backend.ConsensusInfoByEpochRange(f.epoch)
 	log.WithField("consensusInfos", consensusInfos).Debug("start sending consensus infos")
 
 	// sending previous epoch consensus infos
-	for epoch := f.epoch; epoch <= curEpoch; epoch++ {
-		consensusInfo := consensusInfos[epoch]
-		if consensusInfo != nil {
-			log.WithField("consensusInfo", consensusInfo).Debug("Sending consensus info to subscriber")
-			f.consensusInfo <- consensusInfo
-		}
+	for _, consensusInfo := range consensusInfos {
+		log.WithField("consensusInfo", consensusInfo).Debug("Sending consensus info to subscriber")
+		f.consensusInfo <- consensusInfo
 	}
 }

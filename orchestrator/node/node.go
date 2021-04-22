@@ -4,8 +4,8 @@ import (
 	"context"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db/kv"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain"
 	"github.com/lukso-network/lukso-orchestrator/shared"
 	"github.com/lukso-network/lukso-orchestrator/shared/cmd"
 	"github.com/lukso-network/lukso-orchestrator/shared/fileutil"
@@ -43,7 +43,12 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 		services: registry,
 		stop:     make(chan struct{}),
 	}
-	if err := orchestrator.registerEpochExtractor(cliCtx); err != nil {
+
+	if err := orchestrator.startDB(orchestrator.cliCtx); err != nil {
+		return nil, err
+	}
+
+	if err := orchestrator.registerVanguardChainService(cliCtx); err != nil {
 		return nil, err
 	}
 
@@ -99,16 +104,12 @@ func (o *OrchestratorNode) startDB(cliCtx *cli.Context) error {
 	return nil
 }
 
-// registerEpochExtractor
-func (o *OrchestratorNode) registerEpochExtractor(cliCtx *cli.Context) error {
-	pandoraHttpUrl := cliCtx.String(cmd.PandoraRPCEndpoint.Name)
+// registerVanguardChainService
+func (o *OrchestratorNode) registerVanguardChainService(cliCtx *cli.Context) error {
 	vanguardHttpUrl := cliCtx.String(cmd.VanguardRPCEndpoint.Name)
-	genesisTime := cliCtx.Uint64(cmd.GenesisTime.Name)
 
-	log.WithField("pandoraHttpUrl", pandoraHttpUrl).WithField(
-		"vanguardHttpUrl", vanguardHttpUrl).WithField("genesisTime", genesisTime).Debug("flag values")
-
-	svc, err := vanguardchain.NewService(o.ctx, pandoraHttpUrl, vanguardHttpUrl, genesisTime)
+	log.WithField("vanguardHttpUrl", vanguardHttpUrl).Debug("flag values")
+	svc, err := vanguardchain.NewService(o.ctx, vanguardHttpUrl)
 	if err != nil {
 		return nil
 	}
@@ -119,8 +120,8 @@ func (o *OrchestratorNode) registerEpochExtractor(cliCtx *cli.Context) error {
 func (o *OrchestratorNode) registerRPCService(cliCtx *cli.Context) error {
 	log.Info("Registering rpc server")
 
-	var epochExtractorService *vanguardchain.Service
-	if err := o.services.FetchService(&epochExtractorService); err != nil {
+	var consensusInfoFeed *vanguardchain.Service
+	if err := o.services.FetchService(&consensusInfoFeed); err != nil {
 		return err
 	}
 
@@ -145,14 +146,15 @@ func (o *OrchestratorNode) registerRPCService(cliCtx *cli.Context) error {
 		"wsListenerAddr", wsListenerAddr).WithField("wsPort", wsPort).Debug("rpc server configuration")
 
 	svc, err := rpc.NewService(o.ctx, &rpc.Config{
-		EpochExpractor: epochExtractorService,
-		IPCPath:        ipcapiURL,
-		HTTPEnable:     httpEnable,
-		HTTPHost:       httpListenAddr,
-		HTTPPort:       httpPort,
-		WSEnable:       wsEnable,
-		WSHost:         wsListenerAddr,
-		WSPort:         wsPort,
+		ConsensusInfoFeed: consensusInfoFeed,
+		ConsensusInfoDB:   o.db,
+		IPCPath:           ipcapiURL,
+		HTTPEnable:        httpEnable,
+		HTTPHost:          httpListenAddr,
+		HTTPPort:          httpPort,
+		WSEnable:          wsEnable,
+		WSHost:            wsListenerAddr,
+		WSPort:            wsPort,
 	})
 	if err != nil {
 		return nil

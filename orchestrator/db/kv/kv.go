@@ -93,7 +93,7 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 		return nil, err
 	}
 
-	latestEpoch, err := kv.LatestSavedEpoch(kv.ctx)
+	latestEpoch, err := kv.LatestSavedEpoch()
 	if err != nil {
 		return nil, err
 	}

@@ -3,7 +3,6 @@ package events
 import (
 	"github.com/ethereum/go-ethereum/event"
 	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
-	types "github.com/prysmaticlabs/eth2-types"
 	"time"
 )
 
@@ -12,26 +11,21 @@ var (
 )
 
 type MockBackend struct {
-	ConsensusInfoFeed    event.Feed
-	ConsensusInfoMapping map[types.Epoch]*eventTypes.MinimalEpochConsensusInfo
-	CurEpoch             types.Epoch
+	ConsensusInfoFeed event.Feed
+	ConsensusInfos    []*eventTypes.MinimalEpochConsensusInfo
+	CurEpoch          uint64
 }
 
-func (backend *MockBackend) CurrentEpoch() types.Epoch {
+func (backend *MockBackend) CurrentEpoch() uint64 {
 	return backend.CurEpoch
 }
 
-func (backend *MockBackend) ConsensusInfoByEpochRange(fromEpoch, toEpoch types.Epoch,
-) map[types.Epoch]*eventTypes.MinimalEpochConsensusInfo {
-
-	consensusInfoMapping := make(map[types.Epoch]*eventTypes.MinimalEpochConsensusInfo)
-	for epoch := fromEpoch; epoch <= toEpoch; epoch++ {
-		item, exists := backend.ConsensusInfoMapping[epoch]
-		if exists && item != nil {
-			consensusInfoMapping[epoch] = item
-		}
+func (backend *MockBackend) ConsensusInfoByEpochRange(fromEpoch uint64) []*eventTypes.MinimalEpochConsensusInfo {
+	consensusInfos := make([]*eventTypes.MinimalEpochConsensusInfo, 0)
+	for _, consensusInfo := range backend.ConsensusInfos {
+		consensusInfos = append(consensusInfos, consensusInfo)
 	}
-	return consensusInfoMapping
+	return consensusInfos
 }
 
 func (b *MockBackend) SubscribeNewEpochEvent(ch chan<- *eventTypes.MinimalEpochConsensusInfo) event.Subscription {

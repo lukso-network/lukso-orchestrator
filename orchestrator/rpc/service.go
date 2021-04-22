@@ -3,17 +3,18 @@ package rpc
 import (
 	"context"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain"
 	"sync"
 	"time"
 )
 
 // Config
 type Config struct {
-	EpochExpractor vanguardchain.EpochExtractor
-
+	ConsensusInfoFeed vanguardchain.ConsensusInfoFeed
+	ConsensusInfoDB   db.ReadOnlyDatabase
 	// ipc config
 	IPCPath string
 
@@ -62,7 +63,10 @@ func NewService(ctx context.Context, cfg *Config) (*Service, error) {
 		cancel:        cancel,
 		config:        cfg,
 		inprocHandler: rpc.NewServer(),
-		backend:       &api.APIBackend{EpochExtractor: cfg.EpochExpractor},
+		backend: &api.APIBackend{
+			ConsensusInfoFeed: cfg.ConsensusInfoFeed,
+			ConsensusInfoDB:   cfg.ConsensusInfoDB,
+		},
 	}
 	// Configure RPC servers.
 	service.rpcAPIs = service.APIs()

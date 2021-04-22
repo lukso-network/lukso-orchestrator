@@ -11,24 +11,24 @@ import (
 )
 
 func setup() (*Config, error) {
-	epochExtractor, err := vanguardchain.NewService(context.Background(),
-		cmd.DefaultVanguardRPCEndpoint, cmd.DefaultPandoraRPCEndpoint, 13434434)
+	consensusInfoFeed, err := vanguardchain.NewService(context.Background(), cmd.DefaultVanguardRPCEndpoint)
 
 	if err != nil {
 		return nil, err
 	}
 	return &Config{
-		EpochExpractor: epochExtractor,
-		IPCPath:        cmd.DefaultIpcPath,
-		HTTPEnable:     true,
-		HTTPHost:       cmd.DefaultHTTPHost,
-		HTTPPort:       cmd.DefaultHTTPPort,
-		WSEnable:       true,
-		WSHost:         cmd.DefaultWSHost,
-		WSPort:         cmd.DefaultWSPort,
+		ConsensusInfoFeed: consensusInfoFeed,
+		IPCPath:           cmd.DefaultIpcPath,
+		HTTPEnable:        true,
+		HTTPHost:          cmd.DefaultHTTPHost,
+		HTTPPort:          cmd.DefaultHTTPPort,
+		WSEnable:          true,
+		WSHost:            cmd.DefaultWSHost,
+		WSPort:            cmd.DefaultWSPort,
 	}, nil
 }
 
+// TODO- Need to implement integration test cases
 // TestServerStart_Success
 func TestServerStart_Success(t *testing.T) {
 	hook := logTest.NewGlobal()

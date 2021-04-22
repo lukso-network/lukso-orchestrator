@@ -32,7 +32,7 @@ func (s *Store) ConsensusInfo(ctx context.Context, epoch uint64) (*eventTypes.Mi
 }
 
 // ConsensusInfos
-func (s *Store) ConsensusInfos(ctx context.Context, fromEpoch uint64) (
+func (s *Store) ConsensusInfos(fromEpoch uint64) (
 	[]*eventTypes.MinimalEpochConsensusInfo, error,
 ) {
 	// when requested epoch is greater than stored latest epoch
@@ -95,7 +95,7 @@ func (s *Store) SaveConsensusInfo(
 }
 
 // LatestSavedEpoch
-func (s *Store) LatestSavedEpoch(ctx context.Context) (uint64, error) {
+func (s *Store) LatestSavedEpoch() (uint64, error) {
 	// Db is not prepared yet. Retrieve latest saved epoch number from db
 	if !s.isRunning {
 		err := s.db.View(func(tx *bolt.Tx) error {

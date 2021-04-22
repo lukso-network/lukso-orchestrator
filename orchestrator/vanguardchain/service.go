@@ -2,31 +2,42 @@ package vanguardchain
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum/event"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/client"
+	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
 	"sync"
 	"time"
 )
 
 type Service struct {
-	isRunning                bool
-	processingLock           sync.RWMutex
-	ctx                      context.Context
-	cancel                   context.CancelFunc
-	runError                 error
+	// service maintenance related attributes
+	isRunning      bool
+	processingLock sync.RWMutex
+	ctx            context.Context
+	cancel         context.CancelFunc
+	runError       error
 
-	connectedVanguard        bool
-	vanguardHttpEndpoint     string
-	vanguardClient           client.VanguardClient
+	// vanguard chain related attributes
+	connectedVanguard    bool
+	vanguardHttpEndpoint string
+	vanguardClient       client.VanguardClient
 
+	// subscription
+	consensusInfoFeed event.Feed
+	scope             event.SubscriptionScope
+
+	// db support
+	db db.Database
 }
 
 func NewService(ctx context.Context, vanguardHttpEndpoint string) (*Service, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	_ = cancel // govet fix for lost cancel. Cancel is handled in service.Stop()
 	return &Service{
-		ctx:                      ctx,
-		cancel:                   cancel,
-		vanguardHttpEndpoint:     vanguardHttpEndpoint,
+		ctx:                  ctx,
+		cancel:               cancel,
+		vanguardHttpEndpoint: vanguardHttpEndpoint,
 	}, nil
 }
 
@@ -51,6 +62,7 @@ func (s *Service) Stop() error {
 	if s.cancel != nil {
 		defer s.cancel()
 	}
+	s.scope.Close()
 	s.closeClients()
 	return nil
 }
@@ -113,16 +125,29 @@ func (s *Service) run(done <-chan struct{}) {
 
 // connectToVanguardChain
 func (s *Service) connectToVanguardChain() error {
-	vanguardClient, err := client.Dial(s.ctx, s.vanguardHttpEndpoint, 1*time.Second, 5, 4194304)
-	if err != nil {
-		return err
+	if s.vanguardClient == nil {
+		vanguardClient, err := client.Dial(
+			s.ctx,
+			s.vanguardHttpEndpoint,
+			1*time.Second,
+			5,
+			4194304)
+		if err != nil {
+			return err
+		}
+		s.vanguardClient = vanguardClient
 	}
-	s.vanguardClient = vanguardClient
+
 	// Make a simple call to ensure we are actually connected to a working node.
-	_, err = s.vanguardClient.CanonicalHeadSlot()
+	_, err := s.vanguardClient.CanonicalHeadSlot()
 	if err != nil {
 		s.vanguardClient.Close()
 		return err
 	}
 	return nil
+}
+
+// SubscribeChainHeadEvent registers a subscription of ChainHeadEvent.
+func (s *Service) SubscribeMinConsensusInfoEvent(ch chan<- *eventTypes.MinimalEpochConsensusInfo) event.Subscription {
+	return s.scope.Track(s.consensusInfoFeed.Subscribe(ch))
 }

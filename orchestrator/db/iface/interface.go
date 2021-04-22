@@ -9,8 +9,8 @@ import (
 // ReadOnlyDatabase defines a struct which only has read access to database methods.
 type ReadOnlyDatabase interface {
 	ConsensusInfo(ctx context.Context, epoch uint64) (*eventTypes.MinimalEpochConsensusInfo, error)
-	ConsensusInfos(ctx context.Context, fromEpoch uint64) ([]*eventTypes.MinimalEpochConsensusInfo, error)
-	LatestSavedEpoch(ctx context.Context) (uint64, error)
+	ConsensusInfos(fromEpoch uint64) ([]*eventTypes.MinimalEpochConsensusInfo, error)
+	LatestSavedEpoch() (uint64, error)
 }
 
 // Database interface with full access.

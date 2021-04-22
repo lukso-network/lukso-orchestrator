@@ -8,9 +8,7 @@ import (
 	"strings"
 )
 
-
 var log = logrus.WithField("prefix", "node")
-
 
 // ConfirmAction uses the passed in actionText as the confirmation text displayed in the terminal.
 // The user must enter Y or N to indicate whether they confirm the action detailed in the warning text.
@@ -43,4 +41,3 @@ func ConfirmAction(actionText, deniedText string) (bool, error) {
 
 	return confirmed, nil
 }
-
