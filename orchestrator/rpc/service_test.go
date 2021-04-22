@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	testDB "github.com/lukso-network/lukso-orchestrator/orchestrator/db/testing"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain"
 	"github.com/lukso-network/lukso-orchestrator/shared/cmd"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
@@ -10,12 +11,13 @@ import (
 	"testing"
 )
 
-func setup() (*Config, error) {
-	consensusInfoFeed, err := vanguardchain.NewService(context.Background(), cmd.DefaultVanguardRPCEndpoint)
-
+func setup(t *testing.T) (*Config, error) {
+	orchestratorDB := testDB.SetupDB(t)
+	consensusInfoFeed, err := vanguardchain.NewService(context.Background(), cmd.DefaultVanguardRPCEndpoint, orchestratorDB)
 	if err != nil {
 		return nil, err
 	}
+
 	return &Config{
 		ConsensusInfoFeed: consensusInfoFeed,
 		IPCPath:           cmd.DefaultIpcPath,

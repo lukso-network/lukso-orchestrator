@@ -5,10 +5,16 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/client"
-	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
 	"sync"
 	"time"
 )
+
+// time to wait before trying to reconnect with the eth1 node.
+var reconnectPeriod = 15 * time.Second
+
+type Config struct {
+	VanguardHttpEndpoint string
+}
 
 type Service struct {
 	// service maintenance related attributes
@@ -26,18 +32,20 @@ type Service struct {
 	// subscription
 	consensusInfoFeed event.Feed
 	scope             event.SubscriptionScope
+	conInfoSubErrCh   chan error
 
 	// db support
 	db db.Database
 }
 
-func NewService(ctx context.Context, vanguardHttpEndpoint string) (*Service, error) {
+func NewService(ctx context.Context, vanguardHttpEndpoint string, db db.Database) (*Service, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	_ = cancel // govet fix for lost cancel. Cancel is handled in service.Stop()
 	return &Service{
 		ctx:                  ctx,
 		cancel:               cancel,
 		vanguardHttpEndpoint: vanguardHttpEndpoint,
+		db:                   db,
 	}, nil
 }
 
@@ -87,6 +95,7 @@ func (s *Service) closeClients() {
 	}
 }
 
+// waitForConnection
 func (s *Service) waitForConnection() {
 	var err error
 	if err = s.connectToVanguardChain(); err == nil {
@@ -121,6 +130,28 @@ func (s *Service) waitForConnection() {
 // run subscribes to all the services for the ETH1.0 chain.
 func (s *Service) run(done <-chan struct{}) {
 	s.runError = nil
+
+	for {
+		select {
+		case <-done:
+			s.isRunning = false
+			s.runError = nil
+			log.Debug("Context closed, exiting goroutine")
+			return
+		case err := <-s.conInfoSubErrCh:
+			if err != nil {
+				log.WithError(err).Debug("Could not fetch consensus info from vanguard node")
+				s.retryVanguardNode(err)
+				latestSavedEpochInDb, err := s.db.LatestSavedEpoch()
+				if err != nil {
+					log.WithError(err).Warn("Failed to retrieve latest saved epoch information")
+					continue
+				}
+				s.subscribeNewConsensusInfo(s.ctx, latestSavedEpochInDb, "van")
+				continue
+			}
+		}
+	}
 }
 
 // connectToVanguardChain
@@ -147,7 +178,13 @@ func (s *Service) connectToVanguardChain() error {
 	return nil
 }
 
-// SubscribeChainHeadEvent registers a subscription of ChainHeadEvent.
-func (s *Service) SubscribeMinConsensusInfoEvent(ch chan<- *eventTypes.MinimalEpochConsensusInfo) event.Subscription {
-	return s.scope.Track(s.consensusInfoFeed.Subscribe(ch))
+// Reconnect to eth1 node in case of any failure.
+func (s *Service) retryVanguardNode(err error) {
+	s.runError = err
+	s.connectedVanguard = false
+	// Back off for a while before resuming dialing the vanguard node.
+	time.Sleep(reconnectPeriod)
+	s.waitForConnection()
+	// Reset run error in the event of a successful connection.
+	s.runError = nil
 }

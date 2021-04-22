@@ -6,18 +6,17 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/iface"
 	"sync"
 	"time"
 )
 
 // Config
 type Config struct {
-	ConsensusInfoFeed vanguardchain.ConsensusInfoFeed
+	ConsensusInfoFeed iface.ConsensusInfoFeed
 	ConsensusInfoDB   db.ReadOnlyDatabase
 	// ipc config
 	IPCPath string
-
 	// http config
 	HTTPEnable       bool
 	HTTPHost         string
@@ -27,7 +26,6 @@ type Config struct {
 	HTTPModules      []string
 	HTTPTimeouts     rpc.HTTPTimeouts
 	HTTPPathPrefix   string
-
 	// WebSocket config
 	WSEnable     bool
 	WSHost       string

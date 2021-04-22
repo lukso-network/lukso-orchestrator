@@ -22,13 +22,18 @@ import (
 
 // OrchestratorNode
 type OrchestratorNode struct {
-	cliCtx   *cli.Context
-	ctx      context.Context
-	cancel   context.CancelFunc
+	// basic configuration
+	cliCtx *cli.Context
+	ctx    context.Context
+	cancel context.CancelFunc
+
+	// service storage
 	services *shared.ServiceRegistry
 	lock     sync.RWMutex
 	stop     chan struct{} // Channel to wait for termination notifications.
-	db       db.Database
+
+	//kv database with cache
+	db db.Database
 }
 
 // New creates a new node instance, sets up configuration options, and registers
@@ -55,6 +60,7 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 	if err := orchestrator.registerRPCService(cliCtx); err != nil {
 		return nil, err
 	}
+
 	return orchestrator, nil
 }
 

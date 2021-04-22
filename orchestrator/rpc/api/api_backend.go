@@ -3,12 +3,12 @@ package api
 import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/iface"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 )
 
 type APIBackend struct {
-	ConsensusInfoFeed vanguardchain.ConsensusInfoFeed
+	ConsensusInfoFeed iface.ConsensusInfoFeed
 	ConsensusInfoDB   db.ReadOnlyDatabase
 }
 
