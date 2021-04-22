@@ -35,7 +35,7 @@ func NewPublicFilterAPI(backend Backend, timeout time.Duration) *PublicFilterAPI
 }
 
 // MinimalConsensusInfo
-func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, epoch types.Epoch) (*rpc.Subscription, error) {
+func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, epoch uint64) (*rpc.Subscription, error) {
 	notifier, supported := rpc.NotifierFromContext(ctx)
 	if !supported {
 		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported
@@ -44,7 +44,7 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, epoch type
 
 	go func() {
 		consensusInfo := make(chan *eventTypes.MinimalEpochConsensusInfo)
-		consensusInfoSub := api.events.SubscribeConsensusInfo(consensusInfo, epoch)
+		consensusInfoSub := api.events.SubscribeConsensusInfo(consensusInfo, types.Epoch(epoch))
 		log.WithField("fromEpoch", epoch).Debug("registered new subscriber for consensus info")
 
 		for {
