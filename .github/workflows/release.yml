@@ -26,6 +26,6 @@ jobs:
         with:
           version: latest
           workdir: ./cmd/orchestrator
-          args: release --rm-dist
+          args: release --rm-dist --config ../../.github/.goreleaser.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
