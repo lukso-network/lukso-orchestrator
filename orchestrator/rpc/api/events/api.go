@@ -44,7 +44,7 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, epoch uint
 	go func() {
 		consensusInfo := make(chan *eventTypes.MinimalEpochConsensusInfo)
 		consensusInfoSub := api.events.SubscribeConsensusInfo(consensusInfo, epoch)
-		log.WithField("fromEpoch", epoch).Debug("registered new subscriber for consensus info")
+		log.WithField("fromEpoch", epoch).Info("registered new subscriber for consensus info")
 
 		for {
 			select {

@@ -115,7 +115,7 @@ func (o *OrchestratorNode) registerVanguardChainService(cliCtx *cli.Context) err
 	vanguardHttpUrl := cliCtx.String(cmd.VanguardRPCEndpoint.Name)
 
 	log.WithField("vanguardHttpUrl", vanguardHttpUrl).Debug("flag values")
-	svc, err := vanguardchain.NewService(o.ctx, vanguardHttpUrl)
+	svc, err := vanguardchain.NewService(o.ctx, vanguardHttpUrl, "ws://127.0.0.1:8546",  o.db)
 	if err != nil {
 		return nil
 	}
@@ -134,7 +134,7 @@ func (o *OrchestratorNode) registerRPCService(cliCtx *cli.Context) error {
 	var ipcapiURL string
 	if cliCtx.String(cmd.IPCPathFlag.Name) != "" {
 		ipcFilePath := cliCtx.String(cmd.IPCPathFlag.Name)
-		ipcapiURL = fileutil.IpcEndpoint(filepath.Join(ipcFilePath, "orchestrator.ipc"), "")
+		ipcapiURL = fileutil.IpcEndpoint(filepath.Join(ipcFilePath, cmd.DefaultIpcPath), "")
 
 		log.WithField("ipcFilePath", ipcFilePath).WithField(
 			"ipcPath", ipcapiURL).Info("ipc file path")

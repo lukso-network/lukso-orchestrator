@@ -3,8 +3,8 @@ package vanguardchain
 import (
 	"context"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/client"
 	"sync"
 	"time"
 )
@@ -12,9 +12,7 @@ import (
 // time to wait before trying to reconnect with the eth1 node.
 var reconnectPeriod = 15 * time.Second
 
-type Config struct {
-	VanguardHttpEndpoint string
-}
+type DialRPCFn func(endpoint string) (*rpc.Client, error)
 
 type Service struct {
 	// service maintenance related attributes
@@ -26,8 +24,10 @@ type Service struct {
 
 	// vanguard chain related attributes
 	connectedVanguard    bool
-	vanguardHttpEndpoint string
-	vanguardClient       client.VanguardClient
+	vanEndpoint string
+	vanRPCClient       *rpc.Client
+	dialRPCFn DialRPCFn
+	namespace			string
 
 	// subscription
 	consensusInfoFeed event.Feed
@@ -38,13 +38,15 @@ type Service struct {
 	db db.Database
 }
 
-func NewService(ctx context.Context, vanguardHttpEndpoint string, db db.Database) (*Service, error) {
+func NewService(ctx context.Context, vanEndpoint string, namespace string, db db.Database, dialRPCFn DialRPCFn) (*Service, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	_ = cancel // govet fix for lost cancel. Cancel is handled in service.Stop()
 	return &Service{
 		ctx:                  ctx,
 		cancel:               cancel,
-		vanguardHttpEndpoint: vanguardHttpEndpoint,
+		vanEndpoint: vanEndpoint,
+		dialRPCFn: dialRPCFn,
+		namespace: namespace,
 		db:                   db,
 	}, nil
 }
@@ -52,7 +54,7 @@ func NewService(ctx context.Context, vanguardHttpEndpoint string, db db.Database
 // Start a consensus info fetcher service's main event loop.
 func (s *Service) Start() {
 	// Exit early if eth1 endpoint is not set.
-	if s.vanguardHttpEndpoint == "" {
+	if s.vanEndpoint == "" {
 		return
 	}
 	go func() {
@@ -89,9 +91,8 @@ func (s *Service) Status() error {
 
 // closes down our active eth1 clients.
 func (s *Service) closeClients() {
-	vanguardClient, ok := s.vanguardClient.(*client.GRPCClient)
-	if ok {
-		vanguardClient.Close()
+	if s.vanRPCClient != nil {
+		s.vanRPCClient.Close()
 	}
 }
 
@@ -99,6 +100,7 @@ func (s *Service) closeClients() {
 func (s *Service) waitForConnection() {
 	var err error
 	if err = s.connectToVanguardChain(); err == nil {
+		log.WithField("vanguardHttp", s.vanEndpoint).Info("Connected vanguard chain")
 		s.connectedVanguard = true
 		return
 	}
@@ -106,22 +108,23 @@ func (s *Service) waitForConnection() {
 	s.runError = err
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
+
 	for {
 		select {
 		case <-ticker.C:
-			log.Debugf("Trying to dial vanguard endpoint: %s", s.vanguardHttpEndpoint)
+			log.Debugf("Trying to dial vanguard endpoint: %s", s.vanEndpoint)
 			var errConnect error
 			if errConnect = s.connectToVanguardChain(); errConnect != nil {
-				log.Debug("Could not connect to vanguard endpoint")
+				log.WithError(errConnect).Warn("Could not connect to vanguard endpoint")
 				s.runError = errConnect
 				continue
 			}
 			s.connectedVanguard = true
 			s.runError = nil
-			log.WithField("vanguardHttp", s.vanguardHttpEndpoint).Info("Connected vanguard chain")
+			log.WithField("vanguardHttp", s.vanEndpoint).Info("Connected vanguard chain")
 			return
 		case <-s.ctx.Done():
-			log.Debug("Received cancelled context,closing existing pandora and vanguard client service")
+			log.Debug("Received cancelled context,closing existing vanguard client service")
 			return
 		}
 	}
@@ -130,6 +133,12 @@ func (s *Service) waitForConnection() {
 // run subscribes to all the services for the ETH1.0 chain.
 func (s *Service) run(done <-chan struct{}) {
 	s.runError = nil
+	latestSavedEpochInDb, err := s.db.LatestSavedEpoch()
+	if err != nil {
+		log.WithError(err).Warn("Failed to retrieve latest saved epoch information")
+		return
+	}
+	s.subscribeNewConsensusInfo(s.ctx, latestSavedEpochInDb, s.namespace, s.vanRPCClient)
 
 	for {
 		select {
@@ -142,12 +151,13 @@ func (s *Service) run(done <-chan struct{}) {
 			if err != nil {
 				log.WithError(err).Debug("Could not fetch consensus info from vanguard node")
 				s.retryVanguardNode(err)
+				// Re-subscribe to vanguard
 				latestSavedEpochInDb, err := s.db.LatestSavedEpoch()
 				if err != nil {
 					log.WithError(err).Warn("Failed to retrieve latest saved epoch information")
 					continue
 				}
-				s.subscribeNewConsensusInfo(s.ctx, latestSavedEpochInDb, "van")
+				s.subscribeNewConsensusInfo(s.ctx, latestSavedEpochInDb,  s.namespace, s.vanRPCClient)
 				continue
 			}
 		}
@@ -156,24 +166,12 @@ func (s *Service) run(done <-chan struct{}) {
 
 // connectToVanguardChain
 func (s *Service) connectToVanguardChain() error {
-	if s.vanguardClient == nil {
-		vanguardClient, err := client.Dial(
-			s.ctx,
-			s.vanguardHttpEndpoint,
-			1*time.Second,
-			5,
-			4194304)
+	if s.vanRPCClient == nil {
+		vanRPCClient, err := s.dialRPCFn(s.vanEndpoint)
 		if err != nil {
 			return err
 		}
-		s.vanguardClient = vanguardClient
-	}
-
-	// Make a simple call to ensure we are actually connected to a working node.
-	_, err := s.vanguardClient.CanonicalHeadSlot()
-	if err != nil {
-		s.vanguardClient.Close()
-		return err
+		s.vanRPCClient = vanRPCClient
 	}
 	return nil
 }

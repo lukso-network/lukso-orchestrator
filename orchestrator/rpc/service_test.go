@@ -20,6 +20,7 @@ func setup(t *testing.T) (*Config, error) {
 
 	return &Config{
 		ConsensusInfoFeed: consensusInfoFeed,
+		ConsensusInfoDB: orchestratorDB,
 		IPCPath:           cmd.DefaultIpcPath,
 		HTTPEnable:        true,
 		HTTPHost:          cmd.DefaultHTTPHost,
@@ -35,7 +36,7 @@ func setup(t *testing.T) (*Config, error) {
 func TestServerStart_Success(t *testing.T) {
 	hook := logTest.NewGlobal()
 	ctx := context.Background()
-	config, err := setup()
+	config, err := setup(t)
 	require.NoError(t, err)
 
 	rpcService, err := NewService(ctx, config)

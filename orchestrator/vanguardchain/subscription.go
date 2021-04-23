@@ -13,20 +13,19 @@ func (s *Service) SubscribeMinConsensusInfoEvent(ch chan<- *types.MinimalEpochCo
 }
 
 // SubscribeNewConsensusInfo
-func (s *Service) subscribeNewConsensusInfo(ctx context.Context, epoch uint64, namespace string) {
+func (s *Service) subscribeNewConsensusInfo(ctx context.Context, epoch uint64, namespace string, client *rpc.Client) (*rpc.ClientSubscription, error) {
 	ch := make(chan *types.MinimalEpochConsensusInfo)
-	client, err := rpc.Dial(s.vanguardHttpEndpoint)
 	sub, err := client.Subscribe(ctx, namespace, ch, "minimalConsensusInfo", epoch)
 	if nil != err {
-		return
+		return nil, err
 	}
-
+	log.WithField("fromEpoch", epoch).Debug("subscribed to vanguard chain for consensus info")
 	// Start up a dispatcher to feed into the callback
 	go func() {
 		for {
 			select {
 			case consensusInfo := <-ch:
-				log.WithField("consensusInfo", consensusInfo).Trace("Got new consensus info from vanguard")
+				log.WithField("epoch", consensusInfo.Epoch).Info("Got new consensus info from vanguard")
 				s.OnNewConsensusInfo(ctx, consensusInfo)
 			case err := <-sub.Err():
 				if err != nil {
@@ -36,4 +35,6 @@ func (s *Service) subscribeNewConsensusInfo(ctx context.Context, epoch uint64, n
 			}
 		}
 	}()
+
+	return sub, nil
 }
