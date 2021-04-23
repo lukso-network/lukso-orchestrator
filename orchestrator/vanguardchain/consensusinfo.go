@@ -15,8 +15,3 @@ func (s *Service) OnNewConsensusInfo(ctx context.Context, consensusInfo *types.M
 		return
 	}
 }
-
-// OnConsensusSubError
-func (s *Service) OnConsensusSubError(err error) {
-	s.conInfoSubErrCh <- err
-}

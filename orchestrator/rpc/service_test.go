@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	ethRpc "github.com/ethereum/go-ethereum/rpc"
 	testDB "github.com/lukso-network/lukso-orchestrator/orchestrator/db/testing"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain"
 	"github.com/lukso-network/lukso-orchestrator/shared/cmd"
@@ -13,14 +14,28 @@ import (
 
 func setup(t *testing.T) (*Config, error) {
 	orchestratorDB := testDB.SetupDB(t)
-	consensusInfoFeed, err := vanguardchain.NewService(context.Background(), cmd.DefaultVanguardRPCEndpoint, orchestratorDB)
+	dialRPCClient := func(endpoint string) (*ethRpc.Client, error) {
+		client, err := ethRpc.Dial(endpoint)
+		if err != nil {
+			return nil, err
+		}
+		return client, nil
+	}
+	namespace := "van"
+	consensusInfoFeed, err := vanguardchain.NewService(
+		context.Background(),
+		cmd.DefaultVanguardRPCEndpoint,
+		namespace,
+		orchestratorDB,
+		dialRPCClient,
+	)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Config{
 		ConsensusInfoFeed: consensusInfoFeed,
-		ConsensusInfoDB: orchestratorDB,
+		ConsensusInfoDB:   orchestratorDB,
 		IPCPath:           cmd.DefaultIpcPath,
 		HTTPEnable:        true,
 		HTTPHost:          cmd.DefaultHTTPHost,

@@ -12,7 +12,6 @@ type ConsensusInfoFeed interface {
 
 type NewConsensusInfoHandler interface {
 	OnNewConsensusInfo(ctx context.Context, consensusInfo *types.MinimalEpochConsensusInfo)
-	OnConsensusSubError(err error)
 }
 
 type NewHeaderHandler interface {

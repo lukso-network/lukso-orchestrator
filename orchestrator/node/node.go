@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	ethRpc "github.com/ethereum/go-ethereum/rpc"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db/kv"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc"
@@ -112,10 +113,18 @@ func (o *OrchestratorNode) startDB(cliCtx *cli.Context) error {
 
 // registerVanguardChainService
 func (o *OrchestratorNode) registerVanguardChainService(cliCtx *cli.Context) error {
-	vanguardHttpUrl := cliCtx.String(cmd.VanguardRPCEndpoint.Name)
+	vanguardRPCUrl := cliCtx.String(cmd.VanguardRPCEndpoint.Name)
 
-	log.WithField("vanguardHttpUrl", vanguardHttpUrl).Debug("flag values")
-	svc, err := vanguardchain.NewService(o.ctx, vanguardHttpUrl, "ws://127.0.0.1:8546",  o.db)
+	log.WithField("vanguardHttpUrl", vanguardRPCUrl).Debug("flag values")
+	dialRPCClient := func(endpoint string) (*ethRpc.Client, error) {
+		client, err := ethRpc.Dial(endpoint)
+		if err != nil {
+			return nil, err
+		}
+		return client, nil
+	}
+	namespace := "van"
+	svc, err := vanguardchain.NewService(o.ctx, vanguardRPCUrl, namespace, o.db, dialRPCClient)
 	if err != nil {
 		return nil
 	}
