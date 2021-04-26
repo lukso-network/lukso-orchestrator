@@ -51,7 +51,7 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, epoch uint
 		log.WithField("fromEpoch", epoch).Debug("registered new subscriber for consensus info")
 
 		for index, currentEpoch := range alreadyKnownEpochs {
-			log.WithField("epoch", index).Info("sending already known consensus info to subscriber")
+			log.WithField("epoch", index).WithField("epochStartTime", currentEpoch.EpochStartTime).Info("sending already known consensus info to subscriber")
 			err := notifier.Notify(rpcSub.ID, currentEpoch)
 
 			if nil != err {
