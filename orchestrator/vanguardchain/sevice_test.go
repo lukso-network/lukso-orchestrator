@@ -13,6 +13,7 @@ import (
 func Test_VanguardSvc_StartStop(t *testing.T) {
 	hook := logTest.NewGlobal()
 	ctx := context.Background()
+	reConPeriod = 1 * time.Second
 
 	// setup in process server and client
 	mockServer, _ := SetupInProcServer(t)
@@ -36,6 +37,7 @@ func Test_VanguardSvc_StartStop(t *testing.T) {
 func Test_VanguardSvc_NoServerConn(t *testing.T) {
 	hook := logTest.NewGlobal()
 	ctx := context.Background()
+	reConPeriod = 1 * time.Second
 
 	// setup vanguard service
 	dialRPCClient := DialRPCClient()
@@ -51,6 +53,7 @@ func Test_VanguardSvc_NoServerConn(t *testing.T) {
 func Test_VanguardSvc_RetryToConnServer(t *testing.T) {
 	hook := logTest.NewGlobal()
 	ctx := context.Background()
+	reConPeriod = 1 * time.Second
 
 	// setup vanguard service
 	dialRPCClient := DialRPCClient()
