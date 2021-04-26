@@ -65,6 +65,7 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 	return orchestrator, nil
 }
 
+// startDB initialize KV db and cache
 func (o *OrchestratorNode) startDB(cliCtx *cli.Context) error {
 	baseDir := cliCtx.String(cmd.DataDirFlag.Name)
 	dbPath := filepath.Join(baseDir, kv.OrchestratorNodeDbDirName)
@@ -114,8 +115,6 @@ func (o *OrchestratorNode) startDB(cliCtx *cli.Context) error {
 // registerVanguardChainService
 func (o *OrchestratorNode) registerVanguardChainService(cliCtx *cli.Context) error {
 	vanguardRPCUrl := cliCtx.String(cmd.VanguardRPCEndpoint.Name)
-
-	log.WithField("vanguardHttpUrl", vanguardRPCUrl).Debug("flag values")
 	dialRPCClient := func(endpoint string) (*ethRpc.Client, error) {
 		client, err := ethRpc.Dial(endpoint)
 		if err != nil {
@@ -128,13 +127,12 @@ func (o *OrchestratorNode) registerVanguardChainService(cliCtx *cli.Context) err
 	if err != nil {
 		return nil
 	}
+	log.WithField("vanguardHttpUrl", vanguardRPCUrl).Info("Registered vanguard chain service")
 	return o.services.RegisterService(svc)
 }
 
 // register RPC server
 func (o *OrchestratorNode) registerRPCService(cliCtx *cli.Context) error {
-	log.Info("Registering rpc server")
-
 	var consensusInfoFeed *vanguardchain.Service
 	if err := o.services.FetchService(&consensusInfoFeed); err != nil {
 		return err
@@ -174,6 +172,8 @@ func (o *OrchestratorNode) registerRPCService(cliCtx *cli.Context) error {
 	if err != nil {
 		return nil
 	}
+
+	log.Info("Registered RPC service")
 	return o.services.RegisterService(svc)
 }
 

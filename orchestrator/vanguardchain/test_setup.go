@@ -20,7 +20,8 @@ type mocks struct {
 	db *mock.MockDatabase
 }
 
-// SetupInProcServer
+// SetupInProcServer prepares in process server with defined api. Here, this method mocks
+// vanguard client's endpoint as well as backend. Use in-memory to mock the
 func SetupInProcServer(t *testing.T) (*rpc.Server, *events.MockBackend) {
 	consensusInfos := make([]*eventTypes.MinimalEpochConsensusInfo, 0)
 	for i := 0; i < 5; i++ {
@@ -48,7 +49,7 @@ func SetupInProcServer(t *testing.T) (*rpc.Server, *events.MockBackend) {
 	return iprocServer, backend
 }
 
-// SetupVanguardSvc
+// SetupVanguardSvc creates vanguard client service with mocked database
 func SetupVanguardSvc(ctx context.Context, t *testing.T, dialRPCFn DialRPCFn) (*Service, *mocks) {
 	level, err := logrus.ParseLevel("debug")
 	assert.NoError(t, err)
@@ -72,6 +73,7 @@ func SetupVanguardSvc(ctx context.Context, t *testing.T, dialRPCFn DialRPCFn) (*
 	return vanguardClientService, m
 }
 
+// DialInProcClient creates in process client for vanguard mocked server
 func DialInProcClient(server *rpc.Server) DialRPCFn {
 	return func(endpoint string) (*rpc.Client, error) {
 		client := rpc.DialInProc(server)
@@ -82,6 +84,7 @@ func DialInProcClient(server *rpc.Server) DialRPCFn {
 	}
 }
 
+// DialRPCClient creates in process client for vanguard rpc server
 func DialRPCClient() DialRPCFn {
 	return func(endpoint string) (*rpc.Client, error) {
 		client, err := rpc.Dial(endpoint)

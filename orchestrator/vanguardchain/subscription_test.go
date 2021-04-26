@@ -7,7 +7,6 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
 	types "github.com/prysmaticlabs/eth2-types"
-	"github.com/sirupsen/logrus"
 	logTest "github.com/sirupsen/logrus/hooks/test"
 	"testing"
 	"time"
@@ -15,9 +14,6 @@ import (
 
 // Test_VanguardChainStartStop_Initialized
 func Test_VanguardChainStartStop_Initialized(t *testing.T) {
-	level, err := logrus.ParseLevel("debug")
-	assert.NoError(t, err)
-	logrus.SetLevel(level)
 	hook := logTest.NewGlobal()
 	ctx := context.Background()
 

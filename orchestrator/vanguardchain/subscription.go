@@ -6,13 +6,10 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 )
 
-// SubscribeNewConsensusInfo
-func (s *Service) subscribeNewConsensusInfo(
-	ctx context.Context,
-	epoch uint64,
-	namespace string,
-	client *rpc.Client,
-) (*rpc.ClientSubscription, error) {
+// SubscribeNewConsensusInfo subscribes to vanguard client from latest saved epoch using given rpc client
+func (s *Service) subscribeNewConsensusInfo(ctx context.Context, epoch uint64, namespace string,
+	client *rpc.Client) (*rpc.ClientSubscription, error) {
+
 	ch := make(chan *types.MinimalEpochConsensusInfo)
 	sub, err := client.Subscribe(ctx, namespace, ch, "minimalConsensusInfo", epoch)
 	if nil != err {
@@ -24,7 +21,8 @@ func (s *Service) subscribeNewConsensusInfo(
 		for {
 			select {
 			case consensusInfo := <-ch:
-				log.WithField("epoch", consensusInfo.Epoch).Info("Got new consensus info from vanguard")
+				log.WithField("consensusInfo", consensusInfo).Debug("Got new consensus info from vanguard")
+				// dispatch to handle consensus info
 				s.OnNewConsensusInfo(ctx, consensusInfo)
 			case err := <-sub.Err():
 				if err != nil {

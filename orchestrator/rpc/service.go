@@ -34,7 +34,7 @@ type Config struct {
 	WSOrigins    []string
 }
 
-// Service
+// Service defining an RPC server for a orchestrator node.
 type Service struct {
 	isRunning      bool
 	processingLock sync.RWMutex
@@ -52,6 +52,8 @@ type Service struct {
 	inprocHandler *rpc.Server // In-process RPC request handler to process the API requests
 }
 
+// NewService instantiates a new RPC service instance that will
+// be registered into a running orchestrator node.
 func NewService(ctx context.Context, cfg *Config) (*Service, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	_ = cancel // govet fix for lost cancel. Cancel is handled in service.Stop()

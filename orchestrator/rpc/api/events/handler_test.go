@@ -25,7 +25,14 @@ func setup(t *testing.T) (*MockBackend, *PublicFilterAPI) {
 	return backend, eventApi
 }
 
-func subscribe(t *testing.T, eventApi *PublicFilterAPI, backend *MockBackend, fromEpoch uint64, curEpoch uint64) *Subscription {
+func subscribe(
+	t *testing.T,
+	eventApi *PublicFilterAPI,
+	backend *MockBackend,
+	fromEpoch uint64,
+	curEpoch uint64,
+) *Subscription {
+
 	receiverChan := make(chan *eventTypes.MinimalEpochConsensusInfo)
 	subscriber := eventApi.events.SubscribeConsensusInfo(receiverChan, fromEpoch)
 	totalEvents := len(backend.ConsensusInfos) - int(fromEpoch)
@@ -50,6 +57,12 @@ func subscribe(t *testing.T, eventApi *PublicFilterAPI, backend *MockBackend, fr
 						assert.DeepEqual(t, c, consensusInfo)
 					}
 				}
+				if consensusInfo.Epoch == uint64(len(actualConsensusInfos)) {
+					eventCount++
+					epoch++
+					continue
+				}
+
 				assert.Equal(t, true, flag, "Not found")
 				eventCount++
 				epoch++
@@ -100,18 +113,16 @@ func Test_MinimalConsensusInfo_Multiple_Subscriber_Success(t *testing.T) {
 }
 
 // Test_MinimalConsensusInfo_With_Future_Epoch checks when subscriber subscribes from future epoch
-//func Test_MinimalConsensusInfo_With_Future_Epoch(t *testing.T) {
-//	backend, eventApi := setup(t)
-//	fromEpoch := uint64(0) // 20 is the future epoch
-//	subscriber := subscribe(t, eventApi, backend, fromEpoch, 5)
-//
-//	time.Sleep(1 * time.Second)
-//
-//	curEpoch := uint64(0)
-//	consensusInfo := testutil.NewMinimalConsensusInfo(types.Epoch(curEpoch))
-//	backend.ConsensusInfos = append(backend.ConsensusInfos, consensusInfo)
-//	backend.CurEpoch = curEpoch
-//	backend.ConsensusInfoFeed.Send(consensusInfo)
-//
-//	<-subscriber.Err()
-//}
+func Test_MinimalConsensusInfo_With_Future_Epoch(t *testing.T) {
+	backend, eventApi := setup(t)
+	fromEpoch := uint64(20) // 20 is the future epoch
+	subscriber := subscribe(t, eventApi, backend, fromEpoch, 2)
+
+	time.Sleep(1 * time.Second)
+
+	curEpoch := uint64(5)
+	consensusInfo := testutil.NewMinimalConsensusInfo(types.Epoch(curEpoch))
+	backend.ConsensusInfoFeed.Send(consensusInfo)
+
+	<-subscriber.Err()
+}

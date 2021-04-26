@@ -10,11 +10,17 @@ import (
 	"time"
 )
 
-// time to wait before trying to reconnect with the eth1 node.
-var reconnectPeriod = 15 * time.Second
+// time to wait before trying to reconnect with the vanguard node.
+var reConPeriod = 15 * time.Second
 
+// DialRPCFn dials to the given endpoint
 type DialRPCFn func(endpoint string) (*rpc.Client, error)
 
+// Service:
+// 	- maintains connection with vanguard chain
+//	- handles vanguard subscription for consensus info.
+//  - sends new consensus info to all pandora subscribers.
+//  - maintains db to store the coming consensus info from vanguard.
 type Service struct {
 	// service maintenance related attributes
 	isRunning      bool
@@ -40,6 +46,7 @@ type Service struct {
 	db db.Database
 }
 
+// NewService creates new service with vanguard endpoint, vanguard namespace and db
 func NewService(ctx context.Context, vanEndpoint string, namespace string,
 	db db.Database, dialRPCFn DialRPCFn) (*Service, error) {
 
@@ -100,7 +107,8 @@ func (s *Service) closeClients() {
 	}
 }
 
-// waitForConnection
+// waitForConnection waits for a connection with vanguard chain. Until a successful with
+// vanguard chain, it retries again and again.
 func (s *Service) waitForConnection() {
 	var err error
 	if err = s.connectToVanguardChain(); err == nil {
@@ -110,13 +118,13 @@ func (s *Service) waitForConnection() {
 	}
 	log.WithError(err).Debug("Could not connect to vanguard endpoint")
 	s.runError = err
-	ticker := time.NewTicker(2 * time.Second)
+	ticker := time.NewTicker(reConPeriod)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
-			log.Debugf("Trying to dial vanguard endpoint: %s", s.vanEndpoint)
+			log.WithField("endpoint", s.vanEndpoint).Debugf("Dialing vanguard node")
 			var errConnect error
 			if errConnect = s.connectToVanguardChain(); errConnect != nil {
 				log.WithError(errConnect).Warn("Could not connect to vanguard endpoint")
@@ -150,6 +158,8 @@ func (s *Service) run(done <-chan struct{}) {
 	}
 	s.conInfoSub = sub
 
+	// the loop waits for any error which comes from consensus info subscription
+	// if any subscription error happens, it will try to reconnect and re-subscribe with vanguard chain again.
 	for {
 		select {
 		case <-done:
@@ -160,16 +170,19 @@ func (s *Service) run(done <-chan struct{}) {
 		case err := <-s.conInfoSubErrCh:
 			if err != nil {
 				log.WithError(err).Debug("Could not fetch consensus info from vanguard node")
+				// Try to check the connection and retry to establish the connection
 				s.retryVanguardNode(err)
-				// Re-subscribe to vanguard
+				// Before re-subscribe to vanguard, it must have knowledge about last saved epoch consensus info
 				latestSavedEpochInDb, err := s.db.LatestSavedEpoch()
 				if err != nil {
 					log.WithError(err).Warn("Failed to retrieve latest saved epoch information")
 					continue
 				}
+				// re-subscribe to the vanguard chain
 				sub, err := s.subscribeNewConsensusInfo(s.ctx, latestSavedEpochInDb, s.namespace, s.vanRPCClient)
 				if err != nil {
 					log.WithError(err).Debug("Could not subscribe to vanguard client for consensus info")
+					continue
 				}
 				s.conInfoSub = sub
 				continue
@@ -178,7 +191,7 @@ func (s *Service) run(done <-chan struct{}) {
 	}
 }
 
-// connectToVanguardChain
+// connectToVanguardChain dials to vanguard chain and creates rpcClient
 func (s *Service) connectToVanguardChain() error {
 	if s.vanRPCClient == nil {
 		vanRPCClient, err := s.dialRPCFn(s.vanEndpoint)
@@ -195,7 +208,7 @@ func (s *Service) retryVanguardNode(err error) {
 	s.runError = err
 	s.connectedVanguard = false
 	// Back off for a while before resuming dialing the vanguard node.
-	//time.Sleep(reconnectPeriod)
+	time.Sleep(reConPeriod)
 	s.waitForConnection()
 	// Reset run error in the event of a successful connection.
 	s.runError = nil

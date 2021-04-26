@@ -2,12 +2,9 @@ package cmd
 
 import (
 	"github.com/urfave/cli/v2"
-	"time"
 )
 
 var (
-	Now = time.Now().Unix()
-
 	// DataDirFlag defines a path on disk.
 	DataDirFlag = &cli.StringFlag{
 		Name:  "datadir",
@@ -72,18 +69,6 @@ var (
 		Value: DefaultVanguardRPCEndpoint,
 	}
 
-	PandoraRPCEndpoint = &cli.StringFlag{
-		Name:  "pandora-rpc-endpoint",
-		Usage: "Pandora node RP provider endpoint",
-		Value: DefaultPandoraRPCEndpoint,
-	}
-
-	GenesisTime = &cli.Uint64Flag{
-		Name:  "genesis-time",
-		Usage: "Genesis time of the network",
-		Value: uint64(Now),
-	}
-
 	// VerbosityFlag defines the logrus configuration.
 	VerbosityFlag = &cli.StringFlag{
 		Name:  "verbosity",
@@ -96,5 +81,18 @@ var (
 		Name:  "bolt-mmap-initial-size",
 		Usage: "Specifies the size in bytes of bolt db's mmap syscall allocation",
 		Value: 536870912, // 512 Mb as a default value.
+	}
+
+	// LogFormat specifies the log output format.
+	LogFormat = &cli.StringFlag{
+		Name:  "log-format",
+		Usage: "Specify log formatting. Supports: text, json, fluentd, journald.",
+		Value: "text",
+	}
+
+	// LogFileName specifies the log output file name.
+	LogFileName = &cli.StringFlag{
+		Name:  "log-file",
+		Usage: "Specify log file name, relative or absolute",
 	}
 )

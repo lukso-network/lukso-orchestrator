@@ -3,7 +3,6 @@ package vanguardchain
 import (
 	"context"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
-	"github.com/sirupsen/logrus"
 	logTest "github.com/sirupsen/logrus/hooks/test"
 	"testing"
 	"time"
@@ -12,9 +11,6 @@ import (
 // Test_VanguardSvc_StartStop checks start and stop process. When the vanguard service starts, it also subscribes
 // van_subscribe to get new consensus info
 func Test_VanguardSvc_StartStop(t *testing.T) {
-	level, err := logrus.ParseLevel("debug")
-	assert.NoError(t, err)
-	logrus.SetLevel(level)
 	hook := logTest.NewGlobal()
 	ctx := context.Background()
 
@@ -38,9 +34,6 @@ func Test_VanguardSvc_StartStop(t *testing.T) {
 // Test_VanguardSvc_NoServerConn checks that vanguard service
 // should try to ping the server after certain period
 func Test_VanguardSvc_NoServerConn(t *testing.T) {
-	level, err := logrus.ParseLevel("debug")
-	assert.NoError(t, err)
-	logrus.SetLevel(level)
 	hook := logTest.NewGlobal()
 	ctx := context.Background()
 
