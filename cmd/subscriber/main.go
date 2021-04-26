@@ -12,7 +12,7 @@ import (
 
 // wsRequest attempts to open a WebSocket connection to the given URL.
 func wsRequest(url, browserOrigin string) error {
-	log.Info("checking WebSocket on %s (origin %q)", url, browserOrigin)
+	log.Info("checking WebSocket on %s (origin %q)", string(url), browserOrigin)
 
 	headers := make(http.Header)
 	if browserOrigin != "" {
