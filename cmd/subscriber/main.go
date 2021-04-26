@@ -7,6 +7,7 @@ import (
 	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
 	types "github.com/prysmaticlabs/eth2-types"
 	"net/http"
+	"os"
 )
 
 // wsRequest attempts to open a WebSocket connection to the given URL.
@@ -45,6 +46,7 @@ func subscription(ctx context.Context, url string, subErr chan<- error, epoch ty
 					"epochStartTime", minConsensusInfo.EpochStartTime).Info("minimal consensus info")
 
 			case subscriptionErr := <-subscription.Err():
+				log.WithField("subscriptionErr", err).Error("Subscription dead")
 				subErr <- subscriptionErr
 				subscription.Unsubscribe()
 				return
@@ -58,10 +60,17 @@ func subscription(ctx context.Context, url string, subErr chan<- error, epoch ty
 func main() {
 	ctx := context.Background()
 	wsBase := "ws://127.0.0.1:8546"
+
+	osWsBase := os.Getenv("WS_BASE")
+
+	if "" != osWsBase {
+		wsBase = osWsBase
+	}
+
 	subscriptionErrCh := make(chan error)
 	startingEpoch := types.Epoch(0)
 
-	log.WithField("startingEpoch", startingEpoch).Info("subscribing for consensus info")
+	log.WithField("startingEpoch", startingEpoch).WithField("wsBase", wsBase).Info("subscribing for consensus info")
 	if err := subscription(ctx, wsBase, subscriptionErrCh, startingEpoch); err != nil {
 		log.Error(err)
 		return
