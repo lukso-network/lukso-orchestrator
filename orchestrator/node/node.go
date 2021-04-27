@@ -3,13 +3,16 @@ package node
 import (
 	"context"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/epochextractor"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc"
 	"github.com/lukso-network/lukso-orchestrator/shared"
 	"github.com/lukso-network/lukso-orchestrator/shared/cmd"
+	"github.com/lukso-network/lukso-orchestrator/shared/fileutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/version"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"sync"
 	"syscall"
 )
@@ -39,6 +42,10 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 	if err := orchestrator.registerEpochExtractor(cliCtx); err != nil {
 		return nil, err
 	}
+
+	if err := orchestrator.registerRPCService(cliCtx); err != nil {
+		return nil, err
+	}
 	return orchestrator, nil
 }
 
@@ -52,6 +59,51 @@ func (o *OrchestratorNode) registerEpochExtractor(cliCtx *cli.Context) error {
 		"vanguardHttpUrl", vanguardHttpUrl).WithField("genesisTime", genesisTime).Debug("flag values")
 
 	svc, err := epochextractor.NewService(o.ctx, pandoraHttpUrl, vanguardHttpUrl, genesisTime)
+	if err != nil {
+		return nil
+	}
+	return o.services.RegisterService(svc)
+}
+
+// register RPC server
+func (o *OrchestratorNode) registerRPCService(cliCtx *cli.Context) error {
+	log.Info("Registering rpc server")
+
+	var epochExtractorService *epochextractor.Service
+	if err := o.services.FetchService(&epochExtractorService); err != nil {
+		return err
+	}
+
+	var ipcapiURL string
+	if cliCtx.String(cmd.IPCPathFlag.Name) != "" {
+		ipcFilePath := cliCtx.String(cmd.IPCPathFlag.Name)
+		ipcapiURL = fileutil.IpcEndpoint(filepath.Join(ipcFilePath, "orchestrator.ipc"), "")
+
+		log.WithField("ipcFilePath", ipcFilePath).WithField(
+			"ipcPath", ipcapiURL).Info("ipc file path")
+	}
+
+	httpEnable := cliCtx.Bool(cmd.HTTPEnabledFlag.Name)
+	httpListenAddr := cliCtx.String(cmd.HTTPListenAddrFlag.Name)
+	httpPort := cliCtx.Int(cmd.HTTPPortFlag.Name)
+	wsEnable := cliCtx.Bool(cmd.WSEnabledFlag.Name)
+	wsListenerAddr := cliCtx.String(cmd.WSListenAddrFlag.Name)
+	wsPort := cliCtx.Int(cmd.WSPortFlag.Name)
+
+	log.WithField("httpEnable", httpEnable).WithField("httpListenAddr", httpListenAddr).WithField(
+		"httpPort", httpPort).WithField("wsEnable", wsEnable).WithField(
+		"wsListenerAddr", wsListenerAddr).WithField("wsPort", wsPort).Debug("rpc server configuration")
+
+	svc, err := rpc.NewService(o.ctx, &rpc.Config{
+		EpochExpractor: epochExtractorService,
+		IPCPath:        ipcapiURL,
+		HTTPEnable:     httpEnable,
+		HTTPHost:       httpListenAddr,
+		HTTPPort:       httpPort,
+		WSEnable:       wsEnable,
+		WSHost:         wsListenerAddr,
+		WSPort:         wsPort,
+	})
 	if err != nil {
 		return nil
 	}
