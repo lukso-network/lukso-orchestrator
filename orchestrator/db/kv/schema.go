@@ -5,5 +5,7 @@ var (
 	pandoraHeadersBucket  = []byte("headers-pandora")
 	vanguardHeadersBucket = []byte("headers-vanguard")
 
-	lastStoredEpochKey = []byte("last-epoch")
+	lastStoredEpochKey        = []byte("last-epoch")
+	latestSavedPanBlockNumKey = []byte("latest-pandora-block")
+	latestSavedPanSlot        = []byte("latest-pandora-slot")
 )

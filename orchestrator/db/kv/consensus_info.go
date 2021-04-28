@@ -82,7 +82,7 @@ func (s *Store) SaveConsensusInfo(
 		if err != nil {
 			return err
 		}
-		if status := s.consensusInfoCache.Set(consensusInfo.Epoch, consensusInfo, int64(len(enc))); !status {
+		if status := s.consensusInfoCache.Set(consensusInfo.Epoch, consensusInfo, 0); !status {
 			log.WithField("epoch", consensusInfo.Epoch).Warn("not set in cache")
 		}
 		if err := bkt.Put(epochBytes, enc); err != nil {
