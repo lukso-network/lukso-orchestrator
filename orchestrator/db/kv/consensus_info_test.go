@@ -6,7 +6,6 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/require"
 	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
-	types "github.com/prysmaticlabs/eth2-types"
 	"math/rand"
 	"testing"
 )
@@ -17,7 +16,7 @@ func TestStore_ConsensusInfo_RetrieveByEpoch_FromCache(t *testing.T) {
 	db := setupDB(t, true)
 	totalConsensusInfos := make([]*eventTypes.MinimalEpochConsensusInfo, 500)
 	for i := 0; i < 500; i++ {
-		consensusInfo := testutil.NewMinimalConsensusInfo(types.Epoch(i))
+		consensusInfo := testutil.NewMinimalConsensusInfo(uint64(i))
 		totalConsensusInfos[i] = consensusInfo
 		require.NoError(t, db.SaveConsensusInfo(ctx, consensusInfo))
 	}
@@ -33,7 +32,7 @@ func TestStore_ConsensusInfo_RetrieveByEpoch_FromDB(t *testing.T) {
 	db := setupDB(t, true)
 	totalConsensusInfos := make([]*eventTypes.MinimalEpochConsensusInfo, 2000)
 	for i := 0; i < 2000; i++ {
-		consensusInfo := testutil.NewMinimalConsensusInfo(types.Epoch(i))
+		consensusInfo := testutil.NewMinimalConsensusInfo(uint64(i))
 		totalConsensusInfos[i] = consensusInfo
 		require.NoError(t, db.SaveConsensusInfo(ctx, consensusInfo))
 	}
@@ -48,7 +47,7 @@ func TestStore_SaveConsensusInfo_AlreadyExist(t *testing.T) {
 	ctx := context.Background()
 	db := setupDB(t, true)
 
-	consensusInfo := testutil.NewMinimalConsensusInfo(types.Epoch(0))
+	consensusInfo := testutil.NewMinimalConsensusInfo(0)
 	require.NoError(t, db.SaveConsensusInfo(ctx, consensusInfo))
 	// again try to store same consensusInfo into cache and db
 	require.NoError(t, db.SaveConsensusInfo(ctx, consensusInfo))
@@ -62,7 +61,7 @@ func TestStore_ConsensusInfos_RetrieveByEpoch(t *testing.T) {
 	totalConsensusInfos := make([]*eventTypes.MinimalEpochConsensusInfo, 2000)
 
 	for i := 0; i < 2000; i++ {
-		consensusInfo := testutil.NewMinimalConsensusInfo(types.Epoch(i))
+		consensusInfo := testutil.NewMinimalConsensusInfo(uint64(i))
 		totalConsensusInfos[i] = consensusInfo
 		require.NoError(t, db.SaveConsensusInfo(ctx, consensusInfo))
 	}

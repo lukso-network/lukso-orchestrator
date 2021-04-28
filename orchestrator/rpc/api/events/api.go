@@ -41,16 +41,32 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, epoch uint
 	}
 	rpcSub := notifier.CreateSubscription()
 
+	// Fill already known epochs
+	alreadyKnownEpochs := api.backend.ConsensusInfoByEpochRange(epoch)
+
 	go func() {
 		consensusInfo := make(chan *eventTypes.MinimalEpochConsensusInfo)
 		consensusInfoSub := api.events.SubscribeConsensusInfo(consensusInfo, epoch)
 		log.WithField("fromEpoch", epoch).Info("registered new subscriber for consensus info")
 
+		for index, currentEpoch := range alreadyKnownEpochs {
+			log.WithField("epoch", index).WithField("epochStartTime", currentEpoch.EpochStartTime).Info("sending already known consensus info to subscriber")
+			err := notifier.Notify(rpcSub.ID, currentEpoch)
+
+			if nil != err {
+				log.WithField("context", "already known epochs notification failure").Error(err)
+			}
+		}
+
 		for {
 			select {
 			case c := <-consensusInfo:
 				log.WithField("epoch", c.Epoch).Info("sending consensus info to subscriber")
-				notifier.Notify(rpcSub.ID, c)
+				err := notifier.Notify(rpcSub.ID, c)
+
+				if nil != err {
+					log.WithField("context", "error during epoch send").Error(err)
+				}
 			case <-rpcSub.Err():
 				log.Info("unsubscribing registered subscriber")
 				consensusInfoSub.Unsubscribe()

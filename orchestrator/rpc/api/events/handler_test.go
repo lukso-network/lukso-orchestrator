@@ -4,7 +4,6 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
 	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
-	"github.com/prysmaticlabs/eth2-types"
 	"testing"
 	"time"
 )
@@ -13,7 +12,7 @@ import (
 func setup(t *testing.T) (*MockBackend, *PublicFilterAPI) {
 	consensusInfos := make([]*eventTypes.MinimalEpochConsensusInfo, 0)
 	for i := 0; i < 5; i++ {
-		consensusInfos = append(consensusInfos, testutil.NewMinimalConsensusInfo(types.Epoch(i)))
+		consensusInfos = append(consensusInfos, testutil.NewMinimalConsensusInfo(uint64(i)))
 	}
 
 	backend := &MockBackend{
@@ -28,48 +27,19 @@ func setup(t *testing.T) (*MockBackend, *PublicFilterAPI) {
 func subscribe(
 	t *testing.T,
 	eventApi *PublicFilterAPI,
-	backend *MockBackend,
 	fromEpoch uint64,
-	curEpoch uint64,
 ) *Subscription {
 
 	receiverChan := make(chan *eventTypes.MinimalEpochConsensusInfo)
 	subscriber := eventApi.events.SubscribeConsensusInfo(receiverChan, fromEpoch)
-	totalEvents := len(backend.ConsensusInfos) - int(fromEpoch)
-	actualConsensusInfos := backend.ConsensusInfos
-
-	// when subscribe from future epoch
-	if totalEvents <= 0 {
-		totalEvents = 1
-		fromEpoch = curEpoch
-	}
+	expectedConInfo := testutil.NewMinimalConsensusInfo(5)
 
 	go func() { // simulate client
-		eventCount := 0
-		epoch := fromEpoch
-		for eventCount != totalEvents {
-			select {
-			case consensusInfo := <-receiverChan:
-				var flag bool
-				for _, c := range actualConsensusInfos {
-					if c.Epoch == consensusInfo.Epoch {
-						flag = true
-						assert.DeepEqual(t, c, consensusInfo)
-					}
-				}
-				if consensusInfo.Epoch == uint64(len(actualConsensusInfos)) {
-					eventCount++
-					epoch++
-					continue
-				}
-
-				assert.Equal(t, true, flag, "Not found")
-				eventCount++
-				epoch++
-			}
+		select {
+		case consensusInfo := <-receiverChan:
+			assert.DeepEqual(t, expectedConInfo, consensusInfo)
+			subscriber.Unsubscribe()
 		}
-
-		subscriber.Unsubscribe()
 	}()
 
 	return subscriber
@@ -82,10 +52,10 @@ func subscribe(
 func Test_MinimalConsensusInfo_One_Subscriber_Success(t *testing.T) {
 	backend, eventApi := setup(t)
 	fromEpoch := uint64(0)
-	subscriber := subscribe(t, eventApi, backend, fromEpoch, backend.CurEpoch)
+	subscriber := subscribe(t, eventApi, fromEpoch)
 
 	time.Sleep(1 * time.Second)
-	consensusInfo := testutil.NewMinimalConsensusInfo(types.Epoch(5))
+	consensusInfo := testutil.NewMinimalConsensusInfo(5)
 	backend.ConsensusInfoFeed.Send(consensusInfo)
 
 	<-subscriber.Err()
@@ -99,13 +69,13 @@ func Test_MinimalConsensusInfo_Multiple_Subscriber_Success(t *testing.T) {
 	backend, eventApi := setup(t)
 
 	fromEpoch0 := uint64(0)
-	subscriber0 := subscribe(t, eventApi, backend, fromEpoch0, backend.CurEpoch)
+	subscriber0 := subscribe(t, eventApi, fromEpoch0)
 
 	fromEpoch1 := uint64(0)
-	subscriber1 := subscribe(t, eventApi, backend, fromEpoch1, backend.CurEpoch)
+	subscriber1 := subscribe(t, eventApi, fromEpoch1)
 
 	time.Sleep(1 * time.Second)
-	consensusInfo := testutil.NewMinimalConsensusInfo(types.Epoch(5))
+	consensusInfo := testutil.NewMinimalConsensusInfo(5)
 	backend.ConsensusInfoFeed.Send(consensusInfo)
 
 	<-subscriber0.Err()
@@ -116,12 +86,12 @@ func Test_MinimalConsensusInfo_Multiple_Subscriber_Success(t *testing.T) {
 func Test_MinimalConsensusInfo_With_Future_Epoch(t *testing.T) {
 	backend, eventApi := setup(t)
 	fromEpoch := uint64(20) // 20 is the future epoch
-	subscriber := subscribe(t, eventApi, backend, fromEpoch, 2)
+	subscriber := subscribe(t, eventApi, fromEpoch)
 
 	time.Sleep(1 * time.Second)
 
 	curEpoch := uint64(5)
-	consensusInfo := testutil.NewMinimalConsensusInfo(types.Epoch(curEpoch))
+	consensusInfo := testutil.NewMinimalConsensusInfo(curEpoch)
 	backend.ConsensusInfoFeed.Send(consensusInfo)
 
 	<-subscriber.Err()

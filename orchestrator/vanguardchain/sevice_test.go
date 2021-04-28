@@ -21,15 +21,15 @@ func Test_VanguardSvc_StartStop(t *testing.T) {
 
 	// setup vanguard service
 	dialInProcRPCClient := DialInProcClient(mockServer)
-	vanSvc, m := SetupVanguardSvc(ctx, t, dialInProcRPCClient)
+	vanSvc, _ := SetupVanguardSvc(ctx, t, dialInProcRPCClient)
 	vanSvc.Start()
-	m.db.EXPECT().LatestSavedEpoch().Return(uint64(0), nil) // nil - error
 
 	time.Sleep(1 * time.Second)
 	assert.LogsContain(t, hook, "Connected vanguard chain")
 	assert.LogsContain(t, hook, "subscribed to vanguard chain for consensus info")
 	hook.Reset()
 	assert.NoError(t, vanSvc.Stop())
+
 }
 
 // Test_VanguardSvc_NoServerConn checks that vanguard service
@@ -44,7 +44,7 @@ func Test_VanguardSvc_NoServerConn(t *testing.T) {
 	vanSvc, _ := SetupVanguardSvc(ctx, t, dialRPCClient)
 	vanSvc.Start()
 
-	time.Sleep(10 * time.Second)
+	time.Sleep(2 * time.Second)
 	assert.LogsContain(t, hook, "Could not connect to vanguard endpoint")
 	hook.Reset()
 }
@@ -57,7 +57,7 @@ func Test_VanguardSvc_RetryToConnServer(t *testing.T) {
 
 	// setup vanguard service
 	dialRPCClient := DialRPCClient()
-	vanSvc, m := SetupVanguardSvc(ctx, t, dialRPCClient)
+	vanSvc, _ := SetupVanguardSvc(ctx, t, dialRPCClient)
 	vanSvc.Start()
 	defer vanSvc.Stop()
 
@@ -68,7 +68,7 @@ func Test_VanguardSvc_RetryToConnServer(t *testing.T) {
 	mockServer, _ := SetupInProcServer(t)
 	defer mockServer.Stop()
 	dialInProcRPCClient := DialInProcClient(mockServer)
-	m.db.EXPECT().LatestSavedEpoch().Return(uint64(0), nil) // nil - error
+	//m.db.EXPECT().LatestSavedEpoch().Return(uint64(0), nil) // nil - error
 	vanSvc.dialRPCFn = dialInProcRPCClient
 
 	time.Sleep(2 * time.Second)

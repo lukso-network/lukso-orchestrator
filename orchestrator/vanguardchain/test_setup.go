@@ -4,13 +4,12 @@ import (
 	"context"
 	"errors"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/golang/mock/gomock"
+	testDB "github.com/lukso-network/lukso-orchestrator/orchestrator/db/testing"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
 	"github.com/lukso-network/lukso-orchestrator/shared/mock"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
 	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
-	types "github.com/prysmaticlabs/eth2-types"
 	"github.com/sirupsen/logrus"
 	"testing"
 	"time"
@@ -25,7 +24,7 @@ type mocks struct {
 func SetupInProcServer(t *testing.T) (*rpc.Server, *events.MockBackend) {
 	consensusInfos := make([]*eventTypes.MinimalEpochConsensusInfo, 0)
 	for i := 0; i < 5; i++ {
-		consensusInfos = append(consensusInfos, testutil.NewMinimalConsensusInfo(types.Epoch(i)))
+		consensusInfos = append(consensusInfos, testutil.NewMinimalConsensusInfo(uint64(i)))
 	}
 
 	backend := &events.MockBackend{
@@ -55,22 +54,22 @@ func SetupVanguardSvc(ctx context.Context, t *testing.T, dialRPCFn DialRPCFn) (*
 	assert.NoError(t, err)
 	logrus.SetLevel(level)
 
-	ctrl := gomock.NewController(t)
-	m := &mocks{
-		db: mock.NewMockDatabase(ctrl),
-	}
+	//ctrl := gomock.NewController(t)
+	//m := &mocks{
+	//	db: mock.NewMockDatabase(ctrl),
+	//}
 
 	vanguardClientService, err := NewService(
 		ctx,
 		"ws://127.0.0.1:8546",
 		"van",
-		m.db,
+		testDB.SetupDB(t),
 		dialRPCFn)
 	if err != nil {
 		t.Fatalf("failed to create protocol stack: %v", err)
 	}
 
-	return vanguardClientService, m
+	return vanguardClientService, nil
 }
 
 // DialInProcClient creates in process client for vanguard mocked server
