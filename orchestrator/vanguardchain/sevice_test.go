@@ -68,7 +68,6 @@ func Test_VanguardSvc_RetryToConnServer(t *testing.T) {
 	mockServer, _ := SetupInProcServer(t)
 	defer mockServer.Stop()
 	dialInProcRPCClient := DialInProcClient(mockServer)
-	//m.db.EXPECT().LatestSavedEpoch().Return(uint64(0), nil) // nil - error
 	vanSvc.dialRPCFn = dialInProcRPCClient
 
 	time.Sleep(2 * time.Second)
