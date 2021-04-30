@@ -2,6 +2,7 @@ package iface
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	"io"
 )
@@ -15,12 +16,11 @@ type ReadOnlyDatabase interface {
 
 // PanHeaderAccessDatabase
 type PanHeaderAccessDatabase interface {
-	PanHeader(slot uint64) (*types.PanBlockHeader, error)
-	PanHeaders(fromSlot uint64) ([]*types.PanBlockHeader, error)
-	LatestSavedPanBlockNum() (uint64, error)
-	SavePanHeader(header *types.PanBlockHeader) error
-	SaveLatestPanSlot() error
-	SaveLatestPanBlockNum() error
+	PandoraHeaderHash(slot uint64) (common.Hash, error)
+	PandoraHeaderHashes(fromSlot uint64) ([]common.Hash, error)
+	SavePandoraHeaderHash(slot uint64, headerHash common.Hash) error
+	SaveLatestPandoraSlot() error
+	LatestSavedPandoraSlot() (uint64, error)
 }
 
 // Database interface with full access.

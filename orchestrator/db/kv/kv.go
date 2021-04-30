@@ -15,6 +15,8 @@ import (
 const (
 	// ConsensusInfosCacheSize with 1024 consensus infos will be 1.5MB.
 	ConsensusInfosCacheSize = 1 << 10
+	// HeaderHashesCacheSize with
+	HeaderHashesCacheSize = 1 << 20
 	// OrchestratorNodeDbDirName is the name of the directory containing the orchestrator node database.
 	OrchestratorNodeDbDirName = "orchestrator"
 	// DatabaseFileName is the name of the orchestrator node database.
@@ -71,7 +73,7 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 	boltDB.AllocSize = boltAllocSize
 	consensusInfoCache, err := ristretto.NewCache(&ristretto.Config{
 		NumCounters: 1000,                    // number of keys to track frequency of (1000).
-		MaxCost:     ConsensusInfosCacheSize, // maximum cost of cache (1000 Blocks).
+		MaxCost:     ConsensusInfosCacheSize, // maximum cost of cache (1000 consensus info).
 		BufferItems: 64,                      // number of keys per Get buffer.
 	})
 	if err != nil {
@@ -79,9 +81,9 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 	}
 
 	panHeaderCache, err := ristretto.NewCache(&ristretto.Config{
-		NumCounters: 1000,                    // number of keys to track frequency of (1000).
-		MaxCost:     ConsensusInfosCacheSize, // maximum cost of cache (1000 Blocks).
-		BufferItems: 64,                      // number of keys per Get buffer.
+		NumCounters: 1000,                  // number of keys to track frequency of (1000).
+		MaxCost:     HeaderHashesCacheSize, // maximum cost of cache (1000 headers).
+		BufferItems: 64,                    // number of keys per Get buffer.
 	})
 	if err != nil {
 		return nil, err
@@ -99,8 +101,8 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 		return createBuckets(
 			tx,
 			consensusInfosBucket,
-			pandoraHeadersBucket,
-			vanguardHeadersBucket,
+			pandoraHeaderHashesBucket,
+			vanguardHeaderHashesBucket,
 		)
 	}); err != nil {
 		return nil, err

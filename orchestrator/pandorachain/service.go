@@ -147,17 +147,17 @@ func (s *Service) waitForConnection() {
 func (s *Service) run(done <-chan struct{}) {
 	s.runError = nil
 	// getting latest saved epoch number from db
-	latestSavedEpochInDb, err := s.db.LatestSavedEpoch()
-	if err != nil {
-		log.WithError(err).Warn("Failed to retrieve latest saved epoch information")
-		return
-	}
+	//latestSavedEpochInDb, err := s.db.LatestSavedEpoch()
+	//if err != nil {
+	//	log.WithError(err).Warn("Failed to retrieve latest saved epoch information")
+	//	return
+	//}
 	// subscribe to vanguard client for consensus info
-	sub, err := s.subscribeNewConsensusInfo(s.ctx, latestSavedEpochInDb, s.namespace, s.rpcClient)
-	if err != nil {
-		log.WithError(err).Debug("Could not subscribe to vanguard client for consensus info")
-	}
-	s.conInfoSub = sub
+	//sub, err := s.subscribeNewConsensusInfo(s.ctx, latestSavedEpochInDb, s.namespace, s.rpcClient)
+	//if err != nil {
+	//	log.WithError(err).Debug("Could not subscribe to vanguard client for consensus info")
+	//}
+	//s.conInfoSub = sub
 
 	// the loop waits for any error which comes from consensus info subscription
 	// if any subscription error happens, it will try to reconnect and re-subscribe with vanguard chain again.
@@ -174,18 +174,18 @@ func (s *Service) run(done <-chan struct{}) {
 				// Try to check the connection and retry to establish the connection
 				s.retryVanguardNode(err)
 				// Before re-subscribe to vanguard, it must have knowledge about last saved epoch consensus info
-				latestSavedEpochInDb, err := s.db.LatestSavedEpoch()
-				if err != nil {
-					log.WithError(err).Warn("Failed to retrieve latest saved epoch information")
-					continue
-				}
+				//latestSavedEpochInDb, err := s.db.LatestSavedEpoch()
+				//if err != nil {
+				//	log.WithError(err).Warn("Failed to retrieve latest saved epoch information")
+				//	continue
+				//}
 				// re-subscribe to the vanguard chain
-				sub, err := s.subscribeNewConsensusInfo(s.ctx, latestSavedEpochInDb, s.namespace, s.rpcClient)
-				if err != nil {
-					log.WithError(err).Debug("Could not subscribe to vanguard client for consensus info")
-					continue
-				}
-				s.conInfoSub = sub
+				//sub, err := s.subscribeNewConsensusInfo(s.ctx, latestSavedEpochInDb, s.namespace, s.rpcClient)
+				//if err != nil {
+				//	log.WithError(err).Debug("Could not subscribe to vanguard client for consensus info")
+				//	continue
+				//}
+				//s.conInfoSub = sub
 				continue
 			}
 		}
