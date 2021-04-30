@@ -14,7 +14,7 @@ import (
 // Config
 type Config struct {
 	ConsensusInfoFeed iface.ConsensusInfoFeed
-	ConsensusInfoDB   db.ReadOnlyDatabase
+	ConsensusInfoDB   db.ROnlyConsensusInfoDB
 	// ipc config
 	IPCPath string
 	// http config

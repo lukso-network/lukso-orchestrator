@@ -20,12 +20,12 @@ func Test_EncodingDecoding_Success(t *testing.T) {
 }
 
 // Test_EncodingDecoding_PanHeader
-func Test_EncodingDecoding_PanHeader(t *testing.T) {
-	encPandHeader := testutil.NewPandoraHeader(uint64(0), types.Status(0))
-	enc0, err := encode(encPandHeader)
+func Test_EncodingDecoding_PanHeaderHash(t *testing.T) {
+	encPandHeaderHash := testutil.NewPandoraHeaderHash(uint64(0), types.Status(0))
+	enc0, err := encode(encPandHeaderHash)
 	require.NoError(t, err)
 
-	var decPanHeader *types.PanBlockHeader
-	require.NoError(t, decode(enc0, &decPanHeader))
-	assert.DeepEqual(t, encPandHeader, decPanHeader)
+	var decPanHeaderHash *types.PanHeaderHash
+	require.NoError(t, decode(enc0, &decPanHeaderHash))
+	assert.DeepEqual(t, encPandHeaderHash, decPanHeaderHash)
 }

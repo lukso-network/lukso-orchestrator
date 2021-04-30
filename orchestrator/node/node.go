@@ -3,8 +3,10 @@ package node
 import (
 	"context"
 	ethRpc "github.com/ethereum/go-ethereum/rpc"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db/kv"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/pandorachain"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain"
 	"github.com/lukso-network/lukso-orchestrator/shared"
@@ -55,6 +57,10 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 	}
 
 	if err := orchestrator.registerVanguardChainService(cliCtx); err != nil {
+		return nil, err
+	}
+
+	if err := orchestrator.registerPandoraChainService(cliCtx); err != nil {
 		return nil, err
 	}
 
@@ -128,6 +134,26 @@ func (o *OrchestratorNode) registerVanguardChainService(cliCtx *cli.Context) err
 		return nil
 	}
 	log.WithField("vanguardHttpUrl", vanguardRPCUrl).Info("Registered vanguard chain service")
+	return o.services.RegisterService(svc)
+}
+
+// registerPandoraChainService
+func (o *OrchestratorNode) registerPandoraChainService(cliCtx *cli.Context) error {
+	pandoraRPCUrl := cliCtx.String(cmd.PandoraRPCEndpoint.Name)
+	dialRPCClient := func(endpoint string) (*ethRpc.Client, error) {
+		client, err := ethRpc.Dial(endpoint)
+		if err != nil {
+			return nil, err
+		}
+		return client, nil
+	}
+	namespace := "eth"
+	cache := cache.NewPanHeaderCache()
+	svc, err := pandorachain.NewService(o.ctx, pandoraRPCUrl, namespace, o.db, cache, dialRPCClient)
+	if err != nil {
+		return nil
+	}
+	log.WithField("pandoraHttpUrl", pandoraRPCUrl).Info("Registered pandora chain service")
 	return o.services.RegisterService(svc)
 }
 

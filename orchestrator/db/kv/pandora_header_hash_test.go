@@ -5,6 +5,7 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/shared/bytesutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/require"
+	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	"testing"
 )
 
@@ -12,12 +13,13 @@ import (
 func TestDB_PandoraHeaderHash_Save_Retrieve(t *testing.T) {
 	t.Parallel()
 	db := setupDB(t, true)
-	pandoraHeaderHashes := make([]common.Hash, 50)
+
+	pandoraHeaderHashes := make([]*types.PanHeaderHash, 50)
 	for i := 0; i < 50; i++ {
 		slotByte := bytesutil.Uint64ToBytesBigEndian(uint64(i))
 		hash := common.BytesToHash(slotByte)
-		pandoraHeaderHashes[i] = hash
-		require.NoError(t, db.SavePandoraHeaderHash(uint64(i), hash))
+		pandoraHeaderHashes[i] = &types.PanHeaderHash{HeaderHash: hash, Status: types.Pending}
+		require.NoError(t, db.SavePandoraHeaderHash(uint64(i), pandoraHeaderHashes[i]))
 	}
 
 	// checking retrieval from cache
@@ -36,12 +38,12 @@ func TestDB_PandoraHeaderHash_Save_Retrieve(t *testing.T) {
 func TestDB_PandoraHeaderHashes_Retrieve(t *testing.T) {
 	t.Parallel()
 	db := setupDB(t, true)
-	pandoraHeaderHashes := make([]common.Hash, 50)
+	pandoraHeaderHashes := make([]*types.PanHeaderHash, 50)
 	for i := 0; i < 50; i++ {
 		slotByte := bytesutil.Uint64ToBytesBigEndian(uint64(i))
 		hash := common.BytesToHash(slotByte)
-		pandoraHeaderHashes[i] = hash
-		require.NoError(t, db.SavePandoraHeaderHash(uint64(i), hash))
+		pandoraHeaderHashes[i] = &types.PanHeaderHash{HeaderHash: hash, Status: types.Pending}
+		require.NoError(t, db.SavePandoraHeaderHash(uint64(i), pandoraHeaderHashes[i]))
 	}
 
 	// checking retrieval from cache
@@ -57,7 +59,17 @@ func TestDB_LatestSavedPandoraSlot(t *testing.T) {
 	db.latestPanSlot = 1233
 	require.NoError(t, db.SaveLatestPandoraSlot())
 
-	slot, err := db.LatestSavedPandoraSlot()
-	require.NoError(t, err)
+	slot := db.LatestSavedPandoraSlot()
 	assert.Equal(t, db.latestPanSlot, slot)
+}
+
+// TestDB_LatestSavedPandoraHeaderHash
+func TestDB_LatestSavedPandoraHeaderHash(t *testing.T) {
+	t.Parallel()
+	db := setupDB(t, true)
+	db.latestPanHeaderHash = common.BytesToHash(bytesutil.Uint64ToBytesBigEndian(uint64(100)))
+	require.NoError(t, db.SaveLatestPandoraHeaderHash())
+
+	latestHeaderHash := db.LatestSavedPandoraHeaderHash()
+	assert.Equal(t, db.latestPanHeaderHash, latestHeaderHash)
 }

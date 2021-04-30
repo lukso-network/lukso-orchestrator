@@ -62,11 +62,18 @@ var (
 		Value: DefaultWSPort,
 	}
 
-	// HTTPWeb3ProviderFlag provides an HTTP access endpoint to an ETH 1.0 RPC.
+	// VanguardRPCEndpoint provides an WSS/IPC access endpoint to an Vanguard RPC.
 	VanguardRPCEndpoint = &cli.StringFlag{
 		Name:  "vanguard-rpc-endpoint",
 		Usage: "Vanguard node RPC provider endpoint",
 		Value: DefaultVanguardRPCEndpoint,
+	}
+
+	// PandoraRPCEndpoint provides an WSS/IPC access endpoint to an Pandora RPC.
+	PandoraRPCEndpoint = &cli.StringFlag{
+		Name:  "pandora-rpc-endpoint",
+		Usage: "Pandora node RPC provider endpoint",
+		Value: DefaultPandoraRPCEndpoint,
 	}
 
 	// VerbosityFlag defines the logrus configuration.

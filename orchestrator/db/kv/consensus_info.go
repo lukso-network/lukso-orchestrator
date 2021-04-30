@@ -32,7 +32,7 @@ func (s *Store) ConsensusInfo(ctx context.Context, epoch uint64) (*eventTypes.Mi
 }
 
 // ConsensusInfos
-func (s *Store) ConsensusInfos(ctx context.Context, fromEpoch uint64) (
+func (s *Store) ConsensusInfos(fromEpoch uint64) (
 	[]*eventTypes.MinimalEpochConsensusInfo, error,
 ) {
 	// when requested epoch is greater than stored latest epoch
@@ -95,27 +95,25 @@ func (s *Store) SaveConsensusInfo(
 }
 
 // LatestSavedEpoch
-func (s *Store) LatestSavedEpoch(ctx context.Context) (uint64, error) {
+func (s *Store) LatestSavedEpoch() uint64 {
+	var latestSavedEpoch uint64
 	// Db is not prepared yet. Retrieve latest saved epoch number from db
 	if !s.isRunning {
-		err := s.db.View(func(tx *bolt.Tx) error {
+		s.db.View(func(tx *bolt.Tx) error {
 			bkt := tx.Bucket(consensusInfosBucket)
 			epochBytes := bkt.Get(lastStoredEpochKey[:])
 			// not found the latest epoch in db. so latest epoch will be zero
 			if epochBytes == nil {
-				s.latestEpoch = uint64(0)
+				latestSavedEpoch = uint64(0)
+				log.Trace("Latest epoch could not find in db. It may happen for brand new DB")
 				return nil
 			}
-			s.latestEpoch = bytesutil.BytesToUint64BigEndian(epochBytes)
+			latestSavedEpoch = bytesutil.BytesToUint64BigEndian(epochBytes)
 			return nil
 		})
-		// got decoding error
-		if err != nil {
-			return 0, err
-		}
 	}
 	// db is already started so latest epoch must be initialized in store
-	return s.latestEpoch, nil
+	return latestSavedEpoch
 }
 
 // SaveLatestEpoch
@@ -129,4 +127,9 @@ func (s *Store) SaveLatestEpoch(ctx context.Context) error {
 		}
 		return nil
 	})
+}
+
+// GetLatestHeaderHash
+func (s *Store) GetLatestEpoch() uint64 {
+	return s.latestEpoch
 }

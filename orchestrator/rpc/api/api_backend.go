@@ -9,7 +9,7 @@ import (
 
 type APIBackend struct {
 	ConsensusInfoFeed iface.ConsensusInfoFeed
-	ConsensusInfoDB   db.ReadOnlyDatabase
+	ConsensusInfoDB   db.ROnlyConsensusInfoDB
 }
 
 func (backend *APIBackend) SubscribeNewEpochEvent(ch chan<- *types.MinimalEpochConsensusInfo) event.Subscription {
@@ -17,11 +17,7 @@ func (backend *APIBackend) SubscribeNewEpochEvent(ch chan<- *types.MinimalEpochC
 }
 
 func (backend *APIBackend) CurrentEpoch() uint64 {
-	curEpoch, err := backend.ConsensusInfoDB.LatestSavedEpoch()
-	if err != nil {
-		return 0
-	}
-	return curEpoch
+	return backend.ConsensusInfoDB.GetLatestEpoch()
 }
 
 func (backend *APIBackend) ConsensusInfoByEpochRange(fromEpoch uint64) []*types.MinimalEpochConsensusInfo {

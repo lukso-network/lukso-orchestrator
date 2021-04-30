@@ -1,6 +1,7 @@
 package types
 
 import (
+	"github.com/ethereum/go-ethereum/common"
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	"math/big"
 )
@@ -20,25 +21,25 @@ type ExtraData struct {
 	ProposerIndex uint64
 }
 
-// PanBlockHeader
-type PanBlockHeader struct {
-	Header *eth1Types.Header `json:"header"`
-	Status Status            `json:"status"`
+// vanBlockHash
+type PanHeaderHash struct {
+	HeaderHash common.Hash `json:"headerHash"`
+	Status     Status      `json:"status"`
 }
 
-// CopyPandoraHeader creates a deep copy of a pandora block header to prevent side effects from
+// CopyHeader creates a deep copy of a block header to prevent side effects from
 // modifying a header variable.
-func (panHeader *PanBlockHeader) Copy() *PanBlockHeader {
-	cpy := *panHeader
-	if cpy.Header.Difficulty = new(big.Int); panHeader.Header.Difficulty != nil {
-		cpy.Header.Difficulty.Set(panHeader.Header.Difficulty)
+func CopyHeader(h *eth1Types.Header) *eth1Types.Header {
+	cpy := *h
+	if cpy.Difficulty = new(big.Int); h.Difficulty != nil {
+		cpy.Difficulty.Set(h.Difficulty)
 	}
-	if cpy.Header.Number = new(big.Int); panHeader.Header.Number != nil {
-		cpy.Header.Number.Set(panHeader.Header.Number)
+	if cpy.Number = new(big.Int); h.Number != nil {
+		cpy.Number.Set(h.Number)
 	}
-	if len(panHeader.Header.Extra) > 0 {
-		cpy.Header.Extra = make([]byte, len(panHeader.Header.Extra))
-		copy(cpy.Header.Extra, panHeader.Header.Extra)
+	if len(h.Extra) > 0 {
+		cpy.Extra = make([]byte, len(h.Extra))
+		copy(cpy.Extra, h.Extra)
 	}
 	return &cpy
 }

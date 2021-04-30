@@ -43,22 +43,23 @@ type Service struct {
 	conInfoSub        *rpc.ClientSubscription
 
 	// db support
-	db db.Database
+	db db.ConsensusInfoAccessDB
 }
 
 // NewService creates new service with vanguard endpoint, vanguard namespace and db
 func NewService(ctx context.Context, vanEndpoint string, namespace string,
-	db db.Database, dialRPCFn DialRPCFn) (*Service, error) {
+	db db.ConsensusInfoAccessDB, dialRPCFn DialRPCFn) (*Service, error) {
 
 	ctx, cancel := context.WithCancel(ctx)
 	_ = cancel // govet fix for lost cancel. Cancel is handled in service.Stop()
 	return &Service{
-		ctx:         ctx,
-		cancel:      cancel,
-		vanEndpoint: vanEndpoint,
-		dialRPCFn:   dialRPCFn,
-		namespace:   namespace,
-		db:          db,
+		ctx:             ctx,
+		cancel:          cancel,
+		vanEndpoint:     vanEndpoint,
+		dialRPCFn:       dialRPCFn,
+		namespace:       namespace,
+		conInfoSubErrCh: make(chan error),
+		db:              db,
 	}, nil
 }
 
@@ -145,18 +146,6 @@ func (s *Service) waitForConnection() {
 // run subscribes to all the services for the ETH1.0 chain.
 func (s *Service) run(done <-chan struct{}) {
 	s.runError = nil
-	// getting latest saved epoch number from db
-	latestSavedEpochInDb, err := s.db.LatestSavedEpoch()
-	if err != nil {
-		log.WithError(err).Warn("Failed to retrieve latest saved epoch information")
-		return
-	}
-	// subscribe to vanguard client for consensus info
-	sub, err := s.subscribeNewConsensusInfo(s.ctx, latestSavedEpochInDb, s.namespace, s.vanRPCClient)
-	if err != nil {
-		log.WithError(err).Debug("Could not subscribe to vanguard client for consensus info")
-	}
-	s.conInfoSub = sub
 
 	// the loop waits for any error which comes from consensus info subscription
 	// if any subscription error happens, it will try to reconnect and re-subscribe with vanguard chain again.
@@ -172,19 +161,6 @@ func (s *Service) run(done <-chan struct{}) {
 				log.WithError(err).Debug("Could not fetch consensus info from vanguard node")
 				// Try to check the connection and retry to establish the connection
 				s.retryVanguardNode(err)
-				// Before re-subscribe to vanguard, it must have knowledge about last saved epoch consensus info
-				latestSavedEpochInDb, err := s.db.LatestSavedEpoch()
-				if err != nil {
-					log.WithError(err).Warn("Failed to retrieve latest saved epoch information")
-					continue
-				}
-				// re-subscribe to the vanguard chain
-				sub, err := s.subscribeNewConsensusInfo(s.ctx, latestSavedEpochInDb, s.namespace, s.vanRPCClient)
-				if err != nil {
-					log.WithError(err).Debug("Could not subscribe to vanguard client for consensus info")
-					continue
-				}
-				s.conInfoSub = sub
 				continue
 			}
 		}
@@ -200,6 +176,11 @@ func (s *Service) connectToVanguardChain() error {
 		}
 		s.vanRPCClient = vanRPCClient
 	}
+
+	// connect to vanguard subscription
+	if err := s.subscribeToVanguard(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -212,6 +193,19 @@ func (s *Service) retryVanguardNode(err error) {
 	s.waitForConnection()
 	// Reset run error in the event of a successful connection.
 	s.runError = nil
+}
+
+// subscribeToVanguard subscribes to vanguard events
+func (s *Service) subscribeToVanguard() error {
+	latestSavedEpochInDb := s.db.GetLatestEpoch()
+	// subscribe to vanguard client for consensus info
+	sub, err := s.subscribeNewConsensusInfo(s.ctx, latestSavedEpochInDb, s.namespace, s.vanRPCClient)
+	if err != nil {
+		log.WithError(err).Warn("Could not subscribe to vanguard client for consensus info")
+		return err
+	}
+	s.conInfoSub = sub
+	return nil
 }
 
 // SubscribeChainHeadEvent registers a subscription of ChainHeadEvent.
