@@ -2,7 +2,9 @@ package rpc
 
 import (
 	"context"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/epochextractor"
+	ethRpc "github.com/ethereum/go-ethereum/rpc"
+	testDB "github.com/lukso-network/lukso-orchestrator/orchestrator/db/testing"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain"
 	"github.com/lukso-network/lukso-orchestrator/shared/cmd"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/require"
@@ -10,30 +12,46 @@ import (
 	"testing"
 )
 
-func setup() (*Config, error) {
-	epochExtractor, err := epochextractor.NewService(context.Background(),
-		cmd.DefaultVanguardRPCEndpoint, cmd.DefaultPandoraRPCEndpoint, 13434434)
-
+func setup(t *testing.T) (*Config, error) {
+	orchestratorDB := testDB.SetupDB(t)
+	dialRPCClient := func(endpoint string) (*ethRpc.Client, error) {
+		client, err := ethRpc.Dial(endpoint)
+		if err != nil {
+			return nil, err
+		}
+		return client, nil
+	}
+	namespace := "van"
+	consensusInfoFeed, err := vanguardchain.NewService(
+		context.Background(),
+		cmd.DefaultVanguardRPCEndpoint,
+		namespace,
+		orchestratorDB,
+		dialRPCClient,
+	)
 	if err != nil {
 		return nil, err
 	}
+
 	return &Config{
-		EpochExpractor: epochExtractor,
-		IPCPath:        cmd.DefaultIpcPath,
-		HTTPEnable:     true,
-		HTTPHost:       cmd.DefaultHTTPHost,
-		HTTPPort:       cmd.DefaultHTTPPort,
-		WSEnable:       true,
-		WSHost:         cmd.DefaultWSHost,
-		WSPort:         cmd.DefaultWSPort,
+		ConsensusInfoFeed: consensusInfoFeed,
+		ConsensusInfoDB:   orchestratorDB,
+		IPCPath:           cmd.DefaultIpcPath,
+		HTTPEnable:        true,
+		HTTPHost:          cmd.DefaultHTTPHost,
+		HTTPPort:          cmd.DefaultHTTPPort,
+		WSEnable:          true,
+		WSHost:            cmd.DefaultWSHost,
+		WSPort:            cmd.DefaultWSPort,
 	}, nil
 }
 
+// TODO- Need to implement more integration test cases
 // TestServerStart_Success
 func TestServerStart_Success(t *testing.T) {
 	hook := logTest.NewGlobal()
 	ctx := context.Background()
-	config, err := setup()
+	config, err := setup(t)
 	require.NoError(t, err)
 
 	rpcService, err := NewService(ctx, config)

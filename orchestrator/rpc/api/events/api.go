@@ -5,13 +5,12 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
-	types "github.com/prysmaticlabs/eth2-types"
 	"time"
 )
 
 type Backend interface {
-	CurrentEpoch() types.Epoch
-	ConsensusInfoByEpochRange(fromEpoch, toEpoch types.Epoch) map[types.Epoch]*eventTypes.MinimalEpochConsensusInfo
+	CurrentEpoch() uint64
+	ConsensusInfoByEpochRange(fromEpoch uint64) []*eventTypes.MinimalEpochConsensusInfo
 	SubscribeNewEpochEvent(chan<- *eventTypes.MinimalEpochConsensusInfo) event.Subscription
 }
 
@@ -43,12 +42,12 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, epoch uint
 	rpcSub := notifier.CreateSubscription()
 
 	// Fill already known epochs
-	alreadyKnownEpochs := api.backend.ConsensusInfoByEpochRange(types.Epoch(epoch), api.backend.CurrentEpoch())
+	alreadyKnownEpochs := api.backend.ConsensusInfoByEpochRange(epoch)
 
 	go func() {
 		consensusInfo := make(chan *eventTypes.MinimalEpochConsensusInfo)
-		consensusInfoSub := api.events.SubscribeConsensusInfo(consensusInfo, types.Epoch(epoch))
-		log.WithField("fromEpoch", epoch).Debug("registered new subscriber for consensus info")
+		consensusInfoSub := api.events.SubscribeConsensusInfo(consensusInfo, epoch)
+		log.WithField("fromEpoch", epoch).Info("registered new subscriber for consensus info")
 
 		for index, currentEpoch := range alreadyKnownEpochs {
 			log.WithField("epoch", index).WithField("epochStartTime", currentEpoch.EpochStartTime).Info("sending already known consensus info to subscriber")

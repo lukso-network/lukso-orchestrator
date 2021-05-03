@@ -134,6 +134,34 @@ func LogsContain(loggerFn assertionLoggerFn, hook *test.Hook, want string, flag 
 	}
 }
 
+// LogsContainNTimes checks whether a given substring is a part of logs with certain number of times. If flag=false, inverse is checked.
+func LogsContainNTimes(loggerFn assertionLoggerFn, hook *test.Hook, want string, times uint64, flag bool, msg ...interface{}) {
+	_, file, line, _ := runtime.Caller(2)
+	entries := hook.AllEntries()
+	var logs []string
+	counter := uint64(0)
+	for _, e := range entries {
+		msg, err := e.String()
+		if err != nil {
+			loggerFn("%s:%d Failed to format log entry to string: %v", filepath.Base(file), line, err)
+			return
+		}
+		if strings.Contains(msg, want) {
+			counter++
+		}
+		logs = append(logs, msg)
+	}
+	var errMsg string
+	if flag && counter != times {
+		errMsg = parseMsg("Expected log not found", msg...)
+	} else if !flag && counter == times {
+		errMsg = parseMsg("Unexpected log found", msg...)
+	}
+	if errMsg != "" {
+		loggerFn("%s:%d %s: %v\nSearched logs:\n%v", filepath.Base(file), line, errMsg, want, logs)
+	}
+}
+
 func parseMsg(defaultMsg string, msg ...interface{}) string {
 	if len(msg) >= 1 {
 		msgFormat, ok := msg[0].(string)

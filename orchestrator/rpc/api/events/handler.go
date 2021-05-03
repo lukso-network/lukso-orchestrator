@@ -5,7 +5,6 @@ import (
 	ethLog "github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
-	eth2Types "github.com/prysmaticlabs/eth2-types"
 	"sync"
 	"time"
 )
@@ -33,16 +32,14 @@ type subscription struct {
 	installed chan struct{} // closed when the filter is installed
 	err       chan error    // closed when the filter is uninstalled
 
-	isNew         bool
-	epoch         eth2Types.Epoch // last served epoch number
+	epoch         uint64 // last served epoch number
 	consensusInfo chan *types.MinimalEpochConsensusInfo
 }
 
 // EventSystem creates subscriptions, processes events and broadcasts them to the
 // subscription which match the subscription criteria.
 type EventSystem struct {
-	backend   Backend
-	lastEpoch *eth2Types.Epoch
+	backend Backend
 
 	// Subscriptions
 	consensusInfoSub event.Subscription // Subscription for new epoch validator list
@@ -124,12 +121,11 @@ func (es *EventSystem) subscribe(sub *subscription) *Subscription {
 
 // SubscribePendingTxs creates a subscription that writes transaction hashes for
 // transactions that enter the transaction pool.
-func (es *EventSystem) SubscribeConsensusInfo(consensusInfo chan *types.MinimalEpochConsensusInfo, epoch eth2Types.Epoch) *Subscription {
+func (es *EventSystem) SubscribeConsensusInfo(consensusInfo chan *types.MinimalEpochConsensusInfo, epoch uint64) *Subscription {
 	sub := &subscription{
 		id:            rpc.NewID(),
 		typ:           MinConsensusInfoSubscription,
 		created:       time.Now(),
-		isNew:         true,
 		epoch:         epoch,
 		consensusInfo: consensusInfo,
 		installed:     make(chan struct{}),
@@ -143,11 +139,11 @@ type filterIndex map[Type]map[rpc.ID]*subscription
 // handleConsensusInfoEvent
 func (es *EventSystem) handleConsensusInfoEvent(filters filterIndex, ev *types.MinimalEpochConsensusInfo) {
 	for _, f := range filters[MinConsensusInfoSubscription] {
-		if f.isNew {
-			es.sendConsensusInfo(f, ev)
-			f.isNew = false
-			continue
-		}
+		//if f.isNew {
+		//	es.sendConsensusInfo(f, ev)
+		//	f.isNew = false
+		//	continue
+		//}
 		f.consensusInfo <- ev
 	}
 }
@@ -183,27 +179,24 @@ func (es *EventSystem) eventLoop() {
 }
 
 // sendConsensusInfo
-func (es *EventSystem) sendConsensusInfo(f *subscription, ev *types.MinimalEpochConsensusInfo) {
-	curEpoch := es.backend.CurrentEpoch()
-	log.WithField("curEpoch", curEpoch).Debug("current epoch in epoch extractor")
-	log.WithField("f.epoch", f.epoch).Debug("subscriber's epoch status")
-
-	// when requested from epoch is greater or equal than current epoch.
-	if f.epoch >= curEpoch {
-		log.WithField("consensusInfo", ev).Debug("Sending consensus info to subscriber")
-		f.consensusInfo <- ev
-		return
-	}
-
-	consensusInfos := es.backend.ConsensusInfoByEpochRange(f.epoch, curEpoch)
-	log.WithField("consensusInfos", consensusInfos).Debug("start sending consensus infos")
-
-	// sending previous epoch consensus infos
-	for epoch := f.epoch; epoch <= curEpoch; epoch++ {
-		consensusInfo := consensusInfos[epoch]
-		if consensusInfo != nil {
-			log.WithField("consensusInfo", consensusInfo).Debug("Sending consensus info to subscriber")
-			f.consensusInfo <- consensusInfo
-		}
-	}
-}
+//func (es *EventSystem) sendConsensusInfo(f *subscription, ev *types.MinimalEpochConsensusInfo) {
+//	curEpoch := es.backend.CurrentEpoch()
+//	log.WithField("curEpoch", curEpoch).Debug("current epoch in epoch extractor")
+//	log.WithField("f.epoch", f.epoch).Debug("subscriber's epoch status")
+//
+//	// when requested from epoch is greater or equal than current epoch.
+//	if f.epoch >= curEpoch {
+//		log.WithField("consensusInfo", ev).Debug("Sending consensus info to subscriber")
+//		f.consensusInfo <- ev
+//		return
+//	}
+//
+//	consensusInfos := es.backend.ConsensusInfoByEpochRange(f.epoch)
+//	log.WithField("consensusInfos", consensusInfos).Debug("start sending consensus infos")
+//
+//	// sending previous epoch consensus infos
+//	for _, consensusInfo := range consensusInfos {
+//		log.WithField("consensusInfo", consensusInfo).Debug("Sending consensus info to subscriber")
+//		f.consensusInfo <- consensusInfo
+//	}
+//}

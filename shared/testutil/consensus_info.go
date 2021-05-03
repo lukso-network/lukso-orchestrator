@@ -3,13 +3,11 @@ package testutil
 import (
 	"github.com/ethereum/go-ethereum/common"
 	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
-	types "github.com/prysmaticlabs/eth2-types"
-	"math/rand"
 	"strconv"
 	"time"
 )
 
-func NewMinimalConsensusInfo(epoch types.Epoch) *eventTypes.MinimalEpochConsensusInfo {
+func NewMinimalConsensusInfo(epoch uint64) *eventTypes.MinimalEpochConsensusInfo {
 	validatorList := make([]string, 32)
 
 	for idx := 0; idx < 32; idx++ {
@@ -21,9 +19,9 @@ func NewMinimalConsensusInfo(epoch types.Epoch) *eventTypes.MinimalEpochConsensu
 	var validatorList32 [32]string
 	copy(validatorList32[:], validatorList)
 	return &eventTypes.MinimalEpochConsensusInfo{
-		Epoch:            uint64(epoch),
+		Epoch:            epoch,
 		ValidatorList:    validatorList32,
-		EpochStartTime:   rand.Uint64(),
+		EpochStartTime:   765544433,
 		SlotTimeDuration: time.Duration(6),
 	}
 }

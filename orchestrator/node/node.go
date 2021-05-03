@@ -2,12 +2,16 @@ package node
 
 import (
 	"context"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/epochextractor"
+	ethRpc "github.com/ethereum/go-ethereum/rpc"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/db/kv"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain"
 	"github.com/lukso-network/lukso-orchestrator/shared"
 	"github.com/lukso-network/lukso-orchestrator/shared/cmd"
 	"github.com/lukso-network/lukso-orchestrator/shared/fileutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/version"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"os"
@@ -19,12 +23,18 @@ import (
 
 // OrchestratorNode
 type OrchestratorNode struct {
-	cliCtx   *cli.Context
-	ctx      context.Context
-	cancel   context.CancelFunc
+	// basic configuration
+	cliCtx *cli.Context
+	ctx    context.Context
+	cancel context.CancelFunc
+
+	// service storage
 	services *shared.ServiceRegistry
 	lock     sync.RWMutex
 	stop     chan struct{} // Channel to wait for termination notifications.
+
+	//kv database with cache
+	db db.Database
 }
 
 // New creates a new node instance, sets up configuration options, and registers
@@ -39,45 +49,99 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 		services: registry,
 		stop:     make(chan struct{}),
 	}
-	if err := orchestrator.registerEpochExtractor(cliCtx); err != nil {
+
+	if err := orchestrator.startDB(orchestrator.cliCtx); err != nil {
+		return nil, err
+	}
+
+	if err := orchestrator.registerVanguardChainService(cliCtx); err != nil {
 		return nil, err
 	}
 
 	if err := orchestrator.registerRPCService(cliCtx); err != nil {
 		return nil, err
 	}
+
 	return orchestrator, nil
 }
 
-// registerEpochExtractor
-func (o *OrchestratorNode) registerEpochExtractor(cliCtx *cli.Context) error {
-	pandoraHttpUrl := cliCtx.String(cmd.PandoraRPCEndpoint.Name)
-	vanguardHttpUrl := cliCtx.String(cmd.VanguardRPCEndpoint.Name)
-	genesisTime := cliCtx.Uint64(cmd.GenesisTime.Name)
+// startDB initialize KV db and cache
+func (o *OrchestratorNode) startDB(cliCtx *cli.Context) error {
+	baseDir := cliCtx.String(cmd.DataDirFlag.Name)
+	dbPath := filepath.Join(baseDir, kv.OrchestratorNodeDbDirName)
+	clearDB := cliCtx.Bool(cmd.ClearDB.Name)
+	forceClearDB := cliCtx.Bool(cmd.ForceClearDB.Name)
 
-	log.WithField("pandoraHttpUrl", pandoraHttpUrl).WithField(
-		"vanguardHttpUrl", vanguardHttpUrl).WithField("genesisTime", genesisTime).Debug("flag values")
+	log.WithField("database-path", dbPath).Info("Checking DB")
 
-	svc, err := epochextractor.NewService(o.ctx, pandoraHttpUrl, vanguardHttpUrl, genesisTime)
+	d, err := db.NewDB(o.ctx, dbPath, &kv.Config{
+		InitialMMapSize: cliCtx.Int(cmd.BoltMMapInitialSizeFlag.Name),
+	})
+	if err != nil {
+		return err
+	}
+
+	clearDBConfirmed := false
+	if clearDB && !forceClearDB {
+		actionText := "This will delete your orchestrator database stored in your data directory. " +
+			"Your database backups will not be removed - do you want to proceed? (Y/N)"
+		deniedText := "Database will not be deleted. No changes have been made."
+		clearDBConfirmed, err = cmd.ConfirmAction(actionText, deniedText)
+		if err != nil {
+			return err
+		}
+	}
+
+	if clearDBConfirmed || forceClearDB {
+		log.Warning("Removing database")
+		if err := d.Close(); err != nil {
+			return errors.Wrap(err, "could not close db prior to clearing")
+		}
+		if err := d.ClearDB(); err != nil {
+			return errors.Wrap(err, "could not clear database")
+		}
+		d, err = db.NewDB(o.ctx, dbPath, &kv.Config{
+			InitialMMapSize: cliCtx.Int(cmd.BoltMMapInitialSizeFlag.Name),
+		})
+		if err != nil {
+			return errors.Wrap(err, "could not create new database")
+		}
+	}
+
+	o.db = d
+	return nil
+}
+
+// registerVanguardChainService
+func (o *OrchestratorNode) registerVanguardChainService(cliCtx *cli.Context) error {
+	vanguardRPCUrl := cliCtx.String(cmd.VanguardRPCEndpoint.Name)
+	dialRPCClient := func(endpoint string) (*ethRpc.Client, error) {
+		client, err := ethRpc.Dial(endpoint)
+		if err != nil {
+			return nil, err
+		}
+		return client, nil
+	}
+	namespace := "van"
+	svc, err := vanguardchain.NewService(o.ctx, vanguardRPCUrl, namespace, o.db, dialRPCClient)
 	if err != nil {
 		return nil
 	}
+	log.WithField("vanguardHttpUrl", vanguardRPCUrl).Info("Registered vanguard chain service")
 	return o.services.RegisterService(svc)
 }
 
 // register RPC server
 func (o *OrchestratorNode) registerRPCService(cliCtx *cli.Context) error {
-	log.Info("Registering rpc server")
-
-	var epochExtractorService *epochextractor.Service
-	if err := o.services.FetchService(&epochExtractorService); err != nil {
+	var consensusInfoFeed *vanguardchain.Service
+	if err := o.services.FetchService(&consensusInfoFeed); err != nil {
 		return err
 	}
 
 	var ipcapiURL string
 	if cliCtx.String(cmd.IPCPathFlag.Name) != "" {
 		ipcFilePath := cliCtx.String(cmd.IPCPathFlag.Name)
-		ipcapiURL = fileutil.IpcEndpoint(filepath.Join(ipcFilePath, "orchestrator.ipc"), "")
+		ipcapiURL = fileutil.IpcEndpoint(filepath.Join(ipcFilePath, cmd.DefaultIpcPath), "")
 
 		log.WithField("ipcFilePath", ipcFilePath).WithField(
 			"ipcPath", ipcapiURL).Info("ipc file path")
@@ -95,22 +159,25 @@ func (o *OrchestratorNode) registerRPCService(cliCtx *cli.Context) error {
 		"wsListenerAddr", wsListenerAddr).WithField("wsPort", wsPort).Debug("rpc server configuration")
 
 	svc, err := rpc.NewService(o.ctx, &rpc.Config{
-		EpochExpractor: epochExtractorService,
-		IPCPath:        ipcapiURL,
-		HTTPEnable:     httpEnable,
-		HTTPHost:       httpListenAddr,
-		HTTPPort:       httpPort,
-		WSEnable:       wsEnable,
-		WSHost:         wsListenerAddr,
-		WSPort:         wsPort,
+		ConsensusInfoFeed: consensusInfoFeed,
+		ConsensusInfoDB:   o.db,
+		IPCPath:           ipcapiURL,
+		HTTPEnable:        httpEnable,
+		HTTPHost:          httpListenAddr,
+		HTTPPort:          httpPort,
+		WSEnable:          wsEnable,
+		WSHost:            wsListenerAddr,
+		WSPort:            wsPort,
 	})
 	if err != nil {
 		return nil
 	}
+
+	log.Info("Registered RPC service")
 	return o.services.RegisterService(svc)
 }
 
-// Start the BeaconNode and kicks off every registered service.
+// Start the OrchestratorNode and kicks off every registered service.
 func (o *OrchestratorNode) Start() {
 	o.lock.Lock()
 
@@ -136,7 +203,7 @@ func (o *OrchestratorNode) Start() {
 				log.WithField("times", i-1).Info("Already shutting down, interrupt more to panic")
 			}
 		}
-		panic("Panic closing the beacon node")
+		panic("Panic closing the orchestrator node")
 	}()
 
 	// Wait for stop channel to be closed.

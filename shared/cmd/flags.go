@@ -2,17 +2,25 @@ package cmd
 
 import (
 	"github.com/urfave/cli/v2"
-	"time"
 )
 
 var (
-	Now = time.Now().Unix()
-
 	// DataDirFlag defines a path on disk.
 	DataDirFlag = &cli.StringFlag{
 		Name:  "datadir",
-		Usage: "Data directory for storing metadata",
+		Usage: "Data directory for storing consensus metadata and block headers",
 		Value: DefaultConfigDir(),
+	}
+
+	// ForceClearDB removes any previously stored data at the data directory.
+	ForceClearDB = &cli.BoolFlag{
+		Name:  "force-clear-db",
+		Usage: "Clear any previously stored data at the data directory",
+	}
+	// ClearDB prompts user to see if they want to remove any previously stored data at the data directory.
+	ClearDB = &cli.BoolFlag{
+		Name:  "clear-db",
+		Usage: "Prompt for clearing any previously stored data at the data directory",
 	}
 
 	IPCPathFlag = &cli.StringFlag{
@@ -61,22 +69,30 @@ var (
 		Value: DefaultVanguardRPCEndpoint,
 	}
 
-	PandoraRPCEndpoint = &cli.StringFlag{
-		Name:  "pandora-rpc-endpoint",
-		Usage: "Pandora node RP provider endpoint",
-		Value: DefaultPandoraRPCEndpoint,
-	}
-
-	GenesisTime = &cli.Uint64Flag{
-		Name:  "genesis-time",
-		Usage: "Genesis time of the network",
-		Value: uint64(Now),
-	}
-
 	// VerbosityFlag defines the logrus configuration.
 	VerbosityFlag = &cli.StringFlag{
 		Name:  "verbosity",
 		Usage: "Logging verbosity (trace, debug, info=default, warn, error, fatal, panic)",
 		Value: "info",
+	}
+
+	// BoltMMapInitialSizeFlag specifies the initial size in bytes of boltdb's mmap syscall.
+	BoltMMapInitialSizeFlag = &cli.IntFlag{
+		Name:  "bolt-mmap-initial-size",
+		Usage: "Specifies the size in bytes of bolt db's mmap syscall allocation",
+		Value: 536870912, // 512 Mb as a default value.
+	}
+
+	// LogFormat specifies the log output format.
+	LogFormat = &cli.StringFlag{
+		Name:  "log-format",
+		Usage: "Specify log formatting. Supports: text, json, fluentd, journald.",
+		Value: "text",
+	}
+
+	// LogFileName specifies the log output file name.
+	LogFileName = &cli.StringFlag{
+		Name:  "log-file",
+		Usage: "Specify log file name, relative or absolute",
 	}
 )
