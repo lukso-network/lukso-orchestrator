@@ -23,8 +23,8 @@ type ExtraData struct {
 
 // vanBlockHash
 type PanHeaderHash struct {
-	HeaderHash common.Hash    `json:"headerHash"`
-	Status Status            `json:"status"`
+	HeaderHash common.Hash `json:"headerHash"`
+	Status     Status      `json:"status"`
 }
 
 // CopyHeader creates a deep copy of a block header to prevent side effects from

@@ -12,6 +12,7 @@ type ReadOnlyDatabase interface {
 	ConsensusInfo(ctx context.Context, epoch uint64) (*types.MinimalEpochConsensusInfo, error)
 	ConsensusInfos(fromEpoch uint64) ([]*types.MinimalEpochConsensusInfo, error)
 	LatestSavedEpoch() uint64
+	GetLatestEpoch() uint64
 }
 
 // PanHeaderAccessDatabase

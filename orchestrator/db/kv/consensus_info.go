@@ -105,7 +105,7 @@ func (s *Store) LatestSavedEpoch() uint64 {
 			// not found the latest epoch in db. so latest epoch will be zero
 			if epochBytes == nil {
 				latestSavedEpoch = uint64(0)
-				log.Debug("Latest epoch could not find in db. It may happen for brand new DB")
+				log.Trace("Latest epoch could not find in db. It may happen for brand new DB")
 				return nil
 			}
 			latestSavedEpoch = bytesutil.BytesToUint64BigEndian(epochBytes)
@@ -127,4 +127,9 @@ func (s *Store) SaveLatestEpoch(ctx context.Context) error {
 		}
 		return nil
 	})
+}
+
+// GetLatestHeaderHash
+func (s *Store) GetLatestEpoch() uint64 {
+	return s.latestEpoch
 }

@@ -17,7 +17,7 @@ func (backend *APIBackend) SubscribeNewEpochEvent(ch chan<- *types.MinimalEpochC
 }
 
 func (backend *APIBackend) CurrentEpoch() uint64 {
-	return backend.ConsensusInfoDB.LatestSavedEpoch()
+	return backend.ConsensusInfoDB.GetLatestEpoch()
 }
 
 func (backend *APIBackend) ConsensusInfoByEpochRange(fromEpoch uint64) []*types.MinimalEpochConsensusInfo {

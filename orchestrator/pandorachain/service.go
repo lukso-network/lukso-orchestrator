@@ -44,20 +44,20 @@ type Service struct {
 }
 
 // NewService creates new service with pandora ws or ipc endpoint, pandora service namespace and db
-func NewService(ctx context.Context, panEndpoint string, namespace string,
+func NewService(ctx context.Context, endpoint string, namespace string,
 	db db.PandoraHeaderHashDB, cache cache.PandoraHeaderCache, dialRPCFn DialRPCFn) (*Service, error) {
 
 	ctx, cancel := context.WithCancel(ctx)
 	_ = cancel // govet fix for lost cancel. Cancel is handled in service.Stop()
 	return &Service{
-		ctx:       ctx,
-		cancel:    cancel,
-		endpoint:  panEndpoint,
-		dialRPCFn: dialRPCFn,
-		namespace: namespace,
+		ctx:             ctx,
+		cancel:          cancel,
+		endpoint:        endpoint,
+		dialRPCFn:       dialRPCFn,
+		namespace:       namespace,
 		conInfoSubErrCh: make(chan error),
-		db:        db,
-		cache:     cache,
+		db:              db,
+		cache:           cache,
 	}, nil
 }
 
@@ -108,6 +108,7 @@ func (s *Service) closeClients() {
 // waitForConnection waits for a connection with pandora chain. Until a successful connection and subscription with
 // pandora chain, it retries again and again.
 func (s *Service) waitForConnection() {
+	log.Debug("Waiting for the connection")
 	var err error
 	if err = s.connectToChain(); err == nil {
 		log.WithField("endpoint", s.endpoint).Info("Connected and subscribed to pandora chain")
@@ -122,7 +123,7 @@ func (s *Service) waitForConnection() {
 	for {
 		select {
 		case <-ticker.C:
-			log.WithField("endpoint", s.endpoint).Debug("Dialing vanguard node")
+			log.WithField("endpoint", s.endpoint).Debug("Dialing pandora node")
 			var errConnect error
 			if errConnect = s.connectToChain(); errConnect != nil {
 				log.WithError(errConnect).Warn("Could not connect or subscribe to pandora chain")
@@ -146,7 +147,7 @@ func (s *Service) run(done <-chan struct{}) {
 	s.runError = nil
 
 	// the loop waits for any error which comes from consensus info subscription
-	// if any subscription error happens, it will try to reconnect and re-subscribe with vanguard chain again.
+	// if any subscription error happens, it will try to reconnect and re-subscribe with pandora chain again.
 	for {
 		select {
 		case <-done:
@@ -174,7 +175,7 @@ func (s *Service) connectToChain() error {
 		s.rpcClient = panRPCClient
 	}
 
-	// connect to vanguard subscription
+	// connect to pandora subscription
 	if err := s.subscribe(); err != nil {
 		return err
 	}

@@ -33,7 +33,7 @@ func NewMinimalConsensusInfo(epoch uint64) *types.MinimalEpochConsensusInfo {
 func NewPandoraHeaderHash(slot uint64, status types.Status) *types.PanHeaderHash {
 	return &types.PanHeaderHash{
 		HeaderHash: NewEth1Header(slot).Hash(),
-		Status: status,
+		Status:     status,
 	}
 }
 

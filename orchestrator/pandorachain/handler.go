@@ -13,21 +13,21 @@ import (
 func (s *Service) OnNewPendingHeader(ctx context.Context, header *eth1Types.Header) error {
 	var extraData types.ExtraData
 	if err := rlp.DecodeBytes(header.Extra, &extraData); err != nil {
-		log.WithError(err).Warn("Failed to decode extra data fields")
+		log.WithError(err).Error("Failed to decode extra data fields")
 		return err
 	}
 
 	if err := s.cache.Put(ctx, extraData.Slot, header); err != nil {
-		log.WithError(err).Warn("Failed to cache header")
+		log.WithError(err).Error("Failed to cache header")
 		return err
 	}
 
 	pandoraHeaderHash := &types.PanHeaderHash{
 		HeaderHash: header.Hash(),
-		Status: types.Pending,
+		Status:     types.Pending,
 	}
 	if err := s.db.SavePandoraHeaderHash(extraData.Slot, pandoraHeaderHash); err != nil {
-		log.WithError(err).Warn("Failed to store pandora header hash into db")
+		log.WithError(err).Error("Failed to store pandora header hash into db")
 		return err
 	}
 

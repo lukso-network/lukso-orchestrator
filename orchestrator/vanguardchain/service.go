@@ -197,7 +197,7 @@ func (s *Service) retryVanguardNode(err error) {
 
 // subscribeToVanguard subscribes to vanguard events
 func (s *Service) subscribeToVanguard() error {
-	latestSavedEpochInDb := s.db.LatestSavedEpoch()
+	latestSavedEpochInDb := s.db.GetLatestEpoch()
 	// subscribe to vanguard client for consensus info
 	sub, err := s.subscribeNewConsensusInfo(s.ctx, latestSavedEpochInDb, s.namespace, s.vanRPCClient)
 	if err != nil {

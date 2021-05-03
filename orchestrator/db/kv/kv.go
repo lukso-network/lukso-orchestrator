@@ -32,12 +32,14 @@ type Config struct {
 }
 
 type Store struct {
-	ctx                 context.Context
-	isRunning           bool
-	db                  *bolt.DB
-	databasePath        string
-	consensusInfoCache  *ristretto.Cache
-	panHeaderCache      *ristretto.Cache
+	ctx                context.Context
+	isRunning          bool
+	db                 *bolt.DB
+	databasePath       string
+	consensusInfoCache *ristretto.Cache
+	panHeaderCache     *ristretto.Cache
+
+	// Latest information need to be stored into db
 	latestEpoch         uint64
 	latestPanSlot       uint64
 	latestPanHeaderHash common.Hash

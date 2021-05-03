@@ -105,7 +105,7 @@ func (s *Store) LatestSavedPandoraSlot() uint64 {
 			// not found the latest block number in db. so latest block number will be zero
 			if latestSlotBytes == nil {
 				latestSlot = 0
-				log.Debug("Latest slot number could not find in db. It may happen for brand new DB")
+				log.Trace("Latest slot number could not find in db. It may happen for brand new DB")
 				return nil
 			}
 			latestSlot = bytesutil.BytesToUint64BigEndian(latestSlotBytes)
@@ -138,7 +138,7 @@ func (s *Store) LatestSavedPandoraHeaderHash() common.Hash {
 			// not found the latest block number in db. so latest block number will be zero
 			if latestHeaderHashBytes == nil {
 				latestHeaderHash = EmptyHash
-				log.Debug("Latest header hash could not find in db. It may happen for brand new DB")
+				log.Trace("Latest header hash could not find in db. It may happen for brand new DB")
 				return nil
 			}
 			latestHeaderHash = common.BytesToHash(latestHeaderHashBytes)
