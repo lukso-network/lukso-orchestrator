@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/boltdb/bolt"
 	"github.com/dgraph-io/ristretto"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/lukso-network/lukso-orchestrator/shared/fileutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/params"
 	"github.com/pkg/errors"
@@ -31,15 +32,15 @@ type Config struct {
 }
 
 type Store struct {
-	ctx                context.Context
-	isRunning          bool
-	db                 *bolt.DB
-	databasePath       string
-	consensusInfoCache *ristretto.Cache
-	panHeaderCache     *ristretto.Cache
-	latestEpoch        uint64
-	latestPanSlot      uint64
-	latestPanBlockNum  uint64
+	ctx                 context.Context
+	isRunning           bool
+	db                  *bolt.DB
+	databasePath        string
+	consensusInfoCache  *ristretto.Cache
+	panHeaderCache      *ristretto.Cache
+	latestEpoch         uint64
+	latestPanSlot       uint64
+	latestPanHeaderHash common.Hash
 }
 
 // NewKVStore initializes a new boltDB key-value store at the directory
@@ -107,13 +108,9 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 	}); err != nil {
 		return nil, err
 	}
+	// Retrieve initial data from DB
+	kv.initLatestDataFromDB()
 
-	latestEpoch, err := kv.LatestSavedEpoch()
-	if err != nil {
-		return nil, err
-	}
-
-	kv.latestEpoch = latestEpoch
 	return kv, err
 }
 
@@ -137,6 +134,16 @@ func (s *Store) Close() error {
 // DatabasePath at which this database writes files.
 func (s *Store) DatabasePath() string {
 	return s.databasePath
+}
+
+// initLatestDataFromDB helps to retrieve initial data from DB
+func (s *Store) initLatestDataFromDB() {
+	// Retrieve latest saved epoch number from db
+	s.latestEpoch = s.LatestSavedEpoch()
+	// Retrieve latest saved pandora slot from db
+	s.latestPanSlot = s.LatestSavedPandoraSlot()
+	// Retrieve latest saved pandora header hash from db
+	s.latestPanHeaderHash = s.LatestSavedPandoraHeaderHash()
 }
 
 // createBuckets

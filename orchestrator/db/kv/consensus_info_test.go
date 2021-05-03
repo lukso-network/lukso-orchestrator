@@ -76,8 +76,7 @@ func TestStore_LatestSavedEpoch_ForFirstTime(t *testing.T) {
 	t.Parallel()
 	db := setupDB(t, true)
 
-	latestEpoch, err := db.LatestSavedEpoch()
-	require.NoError(t, err)
+	latestEpoch := db.LatestSavedEpoch()
 	assert.Equal(t, db.latestEpoch, latestEpoch)
 }
 
@@ -92,8 +91,7 @@ func TestStore_SaveLatestSavedEpoch_RetrieveLatestEpoch(t *testing.T) {
 	require.NoError(t, db.SaveLatestEpoch(ctx))
 
 	// LatestSavedEpoch is called when db is going up
-	latestEpoch, err := db.LatestSavedEpoch()
-	require.NoError(t, err)
+	latestEpoch := db.LatestSavedEpoch()
 	assert.Equal(t, db.latestEpoch, latestEpoch)
 }
 
@@ -115,7 +113,6 @@ func TestStore_LatestEpoch_ClosingDB_OpeningDB(t *testing.T) {
 	restartedDB := setupDB(t, false)
 
 	// LatestSavedEpoch is called when db is going up
-	latestEpoch, err := restartedDB.LatestSavedEpoch()
-	require.NoError(t, err)
+	latestEpoch := restartedDB.LatestSavedEpoch()
 	assert.Equal(t, prevLatestEpoch, latestEpoch)
 }

@@ -5,6 +5,7 @@ var (
 	pandoraHeaderHashesBucket  = []byte("headers-pandora")
 	vanguardHeaderHashesBucket = []byte("headers-vanguard")
 
-	lastStoredEpochKey    = []byte("last-epoch")
-	latestSavedPanSlotKey = []byte("latest-pandora-slot")
+	lastStoredEpochKey          = []byte("last-epoch")
+	latestSavedPanSlotKey       = []byte("latest-pandora-slot")
+	latestSavedPanHeaderHashKey = []byte("latest-pandora-header-hash")
 )

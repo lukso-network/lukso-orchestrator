@@ -29,8 +29,16 @@ func NewMinimalConsensusInfo(epoch uint64) *types.MinimalEpochConsensusInfo {
 	}
 }
 
-// NewPandoraHeader
-func NewPandoraHeader(slot uint64, status types.Status) *types.PanBlockHeader {
+// NewPandoraHeaderHash
+func NewPandoraHeaderHash(slot uint64, status types.Status) *types.PanHeaderHash {
+	return &types.PanHeaderHash{
+		HeaderHash: NewEth1Header(slot).Hash(),
+		Status: status,
+	}
+}
+
+// NewEth1Header
+func NewEth1Header(slot uint64) *eth1Types.Header {
 	epoch := slot / 32
 	extraData := types.ExtraData{
 		Slot:          slot,
@@ -54,9 +62,5 @@ func NewPandoraHeader(slot uint64, status types.Status) *types.PanBlockHeader {
 		MixDigest:   eth1Types.EmptyRootHash,
 		Nonce:       eth1Types.BlockNonce{0x01, 0x02, 0x03},
 	}
-
-	return &types.PanBlockHeader{
-		Header: header,
-		Status: status,
-	}
+	return header
 }
