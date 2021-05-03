@@ -53,12 +53,13 @@ func NewService(ctx context.Context, vanEndpoint string, namespace string,
 	ctx, cancel := context.WithCancel(ctx)
 	_ = cancel // govet fix for lost cancel. Cancel is handled in service.Stop()
 	return &Service{
-		ctx:         ctx,
-		cancel:      cancel,
-		vanEndpoint: vanEndpoint,
-		dialRPCFn:   dialRPCFn,
-		namespace:   namespace,
-		db:          db,
+		ctx:             ctx,
+		cancel:          cancel,
+		vanEndpoint:     vanEndpoint,
+		dialRPCFn:       dialRPCFn,
+		namespace:       namespace,
+		conInfoSubErrCh: make(chan error),
+		db:              db,
 	}, nil
 }
 

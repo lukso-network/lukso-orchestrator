@@ -16,8 +16,12 @@ import (
 func Test_Node_RegisterServices(t *testing.T) {
 	hook := logTest.NewGlobal()
 	tmp := fmt.Sprintf("%s/datadir", t.TempDir())
+	dir := t.TempDir() + "/test"
+
 	app := cli.App{}
 	set := flag.NewFlagSet("test", 0)
+	set.String("datadir", dir, "Data directory for storing consensus metadata and block headers")
+
 	context := cli.NewContext(&app, set, nil)
 	node, err := New(context)
 	require.NoError(t, err)
