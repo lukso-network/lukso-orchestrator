@@ -2,8 +2,12 @@ package db
 
 import "github.com/lukso-network/lukso-orchestrator/orchestrator/db/iface"
 
-type ReadOnlyDatabase = iface.ReadOnlyDatabase
+type ROnlyConsensusInfoDB = iface.ReadOnlyConsensusInfoDatabase
 
-type Database = iface.Database
+type ConsensusInfoAccessDB = iface.ConsensusInfoAccessDatabase
 
 type PandoraHeaderHashDB = iface.PanHeaderAccessDatabase
+
+type ROnlyPanHeaderHashDB = iface.ReadOnlyPanHeaderAccessDatabase
+
+type Database = iface.Database

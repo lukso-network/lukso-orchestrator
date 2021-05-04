@@ -43,12 +43,12 @@ type Service struct {
 	conInfoSub        *rpc.ClientSubscription
 
 	// db support
-	db db.Database
+	db db.ConsensusInfoAccessDB
 }
 
 // NewService creates new service with vanguard endpoint, vanguard namespace and db
 func NewService(ctx context.Context, vanEndpoint string, namespace string,
-	db db.Database, dialRPCFn DialRPCFn) (*Service, error) {
+	db db.ConsensusInfoAccessDB, dialRPCFn DialRPCFn) (*Service, error) {
 
 	ctx, cancel := context.WithCancel(ctx)
 	_ = cancel // govet fix for lost cancel. Cancel is handled in service.Stop()

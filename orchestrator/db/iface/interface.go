@@ -8,33 +8,46 @@ import (
 )
 
 // ReadOnlyDatabase defines a struct which only has read access to database methods.
-type ReadOnlyDatabase interface {
+type ReadOnlyConsensusInfoDatabase interface {
 	ConsensusInfo(ctx context.Context, epoch uint64) (*types.MinimalEpochConsensusInfo, error)
 	ConsensusInfos(fromEpoch uint64) ([]*types.MinimalEpochConsensusInfo, error)
 	LatestSavedEpoch() uint64
 	GetLatestEpoch() uint64
 }
 
-// PanHeaderAccessDatabase
-type PanHeaderAccessDatabase interface {
+// ConsensusInfoAccessDatabase
+type ConsensusInfoAccessDatabase interface {
+	ReadOnlyConsensusInfoDatabase
+
+	SaveConsensusInfo(ctx context.Context, consensusInfo *types.MinimalEpochConsensusInfo) error
+	SaveLatestEpoch(ctx context.Context) error
+}
+
+// ReadOnlyPanHeaderAccessDatabase
+type ReadOnlyPanHeaderAccessDatabase interface {
 	PandoraHeaderHash(slot uint64) (*types.PanHeaderHash, error)
 	PandoraHeaderHashes(fromSlot uint64) ([]*types.PanHeaderHash, error)
-	SavePandoraHeaderHash(slot uint64, headerHash *types.PanHeaderHash) error
-	SaveLatestPandoraSlot() error
 	LatestSavedPandoraSlot() uint64
-	SaveLatestPandoraHeaderHash() error
 	LatestSavedPandoraHeaderHash() common.Hash
 	GetLatestHeaderHash() common.Hash
+}
+
+// PanHeaderAccessDatabase
+type PanHeaderAccessDatabase interface {
+	ReadOnlyPanHeaderAccessDatabase
+
+	SavePandoraHeaderHash(slot uint64, headerHash *types.PanHeaderHash) error
+	SaveLatestPandoraSlot() error
+	SaveLatestPandoraHeaderHash() error
 }
 
 // Database interface with full access.
 type Database interface {
 	io.Closer
-	ReadOnlyDatabase
-	PanHeaderAccessDatabase
 
-	SaveConsensusInfo(ctx context.Context, consensusInfo *types.MinimalEpochConsensusInfo) error
-	SaveLatestEpoch(ctx context.Context) error
+	ConsensusInfoAccessDatabase
+
+	PanHeaderAccessDatabase
 
 	DatabasePath() string
 	ClearDB() error
