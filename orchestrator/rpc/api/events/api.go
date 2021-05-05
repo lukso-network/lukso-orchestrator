@@ -2,18 +2,31 @@ package events
 
 import (
 	"context"
+	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
-	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
-	types "github.com/prysmaticlabs/eth2-types"
+	generalTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
 	"time"
 )
 
 type Backend interface {
-	CurrentEpoch() types.Epoch
-	ConsensusInfoByEpochRange(fromEpoch, toEpoch types.Epoch) map[types.Epoch]*eventTypes.MinimalEpochConsensusInfo
-	SubscribeNewEpochEvent(chan<- *eventTypes.MinimalEpochConsensusInfo) event.Subscription
+	CurrentEpoch() uint64
+	ConsensusInfoByEpochRange(fromEpoch uint64) []*generalTypes.MinimalEpochConsensusInfo
+	SubscribeNewEpochEvent(chan<- *generalTypes.MinimalEpochConsensusInfo) event.Subscription
+	FetchPanBlockStatus(slot uint64, hash common.Hash) (status Status, err error)
+	FetchVanBlockStatus(slot uint64, hash common.Hash) (status Status, err error)
+	InvalidatePendingQueue() (vanguardErr error, pandoraErr error, realmErr error)
 }
+
+type Status string
+
+const (
+	Pending  Status = "Pending"
+	Verified Status = "Verified"
+	Invalid  Status = "Invalid"
+	Skipped  Status = "Skipped"
+)
 
 // PublicFilterAPI offers support to create and manage filters. This will allow external clients to retrieve various
 // information related to the Ethereum protocol such als blocks, transactions and logs.
@@ -21,6 +34,43 @@ type PublicFilterAPI struct {
 	backend Backend
 	events  *EventSystem
 	timeout time.Duration
+}
+
+type BlockHash struct {
+	Slot uint64
+	Hash common.Hash
+}
+
+type BlockStatus struct {
+	BlockHash
+	Status Status
+}
+
+type RealmPair struct {
+	Slot          uint64
+	VanguardHash  *generalTypes.HeaderHash
+	PandoraHashes []*generalTypes.HeaderHash
+}
+
+// TODO: consider it to merge into only string-based statuses
+func FromDBStatus(status generalTypes.Status) (eventStatus Status) {
+	if generalTypes.Pending == status {
+		eventStatus = Pending
+	}
+
+	if generalTypes.Verified == status {
+		eventStatus = Verified
+	}
+
+	if generalTypes.Invalid == status {
+		eventStatus = Invalid
+	}
+
+	if generalTypes.Skipped == status {
+		eventStatus = Skipped
+	}
+
+	return
 }
 
 // NewPublicFilterAPI returns a new PublicFilterAPI instance.
@@ -31,7 +81,113 @@ func NewPublicFilterAPI(backend Backend, timeout time.Duration) *PublicFilterAPI
 		timeout: timeout,
 	}
 
+	// This is a simpliest way I can imagine that queue will be invalidated.
+	// TODO: move it also? to eventSystem when new pending blocks arrive
+	go func() {
+		ticker := time.NewTicker(time.Second * 2)
+		for {
+			select {
+			case <-ticker.C:
+				vanguardErr, pandoraErr, realmErr := backend.InvalidatePendingQueue()
+
+				if nil != vanguardErr {
+					log.WithField("publicFilterApiCause", "vanguardErr").Error(vanguardErr)
+				}
+
+				if nil != pandoraErr {
+					log.WithField("publicFilterApiCause", "pandoraErr").Error(pandoraErr)
+				}
+
+				if nil != realmErr {
+					log.WithField("publicFilterApiCause", "realmErr").Error(realmErr)
+				}
+			}
+		}
+	}()
+
 	return api
+}
+
+// ConfirmPanBlockHashes
+func (api *PublicFilterAPI) ConfirmPanBlockHashes(
+	ctx context.Context,
+	request []*BlockHash,
+) (response []*BlockStatus, err error) {
+	if len(request) < 1 {
+		err = fmt.Errorf("request has empty slice")
+
+		return
+	}
+
+	response = make([]*BlockStatus, 0)
+
+	for _, blockRequest := range request {
+		status, currentErr := api.backend.FetchPanBlockStatus(blockRequest.Slot, blockRequest.Hash)
+
+		if nil != currentErr {
+			log.Errorf("Invalid block in ConfirmPanBlockHashes: %v", err)
+			response = nil
+			err = currentErr
+
+			return
+		}
+
+		response = append(response, &BlockStatus{
+			BlockHash: BlockHash{
+				Slot: blockRequest.Slot,
+				Hash: blockRequest.Hash,
+			},
+			Status: status,
+		})
+	}
+
+	log.WithField("method", "ConfirmPanBlockHashes").
+		WithField("request", request).
+		WithField("response", response).
+		Info("Sending back ConfirmPanBlockHashes response")
+
+	return
+}
+
+// ConfirmVanBlockHashes
+func (api *PublicFilterAPI) ConfirmVanBlockHashes(
+	ctx context.Context,
+	request []*BlockHash,
+) (response []*BlockStatus, err error) {
+	if len(request) < 1 {
+		err = fmt.Errorf("request has empty slice")
+
+		return
+	}
+
+	response = make([]*BlockStatus, 0)
+
+	for _, blockRequest := range request {
+		status, currentErr := api.backend.FetchVanBlockStatus(blockRequest.Slot, blockRequest.Hash)
+
+		if nil != currentErr {
+			log.Errorf("Invalid block in ConfirmVanBlockHashes: %v", err)
+			response = nil
+			err = currentErr
+
+			return
+		}
+
+		response = append(response, &BlockStatus{
+			BlockHash: BlockHash{
+				Slot: blockRequest.Slot,
+				Hash: blockRequest.Hash,
+			},
+			Status: status,
+		})
+	}
+
+	log.WithField("method", "ConfirmVanBlockHashes").
+		WithField("request", request).
+		WithField("response", response).
+		Info("Sending back ConfirmVanBlockHashes response")
+
+	return
 }
 
 // MinimalConsensusInfo
@@ -43,15 +199,30 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, epoch uint
 	rpcSub := notifier.CreateSubscription()
 
 	// Fill already known epochs
-	alreadyKnownEpochs := api.backend.ConsensusInfoByEpochRange(types.Epoch(epoch), api.backend.CurrentEpoch())
+	alreadyKnownEpochs := api.backend.ConsensusInfoByEpochRange(epoch)
+
+	// TODO: Consider change. This is due to the mismatch on slot 0 on pandora and vanguard
+	timeMismatch := time.Second * 6
 
 	go func() {
-		consensusInfo := make(chan *eventTypes.MinimalEpochConsensusInfo)
-		consensusInfoSub := api.events.SubscribeConsensusInfo(consensusInfo, types.Epoch(epoch))
-		log.WithField("fromEpoch", epoch).Debug("registered new subscriber for consensus info")
+		consensusInfo := make(chan *generalTypes.MinimalEpochConsensusInfo)
+		consensusInfoSub := api.events.SubscribeConsensusInfo(consensusInfo, epoch)
+		log.WithField("fromEpoch", epoch).
+			WithField("alreadyKnown", alreadyKnownEpochs).
+			Info("registered new subscriber for consensus info")
+
+		if len(alreadyKnownEpochs) < 1 {
+			log.WithField("fromEpoch", epoch).
+				Info("there are no already known epochs, try to fetch lowest")
+		}
 
 		for index, currentEpoch := range alreadyKnownEpochs {
-			log.WithField("epoch", index).WithField("epochStartTime", currentEpoch.EpochStartTime).Info("sending already known consensus info to subscriber")
+			// TODO: Remove it ASAP. This should not be that way
+			currentEpoch.EpochStartTime = currentEpoch.EpochStartTime - uint64(timeMismatch.Seconds())
+
+			log.WithField("epoch", index).
+				WithField("epochStartTime", currentEpoch.EpochStartTime).
+				Info("sending already known consensus info to subscriber")
 			err := notifier.Notify(rpcSub.ID, currentEpoch)
 
 			if nil != err {
@@ -61,9 +232,11 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, epoch uint
 
 		for {
 			select {
-			case c := <-consensusInfo:
-				log.WithField("epoch", c.Epoch).Info("sending consensus info to subscriber")
-				err := notifier.Notify(rpcSub.ID, c)
+			case currentEpoch := <-consensusInfo:
+				// TODO: Remove it asap
+				currentEpoch.EpochStartTime = currentEpoch.EpochStartTime - uint64(timeMismatch.Seconds())
+				log.WithField("epoch", currentEpoch.Epoch).Info("sending consensus info to subscriber")
+				err := notifier.Notify(rpcSub.ID, currentEpoch)
 
 				if nil != err {
 					log.WithField("context", "error during epoch send").Error(err)

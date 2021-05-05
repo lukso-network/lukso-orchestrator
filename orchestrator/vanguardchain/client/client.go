@@ -13,9 +13,13 @@ import (
 
 type VanguardClient interface {
 	CanonicalHeadSlot() (types.Slot, error)
-	NextEpochProposerList() (*ethpb.ValidatorAssignments, error)
+	StreamNewPendingBlocks() (ethpb.BeaconChain_StreamNewPendingBlocksClient, error)
+	StreamMinimalConsensusInfo(epoch uint64) (stream ethpb.BeaconChain_StreamMinimalConsensusInfoClient, err error)
 	Close()
 }
+
+// Assure that GRPCClient struct will implement VanguardClient interface
+var _ VanguardClient = &GRPCClient{}
 
 // GRPCClient
 type GRPCClient struct {
@@ -28,7 +32,7 @@ type GRPCClient struct {
 
 // Dial connects a client to the given URL.
 func Dial(ctx context.Context, rawurl string, grpcRetryDelay time.Duration,
-	grpcRetries uint, maxCallRecvMsgSize int) (*GRPCClient, error) {
+	grpcRetries uint, maxCallRecvMsgSize int) (VanguardClient, error) {
 
 	dialOpts := constructDialOptions(
 		maxCallRecvMsgSize,
@@ -72,10 +76,44 @@ func (vanClient *GRPCClient) CanonicalHeadSlot() (types.Slot, error) {
 	return head.HeadSlot, nil
 }
 
-// NextEpochProposerList
-func (vanClient *GRPCClient) NextEpochProposerList() (*ethpb.ValidatorAssignments, error) {
-	assignments, err := vanClient.beaconClient.NextEpochProposerList(vanClient.ctx, &ptypes.Empty{})
-	return assignments, err
+// StreamNewPendingBlocks
+func (vanClient *GRPCClient) StreamNewPendingBlocks() (
+	stream ethpb.BeaconChain_StreamNewPendingBlocksClient,
+	err error,
+) {
+	stream, err = vanClient.beaconClient.StreamNewPendingBlocks(
+		vanClient.ctx,
+		&ptypes.Empty{},
+	)
+	if err != nil {
+		log.WithError(err).Error("Failed to subscribe to StreamChainHead")
+
+		return
+	}
+
+	log.Info("Successfully subscribed to chain header event")
+
+	return
+}
+
+func (vanClient *GRPCClient) StreamMinimalConsensusInfo(epoch uint64) (
+	stream ethpb.BeaconChain_StreamMinimalConsensusInfoClient,
+	err error,
+) {
+	stream, err = vanClient.beaconClient.StreamMinimalConsensusInfo(
+		vanClient.ctx,
+		&ethpb.MinimalConsensusInfoRequest{FromEpoch: types.Epoch(epoch)},
+	)
+
+	if err != nil {
+		log.WithError(err).Error("Failed to subscribe to StreamMinimalConsensusInfo")
+
+		return
+	}
+
+	log.Info("Successfully subscribed to StreamMinimalConsensusInfo event")
+
+	return
 }
 
 // constructDialOptions constructs a list of grpc dial options

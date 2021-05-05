@@ -5,6 +5,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/client"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	"sync"
 	"time"
@@ -13,14 +14,13 @@ import (
 // time to wait before trying to reconnect with the vanguard node.
 var reConPeriod = 15 * time.Second
 
-// DialRPCFn dials to the given endpoint
-type DialRPCFn func(endpoint string) (*rpc.Client, error)
+type DIALGRPCFn func(endpoint string) (client.VanguardClient, error)
 
 // Service:
 // 	- maintains connection with vanguard chain
 //	- handles vanguard subscription for consensus info.
 //  - sends new consensus info to all pandora subscribers.
-//  - maintains db to store the coming consensus info from vanguard.
+//  - maintains consensusInfoDB to store the coming consensus info from vanguard.
 type Service struct {
 	// service maintenance related attributes
 	isRunning      bool
@@ -31,42 +31,45 @@ type Service struct {
 
 	// vanguard chain related attributes
 	connectedVanguard bool
-	vanEndpoint       string
-	vanRPCClient      *rpc.Client
-	dialRPCFn         DialRPCFn
-	namespace         string
+	vanGRPCEndpoint   string
+	vanGRPCClient     *client.VanguardClient
+	dialGRPCFn        DIALGRPCFn
 
 	// subscription
-	consensusInfoFeed event.Feed
-	scope             event.SubscriptionScope
-	conInfoSubErrCh   chan error
-	conInfoSub        *rpc.ClientSubscription
+	consensusInfoFeed            event.Feed
+	scope                        event.SubscriptionScope
+	conInfoSubErrCh              chan error
+	conInfoSub                   *rpc.ClientSubscription
+	vanguardPendingBlockHashFeed event.Feed
 
 	// db support
-	db db.ConsensusInfoAccessDB
+	orchestratorDB db.Database
 }
 
-// NewService creates new service with vanguard endpoint, vanguard namespace and db
-func NewService(ctx context.Context, vanEndpoint string, namespace string,
-	db db.ConsensusInfoAccessDB, dialRPCFn DialRPCFn) (*Service, error) {
+// NewService creates new service with vanguard endpoint, vanguard namespace and consensusInfoDB
+func NewService(
+	ctx context.Context,
+	vanGRPCEndpoint string,
+	db db.Database,
+	dialGRPCFn DIALGRPCFn,
+) (*Service, error) {
 
 	ctx, cancel := context.WithCancel(ctx)
 	_ = cancel // govet fix for lost cancel. Cancel is handled in service.Stop()
 	return &Service{
 		ctx:             ctx,
 		cancel:          cancel,
-		vanEndpoint:     vanEndpoint,
-		dialRPCFn:       dialRPCFn,
-		namespace:       namespace,
+		vanGRPCEndpoint: vanGRPCEndpoint,
+		dialGRPCFn:      dialGRPCFn,
 		conInfoSubErrCh: make(chan error),
-		db:              db,
+		orchestratorDB:  db,
 	}, nil
 }
 
 // Start a consensus info fetcher service's main event loop.
 func (s *Service) Start() {
 	// Exit early if eth1 endpoint is not set.
-	if s.vanEndpoint == "" {
+	if s.vanGRPCEndpoint == "" {
 		return
 	}
 	go func() {
@@ -103,9 +106,7 @@ func (s *Service) Status() error {
 
 // closes down our active eth1 clients.
 func (s *Service) closeClients() {
-	if s.vanRPCClient != nil {
-		s.vanRPCClient.Close()
-	}
+
 }
 
 // waitForConnection waits for a connection with vanguard chain. Until a successful with
@@ -113,7 +114,7 @@ func (s *Service) closeClients() {
 func (s *Service) waitForConnection() {
 	var err error
 	if err = s.connectToVanguardChain(); err == nil {
-		log.WithField("vanguardHttp", s.vanEndpoint).Info("Connected vanguard chain")
+		log.WithField("vanguardHttp", s.vanGRPCEndpoint).Info("Connected vanguard chain")
 		s.connectedVanguard = true
 		return
 	}
@@ -125,7 +126,7 @@ func (s *Service) waitForConnection() {
 	for {
 		select {
 		case <-ticker.C:
-			log.WithField("endpoint", s.vanEndpoint).Debugf("Dialing vanguard node")
+			log.WithField("endpoint", s.vanGRPCEndpoint).Debugf("Dialing vanguard node")
 			var errConnect error
 			if errConnect = s.connectToVanguardChain(); errConnect != nil {
 				log.WithError(errConnect).Warn("Could not connect to vanguard endpoint")
@@ -134,7 +135,7 @@ func (s *Service) waitForConnection() {
 			}
 			s.connectedVanguard = true
 			s.runError = nil
-			log.WithField("vanguardHttp", s.vanEndpoint).Info("Connected vanguard chain")
+			log.WithField("vanguardHttp", s.vanGRPCEndpoint).Info("Connected vanguard chain")
 			return
 		case <-s.ctx.Done():
 			log.Debug("Received cancelled context,closing existing vanguard client service")
@@ -168,20 +169,26 @@ func (s *Service) run(done <-chan struct{}) {
 }
 
 // connectToVanguardChain dials to vanguard chain and creates rpcClient
-func (s *Service) connectToVanguardChain() error {
-	if s.vanRPCClient == nil {
-		vanRPCClient, err := s.dialRPCFn(s.vanEndpoint)
-		if err != nil {
-			return err
-		}
-		s.vanRPCClient = vanRPCClient
+func (s *Service) connectToVanguardChain() (err error) {
+	vanguardClient, err := s.dialGRPCFn(s.vanGRPCEndpoint)
+
+	if nil != err {
+		return
 	}
 
-	// connect to vanguard subscription
-	if err := s.subscribeToVanguard(); err != nil {
-		return err
+	err = s.subscribeVanNewPendingBlockHash(vanguardClient)
+
+	if nil != err {
+		return
 	}
-	return nil
+
+	err = s.subscribeNewConsensusInfoGRPC(vanguardClient)
+
+	if nil != err {
+		return
+	}
+
+	return
 }
 
 // Reconnect to vanguard node in case of any failure.
@@ -195,20 +202,11 @@ func (s *Service) retryVanguardNode(err error) {
 	s.runError = nil
 }
 
-// subscribeToVanguard subscribes to vanguard events
-func (s *Service) subscribeToVanguard() error {
-	latestSavedEpochInDb := s.db.GetLatestEpoch()
-	// subscribe to vanguard client for consensus info
-	sub, err := s.subscribeNewConsensusInfo(s.ctx, latestSavedEpochInDb, s.namespace, s.vanRPCClient)
-	if err != nil {
-		log.WithError(err).Warn("Could not subscribe to vanguard client for consensus info")
-		return err
-	}
-	s.conInfoSub = sub
-	return nil
-}
-
-// SubscribeChainHeadEvent registers a subscription of ChainHeadEvent.
+// SubscribeMinConsensusInfoEvent registers a subscription of ChainHeadEvent.
 func (s *Service) SubscribeMinConsensusInfoEvent(ch chan<- *types.MinimalEpochConsensusInfo) event.Subscription {
 	return s.scope.Track(s.consensusInfoFeed.Subscribe(ch))
+}
+
+func (s *Service) SubscribeVanNewPendingBlockHash(ch chan<- *types.HeaderHash) event.Subscription {
+	return s.scope.Track(s.vanguardPendingBlockHashFeed.Subscribe(ch))
 }

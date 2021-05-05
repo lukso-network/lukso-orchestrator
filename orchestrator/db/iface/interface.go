@@ -25,10 +25,19 @@ type ConsensusInfoAccessDatabase interface {
 
 // ReadOnlyPanHeaderAccessDatabase
 type ReadOnlyPanHeaderAccessDatabase interface {
-	PandoraHeaderHash(slot uint64) (*types.PanHeaderHash, error)
-	PandoraHeaderHashes(fromSlot uint64) ([]*types.PanHeaderHash, error)
+	PandoraHeaderHash(slot uint64) (*types.HeaderHash, error)
+	PandoraHeaderHashes(fromSlot uint64) ([]*types.HeaderHash, error)
 	LatestSavedPandoraSlot() uint64
 	LatestSavedPandoraHeaderHash() common.Hash
+	GetLatestHeaderHash() common.Hash
+}
+
+// ReadOnlyVanHeaderAccessDatabase
+type ReadOnlyVanHeaderAccessDatabase interface {
+	VanguardHeaderHash(slot uint64) (*types.HeaderHash, error)
+	VanguardHeaderHashes(fromSlot uint64, limit uint64) ([]*types.HeaderHash, error)
+	LatestSavedVanguardSlot() uint64
+	LatestSavedVanguardHeaderHash() common.Hash
 	GetLatestHeaderHash() common.Hash
 }
 
@@ -36,9 +45,27 @@ type ReadOnlyPanHeaderAccessDatabase interface {
 type PanHeaderAccessDatabase interface {
 	ReadOnlyPanHeaderAccessDatabase
 
-	SavePandoraHeaderHash(slot uint64, headerHash *types.PanHeaderHash) error
+	SavePandoraHeaderHash(slot uint64, headerHash *types.HeaderHash) error
 	SaveLatestPandoraSlot() error
 	SaveLatestPandoraHeaderHash() error
+}
+
+type VanHeaderAccessDatabase interface {
+	ReadOnlyVanHeaderAccessDatabase
+
+	SaveVanguardHeaderHash(slot uint64, headerHash *types.HeaderHash) error
+	SaveLatestVanguardSlot() error
+	SaveLatestVanguardHeaderHash() error
+}
+
+type RealmReadOnlyAccessDatabase interface {
+	LatestVerifiedRealmSlot() (slot uint64)
+}
+
+type RealmAccessDatabase interface {
+	RealmReadOnlyAccessDatabase
+
+	SaveLatestVerifiedRealmSlot(slot uint64) (err error)
 }
 
 // Database interface with full access.
@@ -48,6 +75,10 @@ type Database interface {
 	ConsensusInfoAccessDatabase
 
 	PanHeaderAccessDatabase
+
+	VanHeaderAccessDatabase
+
+	RealmAccessDatabase
 
 	DatabasePath() string
 	ClearDB() error

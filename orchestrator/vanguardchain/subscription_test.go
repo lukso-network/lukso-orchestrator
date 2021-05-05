@@ -2,11 +2,10 @@ package vanguardchain
 
 import (
 	"context"
-	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/golang/mock/gomock"
+	"github.com/gogo/protobuf/types"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
-	types "github.com/prysmaticlabs/eth2-types"
+	eth "github.com/prysmaticlabs/ethereumapis/eth/v1alpha1"
 	logTest "github.com/sirupsen/logrus/hooks/test"
 	"testing"
 	"time"
@@ -16,26 +15,28 @@ import (
 func Test_VanguardChainStartStop_Initialized(t *testing.T) {
 	hook := logTest.NewGlobal()
 	ctx := context.Background()
-
-	mockServer, mockBackend := SetupInProcServer(t)
-	mockClient := rpc.DialInProc(mockServer)
-	if mockClient == nil {
-		t.Fatal("failed to create inproc client")
-	}
-	defer mockServer.Stop()
-
-	dialInProcRPCClient := DialInProcClient(mockServer)
-	vanguardSvc, m := SetupVanguardSvc(ctx, t, dialInProcRPCClient)
-	sub, err := vanguardSvc.subscribeNewConsensusInfo(ctx, 0, "van", mockClient)
-	assert.NoError(t, err)
+	vanSvc, _ := SetupVanguardSvc(ctx, t, GRPCFunc)
+	vanSvc.Start()
+	defer func() {
+		_ = vanSvc.Stop()
+	}()
 
 	time.Sleep(1 * time.Second)
-	consensusInfo := testutil.NewMinimalConsensusInfo(types.Epoch(5))
-	mockBackend.ConsensusInfoFeed.Send(consensusInfo)
-	m.db.EXPECT().SaveConsensusInfo(ctx, gomock.Any()).Times(5).Return(nil)
+	ConsensusInfoMocks = make([]*eth.MinimalConsensusInfo, 0)
+	minimalConsensusInfo := testutil.NewMinimalConsensusInfo(0)
+
+	ConsensusInfoMocks = append(ConsensusInfoMocks, &eth.MinimalConsensusInfo{
+		SlotTimeDuration: &types.Duration{Seconds: 6},
+		ValidatorList:    minimalConsensusInfo.ValidatorList,
+	})
+	PendingBlockMocks = nil
+
+	defer func() {
+		ConsensusInfoMocks = nil
+		PendingBlockMocks = nil
+	}()
 
 	time.Sleep(1 * time.Second)
-	assert.LogsContainNTimes(t, hook, "Got new consensus info from vanguard", 5)
-	sub.Err()
+	assert.LogsContain(t, hook, "consensus info passed sanitization")
 	hook.Reset()
 }

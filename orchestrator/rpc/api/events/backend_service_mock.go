@@ -1,9 +1,9 @@
 package events
 
 import (
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
 	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
-	types "github.com/prysmaticlabs/eth2-types"
 	"time"
 )
 
@@ -12,26 +12,35 @@ var (
 )
 
 type MockBackend struct {
-	ConsensusInfoFeed    event.Feed
-	ConsensusInfoMapping map[types.Epoch]*eventTypes.MinimalEpochConsensusInfo
-	CurEpoch             types.Epoch
+	ConsensusInfoFeed event.Feed
+	ConsensusInfos    []*eventTypes.MinimalEpochConsensusInfo
+	CurEpoch          uint64
 }
 
-func (backend *MockBackend) CurrentEpoch() types.Epoch {
-	return backend.CurEpoch
+var _ Backend = &MockBackend{}
+
+func (b *MockBackend) FetchPanBlockStatus(slot uint64, hash common.Hash) (status Status, err error) {
+	panic("implement me")
 }
 
-func (backend *MockBackend) ConsensusInfoByEpochRange(fromEpoch, toEpoch types.Epoch,
-) map[types.Epoch]*eventTypes.MinimalEpochConsensusInfo {
+func (b *MockBackend) FetchVanBlockStatus(slot uint64, hash common.Hash) (status Status, err error) {
+	panic("implement me")
+}
 
-	consensusInfoMapping := make(map[types.Epoch]*eventTypes.MinimalEpochConsensusInfo)
-	for epoch := fromEpoch; epoch <= toEpoch; epoch++ {
-		item, exists := backend.ConsensusInfoMapping[epoch]
-		if exists && item != nil {
-			consensusInfoMapping[epoch] = item
-		}
+func (b *MockBackend) InvalidatePendingQueue() (vanErr error, panErr error, realmErr error) {
+	return
+}
+
+func (b *MockBackend) CurrentEpoch() uint64 {
+	return b.CurEpoch
+}
+
+func (b *MockBackend) ConsensusInfoByEpochRange(fromEpoch uint64) []*eventTypes.MinimalEpochConsensusInfo {
+	consensusInfos := make([]*eventTypes.MinimalEpochConsensusInfo, 0)
+	for _, consensusInfo := range b.ConsensusInfos {
+		consensusInfos = append(consensusInfos, consensusInfo)
 	}
-	return consensusInfoMapping
+	return consensusInfos
 }
 
 func (b *MockBackend) SubscribeNewEpochEvent(ch chan<- *eventTypes.MinimalEpochConsensusInfo) event.Subscription {
