@@ -32,7 +32,9 @@ func Test_VanguardChainStartStop_Initialized(t *testing.T) {
 	mockBackend.ConsensusInfoFeed.Send(consensusInfo)
 
 	time.Sleep(1 * time.Second)
-	assert.LogsContainNTimes(t, hook, "Got new consensus info from vanguard", 6)
+	// TODO: Don't leave it as it is. Tests should not rely on logs. They should test side effect
+	// I have changed behaviour of function entirely and test was still passing.
+	assert.LogsContainNTimes(t, hook, "consensus info passed sanitization", 6)
 	sub.Err()
 	hook.Reset()
 }
