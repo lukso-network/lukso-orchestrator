@@ -24,6 +24,11 @@ func (s *Service) subscribeNewConsensusInfo(ctx context.Context, epoch uint64, n
 			case consensusInfo := <-ch:
 				log.WithField("consensusInfo", consensusInfo).Debug("Got new consensus info from vanguard")
 
+				if nil == consensusInfo {
+					log.WithField("consensusInfo", consensusInfo).Info("nil consensus info, discarding")
+					continue
+				}
+
 				//Sanitize the incoming request
 				for index, validator := range consensusInfo.ValidatorList {
 					_, err = hexutil.Decode(validator)
