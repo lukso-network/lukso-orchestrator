@@ -61,7 +61,9 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, epoch uint
 
 		for index, currentEpoch := range alreadyKnownEpochs {
 			// TODO: Remove it ASAP. This should not be that way
-			currentEpoch.EpochStartTime = currentEpoch.EpochStartTime - uint64(timeMismatch.Seconds())
+			if 0 == currentEpoch.Epoch {
+				currentEpoch.EpochStartTime = currentEpoch.EpochStartTime - uint64(timeMismatch.Seconds())
+			}
 
 			log.WithField("epoch", index).
 				WithField("epochStartTime", currentEpoch.EpochStartTime).
