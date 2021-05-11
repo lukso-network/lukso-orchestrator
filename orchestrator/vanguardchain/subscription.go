@@ -2,6 +2,7 @@ package vanguardchain
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 )
@@ -22,6 +23,36 @@ func (s *Service) subscribeNewConsensusInfo(ctx context.Context, epoch uint64, n
 			select {
 			case consensusInfo := <-ch:
 				log.WithField("consensusInfo", consensusInfo).Debug("Got new consensus info from vanguard")
+
+				if nil == consensusInfo {
+					log.WithField("consensusInfo", consensusInfo).Info("nil consensus info, discarding")
+					continue
+				}
+
+				//Sanitize the incoming request
+				for index, validator := range consensusInfo.ValidatorList {
+					_, err = hexutil.Decode(validator)
+
+					if nil != err {
+						log.WithField("consensusInfo", consensusInfo).
+							WithField("err", err).
+							WithField("index", index).
+							WithField("validator", validator).
+							Error("could not sanitize the validator")
+
+						break
+					}
+				}
+
+				if nil != err {
+					log.WithField("consensusInfo", consensusInfo).
+						WithField("err", err).
+						Error("I am not inserting invalid consensus info")
+					continue
+				}
+
+				log.WithField("consensusInfo", consensusInfo).Debug("consensus info passed sanitization")
+
 				// dispatch to handle consensus info
 				s.OnNewConsensusInfo(ctx, consensusInfo)
 			case err := <-sub.Err():
