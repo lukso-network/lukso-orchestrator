@@ -39,10 +39,10 @@ func setup(t *testing.T) (*Config, error) {
 		IPCPath:           cmd.DefaultIpcPath,
 		HTTPEnable:        true,
 		HTTPHost:          cmd.DefaultHTTPHost,
-		HTTPPort:          cmd.DefaultHTTPPort,
+		HTTPPort:          9874,
 		WSEnable:          true,
 		WSHost:            cmd.DefaultWSHost,
-		WSPort:            cmd.DefaultWSPort,
+		WSPort:            9875,
 	}, nil
 }
 

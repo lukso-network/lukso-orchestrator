@@ -44,13 +44,28 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, epoch uint
 	// Fill already known epochs
 	alreadyKnownEpochs := api.backend.ConsensusInfoByEpochRange(epoch)
 
+	// TODO: Consider change. This is due to the mismatch on slot 0 on pandora and vanguard
+	timeMismatch := time.Second * 6
+
 	go func() {
 		consensusInfo := make(chan *eventTypes.MinimalEpochConsensusInfo)
 		consensusInfoSub := api.events.SubscribeConsensusInfo(consensusInfo, epoch)
-		log.WithField("fromEpoch", epoch).Info("registered new subscriber for consensus info")
+		log.WithField("fromEpoch", epoch).
+			WithField("alreadyKnown", alreadyKnownEpochs).
+			Info("registered new subscriber for consensus info")
+
+		if len(alreadyKnownEpochs) < 1 {
+			log.WithField("fromEpoch", epoch).
+				Info("there are no already known epochs, try to fetch lowest")
+		}
 
 		for index, currentEpoch := range alreadyKnownEpochs {
-			log.WithField("epoch", index).WithField("epochStartTime", currentEpoch.EpochStartTime).Info("sending already known consensus info to subscriber")
+			// TODO: Remove it ASAP. This should not be that way
+			currentEpoch.EpochStartTime = currentEpoch.EpochStartTime - uint64(timeMismatch.Seconds())
+
+			log.WithField("epoch", index).
+				WithField("epochStartTime", currentEpoch.EpochStartTime).
+				Info("sending already known consensus info to subscriber")
 			err := notifier.Notify(rpcSub.ID, currentEpoch)
 
 			if nil != err {
@@ -60,9 +75,11 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, epoch uint
 
 		for {
 			select {
-			case c := <-consensusInfo:
-				log.WithField("epoch", c.Epoch).Info("sending consensus info to subscriber")
-				err := notifier.Notify(rpcSub.ID, c)
+			case currentEpoch := <-consensusInfo:
+				// TODO: Remove it asap
+				currentEpoch.EpochStartTime = currentEpoch.EpochStartTime - uint64(timeMismatch.Seconds())
+				log.WithField("epoch", currentEpoch.Epoch).Info("sending consensus info to subscriber")
+				err := notifier.Notify(rpcSub.ID, currentEpoch)
 
 				if nil != err {
 					log.WithField("context", "error during epoch send").Error(err)
