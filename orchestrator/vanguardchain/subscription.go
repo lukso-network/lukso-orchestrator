@@ -2,10 +2,54 @@ package vanguardchain
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/client"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 )
+
+func (s *Service) subscribeVanNewPendingBlockHash(
+	client client.VanguardClient,
+) (err error, errChan chan error) {
+	errChan = make(chan error)
+	stream, err := client.StreamNewPendingBlocks()
+
+	if nil != err {
+		return
+	}
+
+	go func() {
+		for {
+
+			vanBlock, currentErr := stream.Recv()
+
+			if currentErr != nil {
+				log.WithError(currentErr).Error("Failed to receive chain header")
+				continue
+			}
+
+			hashTreeRoot, currentErr := vanBlock.HashTreeRoot()
+
+			if nil != currentErr {
+				errChan <- currentErr
+
+				continue
+			}
+
+			currentBlockHash := common.BytesToHash(hashTreeRoot[:])
+			currentHeaderHash := &types.HeaderHash{
+				HeaderHash: currentBlockHash,
+				Status:     types.Pending,
+			}
+
+			nSent := s.vanguardPendingBlockHashFeed.Send(currentHeaderHash)
+			log.WithField("nsent", nSent).Trace("Pending Block Hash feed info to subscribers")
+		}
+	}()
+
+	return
+}
 
 // SubscribeNewConsensusInfo subscribes to vanguard client from latest saved epoch using given rpc client
 func (s *Service) subscribeNewConsensusInfo(ctx context.Context, epoch uint64, namespace string,

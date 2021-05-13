@@ -8,14 +8,13 @@ import (
 	ethpb "github.com/prysmaticlabs/ethereumapis/eth/v1alpha1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"sync"
 	"time"
 )
 
 type VanguardClient interface {
 	CanonicalHeadSlot() (types.Slot, error)
 	NextEpochProposerList() (*ethpb.ValidatorAssignments, error)
-	StreamNewPendingBlocks(wg *sync.WaitGroup) (ethpb.BeaconChain_StreamNewPendingBlocksClient, error)
+	StreamNewPendingBlocks() (ethpb.BeaconChain_StreamNewPendingBlocksClient, error)
 	Close()
 }
 
@@ -84,7 +83,7 @@ func (vanClient *GRPCClient) NextEpochProposerList() (*ethpb.ValidatorAssignment
 }
 
 // StreamNewPendingBlocks
-func (vanClient *GRPCClient) StreamNewPendingBlocks(wg *sync.WaitGroup) (
+func (vanClient *GRPCClient) StreamNewPendingBlocks() (
 	stream ethpb.BeaconChain_StreamNewPendingBlocksClient,
 	err error,
 ) {

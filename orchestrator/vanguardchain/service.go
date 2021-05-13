@@ -5,7 +5,9 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/client"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
+	"math"
 	"sync"
 	"time"
 )
@@ -37,10 +39,11 @@ type Service struct {
 	namespace         string
 
 	// subscription
-	consensusInfoFeed event.Feed
-	scope             event.SubscriptionScope
-	conInfoSubErrCh   chan error
-	conInfoSub        *rpc.ClientSubscription
+	consensusInfoFeed            event.Feed
+	scope                        event.SubscriptionScope
+	conInfoSubErrCh              chan error
+	conInfoSub                   *rpc.ClientSubscription
+	vanguardPendingBlockHashFeed event.Feed
 
 	// db support
 	consensusInfoDB      db.ConsensusInfoAccessDB
@@ -182,6 +185,13 @@ func (s *Service) connectToVanguardChain() error {
 	if err := s.subscribeToVanguard(); err != nil {
 		return err
 	}
+
+	err := s.subscribeToVanguardGRPC()
+
+	if nil != err {
+		return err
+	}
+
 	return nil
 }
 
@@ -194,6 +204,21 @@ func (s *Service) retryVanguardNode(err error) {
 	s.waitForConnection()
 	// Reset run error in the event of a successful connection.
 	s.runError = nil
+}
+
+func (s *Service) subscribeToVanguardGRPC() (err error) {
+	// subscribe to vanguard client for new pending blocks
+	// TODO: add this client into dependency injection
+	// Vanguard endpoint will be invalid I guess as long as we support both grpc and rpc
+	vanguardClient, err := client.Dial(s.ctx, s.vanEndpoint, time.Hour, 32, math.MaxInt32)
+
+	if nil != err {
+		return
+	}
+
+	err, _ = s.subscribeVanNewPendingBlockHash(vanguardClient)
+
+	return
 }
 
 // subscribeToVanguard subscribes to vanguard events
@@ -209,7 +234,11 @@ func (s *Service) subscribeToVanguard() error {
 	return nil
 }
 
-// SubscribeChainHeadEvent registers a subscription of ChainHeadEvent.
+// SubscribeMinConsensusInfoEvent registers a subscription of ChainHeadEvent.
 func (s *Service) SubscribeMinConsensusInfoEvent(ch chan<- *types.MinimalEpochConsensusInfo) event.Subscription {
 	return s.scope.Track(s.consensusInfoFeed.Subscribe(ch))
+}
+
+func (s *Service) SubscribeVanNewPendingBlockHash(ch chan<- *types.HeaderHash) event.Subscription {
+	return s.scope.Track(s.vanguardPendingBlockHashFeed.Subscribe(ch))
 }
