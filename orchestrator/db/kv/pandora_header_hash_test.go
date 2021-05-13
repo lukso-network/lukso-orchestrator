@@ -14,11 +14,11 @@ func TestDB_PandoraHeaderHash_Save_Retrieve(t *testing.T) {
 	t.Parallel()
 	db := setupDB(t, true)
 
-	pandoraHeaderHashes := make([]*types.PanHeaderHash, 50)
+	pandoraHeaderHashes := make([]*types.HeaderHash, 50)
 	for i := 0; i < 50; i++ {
 		slotByte := bytesutil.Uint64ToBytesBigEndian(uint64(i))
 		hash := common.BytesToHash(slotByte)
-		pandoraHeaderHashes[i] = &types.PanHeaderHash{HeaderHash: hash, Status: types.Pending}
+		pandoraHeaderHashes[i] = &types.HeaderHash{HeaderHash: hash, Status: types.Pending}
 		require.NoError(t, db.SavePandoraHeaderHash(uint64(i), pandoraHeaderHashes[i]))
 	}
 
@@ -38,11 +38,11 @@ func TestDB_PandoraHeaderHash_Save_Retrieve(t *testing.T) {
 func TestDB_PandoraHeaderHashes_Retrieve(t *testing.T) {
 	t.Parallel()
 	db := setupDB(t, true)
-	pandoraHeaderHashes := make([]*types.PanHeaderHash, 50)
+	pandoraHeaderHashes := make([]*types.HeaderHash, 50)
 	for i := 0; i < 50; i++ {
 		slotByte := bytesutil.Uint64ToBytesBigEndian(uint64(i))
 		hash := common.BytesToHash(slotByte)
-		pandoraHeaderHashes[i] = &types.PanHeaderHash{HeaderHash: hash, Status: types.Pending}
+		pandoraHeaderHashes[i] = &types.HeaderHash{HeaderHash: hash, Status: types.Pending}
 		require.NoError(t, db.SavePandoraHeaderHash(uint64(i), pandoraHeaderHashes[i]))
 	}
 

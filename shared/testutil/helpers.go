@@ -29,8 +29,8 @@ func NewMinimalConsensusInfo(epoch uint64) *types.MinimalEpochConsensusInfo {
 }
 
 // NewPandoraHeaderHash
-func NewPandoraHeaderHash(slot uint64, status types.Status) *types.PanHeaderHash {
-	return &types.PanHeaderHash{
+func NewPandoraHeaderHash(slot uint64, status types.Status) *types.HeaderHash {
+	return &types.HeaderHash{
 		HeaderHash: NewEth1Header(slot).Hash(),
 		Status:     status,
 	}

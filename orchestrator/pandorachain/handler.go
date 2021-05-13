@@ -22,7 +22,7 @@ func (s *Service) OnNewPendingHeader(ctx context.Context, header *eth1Types.Head
 		return err
 	}
 
-	pandoraHeaderHash := &types.PanHeaderHash{
+	pandoraHeaderHash := &types.HeaderHash{
 		HeaderHash: header.Hash(),
 		Status:     types.Pending,
 	}

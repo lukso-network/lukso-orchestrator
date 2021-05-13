@@ -56,7 +56,7 @@ func SetupVanguardSvc(ctx context.Context, t *testing.T, dialRPCFn DialRPCFn) (*
 
 	//ctrl := gomock.NewController(t)
 	//m := &mocks{
-	//	db: mock.NewMockDatabase(ctrl),
+	//	consensusInfoDB: mock.NewMockDatabase(ctrl),
 	//}
 
 	vanguardClientService, err := NewService(

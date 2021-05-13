@@ -20,7 +20,7 @@ type DialRPCFn func(endpoint string) (*rpc.Client, error)
 // 	- maintains connection with vanguard chain
 //	- handles vanguard subscription for consensus info.
 //  - sends new consensus info to all pandora subscribers.
-//  - maintains db to store the coming consensus info from vanguard.
+//  - maintains consensusInfoDB to store the coming consensus info from vanguard.
 type Service struct {
 	// service maintenance related attributes
 	isRunning      bool
@@ -43,10 +43,11 @@ type Service struct {
 	conInfoSub        *rpc.ClientSubscription
 
 	// db support
-	db db.ConsensusInfoAccessDB
+	consensusInfoDB      db.ConsensusInfoAccessDB
+	vanguardHeaderHashDB db.VanguardHeaderHashDB
 }
 
-// NewService creates new service with vanguard endpoint, vanguard namespace and db
+// NewService creates new service with vanguard endpoint, vanguard namespace and consensusInfoDB
 func NewService(ctx context.Context, vanEndpoint string, namespace string,
 	db db.ConsensusInfoAccessDB, dialRPCFn DialRPCFn) (*Service, error) {
 
@@ -59,7 +60,7 @@ func NewService(ctx context.Context, vanEndpoint string, namespace string,
 		dialRPCFn:       dialRPCFn,
 		namespace:       namespace,
 		conInfoSubErrCh: make(chan error),
-		db:              db,
+		consensusInfoDB: db,
 	}, nil
 }
 
@@ -197,7 +198,7 @@ func (s *Service) retryVanguardNode(err error) {
 
 // subscribeToVanguard subscribes to vanguard events
 func (s *Service) subscribeToVanguard() error {
-	latestSavedEpochInDb := s.db.GetLatestEpoch()
+	latestSavedEpochInDb := s.consensusInfoDB.GetLatestEpoch()
 	// subscribe to vanguard client for consensus info
 	sub, err := s.subscribeNewConsensusInfo(s.ctx, latestSavedEpochInDb, s.namespace, s.vanRPCClient)
 	if err != nil {
