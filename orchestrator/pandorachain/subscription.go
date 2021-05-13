@@ -23,7 +23,9 @@ func (s *Service) SubscribePendingHeaders(ctx context.Context, crit *types.Pando
 		for {
 			select {
 			case newPendingHeader := <-ch:
-				log.WithField("newPendingHeader", newPendingHeader).Debug("Got new pending header from pandora")
+				log.WithField("header", newPendingHeader).WithField(
+					"generatedHeaderHash", newPendingHeader.Hash()).WithField(
+					"extraData", newPendingHeader.Extra).Debug("Got header info from pandora")
 				// dispatch newPendingHeader to handler
 				s.OnNewPendingHeader(ctx, newPendingHeader)
 			case err := <-sub.Err():
