@@ -25,4 +25,4 @@ require (
 	google.golang.org/grpc v1.37.0
 )
 
-replace github.com/prysmaticlabs/ethereumapis => github.com/lukso-network/vanguard-apis v0.0.0-20210331083856-a569864eb9aa
+replace github.com/prysmaticlabs/ethereumapis => ./../vanguard-apis

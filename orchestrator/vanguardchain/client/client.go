@@ -8,14 +8,19 @@ import (
 	ethpb "github.com/prysmaticlabs/ethereumapis/eth/v1alpha1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"sync"
 	"time"
 )
 
 type VanguardClient interface {
 	CanonicalHeadSlot() (types.Slot, error)
 	NextEpochProposerList() (*ethpb.ValidatorAssignments, error)
+	StreamNewPendingBlocks(wg *sync.WaitGroup) (ethpb.BeaconChain_StreamNewPendingBlocksClient, error)
 	Close()
 }
+
+// Assure that GRPCClient struct will implement VanguardClient interface
+var _ VanguardClient = &GRPCClient{}
 
 // GRPCClient
 type GRPCClient struct {
@@ -76,6 +81,26 @@ func (vanClient *GRPCClient) CanonicalHeadSlot() (types.Slot, error) {
 func (vanClient *GRPCClient) NextEpochProposerList() (*ethpb.ValidatorAssignments, error) {
 	assignments, err := vanClient.beaconClient.NextEpochProposerList(vanClient.ctx, &ptypes.Empty{})
 	return assignments, err
+}
+
+// StreamNewPendingBlocks
+func (vanClient *GRPCClient) StreamNewPendingBlocks(wg *sync.WaitGroup) (
+	stream ethpb.BeaconChain_StreamNewPendingBlocksClient,
+	err error,
+) {
+	stream, err = vanClient.beaconClient.StreamNewPendingBlocks(
+		vanClient.ctx,
+		&ptypes.Empty{},
+	)
+	if err != nil {
+		log.WithError(err).Fatal("Failed to subscribe to StreamChainHead")
+
+		return
+	}
+
+	log.Info("Successfully subscribed to chain header event")
+
+	return
 }
 
 // constructDialOptions constructs a list of grpc dial options
