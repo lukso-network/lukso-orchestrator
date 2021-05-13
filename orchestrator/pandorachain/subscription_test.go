@@ -30,5 +30,5 @@ func Test_PandoraSvc_PendingHeaderSub(t *testing.T) {
 	panService.pendingHeaderCh <- testutil.NewEth1Header(1)
 
 	time.Sleep(1 * time.Second)
-	assert.LogsContain(t, hook, "Got new pending header from pandora")
+	assert.LogsContain(t, hook, "Got header info from pandora")
 }
