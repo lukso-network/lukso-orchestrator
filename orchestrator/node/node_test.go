@@ -2,7 +2,6 @@ package node
 
 import (
 	"flag"
-	"fmt"
 	"github.com/lukso-network/lukso-orchestrator/shared/cmd"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/require"
 	logTest "github.com/sirupsen/logrus/hooks/test"
@@ -15,12 +14,11 @@ import (
 // Test that beacon chain node can register all services and close.
 func Test_Node_RegisterServices(t *testing.T) {
 	hook := logTest.NewGlobal()
-	tmp := fmt.Sprintf("%s/datadir", t.TempDir())
-	dir := t.TempDir() + "/test"
+	tmp := filepath.Join(t.TempDir(), "datadirtest")
 
 	app := cli.App{}
 	set := flag.NewFlagSet("test", 0)
-	set.String("datadir", dir, "Data directory for storing consensus metadata and block headers")
+	set.String("datadir", tmp, "Data directory for storing consensus metadata and block headers")
 
 	context := cli.NewContext(&app, set, nil)
 	node, err := New(context)
@@ -34,7 +32,6 @@ func Test_Node_RegisterServices(t *testing.T) {
 // TestClearDB tests clearing the database
 func Test_ClearDB(t *testing.T) {
 	hook := logTest.NewGlobal()
-
 	tmp := filepath.Join(t.TempDir(), "datadirtest")
 
 	app := cli.App{}

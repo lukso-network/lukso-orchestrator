@@ -43,12 +43,12 @@ type Service struct {
 	conInfoSub        *rpc.ClientSubscription
 
 	// db support
-	db db.Database
+	db db.ConsensusInfoAccessDB
 }
 
 // NewService creates new service with vanguard endpoint, vanguard namespace and db
 func NewService(ctx context.Context, vanEndpoint string, namespace string,
-	db db.Database, dialRPCFn DialRPCFn) (*Service, error) {
+	db db.ConsensusInfoAccessDB, dialRPCFn DialRPCFn) (*Service, error) {
 
 	ctx, cancel := context.WithCancel(ctx)
 	_ = cancel // govet fix for lost cancel. Cancel is handled in service.Stop()
@@ -197,11 +197,7 @@ func (s *Service) retryVanguardNode(err error) {
 
 // subscribeToVanguard subscribes to vanguard events
 func (s *Service) subscribeToVanguard() error {
-	latestSavedEpochInDb, err := s.db.LatestSavedEpoch()
-	if err != nil {
-		log.WithError(err).Warn("Failed to retrieve latest saved epoch information")
-		return err
-	}
+	latestSavedEpochInDb := s.db.GetLatestEpoch()
 	// subscribe to vanguard client for consensus info
 	sub, err := s.subscribeNewConsensusInfo(s.ctx, latestSavedEpochInDb, s.namespace, s.vanRPCClient)
 	if err != nil {
