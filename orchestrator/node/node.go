@@ -138,6 +138,7 @@ func (o *OrchestratorNode) registerVanguardChainService(cliCtx *cli.Context) err
 		o.db,
 		o.db,
 		dialRPCClient,
+		vanguardchain.GRPCFunc,
 	)
 	if err != nil {
 		return nil

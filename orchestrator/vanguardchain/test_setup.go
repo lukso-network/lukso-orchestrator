@@ -6,17 +6,83 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	testDB "github.com/lukso-network/lukso-orchestrator/orchestrator/db/testing"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/client"
 	"github.com/lukso-network/lukso-orchestrator/shared/mock"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
 	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
+	types "github.com/prysmaticlabs/eth2-types"
+	eth "github.com/prysmaticlabs/ethereumapis/eth/v1alpha1"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc/metadata"
 	"testing"
 	"time"
 )
 
 type mocks struct {
 	db *mock.MockDatabase
+}
+
+type vanClientMock struct {
+	beaconChainClient eth.BeaconChain_StreamNewPendingBlocksClient
+}
+
+var (
+	mockedStreamPendingBlocks eth.BeaconChain_StreamNewPendingBlocksClient = streamNewPendingBlocksClient{}
+	mockedVanClientStruct                                                  = &vanClientMock{
+		mockedStreamPendingBlocks,
+	}
+	mockedClient client.VanguardClient = mockedVanClientStruct
+)
+
+type streamNewPendingBlocksClient struct{}
+
+func (s streamNewPendingBlocksClient) Recv() (*eth.BeaconBlock, error) {
+	return &eth.BeaconBlock{}, nil
+}
+
+func (s streamNewPendingBlocksClient) Header() (metadata.MD, error) {
+	panic("implement me")
+}
+
+func (s streamNewPendingBlocksClient) Trailer() metadata.MD {
+	panic("implement me")
+}
+
+func (s streamNewPendingBlocksClient) CloseSend() error {
+	panic("implement me")
+}
+
+func (s streamNewPendingBlocksClient) Context() context.Context {
+	panic("implement me")
+}
+
+func (s streamNewPendingBlocksClient) SendMsg(m interface{}) error {
+	panic("implement me")
+}
+
+func (s streamNewPendingBlocksClient) RecvMsg(m interface{}) error {
+	panic("implement me")
+}
+
+func (v vanClientMock) CanonicalHeadSlot() (types.Slot, error) {
+	panic("implement me")
+}
+
+func (v vanClientMock) NextEpochProposerList() (*eth.ValidatorAssignments, error) {
+	panic("implement me")
+}
+
+func (v vanClientMock) StreamNewPendingBlocks() (eth.BeaconChain_StreamNewPendingBlocksClient, error) {
+	return v.beaconChainClient, nil
+}
+
+func (v vanClientMock) Close() {
+	panic("implement me")
+}
+
+func GRPCFunc(endpoint string) (client.VanguardClient, error) {
+	return mockedClient, nil
 }
 
 // SetupInProcServer prepares in process server with defined api. Here, this method mocks
@@ -49,7 +115,12 @@ func SetupInProcServer(t *testing.T) (*rpc.Server, *events.MockBackend) {
 }
 
 // SetupVanguardSvc creates vanguard client service with mocked database
-func SetupVanguardSvc(ctx context.Context, t *testing.T, dialRPCFn DialRPCFn) (*Service, *mocks) {
+func SetupVanguardSvc(
+	ctx context.Context,
+	t *testing.T,
+	dialRPCFn DialRPCFn,
+	dialGRPCFn DIALGRPCFn,
+) (*Service, *mocks) {
 	level, err := logrus.ParseLevel("debug")
 	assert.NoError(t, err)
 	logrus.SetLevel(level)
@@ -59,11 +130,13 @@ func SetupVanguardSvc(ctx context.Context, t *testing.T, dialRPCFn DialRPCFn) (*
 	vanguardClientService, err := NewService(
 		ctx,
 		"ws://127.0.0.1:8546",
-		"http://127.0.0.1:4000",
+		"127.0.0.1:4000",
 		"van",
 		db,
 		db,
-		dialRPCFn)
+		dialRPCFn,
+		dialGRPCFn,
+	)
 	if err != nil {
 		t.Fatalf("failed to create protocol stack: %v", err)
 	}

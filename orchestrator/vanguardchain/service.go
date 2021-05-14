@@ -7,7 +7,6 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/client"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
-	"math"
 	"sync"
 	"time"
 )
@@ -17,6 +16,8 @@ var reConPeriod = 15 * time.Second
 
 // DialRPCFn dials to the given endpoint
 type DialRPCFn func(endpoint string) (*rpc.Client, error)
+
+type DIALGRPCFn func(endpoint string) (client.VanguardClient, error)
 
 // Service:
 // 	- maintains connection with vanguard chain
@@ -37,7 +38,9 @@ type Service struct {
 	// TODO: pass it down
 	vanGRPCEndpoint string
 	vanRPCClient    *rpc.Client
+	vanGRPCClient   *client.VanguardClient
 	dialRPCFn       DialRPCFn
+	dialGRPCFn      DIALGRPCFn
 	namespace       string
 
 	// subscription
@@ -61,6 +64,7 @@ func NewService(
 	consensusInfoAccessDB db.ConsensusInfoAccessDB,
 	vanguardHeaderHashDB db.VanguardHeaderHashDB,
 	dialRPCFn DialRPCFn,
+	dialGRPCFn DIALGRPCFn,
 ) (*Service, error) {
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -71,6 +75,7 @@ func NewService(
 		vanEndpoint:          vanEndpoint,
 		vanGRPCEndpoint:      vanGRPCEndpoint,
 		dialRPCFn:            dialRPCFn,
+		dialGRPCFn:           dialGRPCFn,
 		namespace:            namespace,
 		conInfoSubErrCh:      make(chan error),
 		consensusInfoDB:      consensusInfoAccessDB,
@@ -221,7 +226,7 @@ func (s *Service) subscribeToVanguardGRPC() (err error) {
 	// subscribe to vanguard client for new pending blocks
 	// TODO: add this client into dependency injection
 	// Vanguard endpoint will be invalid I guess as long as we support both grpc and rpc
-	vanguardClient, err := client.Dial(s.ctx, s.vanGRPCEndpoint, time.Hour, 32, math.MaxInt32)
+	vanguardClient, err := s.dialGRPCFn(s.vanGRPCEndpoint)
 
 	if nil != err {
 		return
