@@ -28,6 +28,7 @@ func setup(t *testing.T) (*Config, error) {
 		cmd.DefaultVanguardGRPCEndpoint,
 		namespace,
 		orchestratorDB,
+		orchestratorDB,
 		dialRPCClient,
 	)
 	if err != nil {

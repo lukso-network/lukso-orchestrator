@@ -100,7 +100,10 @@ func TestDB_Close_Success(t *testing.T) {
 	t.Parallel()
 	db := setupDB(t, true)
 	db.latestEpoch = uint64(1000)
-	require.NoError(t, db.Close())
+
+	if db.isRunning {
+		require.NoError(t, db.Close())
+	}
 }
 
 func TestStore_LatestEpoch_ClosingDB_OpeningDB(t *testing.T) {
@@ -108,6 +111,12 @@ func TestStore_LatestEpoch_ClosingDB_OpeningDB(t *testing.T) {
 	db := setupDB(t, false)
 	prevLatestEpoch := rand.Uint64()
 	db.latestEpoch = prevLatestEpoch
+
+	if !db.isRunning {
+		t.SkipNow()
+
+		return
+	}
 
 	require.NoError(t, db.Close())
 	restartedDB := setupDB(t, false)
