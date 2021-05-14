@@ -238,6 +238,7 @@ func (s *Service) subscribeToVanguardGRPC() (err error) {
 }
 
 // subscribeToVanguard subscribes to vanguard events
+// DEPRECATED: we want to move to GRPC and remove rpc connection to vanguard
 func (s *Service) subscribeToVanguard() error {
 	latestSavedEpochInDb := s.consensusInfoDB.GetLatestEpoch()
 	// subscribe to vanguard client for consensus info
