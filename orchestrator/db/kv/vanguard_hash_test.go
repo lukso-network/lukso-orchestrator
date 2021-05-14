@@ -26,13 +26,13 @@ func TestStore_LatestSavedVanguardHeaderHash(t *testing.T) {
 	require.NoError(t, err)
 	assert.DeepEqual(t, vanguardHeaderHashes[49], retrievedVanHeaderHash)
 
-	db.panHeaderCache.Clear()
+	latestVanHeaderHash := db.LatestSavedVanguardHeaderHash()
+	require.DeepEqual(t, vanguardHeaderHashes[len(vanguardHeaderHashes)-1].HeaderHash, latestVanHeaderHash)
+
+	db.vanHeaderCache.Clear()
 	retrievedVanHeaderHash, err = db.VanguardHeaderHash(49)
 	require.NoError(t, err)
 	assert.DeepEqual(t, vanguardHeaderHashes[49], retrievedVanHeaderHash)
-
-	latestVanHeaderHash := db.LatestSavedVanguardHeaderHash()
-	require.DeepEqual(t, vanguardHeaderHashes[len(vanguardHeaderHashes)-1].HeaderHash, latestVanHeaderHash)
 }
 
 func TestStore_LatestSavedVanguardSlot(t *testing.T) {
@@ -103,5 +103,5 @@ func TestStore_SaveLatestVanguardHeaderHash(t *testing.T) {
 	require.NoError(t, db.SaveLatestVanguardHeaderHash())
 
 	latestHeaderHash := db.LatestSavedVanguardHeaderHash()
-	assert.Equal(t, db.latestPanHeaderHash, latestHeaderHash)
+	assert.Equal(t, db.latestVanHash, latestHeaderHash)
 }

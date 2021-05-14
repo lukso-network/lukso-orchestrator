@@ -9,7 +9,16 @@ import (
 	"github.com/pkg/errors"
 )
 
+var (
+	VanguardHeaderNotFoundErr = errors.New("Vanguard header not found")
+)
+
 func (s *Store) LatestSavedVanguardHeaderHash() (hash common.Hash) {
+	// Quick return
+	if s.latestVanHash != hash {
+		return s.latestVanHash
+	}
+
 	if !s.isRunning {
 		_ = s.db.View(func(tx *bolt.Tx) (dbErr error) {
 			bkt := tx.Bucket(vanguardHeaderHashesBucket)
@@ -82,7 +91,7 @@ func (s *Store) VanguardHeaderHashes(fromSlot uint64) (vanguardHeaderHashes []*t
 			// fast finding into cache, if the value does not exist in cache, it starts finding into db
 			headerHash, err := s.VanguardHeaderHash(slot)
 			if err != nil {
-				return errors.Wrap(PandoraHeaderNotFoundErr, fmt.Sprintf("Could not found pandora header for slot: %d", slot))
+				return errors.Wrap(VanguardHeaderNotFoundErr, fmt.Sprintf("Could not found pandora header for slot: %d", slot))
 			}
 			vanguardHeaderHashes = append(vanguardHeaderHashes, headerHash)
 		}
