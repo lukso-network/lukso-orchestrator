@@ -25,6 +25,7 @@ func setup(t *testing.T) (*Config, error) {
 	consensusInfoFeed, err := vanguardchain.NewService(
 		context.Background(),
 		cmd.DefaultVanguardRPCEndpoint,
+		cmd.DefaultVanguardGRPCEndpoint,
 		namespace,
 		orchestratorDB,
 		dialRPCClient,

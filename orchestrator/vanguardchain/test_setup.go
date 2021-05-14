@@ -54,16 +54,15 @@ func SetupVanguardSvc(ctx context.Context, t *testing.T, dialRPCFn DialRPCFn) (*
 	assert.NoError(t, err)
 	logrus.SetLevel(level)
 
-	//ctrl := gomock.NewController(t)
-	//m := &mocks{
-	//	consensusInfoDB: mock.NewMockDatabase(ctrl),
-	//}
+	db := testDB.SetupDB(t)
 
 	vanguardClientService, err := NewService(
 		ctx,
 		"ws://127.0.0.1:8546",
+		"http://127.0.0.1:4000",
 		"van",
-		testDB.SetupDB(t),
+		db,
+		db,
 		dialRPCFn)
 	if err != nil {
 		t.Fatalf("failed to create protocol stack: %v", err)

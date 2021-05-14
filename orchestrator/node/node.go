@@ -121,6 +121,7 @@ func (o *OrchestratorNode) startDB(cliCtx *cli.Context) error {
 // registerVanguardChainService
 func (o *OrchestratorNode) registerVanguardChainService(cliCtx *cli.Context) error {
 	vanguardRPCUrl := cliCtx.String(cmd.VanguardRPCEndpoint.Name)
+	vanguardGRPCUrl := cliCtx.String(cmd.VanguardGRPCEndpoint.Name)
 	dialRPCClient := func(endpoint string) (*ethRpc.Client, error) {
 		client, err := ethRpc.Dial(endpoint)
 		if err != nil {
@@ -129,7 +130,15 @@ func (o *OrchestratorNode) registerVanguardChainService(cliCtx *cli.Context) err
 		return client, nil
 	}
 	namespace := "van"
-	svc, err := vanguardchain.NewService(o.ctx, vanguardRPCUrl, namespace, o.db, dialRPCClient)
+	svc, err := vanguardchain.NewService(
+		o.ctx,
+		vanguardRPCUrl,
+		vanguardGRPCUrl,
+		namespace,
+		o.db,
+		o.db,
+		dialRPCClient,
+	)
 	if err != nil {
 		return nil
 	}

@@ -34,9 +34,11 @@ type Service struct {
 	// vanguard chain related attributes
 	connectedVanguard bool
 	vanEndpoint       string
-	vanRPCClient      *rpc.Client
-	dialRPCFn         DialRPCFn
-	namespace         string
+	// TODO: pass it down
+	vanGRPCEndpoint string
+	vanRPCClient    *rpc.Client
+	dialRPCFn       DialRPCFn
+	namespace       string
 
 	// subscription
 	consensusInfoFeed            event.Feed
@@ -51,19 +53,28 @@ type Service struct {
 }
 
 // NewService creates new service with vanguard endpoint, vanguard namespace and consensusInfoDB
-func NewService(ctx context.Context, vanEndpoint string, namespace string,
-	db db.ConsensusInfoAccessDB, dialRPCFn DialRPCFn) (*Service, error) {
+func NewService(
+	ctx context.Context,
+	vanEndpoint string,
+	vanGRPCEndpoint string,
+	namespace string,
+	consensusInfoAccessDB db.ConsensusInfoAccessDB,
+	vanguardHeaderHashDB db.VanguardHeaderHashDB,
+	dialRPCFn DialRPCFn,
+) (*Service, error) {
 
 	ctx, cancel := context.WithCancel(ctx)
 	_ = cancel // govet fix for lost cancel. Cancel is handled in service.Stop()
 	return &Service{
-		ctx:             ctx,
-		cancel:          cancel,
-		vanEndpoint:     vanEndpoint,
-		dialRPCFn:       dialRPCFn,
-		namespace:       namespace,
-		conInfoSubErrCh: make(chan error),
-		consensusInfoDB: db,
+		ctx:                  ctx,
+		cancel:               cancel,
+		vanEndpoint:          vanEndpoint,
+		vanGRPCEndpoint:      vanGRPCEndpoint,
+		dialRPCFn:            dialRPCFn,
+		namespace:            namespace,
+		conInfoSubErrCh:      make(chan error),
+		consensusInfoDB:      consensusInfoAccessDB,
+		vanguardHeaderHashDB: vanguardHeaderHashDB,
 	}, nil
 }
 
