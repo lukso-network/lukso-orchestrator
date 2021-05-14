@@ -3,9 +3,11 @@ package pandorachain
 import (
 	"context"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
+	"github.com/lukso-network/lukso-orchestrator/shared/testutil/require"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	logTest "github.com/sirupsen/logrus/hooks/test"
 	"testing"
@@ -27,8 +29,14 @@ func Test_PandoraSvc_PendingHeaderSub(t *testing.T) {
 		FromBlockHash: common.HexToHash("0000000000000000000000000000000000000000000000000000000000000034"),
 	}
 	panSvc.SubscribePendingHeaders(ctx, filter, "eth", client)
-	panService.pendingHeaderCh <- testutil.NewEth1Header(1)
+	// Prepare new pandora header with extraData with BLS signature
+	newPanHeader := testutil.NewEth1Header(1)
+	extraDataWithSig, err := testutil.GenerateExtraDataWithBLSSig(newPanHeader)
+	require.NoError(t, err)
+	newPanHeader.Extra, err = rlp.EncodeToBytes(extraDataWithSig)
+	require.NoError(t, err)
 
+	panService.pendingHeaderCh <- newPanHeader
 	time.Sleep(1 * time.Second)
 	assert.LogsContain(t, hook, "Got header info from pandora")
 }
