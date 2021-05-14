@@ -42,7 +42,7 @@ func TestStore_LatestSavedVanguardSlot(t *testing.T) {
 	require.NoError(t, db.SaveLatestVanguardSlot())
 
 	slot := db.LatestSavedVanguardSlot()
-	assert.Equal(t, db.latestPanSlot, slot)
+	assert.Equal(t, db.latestVanSlot, slot)
 }
 
 func TestStore_VanguardHeaderHash(t *testing.T) {
