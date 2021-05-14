@@ -66,6 +66,8 @@ type Database interface {
 
 	PanHeaderAccessDatabase
 
+	VanHeaderAccessDatabase
+
 	DatabasePath() string
 	ClearDB() error
 }
