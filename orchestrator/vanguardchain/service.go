@@ -221,7 +221,7 @@ func (s *Service) subscribeToVanguardGRPC() (err error) {
 	// subscribe to vanguard client for new pending blocks
 	// TODO: add this client into dependency injection
 	// Vanguard endpoint will be invalid I guess as long as we support both grpc and rpc
-	vanguardClient, err := client.Dial(s.ctx, s.vanEndpoint, time.Hour, 32, math.MaxInt32)
+	vanguardClient, err := client.Dial(s.ctx, s.vanGRPCEndpoint, time.Hour, 32, math.MaxInt32)
 
 	if nil != err {
 		return
