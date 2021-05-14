@@ -22,14 +22,14 @@ func TestStore_LatestSavedVanguardHeaderHash(t *testing.T) {
 		require.NoError(t, db.SaveVanguardHeaderHash(uint64(i), vanguardHeaderHashes[i]))
 	}
 
-	retrievedPVanHeaderHash, err := db.VanguardHeaderHash(49)
+	retrievedVanHeaderHash, err := db.VanguardHeaderHash(49)
 	require.NoError(t, err)
-	assert.DeepEqual(t, vanguardHeaderHashes[49], retrievedPVanHeaderHash)
+	assert.DeepEqual(t, vanguardHeaderHashes[49], retrievedVanHeaderHash)
 
 	db.panHeaderCache.Clear()
-	retrievedPVanHeaderHash, err = db.VanguardHeaderHash(49)
+	retrievedVanHeaderHash, err = db.VanguardHeaderHash(49)
 	require.NoError(t, err)
-	assert.DeepEqual(t, vanguardHeaderHashes[49], retrievedPVanHeaderHash)
+	assert.DeepEqual(t, vanguardHeaderHashes[49], retrievedVanHeaderHash)
 
 	latestVanHeaderHash := db.LatestSavedVanguardHeaderHash()
 	require.DeepEqual(t, vanguardHeaderHashes[len(vanguardHeaderHashes)-1].HeaderHash, latestVanHeaderHash)
@@ -56,7 +56,7 @@ func TestStore_VanguardHeaderHash(t *testing.T) {
 	require.NoError(t, db.SaveVanguardHeaderHash(uint64(slot), headerHash))
 
 	// checking retrieval from cache
-	vanHeaderHash, err := db.PandoraHeaderHash(uint64(slot))
+	vanHeaderHash, err := db.VanguardHeaderHash(uint64(slot))
 	require.NoError(t, err)
 	assert.DeepEqual(t, headerHash, vanHeaderHash)
 }
@@ -69,7 +69,7 @@ func TestStore_VanguardHeaderHashes(t *testing.T) {
 		slotByte := bytesutil.Uint64ToBytesBigEndian(uint64(i))
 		hash := common.BytesToHash(slotByte)
 		vanguardHeaderHashes[i] = &types.HeaderHash{HeaderHash: hash, Status: types.Pending}
-		require.NoError(t, db.SavePandoraHeaderHash(uint64(i), vanguardHeaderHashes[i]))
+		require.NoError(t, db.SaveVanguardHeaderHash(uint64(i), vanguardHeaderHashes[i]))
 	}
 
 	// checking retrieval from cache

@@ -1,16 +1,18 @@
 package kv
 
 import (
+	"fmt"
 	"github.com/boltdb/bolt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/lukso-network/lukso-orchestrator/shared/bytesutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
+	"github.com/pkg/errors"
 )
 
 func (s *Store) LatestSavedVanguardHeaderHash() (hash common.Hash) {
 	if !s.isRunning {
 		_ = s.db.View(func(tx *bolt.Tx) (dbErr error) {
-			bkt := tx.Bucket(pandoraHeaderHashesBucket)
+			bkt := tx.Bucket(vanguardHeaderHashesBucket)
 			latestHeaderHashBytes := bkt.Get(latestSavedVanHashKey[:])
 			// not found the latest block number in db. so latest block number will be zero
 			if latestHeaderHashBytes == nil {
@@ -48,15 +50,72 @@ func (s *Store) LatestSavedVanguardSlot() (latestSlot uint64) {
 	return
 }
 
-func (s *Store) VanguardHeaderHash(slot uint64) (hash *types.HeaderHash, err error) {
+func (s *Store) VanguardHeaderHash(slot uint64) (headerHash *types.HeaderHash, err error) {
+	if v, ok := s.vanHeaderCache.Get(slot); v != nil && ok {
+		return v.(*types.HeaderHash), nil
+	}
+
+	err = s.db.View(func(tx *bolt.Tx) error {
+		bkt := tx.Bucket(vanguardHeaderHashesBucket)
+		key := bytesutil.Uint64ToBytesBigEndian(slot)
+		value := bkt.Get(key[:])
+		if value == nil {
+			return nil
+		}
+		return decode(value, &headerHash)
+	})
+
 	return
 }
 
-func (s *Store) VanguardHeaderHashes(fromSlot uint64) (hashes []*types.HeaderHash, err error) {
-	return
+func (s *Store) VanguardHeaderHashes(fromSlot uint64) (vanguardHeaderHashes []*types.HeaderHash, err error) {
+	// when requested epoch is greater than stored latest epoch
+	if fromSlot > s.latestVanSlot {
+		return nil, errors.Wrap(InvalidSlot, fmt.Sprintf(
+			"Got invalid fromSlot: %d, latestVanSlot: %d",
+			fromSlot,
+			s.latestVanSlot,
+		))
+	}
+	err = s.db.View(func(tx *bolt.Tx) error {
+		for slot := fromSlot; slot <= s.latestVanSlot; slot++ {
+			// fast finding into cache, if the value does not exist in cache, it starts finding into db
+			headerHash, err := s.VanguardHeaderHash(slot)
+			if err != nil {
+				return errors.Wrap(PandoraHeaderNotFoundErr, fmt.Sprintf("Could not found pandora header for slot: %d", slot))
+			}
+			vanguardHeaderHashes = append(vanguardHeaderHashes, headerHash)
+		}
+		return nil
+	})
+	// the query not successful
+	if err != nil {
+		return nil, err
+	}
+	return vanguardHeaderHashes, nil
 }
 
 func (s *Store) SaveVanguardHeaderHash(slot uint64, headerHash *types.HeaderHash) (err error) {
+	err = s.db.Update(func(tx *bolt.Tx) error {
+		bkt := tx.Bucket(vanguardHeaderHashesBucket)
+		if status := s.vanHeaderCache.Set(latestSavedVanHashKey, headerHash, 0); !status {
+			log.WithField("slot", slot).Warn("failed to set pandora header hash into cache")
+		}
+
+		key := bytesutil.Uint64ToBytesBigEndian(slot)
+		value, err := encode(headerHash)
+		if err != nil {
+			return err
+		}
+		if err := bkt.Put(key, value); err != nil {
+			return err
+		}
+		// update latest epoch
+		s.latestVanSlot = slot
+		s.latestVanHash = headerHash.HeaderHash
+		return nil
+	})
+
 	return
 }
 

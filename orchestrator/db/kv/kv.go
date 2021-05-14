@@ -38,7 +38,7 @@ type Store struct {
 	databasePath       string
 	consensusInfoCache *ristretto.Cache
 	panHeaderCache     *ristretto.Cache
-	vanBlockCache      *ristretto.Cache
+	vanHeaderCache     *ristretto.Cache
 
 	// Latest information need to be stored into db
 	latestEpoch         uint64
@@ -111,7 +111,7 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 		databasePath:       dirPath,
 		consensusInfoCache: consensusInfoCache,
 		panHeaderCache:     panHeaderCache,
-		vanBlockCache:      vanBlockCache,
+		vanHeaderCache:     vanBlockCache,
 	}
 
 	if err := kv.db.Update(func(tx *bolt.Tx) error {
