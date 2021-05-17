@@ -232,7 +232,19 @@ func (s *Service) subscribeToVanguardGRPC() (err error) {
 		return
 	}
 
-	err, _ = s.subscribeVanNewPendingBlockHash(vanguardClient)
+	err, errChan := s.subscribeVanNewPendingBlockHash(vanguardClient)
+
+	go func() {
+		for {
+			currentErr := <-errChan
+
+			if nil != currentErr {
+				log.WithField("err", currentErr).
+					Error("error during subscritpion to newPendingBlockHash")
+			}
+		}
+
+	}()
 
 	return
 }

@@ -16,22 +16,29 @@ func (s *Service) subscribeVanNewPendingBlockHash(
 	stream, err := client.StreamNewPendingBlocks()
 
 	if nil != err {
+		log.WithError(err).Error("Failed to subscribe to stream of new pending blocks")
 		return
 	}
 
+	log.WithField("context", "awaiting to start vanguard block subscription").
+		Trace("subscribeVanNewPendingBlockHash")
+
 	go func() {
 		for {
-
+			log.WithField("context", "awaiting to fetch vanBlock from stream").Trace("Got new block")
 			vanBlock, currentErr := stream.Recv()
+			log.WithField("block", vanBlock).Trace("Got new block")
 
-			if currentErr != nil {
+			if nil != currentErr {
 				log.WithError(currentErr).Error("Failed to receive chain header")
+				errChan <- currentErr
 				continue
 			}
 
 			hashTreeRoot, currentErr := vanBlock.HashTreeRoot()
 
 			if nil != currentErr {
+				log.WithError(currentErr).Error("Failed to receive header hashTreeRoot")
 				errChan <- currentErr
 
 				continue
