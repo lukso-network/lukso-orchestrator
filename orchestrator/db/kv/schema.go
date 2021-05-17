@@ -1,9 +1,11 @@
 package kv
 
 var (
-	consensusInfosBucket  = []byte("consensus-info")
-	pandoraHeadersBucket  = []byte("headers-pandora")
-	vanguardHeadersBucket = []byte("headers-vanguard")
+	consensusInfosBucket       = []byte("consensus-info")
+	pandoraHeaderHashesBucket  = []byte("headers-pandora")
+	vanguardHeaderHashesBucket = []byte("headers-vanguard")
 
-	lastStoredEpochKey = []byte("last-epoch")
+	lastStoredEpochKey          = []byte("last-epoch")
+	latestSavedPanSlotKey       = []byte("latest-pandora-slot")
+	latestSavedPanHeaderHashKey = []byte("latest-pandora-header-hash")
 )

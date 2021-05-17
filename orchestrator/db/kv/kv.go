@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/boltdb/bolt"
 	"github.com/dgraph-io/ristretto"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/lukso-network/lukso-orchestrator/shared/fileutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/params"
 	"github.com/pkg/errors"
@@ -15,6 +16,8 @@ import (
 const (
 	// ConsensusInfosCacheSize with 1024 consensus infos will be 1.5MB.
 	ConsensusInfosCacheSize = 1 << 10
+	// HeaderHashesCacheSize with
+	HeaderHashesCacheSize = 1 << 20
 	// OrchestratorNodeDbDirName is the name of the directory containing the orchestrator node database.
 	OrchestratorNodeDbDirName = "orchestrator"
 	// DatabaseFileName is the name of the orchestrator node database.
@@ -34,7 +37,12 @@ type Store struct {
 	db                 *bolt.DB
 	databasePath       string
 	consensusInfoCache *ristretto.Cache
-	latestEpoch        uint64
+	panHeaderCache     *ristretto.Cache
+
+	// Latest information need to be stored into db
+	latestEpoch         uint64
+	latestPanSlot       uint64
+	latestPanHeaderHash common.Hash
 }
 
 // NewKVStore initializes a new boltDB key-value store at the directory
@@ -68,8 +76,17 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 	boltDB.AllocSize = boltAllocSize
 	consensusInfoCache, err := ristretto.NewCache(&ristretto.Config{
 		NumCounters: 1000,                    // number of keys to track frequency of (1000).
-		MaxCost:     ConsensusInfosCacheSize, // maximum cost of cache (1000 Blocks).
+		MaxCost:     ConsensusInfosCacheSize, // maximum cost of cache (1000 consensus info).
 		BufferItems: 64,                      // number of keys per Get buffer.
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	panHeaderCache, err := ristretto.NewCache(&ristretto.Config{
+		NumCounters: 1000,                  // number of keys to track frequency of (1000).
+		MaxCost:     HeaderHashesCacheSize, // maximum cost of cache (1000 headers).
+		BufferItems: 64,                    // number of keys per Get buffer.
 	})
 	if err != nil {
 		return nil, err
@@ -80,25 +97,22 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 		db:                 boltDB,
 		databasePath:       dirPath,
 		consensusInfoCache: consensusInfoCache,
+		panHeaderCache:     panHeaderCache,
 	}
 
 	if err := kv.db.Update(func(tx *bolt.Tx) error {
 		return createBuckets(
 			tx,
 			consensusInfosBucket,
-			pandoraHeadersBucket,
-			vanguardHeadersBucket,
+			pandoraHeaderHashesBucket,
+			vanguardHeaderHashesBucket,
 		)
 	}); err != nil {
 		return nil, err
 	}
+	// Retrieve initial data from DB
+	kv.initLatestDataFromDB()
 
-	latestEpoch, err := kv.LatestSavedEpoch()
-	if err != nil {
-		return nil, err
-	}
-
-	kv.latestEpoch = latestEpoch
 	return kv, err
 }
 
@@ -122,6 +136,16 @@ func (s *Store) Close() error {
 // DatabasePath at which this database writes files.
 func (s *Store) DatabasePath() string {
 	return s.databasePath
+}
+
+// initLatestDataFromDB helps to retrieve initial data from DB
+func (s *Store) initLatestDataFromDB() {
+	// Retrieve latest saved epoch number from db
+	s.latestEpoch = s.LatestSavedEpoch()
+	// Retrieve latest saved pandora slot from db
+	s.latestPanSlot = s.LatestSavedPandoraSlot()
+	// Retrieve latest saved pandora header hash from db
+	s.latestPanHeaderHash = s.LatestSavedPandoraHeaderHash()
 }
 
 // createBuckets
