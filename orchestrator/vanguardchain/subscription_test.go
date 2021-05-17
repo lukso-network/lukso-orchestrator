@@ -23,7 +23,7 @@ func Test_VanguardChainStartStop_Initialized(t *testing.T) {
 	defer mockServer.Stop()
 
 	dialInProcRPCClient := DialInProcClient(mockServer)
-	vanguardSvc, _ := SetupVanguardSvc(ctx, t, dialInProcRPCClient)
+	vanguardSvc, _ := SetupVanguardSvc(ctx, t, dialInProcRPCClient, GRPCFunc)
 	sub, err := vanguardSvc.subscribeNewConsensusInfo(ctx, 0, "van", mockClient)
 	assert.NoError(t, err)
 

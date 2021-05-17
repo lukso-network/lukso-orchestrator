@@ -5,6 +5,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/client"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	"sync"
 	"time"
@@ -16,11 +17,13 @@ var reConPeriod = 15 * time.Second
 // DialRPCFn dials to the given endpoint
 type DialRPCFn func(endpoint string) (*rpc.Client, error)
 
+type DIALGRPCFn func(endpoint string) (client.VanguardClient, error)
+
 // Service:
 // 	- maintains connection with vanguard chain
 //	- handles vanguard subscription for consensus info.
 //  - sends new consensus info to all pandora subscribers.
-//  - maintains db to store the coming consensus info from vanguard.
+//  - maintains consensusInfoDB to store the coming consensus info from vanguard.
 type Service struct {
 	// service maintenance related attributes
 	isRunning      bool
@@ -32,34 +35,51 @@ type Service struct {
 	// vanguard chain related attributes
 	connectedVanguard bool
 	vanEndpoint       string
-	vanRPCClient      *rpc.Client
-	dialRPCFn         DialRPCFn
-	namespace         string
+	// TODO: pass it down
+	vanGRPCEndpoint string
+	vanRPCClient    *rpc.Client
+	vanGRPCClient   *client.VanguardClient
+	dialRPCFn       DialRPCFn
+	dialGRPCFn      DIALGRPCFn
+	namespace       string
 
 	// subscription
-	consensusInfoFeed event.Feed
-	scope             event.SubscriptionScope
-	conInfoSubErrCh   chan error
-	conInfoSub        *rpc.ClientSubscription
+	consensusInfoFeed            event.Feed
+	scope                        event.SubscriptionScope
+	conInfoSubErrCh              chan error
+	conInfoSub                   *rpc.ClientSubscription
+	vanguardPendingBlockHashFeed event.Feed
 
 	// db support
-	db db.ConsensusInfoAccessDB
+	consensusInfoDB      db.ConsensusInfoAccessDB
+	vanguardHeaderHashDB db.VanguardHeaderHashDB
 }
 
-// NewService creates new service with vanguard endpoint, vanguard namespace and db
-func NewService(ctx context.Context, vanEndpoint string, namespace string,
-	db db.ConsensusInfoAccessDB, dialRPCFn DialRPCFn) (*Service, error) {
+// NewService creates new service with vanguard endpoint, vanguard namespace and consensusInfoDB
+func NewService(
+	ctx context.Context,
+	vanEndpoint string,
+	vanGRPCEndpoint string,
+	namespace string,
+	consensusInfoAccessDB db.ConsensusInfoAccessDB,
+	vanguardHeaderHashDB db.VanguardHeaderHashDB,
+	dialRPCFn DialRPCFn,
+	dialGRPCFn DIALGRPCFn,
+) (*Service, error) {
 
 	ctx, cancel := context.WithCancel(ctx)
 	_ = cancel // govet fix for lost cancel. Cancel is handled in service.Stop()
 	return &Service{
-		ctx:             ctx,
-		cancel:          cancel,
-		vanEndpoint:     vanEndpoint,
-		dialRPCFn:       dialRPCFn,
-		namespace:       namespace,
-		conInfoSubErrCh: make(chan error),
-		db:              db,
+		ctx:                  ctx,
+		cancel:               cancel,
+		vanEndpoint:          vanEndpoint,
+		vanGRPCEndpoint:      vanGRPCEndpoint,
+		dialRPCFn:            dialRPCFn,
+		dialGRPCFn:           dialGRPCFn,
+		namespace:            namespace,
+		conInfoSubErrCh:      make(chan error),
+		consensusInfoDB:      consensusInfoAccessDB,
+		vanguardHeaderHashDB: vanguardHeaderHashDB,
 	}, nil
 }
 
@@ -181,6 +201,13 @@ func (s *Service) connectToVanguardChain() error {
 	if err := s.subscribeToVanguard(); err != nil {
 		return err
 	}
+
+	err := s.subscribeToVanguardGRPC()
+
+	if nil != err {
+		return err
+	}
+
 	return nil
 }
 
@@ -195,9 +222,37 @@ func (s *Service) retryVanguardNode(err error) {
 	s.runError = nil
 }
 
+func (s *Service) subscribeToVanguardGRPC() (err error) {
+	// subscribe to vanguard client for new pending blocks
+	// TODO: add this client into dependency injection
+	// Vanguard endpoint will be invalid I guess as long as we support both grpc and rpc
+	vanguardClient, err := s.dialGRPCFn(s.vanGRPCEndpoint)
+
+	if nil != err {
+		return
+	}
+
+	err, errChan := s.subscribeVanNewPendingBlockHash(vanguardClient)
+
+	go func() {
+		for {
+			currentErr := <-errChan
+
+			if nil != currentErr {
+				log.WithField("err", currentErr).
+					Error("error during subscritpion to newPendingBlockHash")
+			}
+		}
+
+	}()
+
+	return
+}
+
 // subscribeToVanguard subscribes to vanguard events
+// DEPRECATED: we want to move to GRPC and remove rpc connection to vanguard
 func (s *Service) subscribeToVanguard() error {
-	latestSavedEpochInDb := s.db.GetLatestEpoch()
+	latestSavedEpochInDb := s.consensusInfoDB.GetLatestEpoch()
 	// subscribe to vanguard client for consensus info
 	sub, err := s.subscribeNewConsensusInfo(s.ctx, latestSavedEpochInDb, s.namespace, s.vanRPCClient)
 	if err != nil {
@@ -208,7 +263,11 @@ func (s *Service) subscribeToVanguard() error {
 	return nil
 }
 
-// SubscribeChainHeadEvent registers a subscription of ChainHeadEvent.
+// SubscribeMinConsensusInfoEvent registers a subscription of ChainHeadEvent.
 func (s *Service) SubscribeMinConsensusInfoEvent(ch chan<- *types.MinimalEpochConsensusInfo) event.Subscription {
 	return s.scope.Track(s.consensusInfoFeed.Subscribe(ch))
+}
+
+func (s *Service) SubscribeVanNewPendingBlockHash(ch chan<- *types.HeaderHash) event.Subscription {
+	return s.scope.Track(s.vanguardPendingBlockHashFeed.Subscribe(ch))
 }

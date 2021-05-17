@@ -18,6 +18,7 @@ import (
 
 var appFlags = []cli.Flag{
 	cmd.VanguardRPCEndpoint,
+	cmd.VanguardGRPCEndpoint,
 	cmd.PandoraRPCEndpoint,
 	cmd.VerbosityFlag,
 	cmd.IPCPathFlag,

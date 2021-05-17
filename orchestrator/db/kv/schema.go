@@ -8,4 +8,7 @@ var (
 	lastStoredEpochKey          = []byte("last-epoch")
 	latestSavedPanSlotKey       = []byte("latest-pandora-slot")
 	latestSavedPanHeaderHashKey = []byte("latest-pandora-header-hash")
+
+	latestSavedVanSlotKey = []byte("latest-vanguard-slot")
+	latestSavedVanHashKey = []byte("latest-vanguard-hash")
 )

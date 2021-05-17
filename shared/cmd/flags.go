@@ -69,6 +69,12 @@ var (
 		Value: DefaultVanguardRPCEndpoint,
 	}
 
+	VanguardGRPCEndpoint = &cli.StringFlag{
+		Name:  "vanguard-grpc-endpoint",
+		Usage: "Vanguard node gRPC provider endpoint",
+		Value: DefaultVanguardGRPCEndpoint,
+	}
+
 	// PandoraRPCEndpoint provides an WSS/IPC access endpoint to an Pandora RPC.
 	PandoraRPCEndpoint = &cli.StringFlag{
 		Name:  "pandora-rpc-endpoint",

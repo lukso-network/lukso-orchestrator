@@ -21,7 +21,7 @@ func Test_VanguardSvc_StartStop(t *testing.T) {
 
 	// setup vanguard service
 	dialInProcRPCClient := DialInProcClient(mockServer)
-	vanSvc, _ := SetupVanguardSvc(ctx, t, dialInProcRPCClient)
+	vanSvc, _ := SetupVanguardSvc(ctx, t, dialInProcRPCClient, GRPCFunc)
 	vanSvc.Start()
 
 	time.Sleep(1 * time.Second)
@@ -41,7 +41,7 @@ func Test_VanguardSvc_NoServerConn(t *testing.T) {
 
 	// setup vanguard service
 	dialRPCClient := DialRPCClient()
-	vanSvc, _ := SetupVanguardSvc(ctx, t, dialRPCClient)
+	vanSvc, _ := SetupVanguardSvc(ctx, t, dialRPCClient, GRPCFunc)
 	vanSvc.Start()
 
 	time.Sleep(2 * time.Second)
@@ -57,7 +57,7 @@ func Test_VanguardSvc_RetryToConnServer(t *testing.T) {
 
 	// setup vanguard service
 	dialRPCClient := DialRPCClient()
-	vanSvc, _ := SetupVanguardSvc(ctx, t, dialRPCClient)
+	vanSvc, _ := SetupVanguardSvc(ctx, t, dialRPCClient, GRPCFunc)
 	vanSvc.Start()
 	defer vanSvc.Stop()
 

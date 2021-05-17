@@ -21,8 +21,8 @@ type ExtraData struct {
 	ProposerIndex uint64
 }
 
-// vanBlockHash
-type PanHeaderHash struct {
+// generic header hash
+type HeaderHash struct {
 	HeaderHash common.Hash `json:"headerHash"`
 	Status     Status      `json:"status"`
 }
