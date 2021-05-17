@@ -31,7 +31,6 @@ require (
 	github.com/prysmaticlabs/ethereumapis v0.0.0-20210323030846-26f696aa0cbc
 	github.com/prysmaticlabs/go-bitfield v0.0.0-20210202205921-7fcea7c45dc8 // indirect
 	github.com/rs/cors v1.7.0
-	github.com/silesiacoin/bls v0.0.0-20210514131607-aa4c9e337a7e
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/stretchr/testify v1.7.0
