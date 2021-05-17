@@ -38,7 +38,7 @@ func TestStore_LatestSavedVanguardHeaderHash(t *testing.T) {
 func TestStore_LatestSavedVanguardSlot(t *testing.T) {
 	t.Parallel()
 	db := setupDB(t, true)
-	db.latestPanSlot = 1233
+	db.latestVanSlot = 1233
 	require.NoError(t, db.SaveLatestVanguardSlot())
 
 	slot := db.LatestSavedVanguardSlot()
@@ -92,7 +92,7 @@ func TestStore_SaveVanguardHeaderHash(t *testing.T) {
 func TestStore_SaveLatestVanguardSlot(t *testing.T) {
 	t.Parallel()
 	db := setupDB(t, true)
-	db.latestPanSlot = 1233
+	db.latestVanSlot = 1233
 	require.NoError(t, db.SaveLatestVanguardSlot())
 }
 
