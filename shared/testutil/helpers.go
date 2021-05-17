@@ -7,7 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	"github.com/pkg/errors"
-	"github.com/silesiacoin/bls/herumi"
+	"github.com/prysmaticlabs/prysm/shared/bls/herumi"
 	"golang.org/x/crypto/sha3"
 	"math/big"
 	"time"
