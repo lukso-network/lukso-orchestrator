@@ -6,6 +6,9 @@ before:
     - go mod tidy
     # you may remove this if you don't need go generate
     - go generate ./...
+    - git clone --recursive https://github.com/herumi/bls-eth-go-binary
+    - cd bls-eth-go-binary
+    - make CXX=clang++
 builds:
   - env:
       - CGO_ENABLED=0
