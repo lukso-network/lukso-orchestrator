@@ -2,7 +2,6 @@ package vanguardchain
 
 import (
 	"context"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/client"
@@ -35,23 +34,7 @@ func (s *Service) subscribeVanNewPendingBlockHash(
 				continue
 			}
 
-			hashTreeRoot, currentErr := vanBlock.HashTreeRoot()
-
-			if nil != currentErr {
-				log.WithError(currentErr).Error("Failed to receive header hashTreeRoot")
-				errChan <- currentErr
-
-				continue
-			}
-
-			currentBlockHash := common.BytesToHash(hashTreeRoot[:])
-			currentHeaderHash := &types.HeaderHash{
-				HeaderHash: currentBlockHash,
-				Status:     types.Pending,
-			}
-
-			nSent := s.vanguardPendingBlockHashFeed.Send(currentHeaderHash)
-			log.WithField("nsent", nSent).Trace("Pending Block Hash feed info to subscribers")
+			s.OnNewPendingVanguardBlock(s.ctx, vanBlock)
 		}
 	}()
 
