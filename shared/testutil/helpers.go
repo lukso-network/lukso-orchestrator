@@ -7,7 +7,6 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	"github.com/pkg/errors"
-	"github.com/prysmaticlabs/prysm/shared/bls/herumi"
 	"golang.org/x/crypto/sha3"
 	"math/big"
 	"time"
@@ -98,18 +97,19 @@ func GenerateExtraDataWithBLSSig(header *eth1Types.Header) (*types.PanExtraDataW
 	if err := rlp.DecodeBytes(header.Extra, extraData); err != nil {
 		return nil, errors.Wrap(err, "Failed to decode extra data fields")
 	}
-	priv, err := herumi.RandKey()
-	if err != nil {
-		return nil, err
-	}
-	headerHash := SealHash(header)
-	signature := priv.Sign(headerHash.Bytes())
+	//priv, err := herumi.RandKey()
+	//if err != nil {
+	//	return nil, err
+	//}
+	//headerHash := SealHash(header)
+	//signature := priv.Sign(headerHash.Bytes())
 	var blsSignatureBytes types.BlsSignatureBytes
-	signatureBytes := signature.Marshal()
-
-	if len(signatureBytes) != types.BLSSignatureSize {
-		errors.New("Incorrect BLS signature")
-	}
+	//signatureBytes := signature.Marshal()
+	//
+	//if len(signatureBytes) != types.BLSSignatureSize {
+	//	errors.New("Incorrect BLS signature")
+	//}
+	signatureBytes := make([]byte, types.BLSSignatureSize)
 	copy(blsSignatureBytes[:], signatureBytes[:])
 	extraDataWithBlsSig := new(types.PanExtraDataWithBLSSig)
 	extraDataWithBlsSig.ExtraData = *extraData
