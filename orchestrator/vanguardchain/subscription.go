@@ -6,11 +6,9 @@ import (
 	"time"
 )
 
-// TODO: remove errChan
 func (s *Service) subscribeVanNewPendingBlockHash(
 	client client.VanguardClient,
-) (err error, errChan chan error) {
-	errChan = make(chan error)
+) (err error) {
 	stream, err := client.StreamNewPendingBlocks()
 
 	if nil != err {
@@ -29,8 +27,7 @@ func (s *Service) subscribeVanNewPendingBlockHash(
 
 			if nil != currentErr {
 				log.WithError(currentErr).Error("Failed to receive chain header")
-				errChan <- currentErr
-				continue
+				return
 			}
 
 			s.OnNewPendingVanguardBlock(s.ctx, vanBlock)
