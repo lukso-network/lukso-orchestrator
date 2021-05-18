@@ -2,9 +2,9 @@ package vanguardchain
 
 import (
 	"context"
-	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/lukso-network/lukso-orchestrator/shared/testutil"
+	"github.com/gogo/protobuf/types"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
+	eth "github.com/prysmaticlabs/ethereumapis/eth/v1alpha1"
 	logTest "github.com/sirupsen/logrus/hooks/test"
 	"testing"
 	"time"
@@ -15,22 +15,27 @@ func Test_VanguardChainStartStop_Initialized(t *testing.T) {
 	hook := logTest.NewGlobal()
 	ctx := context.Background()
 
-	mockServer, mockBackend := SetupInProcServer(t)
-	mockClient := rpc.DialInProc(mockServer)
-	if mockClient == nil {
-		t.Fatal("failed to create inproc client")
-	}
-	defer mockServer.Stop()
-
-	_, _ = SetupVanguardSvc(ctx, t, GRPCFunc)
+	vanSvc, _ := SetupVanguardSvc(ctx, t, GRPCFunc)
+	vanSvc.Start()
+	defer func() {
+		_ = vanSvc.Stop()
+	}()
 
 	time.Sleep(1 * time.Second)
-	consensusInfo := testutil.NewMinimalConsensusInfo(5)
-	mockBackend.ConsensusInfoFeed.Send(consensusInfo)
+	ConsensusInfoMocks = make([]*eth.MinimalConsensusInfo, 0)
+	ConsensusInfoMocks = append(ConsensusInfoMocks, &eth.MinimalConsensusInfo{
+		SlotTimeDuration: &types.Duration{Seconds: 6}})
+	PendingBlockMocks = make([]*eth.BeaconBlock, 0)
+	PendingBlockMocks = append(PendingBlockMocks, &eth.BeaconBlock{})
+
+	defer func() {
+		ConsensusInfoMocks = nil
+		PendingBlockMocks = nil
+	}()
 
 	time.Sleep(1 * time.Second)
 	// TODO: Don't leave it as it is. Tests should not rely on logs. They should test side effect
 	// I have changed behaviour of function entirely and test was still passing.
-	assert.LogsContainNTimes(t, hook, "consensus info passed sanitization", 6)
+	assert.LogsContain(t, hook, "consensus info passed sanitization")
 	hook.Reset()
 }
