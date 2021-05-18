@@ -28,18 +28,36 @@ type vanClientMock struct {
 }
 
 var (
-	mockedStreamPendingBlocks       eth.BeaconChain_StreamNewPendingBlocksClient     = streamNewPendingBlocksClient{}
-	mockedStreamConsensusInfoClient eth.BeaconChain_StreamMinimalConsensusInfoClient = streamConsensusInfoClient{}
-	mockedVanClientStruct                                                            = &vanClientMock{
+	ConsensusInfoMocks        []*eth.MinimalConsensusInfo
+	PendingBlockMocks         []*eth.BeaconBlock
+	mockedStreamPendingBlocks eth.BeaconChain_StreamNewPendingBlocksClient = streamNewPendingBlocksClient{
+		pendingBlocks: PendingBlockMocks,
+	}
+	mockedStreamConsensusInfoClient eth.BeaconChain_StreamMinimalConsensusInfoClient = streamConsensusInfoClient{
+		consensusInfos: ConsensusInfoMocks,
+	}
+	mockedVanClientStruct = &vanClientMock{
 		mockedStreamPendingBlocks,
 		mockedStreamConsensusInfoClient,
 	}
 	mockedClient client.VanguardClient = mockedVanClientStruct
 )
 
-type streamNewPendingBlocksClient struct{}
+type streamNewPendingBlocksClient struct {
+	pendingBlocks []*eth.BeaconBlock
+}
 
 func (s streamNewPendingBlocksClient) Recv() (*eth.BeaconBlock, error) {
+	defer func() {
+		PendingBlockMocks = append(PendingBlockMocks, PendingBlockMocks[1:]...)
+	}()
+
+	if len(PendingBlockMocks) > 0 {
+		toReturn := PendingBlockMocks[0]
+
+		return toReturn, nil
+	}
+
 	return &eth.BeaconBlock{}, nil
 }
 
@@ -83,9 +101,21 @@ func (v vanClientMock) Close() {
 	panic("implement me")
 }
 
-type streamConsensusInfoClient struct{}
+type streamConsensusInfoClient struct {
+	consensusInfos []*eth.MinimalConsensusInfo
+}
 
 func (s streamConsensusInfoClient) Recv() (*eth.MinimalConsensusInfo, error) {
+	defer func() {
+		ConsensusInfoMocks = append(ConsensusInfoMocks, ConsensusInfoMocks[1:]...)
+	}()
+
+	if len(ConsensusInfoMocks) > 0 {
+		toReturn := ConsensusInfoMocks[0]
+
+		return toReturn, nil
+	}
+
 	return &eth.MinimalConsensusInfo{}, nil
 }
 

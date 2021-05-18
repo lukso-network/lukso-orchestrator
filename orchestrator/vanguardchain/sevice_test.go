@@ -2,7 +2,9 @@ package vanguardchain
 
 import (
 	"context"
+	"github.com/gogo/protobuf/types"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
+	eth "github.com/prysmaticlabs/ethereumapis/eth/v1alpha1"
 	logTest "github.com/sirupsen/logrus/hooks/test"
 	"testing"
 	"time"
@@ -13,6 +15,13 @@ import (
 func Test_VanguardSvc_StartStop(t *testing.T) {
 	hook := logTest.NewGlobal()
 	reConPeriod = 1 * time.Second
+
+	ConsensusInfoMocks = make([]*eth.MinimalConsensusInfo, 0)
+	ConsensusInfoMocks = append(ConsensusInfoMocks, &eth.MinimalConsensusInfo{
+		SlotTimeDuration: &types.Duration{Seconds: 6}})
+
+	PendingBlockMocks = make([]*eth.BeaconBlock, 0)
+	PendingBlockMocks = append(PendingBlockMocks, &eth.BeaconBlock{})
 
 	// setup in process server and client
 	mockServer, _ := SetupInProcServer(t)
@@ -31,6 +40,15 @@ func Test_VanguardSvc_NoServerConn(t *testing.T) {
 	hook := logTest.NewGlobal()
 	reConPeriod = 1 * time.Second
 
+	ConsensusInfoMocks = make([]*eth.MinimalConsensusInfo, 0)
+	ConsensusInfoMocks = append(ConsensusInfoMocks, &eth.MinimalConsensusInfo{
+		SlotTimeDuration: &types.Duration{Seconds: 6}})
+
+	defer func() {
+		CleanConsensusMocks()
+		CleanPendingBlocksMocks()
+	}()
+
 	time.Sleep(2 * time.Second)
 	assert.LogsContain(t, hook, "Could not connect to vanguard endpoint")
 	hook.Reset()
@@ -41,6 +59,15 @@ func Test_VanguardSvc_RetryToConnServer(t *testing.T) {
 	hook := logTest.NewGlobal()
 	ctx := context.Background()
 	reConPeriod = 1 * time.Second
+
+	ConsensusInfoMocks = make([]*eth.MinimalConsensusInfo, 0)
+	ConsensusInfoMocks = append(ConsensusInfoMocks, &eth.MinimalConsensusInfo{
+		SlotTimeDuration: &types.Duration{Seconds: 6}})
+
+	defer func() {
+		CleanConsensusMocks()
+		CleanPendingBlocksMocks()
+	}()
 
 	// setup vanguard service
 	vanSvc, _ := SetupVanguardSvc(ctx, t, GRPCFunc)
@@ -56,4 +83,12 @@ func Test_VanguardSvc_RetryToConnServer(t *testing.T) {
 
 	time.Sleep(2 * time.Second)
 	assert.LogsContain(t, hook, "Connected vanguard chain")
+}
+
+func CleanConsensusMocks() {
+	ConsensusInfoMocks = nil
+}
+
+func CleanPendingBlocksMocks() {
+	PendingBlockMocks = nil
 }
