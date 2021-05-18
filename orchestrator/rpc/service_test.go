@@ -17,7 +17,6 @@ func setup(t *testing.T) (*Config, error) {
 	namespace := "van"
 	consensusInfoFeed, err := vanguardchain.NewService(
 		context.Background(),
-		cmd.DefaultVanguardRPCEndpoint,
 		cmd.DefaultVanguardGRPCEndpoint,
 		namespace,
 		orchestratorDB,

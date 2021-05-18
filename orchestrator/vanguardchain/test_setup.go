@@ -160,7 +160,6 @@ func SetupVanguardSvc(
 
 	vanguardClientService, err := NewService(
 		ctx,
-		"ws://127.0.0.1:8546",
 		"127.0.0.1:4000",
 		"van",
 		db,

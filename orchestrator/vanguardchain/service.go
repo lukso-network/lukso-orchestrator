@@ -31,7 +31,6 @@ type Service struct {
 
 	// vanguard chain related attributes
 	connectedVanguard bool
-	vanEndpoint       string
 	vanGRPCEndpoint   string
 	vanGRPCClient     *client.VanguardClient
 	dialGRPCFn        DIALGRPCFn
@@ -52,7 +51,6 @@ type Service struct {
 // NewService creates new service with vanguard endpoint, vanguard namespace and consensusInfoDB
 func NewService(
 	ctx context.Context,
-	vanEndpoint string,
 	vanGRPCEndpoint string,
 	namespace string,
 	consensusInfoAccessDB db.ConsensusInfoAccessDB,
@@ -65,7 +63,6 @@ func NewService(
 	return &Service{
 		ctx:                  ctx,
 		cancel:               cancel,
-		vanEndpoint:          vanEndpoint,
 		vanGRPCEndpoint:      vanGRPCEndpoint,
 		dialGRPCFn:           dialGRPCFn,
 		namespace:            namespace,
@@ -78,7 +75,7 @@ func NewService(
 // Start a consensus info fetcher service's main event loop.
 func (s *Service) Start() {
 	// Exit early if eth1 endpoint is not set.
-	if s.vanEndpoint == "" {
+	if s.vanGRPCEndpoint == "" {
 		return
 	}
 	go func() {
@@ -123,7 +120,7 @@ func (s *Service) closeClients() {
 func (s *Service) waitForConnection() {
 	var err error
 	if err = s.connectToVanguardChain(); err == nil {
-		log.WithField("vanguardHttp", s.vanEndpoint).Info("Connected vanguard chain")
+		log.WithField("vanguardHttp", s.vanGRPCEndpoint).Info("Connected vanguard chain")
 		s.connectedVanguard = true
 		return
 	}
@@ -135,7 +132,7 @@ func (s *Service) waitForConnection() {
 	for {
 		select {
 		case <-ticker.C:
-			log.WithField("endpoint", s.vanEndpoint).Debugf("Dialing vanguard node")
+			log.WithField("endpoint", s.vanGRPCEndpoint).Debugf("Dialing vanguard node")
 			var errConnect error
 			if errConnect = s.connectToVanguardChain(); errConnect != nil {
 				log.WithError(errConnect).Warn("Could not connect to vanguard endpoint")
@@ -144,7 +141,7 @@ func (s *Service) waitForConnection() {
 			}
 			s.connectedVanguard = true
 			s.runError = nil
-			log.WithField("vanguardHttp", s.vanEndpoint).Info("Connected vanguard chain")
+			log.WithField("vanguardHttp", s.vanGRPCEndpoint).Info("Connected vanguard chain")
 			return
 		case <-s.ctx.Done():
 			log.Debug("Received cancelled context,closing existing vanguard client service")
