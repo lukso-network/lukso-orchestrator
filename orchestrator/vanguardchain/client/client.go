@@ -13,8 +13,8 @@ import (
 
 type VanguardClient interface {
 	CanonicalHeadSlot() (types.Slot, error)
-	NextEpochProposerList() (*ethpb.ValidatorAssignments, error)
 	StreamNewPendingBlocks() (ethpb.BeaconChain_StreamNewPendingBlocksClient, error)
+	StreamMinimalConsensusInfo() (stream ethpb.BeaconChain_StreamMinimalConsensusInfoClient, err error)
 	Close()
 }
 
@@ -76,12 +76,6 @@ func (vanClient *GRPCClient) CanonicalHeadSlot() (types.Slot, error) {
 	return head.HeadSlot, nil
 }
 
-// NextEpochProposerList
-func (vanClient *GRPCClient) NextEpochProposerList() (*ethpb.ValidatorAssignments, error) {
-	assignments, err := vanClient.beaconClient.NextEpochProposerList(vanClient.ctx, &ptypes.Empty{})
-	return assignments, err
-}
-
 // StreamNewPendingBlocks
 func (vanClient *GRPCClient) StreamNewPendingBlocks() (
 	stream ethpb.BeaconChain_StreamNewPendingBlocksClient,
@@ -98,6 +92,26 @@ func (vanClient *GRPCClient) StreamNewPendingBlocks() (
 	}
 
 	log.Info("Successfully subscribed to chain header event")
+
+	return
+}
+
+func (vanClient *GRPCClient) StreamMinimalConsensusInfo() (
+	stream ethpb.BeaconChain_StreamMinimalConsensusInfoClient,
+	err error,
+) {
+	stream, err = vanClient.beaconClient.StreamMinimalConsensusInfo(
+		vanClient.ctx,
+		&ptypes.Empty{},
+	)
+
+	if err != nil {
+		log.WithError(err).Fatal("Failed to subscribe to StreamMinimalConsensusInfo")
+
+		return
+	}
+
+	log.Info("Successfully subscribed to StreamMinimalConsensusInfo event")
 
 	return
 }
