@@ -22,10 +22,7 @@ func Test_VanguardChainStartStop_Initialized(t *testing.T) {
 	}
 	defer mockServer.Stop()
 
-	dialInProcRPCClient := DialInProcClient(mockServer)
-	vanguardSvc, _ := SetupVanguardSvc(ctx, t, dialInProcRPCClient, GRPCFunc)
-	sub, err := vanguardSvc.subscribeNewConsensusInfo(ctx, 0, "van", mockClient)
-	assert.NoError(t, err)
+	_, _ = SetupVanguardSvc(ctx, t, GRPCFunc)
 
 	time.Sleep(1 * time.Second)
 	consensusInfo := testutil.NewMinimalConsensusInfo(5)
@@ -35,6 +32,5 @@ func Test_VanguardChainStartStop_Initialized(t *testing.T) {
 	// TODO: Don't leave it as it is. Tests should not rely on logs. They should test side effect
 	// I have changed behaviour of function entirely and test was still passing.
 	assert.LogsContainNTimes(t, hook, "consensus info passed sanitization", 6)
-	sub.Err()
 	hook.Reset()
 }

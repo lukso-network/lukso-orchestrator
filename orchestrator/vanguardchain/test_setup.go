@@ -2,7 +2,6 @@ package vanguardchain
 
 import (
 	"context"
-	"errors"
 	"github.com/ethereum/go-ethereum/rpc"
 	testDB "github.com/lukso-network/lukso-orchestrator/orchestrator/db/testing"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
@@ -24,7 +23,7 @@ type mocks struct {
 }
 
 type vanClientMock struct {
-	beaconChainClient eth.BeaconChain_StreamNewPendingBlocksClient
+	pendingBlocksClient eth.BeaconChain_StreamNewPendingBlocksClient
 }
 
 var (
@@ -69,12 +68,12 @@ func (v vanClientMock) CanonicalHeadSlot() (types.Slot, error) {
 	panic("implement me")
 }
 
-func (v vanClientMock) NextEpochProposerList() (*eth.ValidatorAssignments, error) {
+func (v vanClientMock) StreamMinimalConsensusInfo() (stream eth.BeaconChain_StreamMinimalConsensusInfoClient, err error) {
 	panic("implement me")
 }
 
 func (v vanClientMock) StreamNewPendingBlocks() (eth.BeaconChain_StreamNewPendingBlocksClient, error) {
-	return v.beaconChainClient, nil
+	return v.pendingBlocksClient, nil
 }
 
 func (v vanClientMock) Close() {
@@ -118,7 +117,6 @@ func SetupInProcServer(t *testing.T) (*rpc.Server, *events.MockBackend) {
 func SetupVanguardSvc(
 	ctx context.Context,
 	t *testing.T,
-	dialRPCFn DialRPCFn,
 	dialGRPCFn DIALGRPCFn,
 ) (*Service, *mocks) {
 	level, err := logrus.ParseLevel("debug")
@@ -134,7 +132,6 @@ func SetupVanguardSvc(
 		"van",
 		db,
 		db,
-		dialRPCFn,
 		dialGRPCFn,
 	)
 	if err != nil {
@@ -142,26 +139,4 @@ func SetupVanguardSvc(
 	}
 
 	return vanguardClientService, nil
-}
-
-// DialInProcClient creates in process client for vanguard mocked server
-func DialInProcClient(server *rpc.Server) DialRPCFn {
-	return func(endpoint string) (*rpc.Client, error) {
-		client := rpc.DialInProc(server)
-		if client == nil {
-			return nil, errors.New("failed to create in-process client")
-		}
-		return client, nil
-	}
-}
-
-// DialRPCClient creates in process client for vanguard rpc server
-func DialRPCClient() DialRPCFn {
-	return func(endpoint string) (*rpc.Client, error) {
-		client, err := rpc.Dial(endpoint)
-		if err != nil {
-			return nil, err
-		}
-		return client, nil
-	}
 }

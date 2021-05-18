@@ -14,9 +14,6 @@ import (
 // time to wait before trying to reconnect with the vanguard node.
 var reConPeriod = 15 * time.Second
 
-// DialRPCFn dials to the given endpoint
-type DialRPCFn func(endpoint string) (*rpc.Client, error)
-
 type DIALGRPCFn func(endpoint string) (client.VanguardClient, error)
 
 // Service:
@@ -35,13 +32,10 @@ type Service struct {
 	// vanguard chain related attributes
 	connectedVanguard bool
 	vanEndpoint       string
-	// TODO: pass it down
-	vanGRPCEndpoint string
-	vanRPCClient    *rpc.Client
-	vanGRPCClient   *client.VanguardClient
-	dialRPCFn       DialRPCFn
-	dialGRPCFn      DIALGRPCFn
-	namespace       string
+	vanGRPCEndpoint   string
+	vanGRPCClient     *client.VanguardClient
+	dialGRPCFn        DIALGRPCFn
+	namespace         string
 
 	// subscription
 	consensusInfoFeed            event.Feed
@@ -63,7 +57,6 @@ func NewService(
 	namespace string,
 	consensusInfoAccessDB db.ConsensusInfoAccessDB,
 	vanguardHeaderHashDB db.VanguardHeaderHashDB,
-	dialRPCFn DialRPCFn,
 	dialGRPCFn DIALGRPCFn,
 ) (*Service, error) {
 
@@ -74,7 +67,6 @@ func NewService(
 		cancel:               cancel,
 		vanEndpoint:          vanEndpoint,
 		vanGRPCEndpoint:      vanGRPCEndpoint,
-		dialRPCFn:            dialRPCFn,
 		dialGRPCFn:           dialGRPCFn,
 		namespace:            namespace,
 		conInfoSubErrCh:      make(chan error),
@@ -123,9 +115,7 @@ func (s *Service) Status() error {
 
 // closes down our active eth1 clients.
 func (s *Service) closeClients() {
-	if s.vanRPCClient != nil {
-		s.vanRPCClient.Close()
-	}
+
 }
 
 // waitForConnection waits for a connection with vanguard chain. Until a successful with
@@ -189,19 +179,6 @@ func (s *Service) run(done <-chan struct{}) {
 
 // connectToVanguardChain dials to vanguard chain and creates rpcClient
 func (s *Service) connectToVanguardChain() error {
-	if s.vanRPCClient == nil {
-		vanRPCClient, err := s.dialRPCFn(s.vanEndpoint)
-		if err != nil {
-			return err
-		}
-		s.vanRPCClient = vanRPCClient
-	}
-
-	// connect to vanguard subscription
-	if err := s.subscribeToVanguard(); err != nil {
-		return err
-	}
-
 	err := s.subscribeToVanguardGRPC()
 
 	if nil != err {
@@ -223,9 +200,6 @@ func (s *Service) retryVanguardNode(err error) {
 }
 
 func (s *Service) subscribeToVanguardGRPC() (err error) {
-	// subscribe to vanguard client for new pending blocks
-	// TODO: add this client into dependency injection
-	// Vanguard endpoint will be invalid I guess as long as we support both grpc and rpc
 	vanguardClient, err := s.dialGRPCFn(s.vanGRPCEndpoint)
 
 	if nil != err {
@@ -234,6 +208,17 @@ func (s *Service) subscribeToVanguardGRPC() (err error) {
 
 	err, errChan := s.subscribeVanNewPendingBlockHash(vanguardClient)
 
+	if nil != err {
+		return
+	}
+
+	err = s.subscribeNewConsensusInfoGRPC(vanguardClient)
+
+	if nil != err {
+		return
+	}
+
+	// TODO: remove this
 	go func() {
 		for {
 			currentErr := <-errChan
@@ -247,20 +232,6 @@ func (s *Service) subscribeToVanguardGRPC() (err error) {
 	}()
 
 	return
-}
-
-// subscribeToVanguard subscribes to vanguard events
-// DEPRECATED: we want to move to GRPC and remove rpc connection to vanguard
-func (s *Service) subscribeToVanguard() error {
-	latestSavedEpochInDb := s.consensusInfoDB.GetLatestEpoch()
-	// subscribe to vanguard client for consensus info
-	sub, err := s.subscribeNewConsensusInfo(s.ctx, latestSavedEpochInDb, s.namespace, s.vanRPCClient)
-	if err != nil {
-		log.WithError(err).Warn("Could not subscribe to vanguard client for consensus info")
-		return err
-	}
-	s.conInfoSub = sub
-	return nil
 }
 
 // SubscribeMinConsensusInfoEvent registers a subscription of ChainHeadEvent.

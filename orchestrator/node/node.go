@@ -125,13 +125,6 @@ func (o *OrchestratorNode) startDB(cliCtx *cli.Context) error {
 func (o *OrchestratorNode) registerVanguardChainService(cliCtx *cli.Context) error {
 	vanguardRPCUrl := cliCtx.String(cmd.VanguardRPCEndpoint.Name)
 	vanguardGRPCUrl := cliCtx.String(cmd.VanguardGRPCEndpoint.Name)
-	dialRPCClient := func(endpoint string) (*ethRpc.Client, error) {
-		rpcClient, err := ethRpc.Dial(endpoint)
-		if err != nil {
-			return nil, err
-		}
-		return rpcClient, nil
-	}
 	dialGRPCClient := vanguardchain.DIALGRPCFn(func(endpoint string) (client.VanguardClient, error) {
 		return client.Dial(o.ctx, endpoint, time.Minute*6, 32, math.MaxInt32)
 	})
@@ -143,7 +136,6 @@ func (o *OrchestratorNode) registerVanguardChainService(cliCtx *cli.Context) err
 		namespace,
 		o.db,
 		o.db,
-		dialRPCClient,
 		dialGRPCClient,
 	)
 	if err != nil {
