@@ -24,12 +24,15 @@ type mocks struct {
 
 type vanClientMock struct {
 	pendingBlocksClient eth.BeaconChain_StreamNewPendingBlocksClient
+	consensusInfoClient eth.BeaconChain_StreamMinimalConsensusInfoClient
 }
 
 var (
-	mockedStreamPendingBlocks eth.BeaconChain_StreamNewPendingBlocksClient = streamNewPendingBlocksClient{}
-	mockedVanClientStruct                                                  = &vanClientMock{
+	mockedStreamPendingBlocks       eth.BeaconChain_StreamNewPendingBlocksClient     = streamNewPendingBlocksClient{}
+	mockedStreamConsensusInfoClient eth.BeaconChain_StreamMinimalConsensusInfoClient = streamConsensusInfoClient{}
+	mockedVanClientStruct                                                            = &vanClientMock{
 		mockedStreamPendingBlocks,
+		mockedStreamConsensusInfoClient,
 	}
 	mockedClient client.VanguardClient = mockedVanClientStruct
 )
@@ -69,7 +72,7 @@ func (v vanClientMock) CanonicalHeadSlot() (types.Slot, error) {
 }
 
 func (v vanClientMock) StreamMinimalConsensusInfo() (stream eth.BeaconChain_StreamMinimalConsensusInfoClient, err error) {
-	panic("implement me")
+	return v.consensusInfoClient, nil
 }
 
 func (v vanClientMock) StreamNewPendingBlocks() (eth.BeaconChain_StreamNewPendingBlocksClient, error) {
@@ -77,6 +80,36 @@ func (v vanClientMock) StreamNewPendingBlocks() (eth.BeaconChain_StreamNewPendin
 }
 
 func (v vanClientMock) Close() {
+	panic("implement me")
+}
+
+type streamConsensusInfoClient struct{}
+
+func (s streamConsensusInfoClient) Recv() (*eth.MinimalConsensusInfo, error) {
+	return &eth.MinimalConsensusInfo{}, nil
+}
+
+func (s streamConsensusInfoClient) Header() (metadata.MD, error) {
+	panic("implement me")
+}
+
+func (s streamConsensusInfoClient) Trailer() metadata.MD {
+	panic("implement me")
+}
+
+func (s streamConsensusInfoClient) CloseSend() error {
+	panic("implement me")
+}
+
+func (s streamConsensusInfoClient) Context() context.Context {
+	panic("implement me")
+}
+
+func (s streamConsensusInfoClient) SendMsg(m interface{}) error {
+	panic("implement me")
+}
+
+func (s streamConsensusInfoClient) RecvMsg(m interface{}) error {
 	panic("implement me")
 }
 
