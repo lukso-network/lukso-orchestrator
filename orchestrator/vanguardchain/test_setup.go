@@ -50,7 +50,7 @@ type streamNewPendingBlocksClient struct {
 func (s streamNewPendingBlocksClient) Recv() (*eth.BeaconBlock, error) {
 	if len(PendingBlockMocks) > 0 {
 		toReturn := PendingBlockMocks[0]
-		PendingBlockMocks = append(PendingBlockMocks, PendingBlockMocks[1:]...)
+		PendingBlockMocks = append([]*eth.BeaconBlock(nil), PendingBlockMocks[1:]...)
 
 		return toReturn, nil
 	}
@@ -107,7 +107,7 @@ type streamConsensusInfoClient struct {
 func (s streamConsensusInfoClient) Recv() (*eth.MinimalConsensusInfo, error) {
 	if len(ConsensusInfoMocks) > 0 {
 		toReturn := ConsensusInfoMocks[0]
-		ConsensusInfoMocks = append(ConsensusInfoMocks, ConsensusInfoMocks[1:]...)
+		ConsensusInfoMocks = append([]*eth.MinimalConsensusInfo(nil), ConsensusInfoMocks[1:]...)
 
 		return toReturn, nil
 	}

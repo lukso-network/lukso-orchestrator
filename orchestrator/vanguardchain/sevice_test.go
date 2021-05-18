@@ -20,8 +20,7 @@ func Test_VanguardSvc_StartStop(t *testing.T) {
 	ConsensusInfoMocks = append(ConsensusInfoMocks, &eth.MinimalConsensusInfo{
 		SlotTimeDuration: &types.Duration{Seconds: 6}})
 
-	PendingBlockMocks = make([]*eth.BeaconBlock, 0)
-	PendingBlockMocks = append(PendingBlockMocks, &eth.BeaconBlock{})
+	PendingBlockMocks = nil
 
 	defer func() {
 		CleanConsensusMocks()

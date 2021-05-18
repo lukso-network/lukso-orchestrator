@@ -25,8 +25,7 @@ func Test_VanguardChainStartStop_Initialized(t *testing.T) {
 	ConsensusInfoMocks = make([]*eth.MinimalConsensusInfo, 0)
 	ConsensusInfoMocks = append(ConsensusInfoMocks, &eth.MinimalConsensusInfo{
 		SlotTimeDuration: &types.Duration{Seconds: 6}})
-	PendingBlockMocks = make([]*eth.BeaconBlock, 0)
-	PendingBlockMocks = append(PendingBlockMocks, &eth.BeaconBlock{})
+	PendingBlockMocks = nil
 
 	defer func() {
 		ConsensusInfoMocks = nil
