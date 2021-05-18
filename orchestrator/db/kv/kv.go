@@ -38,11 +38,14 @@ type Store struct {
 	databasePath       string
 	consensusInfoCache *ristretto.Cache
 	panHeaderCache     *ristretto.Cache
+	vanHeaderCache     *ristretto.Cache
 
 	// Latest information need to be stored into db
 	latestEpoch         uint64
 	latestPanSlot       uint64
 	latestPanHeaderHash common.Hash
+	latestVanSlot       uint64
+	latestVanHash       common.Hash
 }
 
 // NewKVStore initializes a new boltDB key-value store at the directory
@@ -92,12 +95,23 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 		return nil, err
 	}
 
+	vanBlockCache, err := ristretto.NewCache(&ristretto.Config{
+		NumCounters: 1000,                  // number of keys to track frequency of (1000).
+		MaxCost:     HeaderHashesCacheSize, // maximum cost of cache (1000 headers).
+		BufferItems: 64,                    // number of keys per Get buffer.
+	})
+
+	if nil != err {
+		return nil, err
+	}
+
 	kv := &Store{
 		ctx:                ctx,
 		db:                 boltDB,
 		databasePath:       dirPath,
 		consensusInfoCache: consensusInfoCache,
 		panHeaderCache:     panHeaderCache,
+		vanHeaderCache:     vanBlockCache,
 	}
 
 	if err := kv.db.Update(func(tx *bolt.Tx) error {
@@ -129,7 +143,12 @@ func (s *Store) ClearDB() error {
 
 // Close closes the underlying BoltDB database.
 func (s *Store) Close() error {
-	s.SaveLatestEpoch(s.ctx)
+	err := s.SaveLatestEpoch(s.ctx)
+
+	if nil != err {
+		return err
+	}
+
 	return s.db.Close()
 }
 
@@ -146,6 +165,10 @@ func (s *Store) initLatestDataFromDB() {
 	s.latestPanSlot = s.LatestSavedPandoraSlot()
 	// Retrieve latest saved pandora header hash from db
 	s.latestPanHeaderHash = s.LatestSavedPandoraHeaderHash()
+	// Retrieve latest saved vanguard hash from db
+	s.latestVanHash = s.LatestSavedVanguardHeaderHash()
+	// Retrieve latest savend vanguard slot from db
+	s.latestVanSlot = s.LatestSavedVanguardSlot()
 }
 
 // createBuckets

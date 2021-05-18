@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum/common/math"
 	ethRpc "github.com/ethereum/go-ethereum/rpc"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
@@ -9,6 +10,7 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/pandorachain"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/client"
 	"github.com/lukso-network/lukso-orchestrator/shared"
 	"github.com/lukso-network/lukso-orchestrator/shared/cmd"
 	"github.com/lukso-network/lukso-orchestrator/shared/fileutil"
@@ -21,6 +23,7 @@ import (
 	"path/filepath"
 	"sync"
 	"syscall"
+	"time"
 )
 
 // OrchestratorNode
@@ -121,15 +124,28 @@ func (o *OrchestratorNode) startDB(cliCtx *cli.Context) error {
 // registerVanguardChainService
 func (o *OrchestratorNode) registerVanguardChainService(cliCtx *cli.Context) error {
 	vanguardRPCUrl := cliCtx.String(cmd.VanguardRPCEndpoint.Name)
+	vanguardGRPCUrl := cliCtx.String(cmd.VanguardGRPCEndpoint.Name)
 	dialRPCClient := func(endpoint string) (*ethRpc.Client, error) {
-		client, err := ethRpc.Dial(endpoint)
+		rpcClient, err := ethRpc.Dial(endpoint)
 		if err != nil {
 			return nil, err
 		}
-		return client, nil
+		return rpcClient, nil
 	}
+	dialGRPCClient := vanguardchain.DIALGRPCFn(func(endpoint string) (client.VanguardClient, error) {
+		return client.Dial(o.ctx, endpoint, time.Minute*6, 32, math.MaxInt32)
+	})
 	namespace := "van"
-	svc, err := vanguardchain.NewService(o.ctx, vanguardRPCUrl, namespace, o.db, dialRPCClient)
+	svc, err := vanguardchain.NewService(
+		o.ctx,
+		vanguardRPCUrl,
+		vanguardGRPCUrl,
+		namespace,
+		o.db,
+		o.db,
+		dialRPCClient,
+		dialGRPCClient,
+	)
 	if err != nil {
 		return nil
 	}
@@ -141,15 +157,15 @@ func (o *OrchestratorNode) registerVanguardChainService(cliCtx *cli.Context) err
 func (o *OrchestratorNode) registerPandoraChainService(cliCtx *cli.Context) error {
 	pandoraRPCUrl := cliCtx.String(cmd.PandoraRPCEndpoint.Name)
 	dialRPCClient := func(endpoint string) (*ethRpc.Client, error) {
-		client, err := ethRpc.Dial(endpoint)
+		rpcClient, err := ethRpc.Dial(endpoint)
 		if err != nil {
 			return nil, err
 		}
-		return client, nil
+		return rpcClient, nil
 	}
 	namespace := "eth"
-	cache := cache.NewPanHeaderCache()
-	svc, err := pandorachain.NewService(o.ctx, pandoraRPCUrl, namespace, o.db, cache, dialRPCClient)
+	panCache := cache.NewPanHeaderCache()
+	svc, err := pandorachain.NewService(o.ctx, pandoraRPCUrl, namespace, o.db, panCache, dialRPCClient)
 	if err != nil {
 		return nil
 	}

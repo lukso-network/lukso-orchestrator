@@ -25,7 +25,7 @@ func Test_EncodingDecoding_PanHeaderHash(t *testing.T) {
 	enc0, err := encode(encPandHeaderHash)
 	require.NoError(t, err)
 
-	var decPanHeaderHash *types.PanHeaderHash
+	var decPanHeaderHash *types.HeaderHash
 	require.NoError(t, decode(enc0, &decPanHeaderHash))
 	assert.DeepEqual(t, encPandHeaderHash, decPanHeaderHash)
 }

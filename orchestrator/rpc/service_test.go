@@ -15,19 +15,23 @@ import (
 func setup(t *testing.T) (*Config, error) {
 	orchestratorDB := testDB.SetupDB(t)
 	dialRPCClient := func(endpoint string) (*ethRpc.Client, error) {
-		client, err := ethRpc.Dial(endpoint)
+		rpcClient, err := ethRpc.Dial(endpoint)
 		if err != nil {
 			return nil, err
 		}
-		return client, nil
+		return rpcClient, nil
 	}
+
 	namespace := "van"
 	consensusInfoFeed, err := vanguardchain.NewService(
 		context.Background(),
 		cmd.DefaultVanguardRPCEndpoint,
+		cmd.DefaultVanguardGRPCEndpoint,
 		namespace,
 		orchestratorDB,
+		orchestratorDB,
 		dialRPCClient,
+		vanguardchain.GRPCFunc,
 	)
 	if err != nil {
 		return nil, err
