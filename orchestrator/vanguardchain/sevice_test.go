@@ -64,6 +64,9 @@ func Test_VanguardSvc_RetryToConnServer(t *testing.T) {
 	ConsensusInfoMocks = append(ConsensusInfoMocks, &eth.MinimalConsensusInfo{
 		SlotTimeDuration: &types.Duration{Seconds: 6}})
 
+	PendingBlockMocks = make([]*eth.BeaconBlock, 0)
+	PendingBlockMocks = append(PendingBlockMocks, &eth.BeaconBlock{Slot: 0})
+
 	defer func() {
 		CleanConsensusMocks()
 		CleanPendingBlocksMocks()

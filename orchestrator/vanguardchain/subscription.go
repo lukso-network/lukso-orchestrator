@@ -69,6 +69,11 @@ func (s *Service) subscribeNewConsensusInfoGRPC(
 				return
 			}
 
+			if nil == vanMinimalConsensusInfo {
+				log.Error("Received nil consensus info")
+				continue
+			}
+
 			log.WithField("fromEpoch", vanMinimalConsensusInfo.Epoch).
 				Debug("subscribed to vanguard chain for consensus info")
 

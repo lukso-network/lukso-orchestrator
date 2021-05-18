@@ -48,17 +48,16 @@ type streamNewPendingBlocksClient struct {
 }
 
 func (s streamNewPendingBlocksClient) Recv() (*eth.BeaconBlock, error) {
-	defer func() {
-		PendingBlockMocks = append(PendingBlockMocks, PendingBlockMocks[1:]...)
-	}()
-
 	if len(PendingBlockMocks) > 0 {
 		toReturn := PendingBlockMocks[0]
+		PendingBlockMocks = append(PendingBlockMocks, PendingBlockMocks[1:]...)
 
 		return toReturn, nil
 	}
 
-	return &eth.BeaconBlock{}, nil
+	//     Should not receive anything until mocks are present
+	time.Sleep(time.Millisecond * 200)
+	return s.Recv()
 }
 
 func (s streamNewPendingBlocksClient) Header() (metadata.MD, error) {
@@ -106,17 +105,16 @@ type streamConsensusInfoClient struct {
 }
 
 func (s streamConsensusInfoClient) Recv() (*eth.MinimalConsensusInfo, error) {
-	defer func() {
-		ConsensusInfoMocks = append(ConsensusInfoMocks, ConsensusInfoMocks[1:]...)
-	}()
-
 	if len(ConsensusInfoMocks) > 0 {
 		toReturn := ConsensusInfoMocks[0]
+		ConsensusInfoMocks = append(ConsensusInfoMocks, ConsensusInfoMocks[1:]...)
 
 		return toReturn, nil
 	}
 
-	return &eth.MinimalConsensusInfo{}, nil
+	//     Should not receive anything until mocks are present
+	time.Sleep(time.Millisecond * 200)
+	return s.Recv()
 }
 
 func (s streamConsensusInfoClient) Header() (metadata.MD, error) {
