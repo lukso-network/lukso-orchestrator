@@ -86,7 +86,7 @@ func (vanClient *GRPCClient) StreamNewPendingBlocks() (
 		&ptypes.Empty{},
 	)
 	if err != nil {
-		log.WithError(err).Fatal("Failed to subscribe to StreamChainHead")
+		log.WithError(err).Error("Failed to subscribe to StreamChainHead")
 
 		return
 	}
