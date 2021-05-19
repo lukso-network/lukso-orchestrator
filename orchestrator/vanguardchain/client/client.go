@@ -106,7 +106,7 @@ func (vanClient *GRPCClient) StreamMinimalConsensusInfo() (
 	)
 
 	if err != nil {
-		log.WithError(err).Fatal("Failed to subscribe to StreamMinimalConsensusInfo")
+		log.WithError(err).Error("Failed to subscribe to StreamMinimalConsensusInfo")
 
 		return
 	}
