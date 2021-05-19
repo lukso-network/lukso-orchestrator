@@ -88,7 +88,7 @@ func (v vanClientMock) CanonicalHeadSlot() (types.Slot, error) {
 	panic("implement me")
 }
 
-func (v vanClientMock) StreamMinimalConsensusInfo() (stream eth.BeaconChain_StreamMinimalConsensusInfoClient, err error) {
+func (v vanClientMock) StreamMinimalConsensusInfo(epoch uint64) (stream eth.BeaconChain_StreamMinimalConsensusInfoClient, err error) {
 	return v.consensusInfoClient, nil
 }
 

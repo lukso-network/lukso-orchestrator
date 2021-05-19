@@ -14,7 +14,7 @@ import (
 type VanguardClient interface {
 	CanonicalHeadSlot() (types.Slot, error)
 	StreamNewPendingBlocks() (ethpb.BeaconChain_StreamNewPendingBlocksClient, error)
-	StreamMinimalConsensusInfo() (stream ethpb.BeaconChain_StreamMinimalConsensusInfoClient, err error)
+	StreamMinimalConsensusInfo(epoch uint64) (stream ethpb.BeaconChain_StreamMinimalConsensusInfoClient, err error)
 	Close()
 }
 
@@ -96,13 +96,13 @@ func (vanClient *GRPCClient) StreamNewPendingBlocks() (
 	return
 }
 
-func (vanClient *GRPCClient) StreamMinimalConsensusInfo() (
+func (vanClient *GRPCClient) StreamMinimalConsensusInfo(epoch uint64) (
 	stream ethpb.BeaconChain_StreamMinimalConsensusInfoClient,
 	err error,
 ) {
 	stream, err = vanClient.beaconClient.StreamMinimalConsensusInfo(
 		vanClient.ctx,
-		&ptypes.Empty{},
+		&ethpb.MinimalConsensusInfoRequest{FromEpoch: types.Epoch(epoch)},
 	)
 
 	if err != nil {

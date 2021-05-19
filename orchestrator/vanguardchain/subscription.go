@@ -41,7 +41,7 @@ func (s *Service) subscribeVanNewPendingBlockHash(
 func (s *Service) subscribeNewConsensusInfoGRPC(
 	client client.VanguardClient,
 ) (err error) {
-	stream, err := client.StreamMinimalConsensusInfo()
+	stream, err := client.StreamMinimalConsensusInfo(s.orchestratorDB.LatestSavedEpoch())
 
 	if nil != err {
 		log.WithError(err).Error("Failed to subscribe to stream of new pending blocks")
