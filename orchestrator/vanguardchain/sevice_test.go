@@ -120,7 +120,7 @@ func Test_VanguardSvc_RetryToConnServer(t *testing.T) {
 	assert.LogsContainNTimes(t, hook, "Could not connect to vanguard endpoint", 10)
 	shouldPass = true
 
-	time.Sleep(reConPeriod * 2)
+	time.Sleep(time.Second)
 	assert.LogsContain(t, hook, "Connected vanguard chain")
 	assert.LogsContain(t, hook, "subscribed to vanguard chain for consensus info")
 
