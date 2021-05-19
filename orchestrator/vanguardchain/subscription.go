@@ -73,9 +73,10 @@ func (s *Service) subscribeNewConsensusInfoGRPC(
 				Debug("subscribed to vanguard chain for consensus info")
 
 			consensusInfo := &types.MinimalEpochConsensusInfo{
-				Epoch:            uint64(vanMinimalConsensusInfo.Epoch),
-				ValidatorList:    vanMinimalConsensusInfo.ValidatorList,
-				EpochStartTime:   vanMinimalConsensusInfo.EpochTimeStart,
+				Epoch:         uint64(vanMinimalConsensusInfo.Epoch),
+				ValidatorList: vanMinimalConsensusInfo.ValidatorList,
+				// TODO: consider if this should be handled on pandora side?
+				EpochStartTime:   vanMinimalConsensusInfo.EpochTimeStart - 6,
 				SlotTimeDuration: time.Duration(vanMinimalConsensusInfo.SlotTimeDuration.Seconds),
 			}
 
