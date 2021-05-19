@@ -60,7 +60,7 @@ func (s *Service) subscribeNewConsensusInfoGRPC(
 				Trace("Got new minimal consensus info")
 
 			if nil != currentErr {
-				log.WithError(currentErr).Error("Failed to receive chain header")
+				log.WithError(currentErr).Error("Failed to receive minimalConsensusInfo")
 				return
 			}
 
