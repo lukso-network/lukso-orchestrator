@@ -127,12 +127,9 @@ func (o *OrchestratorNode) registerVanguardChainService(cliCtx *cli.Context) err
 	dialGRPCClient := vanguardchain.DIALGRPCFn(func(endpoint string) (client.VanguardClient, error) {
 		return client.Dial(o.ctx, endpoint, time.Minute*6, 32, math.MaxInt32)
 	})
-	namespace := "van"
 	svc, err := vanguardchain.NewService(
 		o.ctx,
 		vanguardGRPCUrl,
-		namespace,
-		o.db,
 		o.db,
 		dialGRPCClient,
 	)

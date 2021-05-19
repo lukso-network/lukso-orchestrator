@@ -189,8 +189,6 @@ func SetupVanguardSvc(
 	vanguardClientService, err := NewService(
 		ctx,
 		"127.0.0.1:4000",
-		"van",
-		db,
 		db,
 		dialGRPCFn,
 	)

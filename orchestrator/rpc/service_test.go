@@ -13,13 +13,9 @@ import (
 
 func setup(t *testing.T) (*Config, error) {
 	orchestratorDB := testDB.SetupDB(t)
-
-	namespace := "van"
 	consensusInfoFeed, err := vanguardchain.NewService(
 		context.Background(),
 		cmd.DefaultVanguardGRPCEndpoint,
-		namespace,
-		orchestratorDB,
 		orchestratorDB,
 		vanguardchain.GRPCFunc,
 	)

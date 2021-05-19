@@ -34,7 +34,6 @@ type Service struct {
 	vanGRPCEndpoint   string
 	vanGRPCClient     *client.VanguardClient
 	dialGRPCFn        DIALGRPCFn
-	namespace         string
 
 	// subscription
 	consensusInfoFeed            event.Feed
@@ -44,31 +43,26 @@ type Service struct {
 	vanguardPendingBlockHashFeed event.Feed
 
 	// db support
-	consensusInfoDB      db.ConsensusInfoAccessDB
-	vanguardHeaderHashDB db.VanguardHeaderHashDB
+	orchestratorDB db.Database
 }
 
 // NewService creates new service with vanguard endpoint, vanguard namespace and consensusInfoDB
 func NewService(
 	ctx context.Context,
 	vanGRPCEndpoint string,
-	namespace string,
-	consensusInfoAccessDB db.ConsensusInfoAccessDB,
-	vanguardHeaderHashDB db.VanguardHeaderHashDB,
+	db db.Database,
 	dialGRPCFn DIALGRPCFn,
 ) (*Service, error) {
 
 	ctx, cancel := context.WithCancel(ctx)
 	_ = cancel // govet fix for lost cancel. Cancel is handled in service.Stop()
 	return &Service{
-		ctx:                  ctx,
-		cancel:               cancel,
-		vanGRPCEndpoint:      vanGRPCEndpoint,
-		dialGRPCFn:           dialGRPCFn,
-		namespace:            namespace,
-		conInfoSubErrCh:      make(chan error),
-		consensusInfoDB:      consensusInfoAccessDB,
-		vanguardHeaderHashDB: vanguardHeaderHashDB,
+		ctx:             ctx,
+		cancel:          cancel,
+		vanGRPCEndpoint: vanGRPCEndpoint,
+		dialGRPCFn:      dialGRPCFn,
+		conInfoSubErrCh: make(chan error),
+		orchestratorDB:  db,
 	}, nil
 }
 
