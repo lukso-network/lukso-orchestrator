@@ -32,7 +32,7 @@ type GRPCClient struct {
 
 // Dial connects a client to the given URL.
 func Dial(ctx context.Context, rawurl string, grpcRetryDelay time.Duration,
-	grpcRetries uint, maxCallRecvMsgSize int) (*GRPCClient, error) {
+	grpcRetries uint, maxCallRecvMsgSize int) (VanguardClient, error) {
 
 	dialOpts := constructDialOptions(
 		maxCallRecvMsgSize,

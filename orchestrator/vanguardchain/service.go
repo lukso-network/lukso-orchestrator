@@ -169,28 +169,7 @@ func (s *Service) run(done <-chan struct{}) {
 }
 
 // connectToVanguardChain dials to vanguard chain and creates rpcClient
-func (s *Service) connectToVanguardChain() error {
-	err := s.subscribeToVanguardGRPC()
-
-	if nil != err {
-		return err
-	}
-
-	return nil
-}
-
-// Reconnect to vanguard node in case of any failure.
-func (s *Service) retryVanguardNode(err error) {
-	s.runError = err
-	s.connectedVanguard = false
-	// Back off for a while before resuming dialing the vanguard node.
-	time.Sleep(reConPeriod)
-	s.waitForConnection()
-	// Reset run error in the event of a successful connection.
-	s.runError = nil
-}
-
-func (s *Service) subscribeToVanguardGRPC() (err error) {
+func (s *Service) connectToVanguardChain() (err error) {
 	vanguardClient, err := s.dialGRPCFn(s.vanGRPCEndpoint)
 
 	if nil != err {
@@ -210,6 +189,17 @@ func (s *Service) subscribeToVanguardGRPC() (err error) {
 	}
 
 	return
+}
+
+// Reconnect to vanguard node in case of any failure.
+func (s *Service) retryVanguardNode(err error) {
+	s.runError = err
+	s.connectedVanguard = false
+	// Back off for a while before resuming dialing the vanguard node.
+	time.Sleep(reConPeriod)
+	s.waitForConnection()
+	// Reset run error in the event of a successful connection.
+	s.runError = nil
 }
 
 // SubscribeMinConsensusInfoEvent registers a subscription of ChainHeadEvent.
