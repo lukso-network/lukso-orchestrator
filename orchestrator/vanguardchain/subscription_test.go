@@ -3,6 +3,7 @@ package vanguardchain
 import (
 	"context"
 	"github.com/gogo/protobuf/types"
+	"github.com/lukso-network/lukso-orchestrator/shared/testutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
 	eth "github.com/prysmaticlabs/ethereumapis/eth/v1alpha1"
 	logTest "github.com/sirupsen/logrus/hooks/test"
@@ -14,7 +15,6 @@ import (
 func Test_VanguardChainStartStop_Initialized(t *testing.T) {
 	hook := logTest.NewGlobal()
 	ctx := context.Background()
-
 	vanSvc, _ := SetupVanguardSvc(ctx, t, GRPCFunc)
 	vanSvc.Start()
 	defer func() {
@@ -23,8 +23,12 @@ func Test_VanguardChainStartStop_Initialized(t *testing.T) {
 
 	time.Sleep(1 * time.Second)
 	ConsensusInfoMocks = make([]*eth.MinimalConsensusInfo, 0)
+	minimalConsensusInfo := testutil.NewMinimalConsensusInfo(0)
+
 	ConsensusInfoMocks = append(ConsensusInfoMocks, &eth.MinimalConsensusInfo{
-		SlotTimeDuration: &types.Duration{Seconds: 6}})
+		SlotTimeDuration: &types.Duration{Seconds: 6},
+		ValidatorList:    minimalConsensusInfo.ValidatorList,
+	})
 	PendingBlockMocks = nil
 
 	defer func() {
@@ -33,8 +37,6 @@ func Test_VanguardChainStartStop_Initialized(t *testing.T) {
 	}()
 
 	time.Sleep(1 * time.Second)
-	// TODO: Don't leave it as it is. Tests should not rely on logs. They should test side effect
-	// I have changed behaviour of function entirely and test was still passing.
 	assert.LogsContain(t, hook, "consensus info passed sanitization")
 	hook.Reset()
 }

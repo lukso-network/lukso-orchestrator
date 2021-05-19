@@ -1,6 +1,7 @@
 package vanguardchain
 
 import (
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/client"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	"time"
@@ -71,17 +72,40 @@ func (s *Service) subscribeNewConsensusInfoGRPC(
 			log.WithField("fromEpoch", vanMinimalConsensusInfo.Epoch).
 				Debug("subscribed to vanguard chain for consensus info")
 
-			// TODO: PROVIDE SANITIZATION
-			log.WithField("consensusInfo", vanMinimalConsensusInfo).
-				Debug("consensus info passed sanitization")
-
 			consensusInfo := &types.MinimalEpochConsensusInfo{
 				Epoch: uint64(vanMinimalConsensusInfo.Epoch),
 				// TODO: this part is missing!
-				//ValidatorList:    vanMinimalConsensusInfo,
+				ValidatorList:    vanMinimalConsensusInfo.ValidatorList,
 				EpochStartTime:   vanMinimalConsensusInfo.EpochTimeStart,
 				SlotTimeDuration: time.Duration(vanMinimalConsensusInfo.SlotTimeDuration.Seconds),
 			}
+
+			// Only non empty check for now
+			if len(consensusInfo.ValidatorList) < 1 {
+				log.WithField("consensusInfo", consensusInfo).
+					WithField("err", err).
+					Error("empty validator list")
+
+				continue
+			}
+
+			for index, validator := range consensusInfo.ValidatorList {
+				_, err = hexutil.Decode(validator)
+
+				if nil != err {
+					log.WithField("consensusInfo", consensusInfo).
+						WithField("err", err).
+						WithField("index", index).
+						WithField("validator", validator).
+						Error("could not sanitize the validator")
+
+					break
+				}
+			}
+
+			log.WithField("consensusInfo", vanMinimalConsensusInfo).
+				Debug("consensus info passed sanitization")
+
 			s.OnNewConsensusInfo(s.ctx, consensusInfo)
 		}
 	}()
