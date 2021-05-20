@@ -62,13 +62,6 @@ var (
 		Value: DefaultWSPort,
 	}
 
-	// VanguardRPCEndpoint provides an WSS/IPC access endpoint to an Vanguard RPC.
-	VanguardRPCEndpoint = &cli.StringFlag{
-		Name:  "vanguard-rpc-endpoint",
-		Usage: "Vanguard node RPC provider endpoint",
-		Value: DefaultVanguardRPCEndpoint,
-	}
-
 	VanguardGRPCEndpoint = &cli.StringFlag{
 		Name:  "vanguard-grpc-endpoint",
 		Usage: "Vanguard node gRPC provider endpoint",

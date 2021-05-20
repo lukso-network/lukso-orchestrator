@@ -15,7 +15,7 @@ func (s *Service) OnNewConsensusInfo(ctx context.Context, consensusInfo *types.M
 	nsent := s.consensusInfoFeed.Send(consensusInfo)
 	log.WithField("nsent", nsent).Trace("Send consensus info to subscribers")
 
-	if err := s.consensusInfoDB.SaveConsensusInfo(ctx, consensusInfo); err != nil {
+	if err := s.orchestratorDB.SaveConsensusInfo(ctx, consensusInfo); err != nil {
 		log.WithError(err).Warn("failed to save consensus info into consensusInfoDB!")
 		return
 	}
@@ -44,7 +44,7 @@ func (s *Service) OnNewPendingVanguardBlock(ctx context.Context, block *eth.Beac
 	nSent := s.vanguardPendingBlockHashFeed.Send(headerHash)
 	log.WithField("nsent", nSent).Trace("Pending Block Hash feed info to subscribers")
 
-	err = s.vanguardHeaderHashDB.SaveVanguardHeaderHash(uint64(block.Slot), headerHash)
+	err = s.orchestratorDB.SaveVanguardHeaderHash(uint64(block.Slot), headerHash)
 
 	if nil != err {
 		log.WithError(err).Warn("failed to save vanguard block hash")

@@ -2,7 +2,6 @@ package vanguardchain
 
 import (
 	"context"
-	"errors"
 	"github.com/ethereum/go-ethereum/rpc"
 	testDB "github.com/lukso-network/lukso-orchestrator/orchestrator/db/testing"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
@@ -24,21 +23,41 @@ type mocks struct {
 }
 
 type vanClientMock struct {
-	beaconChainClient eth.BeaconChain_StreamNewPendingBlocksClient
+	pendingBlocksClient eth.BeaconChain_StreamNewPendingBlocksClient
+	consensusInfoClient eth.BeaconChain_StreamMinimalConsensusInfoClient
 }
 
 var (
-	mockedStreamPendingBlocks eth.BeaconChain_StreamNewPendingBlocksClient = streamNewPendingBlocksClient{}
-	mockedVanClientStruct                                                  = &vanClientMock{
+	ConsensusInfoMocks        []*eth.MinimalConsensusInfo
+	PendingBlockMocks         []*eth.BeaconBlock
+	mockedStreamPendingBlocks eth.BeaconChain_StreamNewPendingBlocksClient = streamNewPendingBlocksClient{
+		pendingBlocks: PendingBlockMocks,
+	}
+	mockedStreamConsensusInfoClient eth.BeaconChain_StreamMinimalConsensusInfoClient = streamConsensusInfoClient{
+		consensusInfos: ConsensusInfoMocks,
+	}
+	mockedVanClientStruct = &vanClientMock{
 		mockedStreamPendingBlocks,
+		mockedStreamConsensusInfoClient,
 	}
 	mockedClient client.VanguardClient = mockedVanClientStruct
 )
 
-type streamNewPendingBlocksClient struct{}
+type streamNewPendingBlocksClient struct {
+	pendingBlocks []*eth.BeaconBlock
+}
 
 func (s streamNewPendingBlocksClient) Recv() (*eth.BeaconBlock, error) {
-	return &eth.BeaconBlock{}, nil
+	if len(PendingBlockMocks) > 0 {
+		toReturn := PendingBlockMocks[0]
+		PendingBlockMocks = append([]*eth.BeaconBlock(nil), PendingBlockMocks[1:]...)
+
+		return toReturn, nil
+	}
+
+	//     Should not receive anything until mocks are present
+	time.Sleep(time.Millisecond * 200)
+	return s.Recv()
 }
 
 func (s streamNewPendingBlocksClient) Header() (metadata.MD, error) {
@@ -69,15 +88,56 @@ func (v vanClientMock) CanonicalHeadSlot() (types.Slot, error) {
 	panic("implement me")
 }
 
-func (v vanClientMock) NextEpochProposerList() (*eth.ValidatorAssignments, error) {
-	panic("implement me")
+func (v vanClientMock) StreamMinimalConsensusInfo(epoch uint64) (stream eth.BeaconChain_StreamMinimalConsensusInfoClient, err error) {
+	return v.consensusInfoClient, nil
 }
 
 func (v vanClientMock) StreamNewPendingBlocks() (eth.BeaconChain_StreamNewPendingBlocksClient, error) {
-	return v.beaconChainClient, nil
+	return v.pendingBlocksClient, nil
 }
 
 func (v vanClientMock) Close() {
+	panic("implement me")
+}
+
+type streamConsensusInfoClient struct {
+	consensusInfos []*eth.MinimalConsensusInfo
+}
+
+func (s streamConsensusInfoClient) Recv() (*eth.MinimalConsensusInfo, error) {
+	if len(ConsensusInfoMocks) > 0 {
+		toReturn := ConsensusInfoMocks[0]
+		ConsensusInfoMocks = append([]*eth.MinimalConsensusInfo(nil), ConsensusInfoMocks[1:]...)
+
+		return toReturn, nil
+	}
+
+	//     Should not receive anything until mocks are present
+	time.Sleep(time.Millisecond * 200)
+	return s.Recv()
+}
+
+func (s streamConsensusInfoClient) Header() (metadata.MD, error) {
+	panic("implement me")
+}
+
+func (s streamConsensusInfoClient) Trailer() metadata.MD {
+	panic("implement me")
+}
+
+func (s streamConsensusInfoClient) CloseSend() error {
+	panic("implement me")
+}
+
+func (s streamConsensusInfoClient) Context() context.Context {
+	panic("implement me")
+}
+
+func (s streamConsensusInfoClient) SendMsg(m interface{}) error {
+	panic("implement me")
+}
+
+func (s streamConsensusInfoClient) RecvMsg(m interface{}) error {
 	panic("implement me")
 }
 
@@ -118,7 +178,6 @@ func SetupInProcServer(t *testing.T) (*rpc.Server, *events.MockBackend) {
 func SetupVanguardSvc(
 	ctx context.Context,
 	t *testing.T,
-	dialRPCFn DialRPCFn,
 	dialGRPCFn DIALGRPCFn,
 ) (*Service, *mocks) {
 	level, err := logrus.ParseLevel("debug")
@@ -129,12 +188,8 @@ func SetupVanguardSvc(
 
 	vanguardClientService, err := NewService(
 		ctx,
-		"ws://127.0.0.1:8546",
 		"127.0.0.1:4000",
-		"van",
 		db,
-		db,
-		dialRPCFn,
 		dialGRPCFn,
 	)
 	if err != nil {
@@ -142,26 +197,4 @@ func SetupVanguardSvc(
 	}
 
 	return vanguardClientService, nil
-}
-
-// DialInProcClient creates in process client for vanguard mocked server
-func DialInProcClient(server *rpc.Server) DialRPCFn {
-	return func(endpoint string) (*rpc.Client, error) {
-		client := rpc.DialInProc(server)
-		if client == nil {
-			return nil, errors.New("failed to create in-process client")
-		}
-		return client, nil
-	}
-}
-
-// DialRPCClient creates in process client for vanguard rpc server
-func DialRPCClient() DialRPCFn {
-	return func(endpoint string) (*rpc.Client, error) {
-		client, err := rpc.Dial(endpoint)
-		if err != nil {
-			return nil, err
-		}
-		return client, nil
-	}
 }
