@@ -118,6 +118,7 @@ func Test_VanguardSvc_RetryToConnServer(t *testing.T) {
 
 	time.Sleep(10 * reConPeriod)
 	assert.LogsContain(t, hook, "Could not connect to vanguard endpoint")
+	time.Sleep(time.Second)
 	shouldPass = true
 
 	time.Sleep(reConPeriod)
