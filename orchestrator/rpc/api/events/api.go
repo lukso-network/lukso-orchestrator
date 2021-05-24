@@ -91,6 +91,11 @@ func (api *PublicFilterAPI) ConfirmPanBlockHashes(
 		})
 	}
 
+	log.WithField("method", "ConfirmPanBlockHashes").
+		WithField("request", request).
+		WithField("response", response).
+		Info("Sending back ConfirmPanBlockHashes response")
+
 	return
 }
 
@@ -126,6 +131,11 @@ func (api *PublicFilterAPI) ConfirmVanBlockHashes(
 			Status: status,
 		})
 	}
+
+	log.WithField("method", "ConfirmVanBlockHashes").
+		WithField("request", request).
+		WithField("response", response).
+		Info("Sending back ConfirmVanBlockHashes response")
 
 	return
 }
