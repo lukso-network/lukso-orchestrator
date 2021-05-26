@@ -72,7 +72,57 @@ func (backend *Backend) FetchPanBlockStatus(slot uint64, hash common.Hash) (stat
 }
 
 func (backend *Backend) FetchVanBlockStatus(slot uint64, hash common.Hash) (status events.Status, err error) {
-	panic("implement me")
+	vanHashDB := backend.VanguardHeaderHashDB
+
+	if nil == vanHashDB {
+		err = fmt.Errorf("vanguard database is empty")
+		status = events.Invalid
+
+		return
+	}
+
+	latestSlot := vanHashDB.LatestSavedVanguardSlot()
+
+	if slot > latestSlot {
+		status = events.Pending
+
+		return
+	}
+
+	emptyHash := common.Hash{}
+
+	if emptyHash.String() == hash.String() {
+		err = fmt.Errorf("hash cannot be empty")
+		status = events.Invalid
+
+		return
+	}
+
+	headerHash, err := vanHashDB.VanguardHeaderHash(slot)
+
+	if nil != err {
+		status = events.Invalid
+
+		return
+	}
+
+	vanguardHash := headerHash.HeaderHash
+
+	if vanguardHash.String() != hash.String() {
+		err = fmt.Errorf(
+			"hashes does not match for slot: %d, provided: %s, proper: %s",
+			slot,
+			hash.String(),
+			vanguardHash.String(),
+		)
+		status = events.Invalid
+
+		return
+	}
+
+	status = events.FromDBStatus(headerHash.Status)
+
+	return
 }
 
 func (backend *Backend) InvalidatePendingQueue() {
