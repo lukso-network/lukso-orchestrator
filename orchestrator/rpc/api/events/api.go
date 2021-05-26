@@ -16,12 +16,12 @@ type Backend interface {
 	SubscribeNewEpochEvent(chan<- *eventTypes.MinimalEpochConsensusInfo) event.Subscription
 }
 
-type Status int
+type Status string
 
 const (
-	Pending Status = iota
-	Verified
-	Invalid
+	Pending  Status = "Pending"
+	Verified Status = "Verified"
+	Invalid  Status = "Invalid"
 )
 
 const (
