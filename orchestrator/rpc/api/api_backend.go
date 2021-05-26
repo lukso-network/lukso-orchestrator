@@ -66,7 +66,9 @@ func (backend *Backend) FetchPanBlockStatus(slot uint64, hash common.Hash) (stat
 		return
 	}
 
-	panic("implement me")
+	status = events.FromDBStatus(headerHash.Status)
+
+	return
 }
 
 func (backend *Backend) FetchVanBlockStatus(slot uint64, hash common.Hash) (status events.Status, err error) {

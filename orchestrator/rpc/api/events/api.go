@@ -6,14 +6,14 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
-	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
+	generalTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
 	"time"
 )
 
 type Backend interface {
 	CurrentEpoch() uint64
-	ConsensusInfoByEpochRange(fromEpoch uint64) []*eventTypes.MinimalEpochConsensusInfo
-	SubscribeNewEpochEvent(chan<- *eventTypes.MinimalEpochConsensusInfo) event.Subscription
+	ConsensusInfoByEpochRange(fromEpoch uint64) []*generalTypes.MinimalEpochConsensusInfo
+	SubscribeNewEpochEvent(chan<- *generalTypes.MinimalEpochConsensusInfo) event.Subscription
 	FetchPanBlockStatus(slot uint64, hash common.Hash) (status Status, err error)
 	FetchVanBlockStatus(slot uint64, hash common.Hash) (status Status, err error)
 	InvalidatePendingQueue()
@@ -54,6 +54,23 @@ type RealmPair struct {
 	Slot          uint64
 	VanguardHash  *BlockHash
 	PandoraHashes []*BlockHash
+}
+
+// TODO: consider it to merge into only string-based statuses
+func FromDBStatus(status generalTypes.Status) (eventStatus Status) {
+	if generalTypes.Pending == status {
+		eventStatus = Pending
+	}
+
+	if generalTypes.Verified == status {
+		eventStatus = Verified
+	}
+
+	if generalTypes.Invalid == status {
+		eventStatus = Invalid
+	}
+
+	return
 }
 
 // NewPublicFilterAPI returns a new PublicFilterAPI instance.
@@ -164,7 +181,7 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, epoch uint
 	timeMismatch := time.Second * 6
 
 	go func() {
-		consensusInfo := make(chan *eventTypes.MinimalEpochConsensusInfo)
+		consensusInfo := make(chan *generalTypes.MinimalEpochConsensusInfo)
 		consensusInfoSub := api.events.SubscribeConsensusInfo(consensusInfo, epoch)
 		log.WithField("fromEpoch", epoch).
 			WithField("alreadyKnown", alreadyKnownEpochs).
