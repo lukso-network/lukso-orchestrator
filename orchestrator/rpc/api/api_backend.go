@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
@@ -17,6 +18,32 @@ type Backend struct {
 }
 
 func (backend *Backend) FetchPanBlockStatus(slot uint64, hash common.Hash) (status events.Status, err error) {
+	pandoraHeaderHashDB := backend.PandoraHeaderHashDB
+
+	if nil == pandoraHeaderHashDB {
+		err = fmt.Errorf("pandora database is empty")
+		status = events.Invalid
+
+		return
+	}
+
+	latestSlot := pandoraHeaderHashDB.LatestSavedPandoraSlot()
+
+	if slot > latestSlot {
+		status = events.Pending
+
+		return
+	}
+
+	emptyHash := common.Hash{}
+
+	if emptyHash.String() == hash.String() {
+		err = fmt.Errorf("hash cannot be empty")
+		status = events.Invalid
+
+		return
+	}
+
 	panic("implement me")
 }
 
