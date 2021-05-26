@@ -2,6 +2,8 @@ package events
 
 import (
 	"context"
+	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
@@ -14,12 +16,35 @@ type Backend interface {
 	SubscribeNewEpochEvent(chan<- *eventTypes.MinimalEpochConsensusInfo) event.Subscription
 }
 
+type Status int
+
+const (
+	Pending Status = iota
+	Verified
+	Invalid
+)
+
+const (
+	MockedHashInvalid = "0xc9a190eb52c18df5ffcb1d817214ecb08f025f8583805cd12064d30e3f9bd9d5"
+	MockedHashPending = "0xa99c69a301564970956edd897ff0590f4c0f1031daa464ded655af65ad0906df"
+)
+
 // PublicFilterAPI offers support to create and manage filters. This will allow external clients to retrieve various
 // information related to the Ethereum protocol such als blocks, transactions and logs.
 type PublicFilterAPI struct {
 	backend Backend
 	events  *EventSystem
 	timeout time.Duration
+}
+
+type BlockHash struct {
+	Slot uint64
+	Hash common.Hash
+}
+
+type BlockStatus struct {
+	BlockHash
+	Status Status
 }
 
 // NewPublicFilterAPI returns a new PublicFilterAPI instance.
@@ -31,6 +56,88 @@ func NewPublicFilterAPI(backend Backend, timeout time.Duration) *PublicFilterAPI
 	}
 
 	return api
+}
+
+// ConfirmPanBlockHashes
+func (api *PublicFilterAPI) ConfirmPanBlockHashes(
+	ctx context.Context,
+	request []*BlockHash,
+) (response []*BlockStatus, err error) {
+	if len(request) < 1 {
+		err = fmt.Errorf("request has empty slice")
+
+		return
+	}
+
+	response = make([]*BlockStatus, 0)
+
+	for _, blockRequest := range request {
+		status := Verified
+
+		if MockedHashInvalid == blockRequest.Hash.String() {
+			status = Invalid
+		}
+
+		if MockedHashPending == blockRequest.Hash.String() {
+			status = Pending
+		}
+
+		response = append(response, &BlockStatus{
+			BlockHash: BlockHash{
+				Slot: blockRequest.Slot,
+				Hash: blockRequest.Hash,
+			},
+			Status: status,
+		})
+	}
+
+	log.WithField("method", "ConfirmPanBlockHashes").
+		WithField("request", request).
+		WithField("response", response).
+		Info("Sending back ConfirmPanBlockHashes response")
+
+	return
+}
+
+// ConfirmVanBlockHashes
+func (api *PublicFilterAPI) ConfirmVanBlockHashes(
+	ctx context.Context,
+	request []*BlockHash,
+) (response []*BlockStatus, err error) {
+	if len(request) < 1 {
+		err = fmt.Errorf("request has empty slice")
+
+		return
+	}
+
+	response = make([]*BlockStatus, 0)
+
+	for _, blockRequest := range request {
+		status := Verified
+
+		if MockedHashInvalid == blockRequest.Hash.String() {
+			status = Invalid
+		}
+
+		if MockedHashPending == blockRequest.Hash.String() {
+			status = Pending
+		}
+
+		response = append(response, &BlockStatus{
+			BlockHash: BlockHash{
+				Slot: blockRequest.Slot,
+				Hash: blockRequest.Hash,
+			},
+			Status: status,
+		})
+	}
+
+	log.WithField("method", "ConfirmVanBlockHashes").
+		WithField("request", request).
+		WithField("response", response).
+		Info("Sending back ConfirmVanBlockHashes response")
+
+	return
 }
 
 // MinimalConsensusInfo
