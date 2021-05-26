@@ -6,6 +6,7 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	"github.com/stretchr/testify/require"
+	"math/rand"
 	"testing"
 )
 
@@ -27,6 +28,9 @@ func TestBackend_FetchPanBlockStatus(t *testing.T) {
 			HeaderHash: common.Hash{},
 			Status:     types.Pending,
 		}))
+
+		require.NoError(t, orchestratorDB.SaveLatestPandoraSlot())
+		require.NoError(t, orchestratorDB.SaveLatestPandoraHeaderHash())
 
 		status, err := backend.FetchPanBlockStatus(2, common.Hash{})
 		require.NoError(t, err)
@@ -53,8 +57,31 @@ func TestBackend_FetchPanBlockStatus(t *testing.T) {
 		require.Equal(t, events.Invalid, status)
 	})
 
-	t.Run("should return invalid when slot does not match", func(t *testing.T) {
+	t.Run("should return invalid when hash does not match", func(t *testing.T) {
+		orchestratorDB := testDB.SetupDB(t)
+		backend := Backend{
+			PandoraHeaderHashDB: orchestratorDB,
+		}
 
+		token := make([]byte, 4)
+		rand.Read(token)
+		properHash := common.BytesToHash(token)
+
+		invalidToken := make([]byte, 8)
+		rand.Read(invalidToken)
+		invalidHash := common.BytesToHash(invalidToken)
+
+		require.NoError(t, orchestratorDB.SavePandoraHeaderHash(1, &types.HeaderHash{
+			HeaderHash: properHash,
+			Status:     types.Pending,
+		}))
+
+		require.NoError(t, orchestratorDB.SaveLatestPandoraSlot())
+		require.NoError(t, orchestratorDB.SaveLatestPandoraHeaderHash())
+
+		status, err := backend.FetchPanBlockStatus(1, invalidHash)
+		require.Error(t, err)
+		require.Equal(t, events.Invalid, status)
 	})
 
 	t.Run("should return valid when present in database", func(t *testing.T) {

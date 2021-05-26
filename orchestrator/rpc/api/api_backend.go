@@ -44,6 +44,28 @@ func (backend *Backend) FetchPanBlockStatus(slot uint64, hash common.Hash) (stat
 		return
 	}
 
+	headerHash, err := pandoraHeaderHashDB.PandoraHeaderHash(slot)
+
+	if nil != err {
+		status = events.Invalid
+
+		return
+	}
+
+	pandoraHash := headerHash.HeaderHash
+
+	if pandoraHash.String() != hash.String() {
+		err = fmt.Errorf(
+			"hashes does not match for slot: %d, provided: %s, proper: %s",
+			slot,
+			hash.String(),
+			pandoraHash.String(),
+		)
+		status = events.Invalid
+
+		return
+	}
+
 	panic("implement me")
 }
 
