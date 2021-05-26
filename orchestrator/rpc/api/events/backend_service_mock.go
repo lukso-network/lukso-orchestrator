@@ -1,6 +1,7 @@
 package events
 
 import (
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
 	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
 	"time"
@@ -16,13 +17,27 @@ type MockBackend struct {
 	CurEpoch          uint64
 }
 
-func (backend *MockBackend) CurrentEpoch() uint64 {
-	return backend.CurEpoch
+var _ Backend = &MockBackend{}
+
+func (b *MockBackend) FetchPanBlockStatus(slot uint64, hash common.Hash) (status Status, err error) {
+	panic("implement me")
 }
 
-func (backend *MockBackend) ConsensusInfoByEpochRange(fromEpoch uint64) []*eventTypes.MinimalEpochConsensusInfo {
+func (b *MockBackend) FetchVanBlockStatus(slot uint64, hash common.Hash) (status Status, err error) {
+	panic("implement me")
+}
+
+func (b *MockBackend) InvalidatePendingQueue() {
+	panic("implement me")
+}
+
+func (b *MockBackend) CurrentEpoch() uint64 {
+	return b.CurEpoch
+}
+
+func (b *MockBackend) ConsensusInfoByEpochRange(fromEpoch uint64) []*eventTypes.MinimalEpochConsensusInfo {
 	consensusInfos := make([]*eventTypes.MinimalEpochConsensusInfo, 0)
-	for _, consensusInfo := range backend.ConsensusInfos {
+	for _, consensusInfo := range b.ConsensusInfos {
 		consensusInfos = append(consensusInfos, consensusInfo)
 	}
 	return consensusInfos

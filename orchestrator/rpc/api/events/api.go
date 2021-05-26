@@ -14,6 +14,9 @@ type Backend interface {
 	CurrentEpoch() uint64
 	ConsensusInfoByEpochRange(fromEpoch uint64) []*eventTypes.MinimalEpochConsensusInfo
 	SubscribeNewEpochEvent(chan<- *eventTypes.MinimalEpochConsensusInfo) event.Subscription
+	FetchPanBlockStatus(slot uint64, hash common.Hash) (status Status, err error)
+	FetchVanBlockStatus(slot uint64, hash common.Hash) (status Status, err error)
+	InvalidatePendingQueue()
 }
 
 type Status string
@@ -45,6 +48,12 @@ type BlockHash struct {
 type BlockStatus struct {
 	BlockHash
 	Status Status
+}
+
+type RealmPair struct {
+	Slot          uint64
+	VanguardHash  *BlockHash
+	PandoraHashes []*BlockHash
 }
 
 // NewPublicFilterAPI returns a new PublicFilterAPI instance.

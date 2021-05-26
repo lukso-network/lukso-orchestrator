@@ -43,7 +43,7 @@ type Service struct {
 	runError       error
 	stop           chan struct{} // Channel to wait for termination notifications
 
-	backend       *api.APIBackend
+	backend       *api.Backend
 	config        *Config
 	rpcAPIs       []rpc.API   // List of APIs currently provided by the node
 	http          *httpServer //
@@ -63,7 +63,7 @@ func NewService(ctx context.Context, cfg *Config) (*Service, error) {
 		cancel:        cancel,
 		config:        cfg,
 		inprocHandler: rpc.NewServer(),
-		backend: &api.APIBackend{
+		backend: &api.Backend{
 			ConsensusInfoFeed: cfg.ConsensusInfoFeed,
 			ConsensusInfoDB:   cfg.ConsensusInfoDB,
 		},
