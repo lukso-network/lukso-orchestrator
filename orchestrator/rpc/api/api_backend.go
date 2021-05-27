@@ -128,21 +128,45 @@ func (backend *Backend) FetchVanBlockStatus(slot uint64, hash common.Hash) (stat
 	return
 }
 
+// TODO: add err in return
+// Idea is that it should be at least resource intensive as possible, because it could be triggered a lot
+// Short circuits will prevent looping when logic says to not do so
 func (backend *Backend) InvalidatePendingQueue() {
-	vanHashDB := backend.VanguardHeaderHashDB
+	vanguardHashDB := backend.VanguardHeaderHashDB
 	pandoraHeaderHashDB := backend.PandoraHeaderHashDB
 	realmDB := backend.RealmDB
 
 	// Short circuit, do not invalidate when databases are not present.
 	// TODO: consider returning err when not ready
-	if nil == vanHashDB || nil == pandoraHeaderHashDB || nil == realmDB {
+	if nil == vanguardHashDB || nil == pandoraHeaderHashDB || nil == realmDB {
 		return
 	}
 
 	backend.Lock()
 	defer backend.Unlock()
 
-	//latestSavedVerifiedRealmSlot := realmDB.LatestVerifiedRealmSlot()
+	latestSavedVerifiedRealmSlot := realmDB.LatestVerifiedRealmSlot()
+	pandoraBlockHashes, err := pandoraHeaderHashDB.PandoraHeaderHashes(latestSavedVerifiedRealmSlot)
+
+	if nil != err {
+		return
+	}
+
+	vanguardBlockHashes, err := vanguardHashDB.VanguardHeaderHashes(latestSavedVerifiedRealmSlot)
+
+	if nil != err {
+		return
+	}
+
+	pandoraRange := len(pandoraBlockHashes)
+	vanguardRange := len(vanguardBlockHashes)
+
+	// You wont match anything, so short circuit
+	if pandoraRange < 1 || vanguardRange < 1 {
+		return
+	}
+
+	// TODO: sort it out!
 
 	//latestPandoraHashes := pandoraHeaderHashDB.GetLatestHeaderHash()
 

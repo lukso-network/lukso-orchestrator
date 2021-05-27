@@ -189,7 +189,7 @@ func (o *OrchestratorNode) registerRPCService(cliCtx *cli.Context) error {
 
 	svc, err := rpc.NewService(o.ctx, &rpc.Config{
 		ConsensusInfoFeed: consensusInfoFeed,
-		ConsensusInfoDB:   o.db,
+		Db:                o.db,
 		IPCPath:           ipcapiURL,
 		HTTPEnable:        httpEnable,
 		HTTPHost:          httpListenAddr,

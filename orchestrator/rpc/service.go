@@ -14,7 +14,7 @@ import (
 // Config
 type Config struct {
 	ConsensusInfoFeed iface.ConsensusInfoFeed
-	ConsensusInfoDB   db.ROnlyConsensusInfoDB
+	Db                db.Database
 	// ipc config
 	IPCPath string
 	// http config
@@ -64,8 +64,11 @@ func NewService(ctx context.Context, cfg *Config) (*Service, error) {
 		config:        cfg,
 		inprocHandler: rpc.NewServer(),
 		backend: &api.Backend{
-			ConsensusInfoFeed: cfg.ConsensusInfoFeed,
-			ConsensusInfoDB:   cfg.ConsensusInfoDB,
+			ConsensusInfoFeed:    cfg.ConsensusInfoFeed,
+			ConsensusInfoDB:      cfg.Db,
+			VanguardHeaderHashDB: cfg.Db,
+			PandoraHeaderHashDB:  cfg.Db,
+			RealmDB:              cfg.Db,
 		},
 	}
 	// Configure RPC servers.
