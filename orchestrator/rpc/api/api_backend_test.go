@@ -242,6 +242,7 @@ func TestBackend_InvalidatePendingQueue(t *testing.T) {
 		backend := Backend{
 			PandoraHeaderHashDB:  orchestratorDB,
 			VanguardHeaderHashDB: orchestratorDB,
+			RealmDB:              orchestratorDB,
 		}
 
 		pandoraToken := make([]byte, 4)
@@ -254,7 +255,7 @@ func TestBackend_InvalidatePendingQueue(t *testing.T) {
 
 		require.NoError(t, orchestratorDB.SavePandoraHeaderHash(1, &types.HeaderHash{
 			HeaderHash: pandoraHash,
-			Status:     types.Pending,
+			Status:     types.Verified,
 		}))
 
 		require.NoError(t, orchestratorDB.SaveLatestPandoraSlot())
@@ -262,19 +263,26 @@ func TestBackend_InvalidatePendingQueue(t *testing.T) {
 
 		require.NoError(t, orchestratorDB.SaveVanguardHeaderHash(1, &types.HeaderHash{
 			HeaderHash: vanguardHash,
+			Status:     types.Verified,
+		}))
+
+		require.NoError(t, orchestratorDB.SavePandoraHeaderHash(2, &types.HeaderHash{
+			HeaderHash: pandoraHash,
 			Status:     types.Pending,
 		}))
 
-		require.NoError(t, orchestratorDB.SaveLatestVanguardSlot())
-		require.NoError(t, orchestratorDB.SaveLatestVanguardHeaderHash())
+		require.NoError(t, orchestratorDB.SaveVanguardHeaderHash(2, &types.HeaderHash{
+			HeaderHash: vanguardHash,
+			Status:     types.Pending,
+		}))
 
 		backend.InvalidatePendingQueue()
 
-		status, err := backend.FetchVanBlockStatus(1, pandoraHash)
+		status, err := backend.FetchVanBlockStatus(2, pandoraHash)
 		require.NoError(t, err)
 		require.Equal(t, events.Verified, status)
 
-		status, err = backend.FetchPanBlockStatus(1, vanguardHash)
+		status, err = backend.FetchPanBlockStatus(2, vanguardHash)
 		require.NoError(t, err)
 		require.Equal(t, events.Verified, status)
 	})

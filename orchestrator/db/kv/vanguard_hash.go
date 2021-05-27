@@ -90,6 +90,7 @@ func (s *Store) VanguardHeaderHashes(fromSlot uint64) (vanguardHeaderHashes []*t
 		for slot := fromSlot; slot <= s.latestVanSlot; slot++ {
 			// fast finding into cache, if the value does not exist in cache, it starts finding into db
 			headerHash, err := s.VanguardHeaderHash(slot)
+			// TODO: This cannot be that way, slots can be skipped so they won't be present in database.
 			if err != nil {
 				return errors.Wrap(VanguardHeaderNotFoundErr, fmt.Sprintf("Could not found pandora header for slot: %d", slot))
 			}

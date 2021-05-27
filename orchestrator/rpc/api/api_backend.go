@@ -142,11 +142,11 @@ func (backend *Backend) InvalidatePendingQueue() {
 		return
 	}
 
-	backend.Lock()
-	defer backend.Unlock()
+	//backend.Lock()
+	//defer backend.Unlock()
 
 	latestSavedVerifiedRealmSlot := realmDB.LatestVerifiedRealmSlot()
-	pandoraBlockHashes, err := pandoraHeaderHashDB.PandoraHeaderHashes(latestSavedVerifiedRealmSlot)
+	pandoraHeaderHashes, err := pandoraHeaderHashDB.PandoraHeaderHashes(latestSavedVerifiedRealmSlot)
 
 	if nil != err {
 		return
@@ -158,7 +158,7 @@ func (backend *Backend) InvalidatePendingQueue() {
 		return
 	}
 
-	pandoraRange := len(pandoraBlockHashes)
+	pandoraRange := len(pandoraHeaderHashes)
 	vanguardRange := len(vanguardBlockHashes)
 
 	// You wont match anything, so short circuit
@@ -166,7 +166,69 @@ func (backend *Backend) InvalidatePendingQueue() {
 		return
 	}
 
-	// TODO: sort it out!
+	// TODO: consider having slot also present in header hash structure
+	var (
+		vanguardErr error
+		pandoraErr  error
+		realmErr    error
+	)
+
+	// This is quite naive, but should work
+	slotToCheck := latestSavedVerifiedRealmSlot
+	for index, vanguardBlockHash := range vanguardBlockHashes {
+		slotToCheck++
+		vanguardHash := vanguardBlockHash.HeaderHash
+
+		if len(pandoraHeaderHashes) < index {
+			break
+		}
+
+		pandoraHeaderHash := pandoraHeaderHashes[index]
+		pandoraHash := pandoraHeaderHash.HeaderHash
+
+		if vanguardHash != pandoraHash {
+			vanguardErr = vanguardHashDB.SaveVanguardHeaderHash(slotToCheck, &types.HeaderHash{
+				HeaderHash: vanguardHash,
+				Status:     types.Invalid,
+			})
+
+			pandoraErr = pandoraHeaderHashDB.SavePandoraHeaderHash(slotToCheck, &types.HeaderHash{
+				HeaderHash: pandoraHeaderHash.HeaderHash,
+				Status:     types.Invalid,
+			})
+
+			break
+		}
+
+		if types.Verified != vanguardBlockHash.Status {
+			vanguardErr = vanguardHashDB.SaveVanguardHeaderHash(slotToCheck, &types.HeaderHash{
+				HeaderHash: vanguardHash,
+				Status:     types.Verified,
+			})
+		}
+
+		if types.Verified != pandoraHeaderHash.Status {
+			pandoraErr = pandoraHeaderHashDB.SavePandoraHeaderHash(slotToCheck, &types.HeaderHash{
+				HeaderHash: pandoraHash,
+				Status:     types.Verified,
+			})
+		}
+
+		if nil != vanguardErr || nil != pandoraErr {
+			break
+		}
+
+		realmErr = realmDB.SaveLatestVerifiedRealmSlot(slotToCheck)
+
+		if nil != realmErr {
+			break
+		}
+	}
+
+	// LOG this out
+	if nil != vanguardErr || nil != pandoraErr || nil != realmErr {
+		return
+	}
 
 	//latestPandoraHashes := pandoraHeaderHashDB.GetLatestHeaderHash()
 
