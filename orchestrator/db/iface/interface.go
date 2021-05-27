@@ -58,6 +58,16 @@ type VanHeaderAccessDatabase interface {
 	SaveLatestVanguardHeaderHash() error
 }
 
+type RealmReadOnlyAccessDatabase interface {
+	LatestVerifiedRealmSlot() (slot uint64)
+}
+
+type RealmAccessDatabase interface {
+	RealmReadOnlyAccessDatabase
+
+	SaveLatestVerifiedRealmSlot(slot uint64) (err error)
+}
+
 // Database interface with full access.
 type Database interface {
 	io.Closer
@@ -67,6 +77,8 @@ type Database interface {
 	PanHeaderAccessDatabase
 
 	VanHeaderAccessDatabase
+
+	RealmAccessDatabase
 
 	DatabasePath() string
 	ClearDB() error

@@ -8,6 +8,7 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/iface"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
+	"sync"
 )
 
 type Backend struct {
@@ -15,6 +16,8 @@ type Backend struct {
 	ConsensusInfoDB      db.ROnlyConsensusInfoDB
 	VanguardHeaderHashDB db.VanguardHeaderHashDB
 	PandoraHeaderHashDB  db.PandoraHeaderHashDB
+	RealmDB              db.RealmDB
+	sync.Locker
 }
 
 func (backend *Backend) FetchPanBlockStatus(slot uint64, hash common.Hash) (status events.Status, err error) {
@@ -126,6 +129,23 @@ func (backend *Backend) FetchVanBlockStatus(slot uint64, hash common.Hash) (stat
 }
 
 func (backend *Backend) InvalidatePendingQueue() {
+	vanHashDB := backend.VanguardHeaderHashDB
+	pandoraHeaderHashDB := backend.PandoraHeaderHashDB
+	realmDB := backend.RealmDB
+
+	// Short circuit, do not invalidate when databases are not present.
+	// TODO: consider returning err when not ready
+	if nil == vanHashDB || nil == pandoraHeaderHashDB || nil == realmDB {
+		return
+	}
+
+	backend.Lock()
+	defer backend.Unlock()
+
+	//latestSavedVerifiedRealmSlot := realmDB.LatestVerifiedRealmSlot()
+
+	//latestPandoraHashes := pandoraHeaderHashDB.GetLatestHeaderHash()
+
 	panic("implement me")
 }
 

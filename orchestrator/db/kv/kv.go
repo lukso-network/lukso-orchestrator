@@ -120,6 +120,7 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 			consensusInfosBucket,
 			pandoraHeaderHashesBucket,
 			vanguardHeaderHashesBucket,
+			realmBucket,
 		)
 	}); err != nil {
 		return nil, err

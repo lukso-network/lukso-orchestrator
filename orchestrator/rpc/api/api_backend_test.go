@@ -235,3 +235,47 @@ func TestBackend_FetchVanBlockStatus(t *testing.T) {
 		require.Equal(t, events.Pending, status)
 	})
 }
+
+func TestBackend_InvalidatePendingQueue(t *testing.T) {
+	t.Run("should invalidate matched blocks on slot 1", func(t *testing.T) {
+		orchestratorDB := testDB.SetupDB(t)
+		backend := Backend{
+			PandoraHeaderHashDB:  orchestratorDB,
+			VanguardHeaderHashDB: orchestratorDB,
+		}
+
+		pandoraToken := make([]byte, 4)
+		rand.Read(pandoraToken)
+		pandoraHash := common.BytesToHash(pandoraToken)
+
+		vanguardToken := make([]byte, 8)
+		rand.Read(vanguardToken)
+		vanguardHash := common.BytesToHash(vanguardToken)
+
+		require.NoError(t, orchestratorDB.SavePandoraHeaderHash(1, &types.HeaderHash{
+			HeaderHash: pandoraHash,
+			Status:     types.Pending,
+		}))
+
+		require.NoError(t, orchestratorDB.SaveLatestPandoraSlot())
+		require.NoError(t, orchestratorDB.SaveLatestPandoraHeaderHash())
+
+		require.NoError(t, orchestratorDB.SaveVanguardHeaderHash(1, &types.HeaderHash{
+			HeaderHash: vanguardHash,
+			Status:     types.Pending,
+		}))
+
+		require.NoError(t, orchestratorDB.SaveLatestVanguardSlot())
+		require.NoError(t, orchestratorDB.SaveLatestVanguardHeaderHash())
+
+		backend.InvalidatePendingQueue()
+
+		status, err := backend.FetchVanBlockStatus(1, pandoraHash)
+		require.NoError(t, err)
+		require.Equal(t, events.Verified, status)
+
+		status, err = backend.FetchPanBlockStatus(1, vanguardHash)
+		require.NoError(t, err)
+		require.Equal(t, events.Verified, status)
+	})
+}
