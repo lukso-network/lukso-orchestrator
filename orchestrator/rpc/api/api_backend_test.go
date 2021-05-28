@@ -278,11 +278,11 @@ func TestBackend_InvalidatePendingQueue(t *testing.T) {
 
 		backend.InvalidatePendingQueue()
 
-		status, err := backend.FetchVanBlockStatus(2, pandoraHash)
+		status, err := backend.FetchVanBlockStatus(2, vanguardHash)
 		require.NoError(t, err)
 		require.Equal(t, events.Verified, status)
 
-		status, err = backend.FetchPanBlockStatus(2, vanguardHash)
+		status, err = backend.FetchPanBlockStatus(2, pandoraHash)
 		require.NoError(t, err)
 		require.Equal(t, events.Verified, status)
 	})

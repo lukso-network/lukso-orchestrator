@@ -174,27 +174,35 @@ func (backend *Backend) InvalidatePendingQueue() {
 	)
 
 	// This is quite naive, but should work
-	slotToCheck := latestSavedVerifiedRealmSlot
 	for index, vanguardBlockHash := range vanguardBlockHashes {
-		slotToCheck++
-		vanguardHash := vanguardBlockHash.HeaderHash
+		slotToCheck := latestSavedVerifiedRealmSlot + uint64(index)
+		pandoraHeaderHash := pandoraHeaderHashes[index]
 
 		if len(pandoraHeaderHashes) < index {
 			break
 		}
 
-		pandoraHeaderHash := pandoraHeaderHashes[index]
-		pandoraHash := pandoraHeaderHash.HeaderHash
+		// Potentially skipped slot
+		if nil == pandoraHeaderHash && nil == vanguardBlockHash {
+			continue
+		}
 
-		if vanguardHash != pandoraHash {
+		// I dont know yet, if it is true.
+		// In my opinion INVALID state is 100% accurate only with blockShard verification approach
+		// TODO: add additional Sharding info check VanguardBlock -> PandoraHeaderHash when implementation on vanguard side will be ready
+		if nil == pandoraHeaderHash {
 			vanguardErr = vanguardHashDB.SaveVanguardHeaderHash(slotToCheck, &types.HeaderHash{
-				HeaderHash: vanguardHash,
-				Status:     types.Invalid,
+				HeaderHash: vanguardBlockHash.HeaderHash,
+				Status:     types.Pending,
 			})
 
+			break
+		}
+
+		if nil == vanguardBlockHash {
 			pandoraErr = pandoraHeaderHashDB.SavePandoraHeaderHash(slotToCheck, &types.HeaderHash{
 				HeaderHash: pandoraHeaderHash.HeaderHash,
-				Status:     types.Invalid,
+				Status:     types.Pending,
 			})
 
 			break
@@ -202,14 +210,14 @@ func (backend *Backend) InvalidatePendingQueue() {
 
 		if types.Verified != vanguardBlockHash.Status {
 			vanguardErr = vanguardHashDB.SaveVanguardHeaderHash(slotToCheck, &types.HeaderHash{
-				HeaderHash: vanguardHash,
+				HeaderHash: vanguardBlockHash.HeaderHash,
 				Status:     types.Verified,
 			})
 		}
 
 		if types.Verified != pandoraHeaderHash.Status {
 			pandoraErr = pandoraHeaderHashDB.SavePandoraHeaderHash(slotToCheck, &types.HeaderHash{
-				HeaderHash: pandoraHash,
+				HeaderHash: pandoraHeaderHash.HeaderHash,
 				Status:     types.Verified,
 			})
 		}
@@ -219,8 +227,17 @@ func (backend *Backend) InvalidatePendingQueue() {
 		}
 
 		realmErr = realmDB.SaveLatestVerifiedRealmSlot(slotToCheck)
+		pandoraErr = pandoraHeaderHashDB.SaveLatestPandoraSlot()
+		vanguardErr = vanguardHashDB.SaveLatestVanguardSlot()
 
-		if nil != realmErr {
+		if nil != realmErr || nil != pandoraErr || nil != vanguardErr {
+			break
+		}
+
+		vanguardErr = vanguardHashDB.SaveLatestVanguardHeaderHash()
+		pandoraErr = pandoraHeaderHashDB.SaveLatestPandoraHeaderHash()
+
+		if nil != vanguardErr || nil != pandoraErr {
 			break
 		}
 	}
@@ -230,9 +247,7 @@ func (backend *Backend) InvalidatePendingQueue() {
 		return
 	}
 
-	//latestPandoraHashes := pandoraHeaderHashDB.GetLatestHeaderHash()
-
-	panic("implement me")
+	return
 }
 
 func (backend *Backend) SubscribeNewEpochEvent(ch chan<- *types.MinimalEpochConsensusInfo) event.Subscription {
