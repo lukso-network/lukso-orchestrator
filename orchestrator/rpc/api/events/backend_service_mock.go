@@ -27,7 +27,7 @@ func (b *MockBackend) FetchVanBlockStatus(slot uint64, hash common.Hash) (status
 	panic("implement me")
 }
 
-func (b *MockBackend) InvalidatePendingQueue() {
+func (b *MockBackend) InvalidatePendingQueue() (vanErr error, panErr error, realmErr error) {
 	panic("implement me")
 }
 

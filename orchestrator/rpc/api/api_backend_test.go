@@ -276,7 +276,10 @@ func TestBackend_InvalidatePendingQueue(t *testing.T) {
 			Status:     types.Pending,
 		}))
 
-		backend.InvalidatePendingQueue()
+		vanguardErr, pandoraErr, realmErr := backend.InvalidatePendingQueue()
+		require.NoError(t, vanguardErr)
+		require.NoError(t, pandoraErr)
+		require.NoError(t, realmErr)
 
 		status, err := backend.FetchVanBlockStatus(2, vanguardHash)
 		require.NoError(t, err)

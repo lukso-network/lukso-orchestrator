@@ -20,6 +20,8 @@ type Backend struct {
 	sync.Locker
 }
 
+var _ events.Backend = &Backend{}
+
 func (backend *Backend) FetchPanBlockStatus(slot uint64, hash common.Hash) (status events.Status, err error) {
 	pandoraHeaderHashDB := backend.PandoraHeaderHashDB
 
@@ -131,7 +133,7 @@ func (backend *Backend) FetchVanBlockStatus(slot uint64, hash common.Hash) (stat
 // TODO: add err in return
 // Idea is that it should be at least resource intensive as possible, because it could be triggered a lot
 // Short circuits will prevent looping when logic says to not do so
-func (backend *Backend) InvalidatePendingQueue() {
+func (backend *Backend) InvalidatePendingQueue() (vanguardErr error, pandoraErr error, realmErr error) {
 	vanguardHashDB := backend.VanguardHeaderHashDB
 	pandoraHeaderHashDB := backend.PandoraHeaderHashDB
 	realmDB := backend.RealmDB
@@ -165,13 +167,6 @@ func (backend *Backend) InvalidatePendingQueue() {
 	if pandoraRange < 1 || vanguardRange < 1 {
 		return
 	}
-
-	// TODO: consider having slot also present in header hash structure
-	var (
-		vanguardErr error
-		pandoraErr  error
-		realmErr    error
-	)
 
 	// This is quite naive, but should work
 	for index, vanguardBlockHash := range vanguardBlockHashes {

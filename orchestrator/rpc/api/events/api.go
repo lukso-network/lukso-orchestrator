@@ -16,7 +16,7 @@ type Backend interface {
 	SubscribeNewEpochEvent(chan<- *generalTypes.MinimalEpochConsensusInfo) event.Subscription
 	FetchPanBlockStatus(slot uint64, hash common.Hash) (status Status, err error)
 	FetchVanBlockStatus(slot uint64, hash common.Hash) (status Status, err error)
-	InvalidatePendingQueue()
+	InvalidatePendingQueue() (vanguardErr error, pandoraErr error, realmErr error)
 }
 
 type Status string
