@@ -383,15 +383,15 @@ func TestBackend_InvalidatePendingQueue(t *testing.T) {
 				slot:                   2,
 				pandoraHash:            nil,
 				vanguardHash:           nil,
-				expectedPandoraStatus:  types.Pending,
-				expectedVanguardStatus: types.Pending,
+				expectedPandoraStatus:  types.Skipped,
+				expectedVanguardStatus: types.Skipped,
 			},
 			{
 				slot:                   3,
 				pandoraHash:            nil,
 				vanguardHash:           nil,
-				expectedPandoraStatus:  types.Pending,
-				expectedVanguardStatus: types.Pending,
+				expectedPandoraStatus:  types.Skipped,
+				expectedVanguardStatus: types.Skipped,
 			},
 			{
 				slot: 4,
@@ -400,8 +400,8 @@ func TestBackend_InvalidatePendingQueue(t *testing.T) {
 					Status:     types.Pending,
 				},
 				vanguardHash:           nil,
-				expectedPandoraStatus:  types.Pending,
-				expectedVanguardStatus: types.Pending,
+				expectedPandoraStatus:  types.Skipped,
+				expectedVanguardStatus: types.Skipped,
 			},
 			{
 				slot:        5,
@@ -410,8 +410,8 @@ func TestBackend_InvalidatePendingQueue(t *testing.T) {
 					HeaderHash: vanguardHash,
 					Status:     types.Pending,
 				},
-				expectedPandoraStatus:  types.Pending,
-				expectedVanguardStatus: types.Pending,
+				expectedPandoraStatus:  types.Skipped,
+				expectedVanguardStatus: types.Skipped,
 			},
 			{
 				slot: 6,
@@ -423,8 +423,8 @@ func TestBackend_InvalidatePendingQueue(t *testing.T) {
 					HeaderHash: vanguardHash,
 					Status:     types.Pending,
 				},
-				expectedPandoraStatus:  types.Pending,
-				expectedVanguardStatus: types.Pending,
+				expectedPandoraStatus:  types.Verified,
+				expectedVanguardStatus: types.Verified,
 			},
 		}
 
@@ -447,13 +447,13 @@ func TestBackend_InvalidatePendingQueue(t *testing.T) {
 			if nil != suite.vanguardHash {
 				status, err := backend.FetchVanBlockStatus(suite.slot, suite.vanguardHash.HeaderHash)
 				require.NoError(t, err, index)
-				require.Equal(t, events.FromDBStatus(suite.expectedVanguardStatus), status, index)
+				require.Equal(t, events.FromDBStatus(suite.expectedVanguardStatus), status, suite.slot)
 			}
 
 			if nil != suite.pandoraHash {
 				status, err := backend.FetchPanBlockStatus(suite.slot, suite.pandoraHash.HeaderHash)
 				require.NoError(t, err, index)
-				require.Equal(t, events.FromDBStatus(suite.expectedPandoraStatus), status, index)
+				require.Equal(t, events.FromDBStatus(suite.expectedPandoraStatus), status, suite.slot)
 			}
 
 		}

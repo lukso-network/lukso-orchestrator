@@ -59,7 +59,7 @@ func (backend *Backend) FetchPanBlockStatus(slot uint64, hash common.Hash) (stat
 
 	pandoraHash := headerHash.HeaderHash
 
-	if pandoraHash.String() != hash.String() {
+	if pandoraHash.String() != hash.String() && types.Skipped != headerHash.Status {
 		err = fmt.Errorf(
 			"hashes does not match for slot: %d, provided: %s, proper: %s",
 			slot,
@@ -113,7 +113,7 @@ func (backend *Backend) FetchVanBlockStatus(slot uint64, hash common.Hash) (stat
 
 	vanguardHash := headerHash.HeaderHash
 
-	if vanguardHash.String() != hash.String() {
+	if vanguardHash.String() != hash.String() && types.Skipped != headerHash.Status {
 		err = fmt.Errorf(
 			"hashes does not match for slot: %d, provided: %s, proper: %s",
 			slot,
@@ -274,33 +274,16 @@ func (backend *Backend) InvalidatePendingQueue() (vanguardErr error, pandoraErr 
 			continue
 		}
 
-		if nil != pair.VanguardHash {
-			vanguardErr = vanguardHashDB.SaveVanguardHeaderHash(pair.Slot, &types.HeaderHash{
-				HeaderHash: pair.VanguardHash.HeaderHash,
-				Status:     types.Invalid,
-			})
-		}
+		vanguardErr = vanguardHashDB.SaveVanguardHeaderHash(pair.Slot, &types.HeaderHash{
+			Status: types.Skipped,
+		})
 
-		if nil != vanguardErr {
-			break
-		}
+		// TODO: when more shard will come we will need to maintain this information
+		pandoraErr = pandoraHeaderHashDB.SavePandoraHeaderHash(pair.Slot, &types.HeaderHash{
+			Status: types.Skipped,
+		})
 
-		for _, pandoraHash := range pair.PandoraHashes {
-			if nil == pandoraHash {
-				continue
-			}
-
-			pandoraErr = pandoraHeaderHashDB.SavePandoraHeaderHash(pair.Slot, &types.HeaderHash{
-				HeaderHash: pandoraHash.HeaderHash,
-				Status:     types.Invalid,
-			})
-
-			if nil != pandoraErr {
-				break
-			}
-		}
-
-		if nil != pandoraErr {
+		if nil != vanguardErr || nil != pandoraErr {
 			break
 		}
 	}

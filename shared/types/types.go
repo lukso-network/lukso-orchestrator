@@ -12,6 +12,7 @@ const (
 	Pending Status = iota
 	Verified
 	Invalid
+	Skipped
 )
 
 // ExtraData

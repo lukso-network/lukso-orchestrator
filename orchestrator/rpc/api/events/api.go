@@ -25,6 +25,7 @@ const (
 	Pending  Status = "Pending"
 	Verified Status = "Verified"
 	Invalid  Status = "Invalid"
+	Skipped  Status = "Skipped"
 )
 
 const (
@@ -68,6 +69,10 @@ func FromDBStatus(status generalTypes.Status) (eventStatus Status) {
 
 	if generalTypes.Invalid == status {
 		eventStatus = Invalid
+	}
+
+	if generalTypes.Skipped == status {
+		eventStatus = Skipped
 	}
 
 	return
