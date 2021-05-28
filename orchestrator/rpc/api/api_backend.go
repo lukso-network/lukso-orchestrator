@@ -40,15 +40,6 @@ func (backend *Backend) FetchPanBlockStatus(slot uint64, hash common.Hash) (stat
 		return
 	}
 
-	emptyHash := common.Hash{}
-
-	if emptyHash.String() == hash.String() {
-		err = fmt.Errorf("hash cannot be empty")
-		status = events.Invalid
-
-		return
-	}
-
 	headerHash, err := pandoraHeaderHashDB.PandoraHeaderHash(slot)
 
 	if nil != err {
@@ -90,15 +81,6 @@ func (backend *Backend) FetchVanBlockStatus(slot uint64, hash common.Hash) (stat
 
 	if slot > latestSlot {
 		status = events.Pending
-
-		return
-	}
-
-	emptyHash := common.Hash{}
-
-	if emptyHash.String() == hash.String() {
-		err = fmt.Errorf("hash cannot be empty")
-		status = events.Invalid
 
 		return
 	}
