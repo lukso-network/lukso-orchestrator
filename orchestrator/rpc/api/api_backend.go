@@ -144,6 +144,10 @@ func (backend *Backend) InvalidatePendingQueue() (vanguardErr error, pandoraErr 
 		return
 	}
 
+	// If higher slot was found and is valid all the gaps between must me treated as invalid and discarded
+
+	possibleInvalidPair := make([]*events.RealmPair, 0)
+
 	//backend.Lock()
 	//defer backend.Unlock()
 
@@ -186,21 +190,37 @@ func (backend *Backend) InvalidatePendingQueue() (vanguardErr error, pandoraErr 
 		// In my opinion INVALID state is 100% accurate only with blockShard verification approach
 		// TODO: add additional Sharding info check VanguardBlock -> PandoraHeaderHash when implementation on vanguard side will be ready
 		if nil == pandoraHeaderHash {
-			vanguardErr = vanguardHashDB.SaveVanguardHeaderHash(slotToCheck, &types.HeaderHash{
+			vanguardHeaderHash := &types.HeaderHash{
 				HeaderHash: vanguardBlockHash.HeaderHash,
 				Status:     types.Pending,
+			}
+			vanguardErr = vanguardHashDB.SaveVanguardHeaderHash(slotToCheck, vanguardHeaderHash)
+
+			possibleInvalidPair = append(possibleInvalidPair, &events.RealmPair{
+				Slot:          slotToCheck,
+				VanguardHash:  vanguardHeaderHash,
+				PandoraHashes: nil,
 			})
 
-			break
+			continue
 		}
 
 		if nil == vanguardBlockHash {
-			pandoraErr = pandoraHeaderHashDB.SavePandoraHeaderHash(slotToCheck, &types.HeaderHash{
+			currentPandoraHeaderHash := &types.HeaderHash{
 				HeaderHash: pandoraHeaderHash.HeaderHash,
 				Status:     types.Pending,
+			}
+			currentPandoraHeaderHashes := make([]*types.HeaderHash, 1)
+			currentPandoraHeaderHashes[0] = currentPandoraHeaderHash
+			pandoraErr = pandoraHeaderHashDB.SavePandoraHeaderHash(slotToCheck, currentPandoraHeaderHash)
+
+			possibleInvalidPair = append(possibleInvalidPair, &events.RealmPair{
+				Slot:          slotToCheck,
+				VanguardHash:  nil,
+				PandoraHashes: currentPandoraHeaderHashes,
 			})
 
-			break
+			continue
 		}
 
 		if types.Verified != vanguardBlockHash.Status {
@@ -240,6 +260,49 @@ func (backend *Backend) InvalidatePendingQueue() (vanguardErr error, pandoraErr 
 	// LOG this out
 	if nil != vanguardErr || nil != pandoraErr || nil != realmErr {
 		return
+	}
+
+	// Resolve state of possible invalid pairs
+	latestSavedVerifiedRealmSlot = realmDB.LatestVerifiedRealmSlot()
+
+	for _, pair := range possibleInvalidPair {
+		if nil == pair {
+			continue
+		}
+
+		if pair.Slot > latestSavedVerifiedRealmSlot {
+			continue
+		}
+
+		if nil != pair.VanguardHash {
+			vanguardErr = vanguardHashDB.SaveVanguardHeaderHash(pair.Slot, &types.HeaderHash{
+				HeaderHash: pair.VanguardHash.HeaderHash,
+				Status:     types.Invalid,
+			})
+		}
+
+		if nil != vanguardErr {
+			break
+		}
+
+		for _, pandoraHash := range pair.PandoraHashes {
+			if nil == pandoraHash {
+				continue
+			}
+
+			pandoraErr = pandoraHeaderHashDB.SavePandoraHeaderHash(pair.Slot, &types.HeaderHash{
+				HeaderHash: pandoraHash.HeaderHash,
+				Status:     types.Invalid,
+			})
+
+			if nil != pandoraErr {
+				break
+			}
+		}
+
+		if nil != pandoraErr {
+			break
+		}
 	}
 
 	return

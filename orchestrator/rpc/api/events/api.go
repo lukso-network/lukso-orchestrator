@@ -52,8 +52,8 @@ type BlockStatus struct {
 
 type RealmPair struct {
 	Slot          uint64
-	VanguardHash  *BlockHash
-	PandoraHashes []*BlockHash
+	VanguardHash  *generalTypes.HeaderHash
+	PandoraHashes []*generalTypes.HeaderHash
 }
 
 // TODO: consider it to merge into only string-based statuses
