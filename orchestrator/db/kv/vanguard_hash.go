@@ -63,7 +63,6 @@ func (s *Store) VanguardHeaderHash(slot uint64) (headerHash *types.HeaderHash, e
 	if v, ok := s.vanHeaderCache.Get(slot); v != nil && ok {
 		return v.(*types.HeaderHash), nil
 	}
-	headerHash = &types.HeaderHash{}
 
 	err = s.db.View(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(vanguardHeaderHashesBucket)
@@ -87,20 +86,22 @@ func (s *Store) VanguardHeaderHashes(fromSlot uint64, limit uint64) (vanguardHea
 			s.latestVanSlot,
 		))
 	}
-	currentLimit := s.latestVanSlot
-
-	if limit > 0 && limit < currentLimit {
-		currentLimit = limit
-	}
 
 	err = s.db.View(func(tx *bolt.Tx) error {
-		for slot := fromSlot; slot <= currentLimit; slot++ {
+		for slot := fromSlot; slot <= s.latestVanSlot; slot++ {
 			// fast finding into cache, if the value does not exist in cache, it starts finding into db
 			headerHash, err := s.VanguardHeaderHash(slot)
 			if err != nil {
-				return errors.Wrap(VanguardHeaderNotFoundErr, fmt.Sprintf("Could not found pandora header for slot: %d", slot))
+				return errors.Wrap(
+					VanguardHeaderNotFoundErr,
+					fmt.Sprintf("Could not found pandora header for slot: %d", slot),
+				)
 			}
 			vanguardHeaderHashes = append(vanguardHeaderHashes, headerHash)
+
+			if len(vanguardHeaderHashes) >= int(limit) {
+				break
+			}
 		}
 		return nil
 	})

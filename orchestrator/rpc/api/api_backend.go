@@ -146,7 +146,7 @@ func (backend *Backend) InvalidatePendingQueue() (vanguardErr error, pandoraErr 
 	log.WithField("pandoraHeaderHashes", pandoraHeaderHashes).
 		Info("Got Pandora header hashes")
 
-	vanguardBlockHashes, err := vanguardHashDB.VanguardHeaderHashes(latestSavedVerifiedRealmSlot, 50)
+	vanguardBlockHashes, err := vanguardHashDB.VanguardHeaderHashes(latestSavedVerifiedRealmSlot, 10000)
 
 	log.WithField("vanguardBlockHashes", vanguardBlockHashes).
 		Info("Got Vanguard header hashes")
@@ -179,6 +179,12 @@ func (backend *Backend) InvalidatePendingQueue() (vanguardErr error, pandoraErr 
 
 		// Potentially skipped slot
 		if nil == pandoraHeaderHash && nil == vanguardBlockHash {
+			possibleInvalidPair = append(possibleInvalidPair, &events.RealmPair{
+				Slot:          slotToCheck,
+				VanguardHash:  nil,
+				PandoraHashes: nil,
+			})
+
 			continue
 		}
 
