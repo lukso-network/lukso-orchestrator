@@ -35,7 +35,7 @@ type ReadOnlyPanHeaderAccessDatabase interface {
 // ReadOnlyVanHeaderAccessDatabase
 type ReadOnlyVanHeaderAccessDatabase interface {
 	VanguardHeaderHash(slot uint64) (*types.HeaderHash, error)
-	VanguardHeaderHashes(fromSlot uint64) ([]*types.HeaderHash, error)
+	VanguardHeaderHashes(fromSlot uint64, limit uint64) ([]*types.HeaderHash, error)
 	LatestSavedVanguardSlot() uint64
 	LatestSavedVanguardHeaderHash() common.Hash
 	GetLatestHeaderHash() common.Hash

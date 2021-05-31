@@ -51,5 +51,7 @@ func (s *Service) OnNewPendingVanguardBlock(ctx context.Context, block *eth.Beac
 		return
 	}
 
-	log.WithField("blockHash", headerHash).Trace("Successfully inserted vanguard block to db")
+	log.WithField("blockHash", headerHash).
+		WithField("slot", block.Slot).
+		Trace("Successfully inserted vanguard block to db")
 }

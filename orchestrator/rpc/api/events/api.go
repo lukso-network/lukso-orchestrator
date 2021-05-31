@@ -86,6 +86,30 @@ func NewPublicFilterAPI(backend Backend, timeout time.Duration) *PublicFilterAPI
 		timeout: timeout,
 	}
 
+	// This is a simpliest way I can imagine that queue will be invalidated.
+	// TODO: move it also? to eventSystem when new pending blocks arrive
+	go func() {
+		ticker := time.NewTicker(time.Second * 2)
+		for {
+			select {
+			case <-ticker.C:
+				vanguardErr, pandoraErr, realmErr := backend.InvalidatePendingQueue()
+
+				if nil != vanguardErr {
+					log.WithField("publicFilterApiCause", "vanguardErr").Error(vanguardErr)
+				}
+
+				if nil != pandoraErr {
+					log.WithField("publicFilterApiCause", "pandoraErr").Error(pandoraErr)
+				}
+
+				if nil != realmErr {
+					log.WithField("publicFilterApiCause", "realmErr").Error(realmErr)
+				}
+			}
+		}
+	}()
+
 	return api
 }
 

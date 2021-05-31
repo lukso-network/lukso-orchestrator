@@ -8,6 +8,7 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/iface"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
+	log "github.com/sirupsen/logrus"
 	"sync"
 )
 
@@ -124,28 +125,42 @@ func (backend *Backend) InvalidatePendingQueue() (vanguardErr error, pandoraErr 
 		return
 	}
 
-	// If higher slot was found and is valid all the gaps between must me treated as invalid and discarded
+	log.Info("I am starting to InvalidatePendingQueue by 50 batch elements")
 
+	// If higher slot was found and is valid all the gaps between must me treated as invalid and discarded
 	possibleInvalidPair := make([]*events.RealmPair, 0)
 
 	backend.Lock()
 	defer backend.Unlock()
 
 	latestSavedVerifiedRealmSlot := realmDB.LatestVerifiedRealmSlot()
+	log.WithField("latestSavedVerifiedRealmSlot", latestSavedVerifiedRealmSlot).
+		Info("Got latest verified realm slot")
 	pandoraHeaderHashes, err := pandoraHeaderHashDB.PandoraHeaderHashes(latestSavedVerifiedRealmSlot)
 
 	if nil != err {
+		log.WithField("cause", "Failed to invalidate pending queue").Error(err)
 		return
 	}
 
-	vanguardBlockHashes, err := vanguardHashDB.VanguardHeaderHashes(latestSavedVerifiedRealmSlot)
+	log.WithField("pandoraHeaderHashes", pandoraHeaderHashes).
+		Info("Got Pandora header hashes")
+
+	vanguardBlockHashes, err := vanguardHashDB.VanguardHeaderHashes(latestSavedVerifiedRealmSlot, 50)
+
+	log.WithField("vanguardBlockHashes", vanguardBlockHashes).
+		Info("Got Vanguard header hashes")
 
 	if nil != err {
+		log.WithField("cause", "Failed to invalidate pending queue").Error(err)
 		return
 	}
 
 	pandoraRange := len(pandoraHeaderHashes)
 	vanguardRange := len(vanguardBlockHashes)
+
+	log.WithField("pandoraRange", pandoraRange).WithField("vanguardRange", vanguardRange).
+		Info("Invalidation with range of blocks")
 
 	// You wont match anything, so short circuit
 	if pandoraRange < 1 || vanguardRange < 1 {
@@ -268,6 +283,8 @@ func (backend *Backend) InvalidatePendingQueue() (vanguardErr error, pandoraErr 
 			break
 		}
 	}
+
+	log.Info("I have resolved InvalidatePendingQueue")
 
 	return
 }

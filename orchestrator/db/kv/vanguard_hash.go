@@ -26,7 +26,7 @@ func (s *Store) LatestSavedVanguardHeaderHash() (hash common.Hash) {
 			// not found the latest block number in db. so latest block number will be zero
 			if latestHeaderHashBytes == nil {
 				hash = EmptyHash
-				log.Trace("Latest header hash could not find in db. It may happen for brand new DB")
+				log.Trace("Latest vanguard header hash could not find in db. It may happen for brand new DB")
 				return nil
 			}
 			hash = common.BytesToHash(latestHeaderHashBytes)
@@ -63,6 +63,7 @@ func (s *Store) VanguardHeaderHash(slot uint64) (headerHash *types.HeaderHash, e
 	if v, ok := s.vanHeaderCache.Get(slot); v != nil && ok {
 		return v.(*types.HeaderHash), nil
 	}
+	headerHash = &types.HeaderHash{}
 
 	err = s.db.View(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(vanguardHeaderHashesBucket)
@@ -77,7 +78,7 @@ func (s *Store) VanguardHeaderHash(slot uint64) (headerHash *types.HeaderHash, e
 	return
 }
 
-func (s *Store) VanguardHeaderHashes(fromSlot uint64) (vanguardHeaderHashes []*types.HeaderHash, err error) {
+func (s *Store) VanguardHeaderHashes(fromSlot uint64, limit uint64) (vanguardHeaderHashes []*types.HeaderHash, err error) {
 	// when requested epoch is greater than stored latest epoch
 	if fromSlot > s.latestVanSlot {
 		return nil, errors.Wrap(InvalidSlot, fmt.Sprintf(
@@ -86,11 +87,16 @@ func (s *Store) VanguardHeaderHashes(fromSlot uint64) (vanguardHeaderHashes []*t
 			s.latestVanSlot,
 		))
 	}
+	currentLimit := s.latestVanSlot
+
+	if limit > 0 && limit < currentLimit {
+		currentLimit = limit
+	}
+
 	err = s.db.View(func(tx *bolt.Tx) error {
-		for slot := fromSlot; slot <= s.latestVanSlot; slot++ {
+		for slot := fromSlot; slot <= currentLimit; slot++ {
 			// fast finding into cache, if the value does not exist in cache, it starts finding into db
 			headerHash, err := s.VanguardHeaderHash(slot)
-			// TODO: This cannot be that way, slots can be skipped so they won't be present in database.
 			if err != nil {
 				return errors.Wrap(VanguardHeaderNotFoundErr, fmt.Sprintf("Could not found pandora header for slot: %d", slot))
 			}

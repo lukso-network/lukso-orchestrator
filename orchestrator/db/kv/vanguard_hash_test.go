@@ -73,7 +73,7 @@ func TestStore_VanguardHeaderHashes(t *testing.T) {
 	}
 
 	// checking retrieval from cache
-	retrievedVanHeaderHashes, err := db.VanguardHeaderHashes(40)
+	retrievedVanHeaderHashes, err := db.VanguardHeaderHashes(40, 50)
 	require.NoError(t, err)
 	assert.DeepEqual(t, vanguardHeaderHashes[40:], retrievedVanHeaderHashes)
 }

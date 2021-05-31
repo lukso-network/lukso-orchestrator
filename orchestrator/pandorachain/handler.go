@@ -31,6 +31,9 @@ func (s *Service) OnNewPendingHeader(ctx context.Context, header *eth1Types.Head
 		return err
 	}
 
+	log.WithField("headerHash", pandoraHeaderHash).
+		WithField("slot", panExtraDataWithSig.Slot).Trace("Successfully inserted pandora hash to db")
+
 	// TODO - Need to send slot and header to consensus package to confirm the header.
 	return nil
 }
