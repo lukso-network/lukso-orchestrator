@@ -146,7 +146,7 @@ func (backend *Backend) InvalidatePendingQueue() (vanguardErr error, pandoraErr 
 	log.WithField("pandoraHeaderHashes", pandoraHeaderHashes).
 		Info("Got Pandora header hashes")
 
-	vanguardBlockHashes, err := vanguardHashDB.VanguardHeaderHashes(latestSavedVerifiedRealmSlot, 10000)
+	vanguardBlockHashes, err := vanguardHashDB.VanguardHeaderHashes(latestSavedVerifiedRealmSlot, 500)
 
 	log.WithField("vanguardBlockHashes", vanguardBlockHashes).
 		Info("Got Vanguard header hashes")

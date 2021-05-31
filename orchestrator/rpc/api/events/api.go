@@ -28,11 +28,6 @@ const (
 	Skipped  Status = "Skipped"
 )
 
-const (
-	MockedHashInvalid = "0xc9a190eb52c18df5ffcb1d817214ecb08f025f8583805cd12064d30e3f9bd9d5"
-	MockedHashPending = "0xa99c69a301564970956edd897ff0590f4c0f1031daa464ded655af65ad0906df"
-)
-
 // PublicFilterAPI offers support to create and manage filters. This will allow external clients to retrieve various
 // information related to the Ethereum protocol such als blocks, transactions and logs.
 type PublicFilterAPI struct {
@@ -127,14 +122,14 @@ func (api *PublicFilterAPI) ConfirmPanBlockHashes(
 	response = make([]*BlockStatus, 0)
 
 	for _, blockRequest := range request {
-		status := Verified
+		status, currentErr := api.backend.FetchPanBlockStatus(blockRequest.Slot, blockRequest.Hash)
 
-		if MockedHashInvalid == blockRequest.Hash.String() {
-			status = Invalid
-		}
+		if nil != currentErr {
+			log.Errorf("Invalid block in ConfirmPanBlockHashes: %v", err)
+			response = nil
+			err = currentErr
 
-		if MockedHashPending == blockRequest.Hash.String() {
-			status = Pending
+			return
 		}
 
 		response = append(response, &BlockStatus{
@@ -168,14 +163,14 @@ func (api *PublicFilterAPI) ConfirmVanBlockHashes(
 	response = make([]*BlockStatus, 0)
 
 	for _, blockRequest := range request {
-		status := Verified
+		status, currentErr := api.backend.FetchVanBlockStatus(blockRequest.Slot, blockRequest.Hash)
 
-		if MockedHashInvalid == blockRequest.Hash.String() {
-			status = Invalid
-		}
+		if nil != currentErr {
+			log.Errorf("Invalid block in ConfirmVanBlockHashes: %v", err)
+			response = nil
+			err = currentErr
 
-		if MockedHashPending == blockRequest.Hash.String() {
-			status = Pending
+			return
 		}
 
 		response = append(response, &BlockStatus{
