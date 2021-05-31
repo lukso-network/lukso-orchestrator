@@ -106,6 +106,9 @@ func (s *Store) VanguardHeaderHashes(fromSlot uint64) (vanguardHeaderHashes []*t
 }
 
 func (s *Store) SaveVanguardHeaderHash(slot uint64, headerHash *types.HeaderHash) (err error) {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
+
 	err = s.db.Update(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(vanguardHeaderHashesBucket)
 		if status := s.vanHeaderCache.Set(latestSavedVanHashKey, headerHash, 0); !status {
@@ -130,6 +133,9 @@ func (s *Store) SaveVanguardHeaderHash(slot uint64, headerHash *types.HeaderHash
 }
 
 func (s *Store) SaveLatestVanguardSlot() (err error) {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
+
 	err = s.db.Update(func(tx *bolt.Tx) (dbErr error) {
 		bkt := tx.Bucket(vanguardHeaderHashesBucket)
 		val := bytesutil.Uint64ToBytesBigEndian(s.latestVanSlot)
@@ -142,6 +148,9 @@ func (s *Store) SaveLatestVanguardSlot() (err error) {
 }
 
 func (s *Store) SaveLatestVanguardHeaderHash() (err error) {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
+
 	err = s.db.Update(func(tx *bolt.Tx) (dbErr error) {
 		bkt := tx.Bucket(vanguardHeaderHashesBucket)
 		val := s.latestVanHash.Bytes()

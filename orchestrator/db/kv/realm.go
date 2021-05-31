@@ -34,6 +34,9 @@ func (s *Store) LatestVerifiedRealmSlot() (slot uint64) {
 }
 
 func (s *Store) SaveLatestVerifiedRealmSlot(slot uint64) (err error) {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
+
 	err = s.db.Update(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(realmBucket)
 		value := bytesutil.Uint64ToBytesBigEndian(slot)

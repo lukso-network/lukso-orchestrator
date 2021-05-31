@@ -17,7 +17,7 @@ type Backend struct {
 	VanguardHeaderHashDB db.VanguardHeaderHashDB
 	PandoraHeaderHashDB  db.PandoraHeaderHashDB
 	RealmDB              db.RealmDB
-	sync.Locker
+	sync.Mutex
 }
 
 var _ events.Backend = &Backend{}
@@ -112,7 +112,6 @@ func (backend *Backend) FetchVanBlockStatus(slot uint64, hash common.Hash) (stat
 	return
 }
 
-// TODO: add err in return
 // Idea is that it should be at least resource intensive as possible, because it could be triggered a lot
 // Short circuits will prevent looping when logic says to not do so
 func (backend *Backend) InvalidatePendingQueue() (vanguardErr error, pandoraErr error, realmErr error) {
@@ -121,7 +120,6 @@ func (backend *Backend) InvalidatePendingQueue() (vanguardErr error, pandoraErr 
 	realmDB := backend.RealmDB
 
 	// Short circuit, do not invalidate when databases are not present.
-	// TODO: consider returning err when not ready
 	if nil == vanguardHashDB || nil == pandoraHeaderHashDB || nil == realmDB {
 		return
 	}
@@ -130,8 +128,8 @@ func (backend *Backend) InvalidatePendingQueue() (vanguardErr error, pandoraErr 
 
 	possibleInvalidPair := make([]*events.RealmPair, 0)
 
-	//backend.Lock()
-	//defer backend.Unlock()
+	backend.Lock()
+	defer backend.Unlock()
 
 	latestSavedVerifiedRealmSlot := realmDB.LatestVerifiedRealmSlot()
 	pandoraHeaderHashes, err := pandoraHeaderHashDB.PandoraHeaderHashes(latestSavedVerifiedRealmSlot)

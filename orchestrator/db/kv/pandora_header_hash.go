@@ -61,6 +61,9 @@ func (s *Store) PandoraHeaderHashes(fromSlot uint64) ([]*types.HeaderHash, error
 
 // SavePanHeader
 func (s *Store) SavePandoraHeaderHash(slot uint64, headerHash *types.HeaderHash) error {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
+
 	return s.db.Update(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(pandoraHeaderHashesBucket)
 		if status := s.panHeaderCache.Set(latestSavedPanHeaderHashKey, headerHash, 0); !status {
@@ -84,6 +87,9 @@ func (s *Store) SavePandoraHeaderHash(slot uint64, headerHash *types.HeaderHash)
 
 // SaveLatestPanSlot
 func (s *Store) SaveLatestPandoraSlot() error {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
+
 	return s.db.Update(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(pandoraHeaderHashesBucket)
 		val := bytesutil.Uint64ToBytesBigEndian(s.latestPanSlot)
@@ -117,6 +123,9 @@ func (s *Store) LatestSavedPandoraSlot() uint64 {
 
 // SaveLatestPandoraHeaderHash
 func (s *Store) SaveLatestPandoraHeaderHash() error {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
+
 	return s.db.Update(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(pandoraHeaderHashesBucket)
 		val := s.latestPanHeaderHash.Bytes()
