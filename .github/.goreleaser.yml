@@ -21,6 +21,7 @@ archives:
       386: i386
       amd64: x86_64
     format: binary  
+    name_template: "{{ .Binary }}_{{ .Tag }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}"
 checksum:
   name_template: 'checksums.txt'
 snapshot:
