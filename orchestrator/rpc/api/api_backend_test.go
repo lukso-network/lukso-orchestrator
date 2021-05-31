@@ -8,6 +8,7 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	"github.com/stretchr/testify/require"
 	"math/rand"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -478,217 +479,234 @@ func TestBackend_InvalidatePendingQueue(t *testing.T) {
 		realmSlot := backend.RealmDB.LatestVerifiedRealmSlot()
 		require.Equal(t, uint64(6), realmSlot)
 	})
+}
 
-	t.Run("should work with multiple batch requests", func(t *testing.T) {
-		orchestratorDB := testDB.SetupDB(t)
-		backend := Backend{
-			PandoraHeaderHashDB:  orchestratorDB,
-			VanguardHeaderHashDB: orchestratorDB,
-			RealmDB:              orchestratorDB,
-		}
+func TestBackend_StressTestForInvalidatePendingBlocks(t *testing.T) {
+	iterations := 1
 
-		pandoraToken := make([]byte, 4)
-		rand.Read(pandoraToken)
-		pandoraHash := common.BytesToHash(pandoraToken)
+	if "true" == os.Getenv("stress_test") {
+		iterations = 4
+	}
 
-		vanguardToken := make([]byte, 8)
-		rand.Read(vanguardToken)
-		vanguardHash := common.BytesToHash(vanguardToken)
+	for index := 0; index < iterations; index++ {
+		t.Logf("running stress test suite: %d", index)
+		time.Sleep(time.Millisecond * 25)
+		t.Run("should work with multiple batch requests", func(t *testing.T) {
+			orchestratorDB := testDB.SetupDBWithoutClose(t)
+			t.Cleanup(func() {
+				require.NoError(t, orchestratorDB.Close())
+			})
+			backend := Backend{
+				PandoraHeaderHashDB:  orchestratorDB,
+				VanguardHeaderHashDB: orchestratorDB,
+				RealmDB:              orchestratorDB,
+			}
 
-		require.NoError(t, orchestratorDB.SavePandoraHeaderHash(1, &types.HeaderHash{
-			HeaderHash: pandoraHash,
-			Status:     types.Verified,
-		}))
+			pandoraToken := make([]byte, 4)
+			rand.Read(pandoraToken)
+			pandoraHash := common.BytesToHash(pandoraToken)
 
-		require.NoError(t, orchestratorDB.SaveVanguardHeaderHash(1, &types.HeaderHash{
-			HeaderHash: vanguardHash,
-			Status:     types.Verified,
-		}))
+			vanguardToken := make([]byte, 8)
+			rand.Read(vanguardToken)
+			vanguardHash := common.BytesToHash(vanguardToken)
 
-		// Save state for slot 1 that is verified on each side and start iteration from slot 1
-		require.NoError(t, orchestratorDB.SaveLatestVanguardSlot())
-		require.NoError(t, orchestratorDB.SaveLatestPandoraSlot())
-		require.NoError(t, orchestratorDB.SaveLatestVerifiedRealmSlot(1))
+			require.NoError(t, orchestratorDB.SavePandoraHeaderHash(1, &types.HeaderHash{
+				HeaderHash: pandoraHash,
+				Status:     types.Verified,
+			}))
 
-		firstBatch := realmPairSuite{
-			{
-				slot:                   2,
-				pandoraHash:            nil,
-				vanguardHash:           nil,
-				expectedPandoraStatus:  types.Skipped,
-				expectedVanguardStatus: types.Skipped,
-			},
-			{
-				slot:                   3,
-				pandoraHash:            nil,
-				vanguardHash:           nil,
-				expectedPandoraStatus:  types.Skipped,
-				expectedVanguardStatus: types.Skipped,
-			},
-		}
+			require.NoError(t, orchestratorDB.SaveVanguardHeaderHash(1, &types.HeaderHash{
+				HeaderHash: vanguardHash,
+				Status:     types.Verified,
+			}))
 
-		secondBatch := realmPairSuite{
-			{
-				slot: 4,
-				pandoraHash: &types.HeaderHash{
-					HeaderHash: pandoraHash,
-					Status:     types.Pending,
-				},
-				vanguardHash:           nil,
-				expectedPandoraStatus:  types.Skipped,
-				expectedVanguardStatus: types.Skipped,
-			},
-			{
-				slot:        5,
-				pandoraHash: nil,
-				vanguardHash: &types.HeaderHash{
-					HeaderHash: vanguardHash,
-					Status:     types.Pending,
-				},
-				expectedPandoraStatus:  types.Skipped,
-				expectedVanguardStatus: types.Skipped,
-			},
-			{
-				slot: 6,
-				pandoraHash: &types.HeaderHash{
-					HeaderHash: pandoraHash,
-					Status:     types.Pending,
-				},
-				vanguardHash: &types.HeaderHash{
-					HeaderHash: vanguardHash,
-					Status:     types.Pending,
-				},
-				expectedPandoraStatus:  types.Verified,
-				expectedVanguardStatus: types.Verified,
-			},
-		}
+			// Save state for slot 1 that is verified on each side and start iteration from slot 1
+			require.NoError(t, orchestratorDB.SaveLatestVanguardSlot())
+			require.NoError(t, orchestratorDB.SaveLatestPandoraSlot())
+			require.NoError(t, orchestratorDB.SaveLatestVerifiedRealmSlot(1))
 
-		forkedUnorderedBatch := realmPairSuite{
-			{
-				slot: 5,
-				pandoraHash: &types.HeaderHash{
-					HeaderHash: pandoraHash,
-					Status:     types.Pending,
+			firstBatch := realmPairSuite{
+				{
+					slot:                   2,
+					pandoraHash:            nil,
+					vanguardHash:           nil,
+					expectedPandoraStatus:  types.Skipped,
+					expectedVanguardStatus: types.Skipped,
 				},
-				vanguardHash: &types.HeaderHash{
-					HeaderHash: vanguardHash,
-					Status:     types.Pending,
+				{
+					slot:                   3,
+					pandoraHash:            nil,
+					vanguardHash:           nil,
+					expectedPandoraStatus:  types.Skipped,
+					expectedVanguardStatus: types.Skipped,
 				},
-				expectedPandoraStatus:  types.Verified,
-				expectedVanguardStatus: types.Verified,
-			},
-			{
-				slot:                   3,
-				pandoraHash:            nil,
-				vanguardHash:           nil,
-				expectedPandoraStatus:  types.Skipped,
-				expectedVanguardStatus: types.Skipped,
-			},
-			{
-				slot: 2,
-				pandoraHash: &types.HeaderHash{
-					HeaderHash: pandoraHash,
-					Status:     types.Pending,
-				},
-				vanguardHash:           nil,
-				expectedPandoraStatus:  types.Skipped,
-				expectedVanguardStatus: types.Skipped,
-			},
-			{
-				slot:        6,
-				pandoraHash: nil,
-				vanguardHash: &types.HeaderHash{
-					HeaderHash: vanguardHash,
-					Status:     types.Pending,
-				},
-				expectedPandoraStatus:  types.Skipped,
-				expectedVanguardStatus: types.Skipped,
-			},
-			{
-				slot: 6,
-				pandoraHash: &types.HeaderHash{
-					HeaderHash: pandoraHash,
-					Status:     types.Pending,
-				},
-				vanguardHash: &types.HeaderHash{
-					HeaderHash: vanguardHash,
-					Status:     types.Pending,
-				},
-				expectedPandoraStatus:  types.Verified,
-				expectedVanguardStatus: types.Verified,
-			},
-			{
-				slot: 7,
-				pandoraHash: &types.HeaderHash{
-					HeaderHash: pandoraHash,
-					Status:     types.Pending,
-				},
-				vanguardHash: &types.HeaderHash{
-					HeaderHash: vanguardHash,
-					Status:     types.Pending,
-				},
-				expectedPandoraStatus:  types.Verified,
-				expectedVanguardStatus: types.Verified,
-			},
-		}
+			}
 
-		failChan := make(chan error)
+			secondBatch := realmPairSuite{
+				{
+					slot: 4,
+					pandoraHash: &types.HeaderHash{
+						HeaderHash: pandoraHash,
+						Status:     types.Pending,
+					},
+					vanguardHash:           nil,
+					expectedPandoraStatus:  types.Skipped,
+					expectedVanguardStatus: types.Skipped,
+				},
+				{
+					slot:        5,
+					pandoraHash: nil,
+					vanguardHash: &types.HeaderHash{
+						HeaderHash: vanguardHash,
+						Status:     types.Pending,
+					},
+					expectedPandoraStatus:  types.Skipped,
+					expectedVanguardStatus: types.Skipped,
+				},
+				{
+					slot: 6,
+					pandoraHash: &types.HeaderHash{
+						HeaderHash: pandoraHash,
+						Status:     types.Pending,
+					},
+					vanguardHash: &types.HeaderHash{
+						HeaderHash: vanguardHash,
+						Status:     types.Pending,
+					},
+					expectedPandoraStatus:  types.Verified,
+					expectedVanguardStatus: types.Verified,
+				},
+			}
 
-		testSuiteFunc := func(
-			t *testing.T,
-			testSuite realmPairSuite,
-			waitGroup *sync.WaitGroup,
-			suiteNumber int,
-		) {
-			waitGroup.Add(len(testSuite) + 1)
+			forkedUnorderedBatch := realmPairSuite{
+				{
+					slot: 5,
+					pandoraHash: &types.HeaderHash{
+						HeaderHash: pandoraHash,
+						Status:     types.Pending,
+					},
+					vanguardHash: &types.HeaderHash{
+						HeaderHash: vanguardHash,
+						Status:     types.Pending,
+					},
+					expectedPandoraStatus:  types.Verified,
+					expectedVanguardStatus: types.Verified,
+				},
+				{
+					slot:                   3,
+					pandoraHash:            nil,
+					vanguardHash:           nil,
+					expectedPandoraStatus:  types.Skipped,
+					expectedVanguardStatus: types.Skipped,
+				},
+				{
+					slot: 2,
+					pandoraHash: &types.HeaderHash{
+						HeaderHash: pandoraHash,
+						Status:     types.Pending,
+					},
+					vanguardHash:           nil,
+					expectedPandoraStatus:  types.Skipped,
+					expectedVanguardStatus: types.Skipped,
+				},
+				{
+					slot:        6,
+					pandoraHash: nil,
+					vanguardHash: &types.HeaderHash{
+						HeaderHash: vanguardHash,
+						Status:     types.Pending,
+					},
+					expectedPandoraStatus:  types.Skipped,
+					expectedVanguardStatus: types.Skipped,
+				},
+				{
+					slot: 6,
+					pandoraHash: &types.HeaderHash{
+						HeaderHash: pandoraHash,
+						Status:     types.Pending,
+					},
+					vanguardHash: &types.HeaderHash{
+						HeaderHash: vanguardHash,
+						Status:     types.Pending,
+					},
+					expectedPandoraStatus:  types.Verified,
+					expectedVanguardStatus: types.Verified,
+				},
+				{
+					slot: 7,
+					pandoraHash: &types.HeaderHash{
+						HeaderHash: pandoraHash,
+						Status:     types.Pending,
+					},
+					vanguardHash: &types.HeaderHash{
+						HeaderHash: vanguardHash,
+						Status:     types.Pending,
+					},
+					expectedPandoraStatus:  types.Verified,
+					expectedVanguardStatus: types.Verified,
+				},
+			}
 
-			for index, suite := range testSuite {
-				if nil != suite.pandoraHash {
-					require.NoError(
-						t,
-						orchestratorDB.SavePandoraHeaderHash(suite.slot, suite.pandoraHash),
-						index,
-					)
+			failChan := make(chan error)
+
+			testSuiteFunc := func(
+				t *testing.T,
+				testSuite realmPairSuite,
+				waitGroup *sync.WaitGroup,
+				suiteNumber int,
+			) {
+				waitGroup.Add(len(testSuite))
+
+				for index, suite := range testSuite {
+					if nil != suite.pandoraHash {
+						require.NoError(
+							t,
+							orchestratorDB.SavePandoraHeaderHash(suite.slot, suite.pandoraHash),
+							index,
+						)
+					}
+
+					if nil != suite.vanguardHash {
+						require.NoError(
+							t,
+							orchestratorDB.SaveVanguardHeaderHash(suite.slot, suite.vanguardHash),
+							index,
+						)
+					}
+
+					waitGroup.Done()
 				}
 
-				if nil != suite.vanguardHash {
-					require.NoError(
-						t,
-						orchestratorDB.SaveVanguardHeaderHash(suite.slot, suite.vanguardHash),
-						index,
-					)
-				}
+				vanguardErr, pandoraErr, realmErr := backend.InvalidatePendingQueue()
+				require.NoError(t, vanguardErr, suiteNumber)
+				require.NoError(t, pandoraErr, suiteNumber)
+				require.NoError(t, realmErr, suiteNumber)
 
 				waitGroup.Done()
 			}
 
-			vanguardErr, pandoraErr, realmErr := backend.InvalidatePendingQueue()
-			require.NoError(t, vanguardErr, suiteNumber)
-			require.NoError(t, pandoraErr, suiteNumber)
-			require.NoError(t, realmErr, suiteNumber)
+			parallelTestSuites := make([]realmPairSuite, 3)
+			parallelTestSuites[0] = firstBatch
+			parallelTestSuites[1] = secondBatch
+			parallelTestSuites[2] = forkedUnorderedBatch
+			waitGroup := &sync.WaitGroup{}
+			waitGroup.Add(len(parallelTestSuites))
 
-			waitGroup.Done()
-		}
+			for testSuiteIndex, parallelTestSuite := range parallelTestSuites {
+				time.Sleep(time.Millisecond * 25)
+				go testSuiteFunc(t, parallelTestSuite, waitGroup, testSuiteIndex)
+			}
 
-		parallelTestSuites := make([]realmPairSuite, 3)
-		parallelTestSuites[0] = firstBatch
-		parallelTestSuites[1] = secondBatch
-		parallelTestSuites[2] = forkedUnorderedBatch
-		waitGroup := &sync.WaitGroup{}
+			time.AfterFunc(time.Second*2, func() {
+				failChan <- fmt.Errorf("timeout of test suite")
+			})
 
-		for index, parallelTestSuite := range parallelTestSuites {
-			go testSuiteFunc(t, parallelTestSuite, waitGroup, index)
-		}
-
-		time.AfterFunc(time.Second, func() {
-			failChan <- fmt.Errorf("timeout of test suite")
+			select {
+			case err := <-failChan:
+				require.NoError(t, err)
+			default:
+				waitGroup.Wait()
+			}
 		})
-
-		select {
-		case err := <-failChan:
-			require.NoError(t, err)
-		default:
-			waitGroup.Wait()
-		}
-	})
+	}
 }

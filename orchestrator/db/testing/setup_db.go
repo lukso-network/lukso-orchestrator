@@ -22,3 +22,12 @@ func SetupDB(t testing.TB) db.Database {
 	})
 	return s
 }
+
+func SetupDBWithoutClose(t testing.TB) db.Database {
+	s, err := kv.NewKVStore(context.Background(), t.TempDir(), &kv.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return s
+}

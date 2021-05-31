@@ -155,11 +155,12 @@ func (backend *Backend) InvalidatePendingQueue() (vanguardErr error, pandoraErr 
 	// This is quite naive, but should work
 	for index, vanguardBlockHash := range vanguardBlockHashes {
 		slotToCheck := latestSavedVerifiedRealmSlot + uint64(index)
-		pandoraHeaderHash := pandoraHeaderHashes[index]
 
-		if len(pandoraHeaderHashes) < index {
+		if len(pandoraHeaderHashes) <= index {
 			break
 		}
+
+		pandoraHeaderHash := pandoraHeaderHashes[index]
 
 		// Potentially skipped slot
 		if nil == pandoraHeaderHash && nil == vanguardBlockHash {
