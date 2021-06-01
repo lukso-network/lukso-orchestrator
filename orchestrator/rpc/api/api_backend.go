@@ -113,7 +113,7 @@ func (backend *Backend) FetchVanBlockStatus(slot uint64, hash common.Hash) (stat
 	return
 }
 
-// Idea is that it should be at least resource intensive as possible, because it could be triggered a lot
+// Idea is that it should be very little resource intensive as possible, because it could be triggered a lot
 // Short circuits will prevent looping when logic says to not do so
 func (backend *Backend) InvalidatePendingQueue() (vanguardErr error, pandoraErr error, realmErr error) {
 	vanguardHashDB := backend.VanguardHeaderHashDB
