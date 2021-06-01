@@ -482,9 +482,9 @@ func TestBackend_InvalidatePendingQueue(t *testing.T) {
 }
 
 func TestBackend_StressTestForInvalidatePendingBlocks(t *testing.T) {
-	iterations := 1
+	iterations := 0
 
-	if "true" == os.Getenv("stress_test") {
+	if "true" == os.Getenv("STRESS_TEST") {
 		iterations = 4
 	}
 
