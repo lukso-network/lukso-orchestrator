@@ -479,6 +479,71 @@ func TestBackend_InvalidatePendingQueue(t *testing.T) {
 		realmSlot := backend.RealmDB.LatestVerifiedRealmSlot()
 		require.Equal(t, uint64(6), realmSlot)
 	})
+
+	t.Run("should invalidate lots of pending blocks", func(t *testing.T) {
+		//orchestratorDB := testDB.SetupDB(t)
+		//backend := Backend{
+		//	PandoraHeaderHashDB:  orchestratorDB,
+		//	VanguardHeaderHashDB: orchestratorDB,
+		//	RealmDB:              orchestratorDB,
+		//}
+
+		type realmPair struct {
+			pandoraSlot  uint64
+			pandoraHash  common.Hash
+			vanguardSlot uint64
+			vanguardHash common.Hash
+		}
+
+		batchSize := 5000
+		pendingBatch := make([]*realmPair, batchSize)
+
+		// It will fill batch with random order
+		// This will simulate network traffic from both parties for existing network
+		for index := range pendingBatch {
+			rand.Seed(time.Now().UnixNano())
+			min := 1
+			max := batchSize
+			pandoraSlot := rand.Intn(max-min+1) + min
+
+			pandoraToken := make([]byte, 4)
+			rand.Read(pandoraToken)
+			pandoraHash := common.BytesToHash(pandoraToken)
+
+			vanguardToken := make([]byte, 8)
+			rand.Read(vanguardToken)
+			vanguardHash := common.BytesToHash(vanguardToken)
+
+			rand.Seed(time.Now().UnixNano())
+			vanguardSlot := rand.Intn(max-min+1) + min
+
+			rand.Seed(time.Now().UnixNano())
+			pandoraNotPresentSlot := rand.Intn(max-min+1) + min
+
+			rand.Seed(time.Now().UnixNano())
+			vanguardNotPresentSlot := rand.Intn(max-min+1) + min
+
+			// Do not fill the queue with 33,(3) % chance
+			if pandoraSlot < len(pendingBatch)/3 {
+				continue
+			}
+
+			pendingBatch[index] = &realmPair{
+				pandoraSlot:  uint64(pandoraSlot),
+				pandoraHash:  pandoraHash,
+				vanguardSlot: uint64(vanguardSlot),
+				vanguardHash: vanguardHash,
+			}
+
+			pendingBatch[pandoraNotPresentSlot] = &realmPair{
+				pandoraSlot: uint64(vanguardNotPresentSlot),
+				pandoraHash: pandoraHash,
+			}
+		}
+
+		t.Logf("pendingBatch: %v", pendingBatch)
+
+	})
 }
 
 func TestBackend_StressTestForInvalidatePendingBlocks(t *testing.T) {
