@@ -125,7 +125,7 @@ func (backend *Backend) InvalidatePendingQueue() (vanguardErr error, pandoraErr 
 		return
 	}
 
-	log.Info("I am starting to InvalidatePendingQueue by 50 batch elements")
+	log.Info("I am starting to InvalidatePendingQueue in batches")
 
 	// If higher slot was found and is valid all the gaps between must me treated as invalid and discarded
 	possibleInvalidPair := make([]*events.RealmPair, 0)
@@ -248,6 +248,10 @@ func (backend *Backend) InvalidatePendingQueue() (vanguardErr error, pandoraErr 
 		vanguardErr = vanguardHashDB.SaveLatestVanguardSlot()
 
 		if nil != realmErr || nil != pandoraErr || nil != vanguardErr {
+			log.WithField("vanguardErr", vanguardErr).
+				WithField("pandoraErr", pandoraErr).
+				WithField("realmErr", realmErr).
+				Error("Got error during compare of VanguardHashes against PandoraHashes")
 			break
 		}
 
@@ -259,13 +263,21 @@ func (backend *Backend) InvalidatePendingQueue() (vanguardErr error, pandoraErr 
 		}
 	}
 
-	// LOG this out
 	if nil != vanguardErr || nil != pandoraErr || nil != realmErr {
+		log.WithField("vanguardErr", vanguardErr).
+			WithField("pandoraErr", pandoraErr).
+			WithField("realmErr", realmErr).
+			Error("Got error during invalidation of pending queue")
 		return
 	}
 
 	// Resolve state of possible invalid pairs
 	latestSavedVerifiedRealmSlot = realmDB.LatestVerifiedRealmSlot()
+	log.WithField("possibleInvalidPairs", len(possibleInvalidPair)).
+		WithField("latestVerifiedRealmSlot", latestSavedVerifiedRealmSlot).
+		Info("Requeue possible invalid pairs")
+
+	slotCounter := latestSavedVerifiedRealmSlot
 
 	for _, pair := range possibleInvalidPair {
 		if nil == pair {
@@ -286,11 +298,20 @@ func (backend *Backend) InvalidatePendingQueue() (vanguardErr error, pandoraErr 
 		})
 
 		if nil != vanguardErr || nil != pandoraErr {
+			log.WithField("vanguardErr", vanguardErr).
+				WithField("pandoraErr", pandoraErr).
+				WithField("realmErr", realmErr).
+				Error("Got error during invalidation of pending queue")
 			break
 		}
+
+		slotCounter = pair.Slot
 	}
 
-	log.Info("I have resolved InvalidatePendingQueue")
+	realmErr = realmDB.SaveLatestVerifiedRealmSlot(slotCounter)
+
+	log.WithField("highestCheckedSlot", slotCounter).
+		Info("I have resolved InvalidatePendingQueue")
 
 	return
 }
