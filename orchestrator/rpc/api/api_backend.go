@@ -305,6 +305,12 @@ func (backend *Backend) InvalidatePendingQueue() (vanguardErr error, pandoraErr 
 			break
 		}
 
+		slotCounter = realmDB.LatestVerifiedRealmSlot()
+
+		if slotCounter > pair.Slot {
+			continue
+		}
+
 		slotCounter = pair.Slot
 	}
 
