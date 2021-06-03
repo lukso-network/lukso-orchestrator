@@ -473,7 +473,6 @@ func TestBackend_InvalidatePendingQueue(t *testing.T) {
 				require.NoError(t, err, index)
 				require.Equal(t, events.FromDBStatus(suite.expectedPandoraStatus), status, suite.slot)
 			}
-
 		}
 
 		realmSlot := backend.RealmDB.LatestVerifiedRealmSlot()
@@ -481,12 +480,12 @@ func TestBackend_InvalidatePendingQueue(t *testing.T) {
 	})
 
 	t.Run("should invalidate lots of pending blocks", func(t *testing.T) {
-		//orchestratorDB := testDB.SetupDB(t)
-		//backend := Backend{
-		//	PandoraHeaderHashDB:  orchestratorDB,
-		//	VanguardHeaderHashDB: orchestratorDB,
-		//	RealmDB:              orchestratorDB,
-		//}
+		orchestratorDB := testDB.SetupDB(t)
+		backend := Backend{
+			PandoraHeaderHashDB:  orchestratorDB,
+			VanguardHeaderHashDB: orchestratorDB,
+			RealmDB:              orchestratorDB,
+		}
 
 		type realmPair struct {
 			pandoraSlot  uint64
@@ -495,15 +494,16 @@ func TestBackend_InvalidatePendingQueue(t *testing.T) {
 			vanguardHash common.Hash
 		}
 
-		batchSize := 5000
+		batchSize := 15000
 		pendingBatch := make([]*realmPair, batchSize)
 
 		// It will fill batch with random order
 		// This will simulate network traffic from both parties for existing network
-		for index := range pendingBatch {
-			rand.Seed(time.Now().UnixNano())
+		t.Log("Started process of hash and slot creation")
+		rand.Seed(time.Now().UnixNano())
+		for index := 0; index < len(pendingBatch); index++ {
 			min := 1
-			max := batchSize
+			max := batchSize - 1
 			pandoraSlot := rand.Intn(max-min+1) + min
 
 			pandoraToken := make([]byte, 4)
@@ -514,13 +514,8 @@ func TestBackend_InvalidatePendingQueue(t *testing.T) {
 			rand.Read(vanguardToken)
 			vanguardHash := common.BytesToHash(vanguardToken)
 
-			rand.Seed(time.Now().UnixNano())
 			vanguardSlot := rand.Intn(max-min+1) + min
-
-			rand.Seed(time.Now().UnixNano())
 			pandoraNotPresentSlot := rand.Intn(max-min+1) + min
-
-			rand.Seed(time.Now().UnixNano())
 			vanguardNotPresentSlot := rand.Intn(max-min+1) + min
 
 			// Do not fill the queue with 33,(3) % chance
@@ -536,13 +531,77 @@ func TestBackend_InvalidatePendingQueue(t *testing.T) {
 			}
 
 			pendingBatch[pandoraNotPresentSlot] = &realmPair{
+				vanguardSlot: uint64(pandoraNotPresentSlot),
+				vanguardHash: vanguardHash,
+			}
+
+			pendingBatch[vanguardNotPresentSlot] = &realmPair{
 				pandoraSlot: uint64(vanguardNotPresentSlot),
-				pandoraHash: pandoraHash,
+				pandoraHash: vanguardHash,
 			}
 		}
 
-		t.Logf("pendingBatch: %v", pendingBatch)
+		t.Log("Starting process of database save")
 
+		for index, pair := range pendingBatch {
+			if nil == pair {
+				t.Logf("I am skipping nil pendingBatch: %d", index)
+				continue
+			}
+
+			pandoraHash := &types.HeaderHash{
+				HeaderHash: pair.pandoraHash,
+				Status:     types.Pending,
+			}
+
+			vanguardHash := &types.HeaderHash{
+				HeaderHash: pair.vanguardHash,
+				Status:     types.Pending,
+			}
+
+			if pair.pandoraSlot > 0 {
+				require.NoError(
+					t,
+					orchestratorDB.SavePandoraHeaderHash(
+						pair.pandoraSlot,
+						pandoraHash,
+					),
+					index,
+				)
+			}
+
+			if pair.vanguardSlot > 0 {
+				require.NoError(
+					t,
+					orchestratorDB.SaveVanguardHeaderHash(
+						pair.vanguardSlot,
+						vanguardHash,
+					),
+					index,
+				)
+			}
+		}
+
+		t.Log("Starting process of invalidation")
+
+		invalidationTicker := time.NewTicker(time.Millisecond * 50)
+		// This timeout can be random within a range
+		invalidationTimeOut := time.NewTicker(time.Second * 20)
+
+		for {
+			select {
+			case <-invalidationTicker.C:
+				vanguardErr, pandoraErr, realmErr := backend.InvalidatePendingQueue()
+				require.NoError(t, vanguardErr)
+				require.NoError(t, pandoraErr)
+				require.NoError(t, realmErr)
+			case <-invalidationTimeOut.C:
+				t.Log("I have reached the test end")
+				// Here I should test the side effect of invalidation
+
+				return
+			}
+		}
 	})
 }
 
