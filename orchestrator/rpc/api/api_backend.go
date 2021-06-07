@@ -115,7 +115,74 @@ func (backend *Backend) FetchVanBlockStatus(slot uint64, hash common.Hash) (stat
 
 // Idea is that it should be very little resource intensive as possible, because it could be triggered a lot
 // Short circuits will prevent looping when logic says to not do so
-func (backend *Backend) InvalidatePendingQueue() (vanguardErr error, pandoraErr error, realmErr error) {
+func (backend *Backend) InvalidatePendingQueue() (
+	vanguardErr error,
+	pandoraErr error,
+	realmErr error,
+) {
+	realmDB := backend.RealmDB
+
+	// Invalidation does not need to rely on database, it can be done in multiple ways
+	// IMHO we should extend this function by strategy pattern or just stick to one source of truth
+	if nil == realmDB {
+		log.Errorf("empty realm db")
+		return
+	}
+
+	// This service could be fetched or created during singleton pattern
+	consensusService := &ConsensusService{backend}
+	latestSavedVerifiedRealmSlot := realmDB.LatestVerifiedRealmSlot()
+	vanguardErr, pandoraErr, realmErr = consensusService.canonicalize(
+		latestSavedVerifiedRealmSlot,
+		500,
+	)
+
+	return
+}
+
+func (backend *Backend) SubscribeNewEpochEvent(ch chan<- *types.MinimalEpochConsensusInfo) event.Subscription {
+	return backend.ConsensusInfoFeed.SubscribeMinConsensusInfoEvent(ch)
+}
+
+func (backend *Backend) CurrentEpoch() uint64 {
+	return backend.ConsensusInfoDB.GetLatestEpoch()
+}
+
+func (backend *Backend) ConsensusInfoByEpochRange(fromEpoch uint64) []*types.MinimalEpochConsensusInfo {
+	consensusInfos, err := backend.ConsensusInfoDB.ConsensusInfos(fromEpoch)
+	if err != nil {
+		return nil
+	}
+	return consensusInfos
+}
+
+// This part could be moved to other place during refactor, might be registered as a service
+type ConsensusService struct {
+	backend *Backend
+}
+
+func (service *ConsensusService) canonicalize(
+	fromSlot uint64,
+	batchLimit uint64,
+) (
+	vanguardErr error,
+	pandoraErr error,
+	realmErr error,
+) {
+	if nil == service {
+		realmErr = fmt.Errorf("cannot start canonicalization without service")
+
+		return
+	}
+
+	backend := service.backend
+
+	if nil == backend {
+		realmErr = fmt.Errorf("cannot start canonicalization without backend")
+
+		return
+	}
+
 	vanguardHashDB := backend.VanguardHeaderHashDB
 	pandoraHeaderHashDB := backend.PandoraHeaderHashDB
 	realmDB := backend.RealmDB
@@ -134,25 +201,34 @@ func (backend *Backend) InvalidatePendingQueue() (vanguardErr error, pandoraErr 
 	defer backend.Unlock()
 
 	latestSavedVerifiedRealmSlot := realmDB.LatestVerifiedRealmSlot()
+
+	if fromSlot > latestSavedVerifiedRealmSlot {
+		realmErr = fmt.Errorf("I cannot start invalidation without root")
+
+		return
+	}
+
 	log.WithField("latestSavedVerifiedRealmSlot", latestSavedVerifiedRealmSlot).
-		Info("Got latest verified realm slot")
-	pandoraHeaderHashes, err := pandoraHeaderHashDB.PandoraHeaderHashes(latestSavedVerifiedRealmSlot)
+		WithField("from slot", fromSlot).
+		Info("Invalidation starts")
+
+	pandoraHeaderHashes, err := pandoraHeaderHashDB.PandoraHeaderHashes(fromSlot)
 
 	if nil != err {
 		log.WithField("cause", "Failed to invalidate pending queue").Error(err)
 		return
 	}
 
-	log.WithField("pandoraHeaderHashes", pandoraHeaderHashes).
-		Info("Got Pandora header hashes")
+	vanguardBlockHashes, err := vanguardHashDB.VanguardHeaderHashes(fromSlot, batchLimit)
 
-	vanguardBlockHashes, err := vanguardHashDB.VanguardHeaderHashes(latestSavedVerifiedRealmSlot, 500)
-
-	log.WithField("vanguardBlockHashes", vanguardBlockHashes).
-		Info("Got Vanguard header hashes")
+	log.WithField("pandoraHeaderHashes", len(pandoraHeaderHashes)).
+		WithField("vanguardHeaderHashes", len(vanguardBlockHashes)).
+		Trace("Got header hashes")
 
 	if nil != err {
 		log.WithField("cause", "Failed to invalidate pending queue").Error(err)
+		realmErr = err
+
 		return
 	}
 
@@ -160,16 +236,17 @@ func (backend *Backend) InvalidatePendingQueue() (vanguardErr error, pandoraErr 
 	vanguardRange := len(vanguardBlockHashes)
 
 	log.WithField("pandoraRange", pandoraRange).WithField("vanguardRange", vanguardRange).
-		Info("Invalidation with range of blocks")
+		Trace("Invalidation with range of blocks")
 
 	// You wont match anything, so short circuit
 	if pandoraRange < 1 || vanguardRange < 1 {
 		return
 	}
 
+	// TODO: move it to memory, and save in batch
 	// This is quite naive, but should work
 	for index, vanguardBlockHash := range vanguardBlockHashes {
-		slotToCheck := latestSavedVerifiedRealmSlot + uint64(index)
+		slotToCheck := fromSlot + uint64(index)
 
 		if len(pandoraHeaderHashes) <= index {
 			break
@@ -320,20 +397,4 @@ func (backend *Backend) InvalidatePendingQueue() (vanguardErr error, pandoraErr 
 		Info("I have resolved InvalidatePendingQueue")
 
 	return
-}
-
-func (backend *Backend) SubscribeNewEpochEvent(ch chan<- *types.MinimalEpochConsensusInfo) event.Subscription {
-	return backend.ConsensusInfoFeed.SubscribeMinConsensusInfoEvent(ch)
-}
-
-func (backend *Backend) CurrentEpoch() uint64 {
-	return backend.ConsensusInfoDB.GetLatestEpoch()
-}
-
-func (backend *Backend) ConsensusInfoByEpochRange(fromEpoch uint64) []*types.MinimalEpochConsensusInfo {
-	consensusInfos, err := backend.ConsensusInfoDB.ConsensusInfos(fromEpoch)
-	if err != nil {
-		return nil
-	}
-	return consensusInfos
 }
