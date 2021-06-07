@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	testDB "github.com/lukso-network/lukso-orchestrator/orchestrator/db/testing"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/require"
@@ -16,6 +17,14 @@ type realmPairSuite []struct {
 	vanguardHash           *types.HeaderHash
 	expectedPandoraStatus  types.Status
 	expectedVanguardStatus types.Status
+}
+
+func TestNew(t *testing.T) {
+	orchestratorDB := testDB.SetupDB(t)
+	service := New(orchestratorDB)
+	require.Equal(t, orchestratorDB, service.VanguardHeaderHashDB)
+	require.Equal(t, orchestratorDB, service.PandoraHeaderHashDB)
+	require.Equal(t, orchestratorDB, service.RealmDB)
 }
 
 func TestService_Canonicalize(t *testing.T) {
@@ -216,24 +225,24 @@ func TestService_Canonicalize(t *testing.T) {
 			}
 		}
 
-		vanguardErr, pandoraErr, realmErr := service.Canonicalize(0, 500)
+		vanguardErr, pandoraErr, realmErr := service.Canonicalize(0, 600)
 		require.NoError(t, vanguardErr)
 		require.NoError(t, pandoraErr)
 		require.NoError(t, realmErr)
 
 		for index, suite := range testSuite {
+			indexMsg := fmt.Sprintf("Failed on slot: %d, index: %d", suite.slot, index)
+
 			if nil != suite.vanguardHash {
-				headerHash, err := orchestratorDB.VanguardHeaderHash(5)
-				require.NoError(t, err)
-				require.Equal(t, types.Verified, headerHash.Status, index)
-				require.Equal(t, suite.vanguardHash, headerHash.HeaderHash, index)
+				headerHash, err := orchestratorDB.VanguardHeaderHash(suite.slot)
+				require.NoError(t, err, indexMsg)
+				require.Equal(t, suite.expectedVanguardStatus, headerHash.Status, indexMsg)
 			}
 
 			if nil != suite.pandoraHash {
-				headerHash, err := orchestratorDB.PandoraHeaderHash(5)
-				require.NoError(t, err)
-				require.Equal(t, types.Verified, headerHash.Status, index)
-				require.Equal(t, suite.pandoraHash, headerHash.HeaderHash, index)
+				headerHash, err := orchestratorDB.PandoraHeaderHash(suite.slot)
+				require.NoError(t, err, indexMsg)
+				require.Equal(t, suite.expectedPandoraStatus, headerHash.Status, indexMsg)
 			}
 		}
 

@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"fmt"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db/iface"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
@@ -13,6 +14,14 @@ type Service struct {
 	VanguardHeaderHashDB iface.VanHeaderAccessDatabase
 	PandoraHeaderHashDB  iface.PanHeaderAccessDatabase
 	RealmDB              iface.RealmAccessDatabase
+}
+
+func New(database db.Database) (service *Service) {
+	return &Service{
+		VanguardHeaderHashDB: database,
+		PandoraHeaderHashDB:  database,
+		RealmDB:              database,
+	}
 }
 
 // Canonicalize must be called numerous of times with different from slot
