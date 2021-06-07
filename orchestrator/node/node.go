@@ -5,6 +5,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/math"
 	ethRpc "github.com/ethereum/go-ethereum/rpc"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/consensus"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db/kv"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/pandorachain"
@@ -64,6 +65,12 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 	}
 
 	if err := orchestrator.registerPandoraChainService(cliCtx); err != nil {
+		return nil, err
+	}
+
+	err := orchestrator.registerConsensusService(cliCtx)
+
+	if nil != err {
 		return nil, err
 	}
 
@@ -157,6 +164,12 @@ func (o *OrchestratorNode) registerPandoraChainService(cliCtx *cli.Context) erro
 		return nil
 	}
 	log.WithField("pandoraHttpUrl", pandoraRPCUrl).Info("Registered pandora chain service")
+	return o.services.RegisterService(svc)
+}
+
+func (o *OrchestratorNode) registerConsensusService(cliCtx *cli.Context) (err error) {
+	svc := consensus.New(cliCtx.Context, o.db)
+
 	return o.services.RegisterService(svc)
 }
 

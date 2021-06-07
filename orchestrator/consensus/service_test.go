@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"context"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	testDB "github.com/lukso-network/lukso-orchestrator/orchestrator/db/testing"
@@ -21,7 +22,8 @@ type realmPairSuite []struct {
 
 func TestNew(t *testing.T) {
 	orchestratorDB := testDB.SetupDB(t)
-	service := New(orchestratorDB)
+	ctx := context.Background()
+	service := New(ctx, orchestratorDB)
 	require.Equal(t, orchestratorDB, service.VanguardHeaderHashDB)
 	require.Equal(t, orchestratorDB, service.PandoraHeaderHashDB)
 	require.Equal(t, orchestratorDB, service.RealmDB)
@@ -30,11 +32,8 @@ func TestNew(t *testing.T) {
 func TestService_Canonicalize(t *testing.T) {
 	t.Run("should invalidate matched blocks on slot 1", func(t *testing.T) {
 		orchestratorDB := testDB.SetupDB(t)
-		service := &Service{
-			PandoraHeaderHashDB:  orchestratorDB,
-			VanguardHeaderHashDB: orchestratorDB,
-			RealmDB:              orchestratorDB,
-		}
+		ctx := context.Background()
+		service := New(ctx, orchestratorDB)
 
 		pandoraToken := make([]byte, 4)
 		rand.Read(pandoraToken)
@@ -85,11 +84,8 @@ func TestService_Canonicalize(t *testing.T) {
 
 	t.Run("should handle skipped blocks", func(t *testing.T) {
 		orchestratorDB := testDB.SetupDB(t)
-		service := &Service{
-			PandoraHeaderHashDB:  orchestratorDB,
-			VanguardHeaderHashDB: orchestratorDB,
-			RealmDB:              orchestratorDB,
-		}
+		ctx := context.Background()
+		service := New(ctx, orchestratorDB)
 
 		pandoraToken := make([]byte, 4)
 		rand.Read(pandoraToken)
@@ -131,11 +127,8 @@ func TestService_Canonicalize(t *testing.T) {
 
 	t.Run("should handle skipped blocks with different states", func(t *testing.T) {
 		orchestratorDB := testDB.SetupDB(t)
-		service := &Service{
-			PandoraHeaderHashDB:  orchestratorDB,
-			VanguardHeaderHashDB: orchestratorDB,
-			RealmDB:              orchestratorDB,
-		}
+		ctx := context.Background()
+		service := New(ctx, orchestratorDB)
 
 		pandoraToken := make([]byte, 4)
 		rand.Read(pandoraToken)
@@ -252,11 +245,8 @@ func TestService_Canonicalize(t *testing.T) {
 
 	t.Run("should invalidate lots of pending blocks", func(t *testing.T) {
 		orchestratorDB := testDB.SetupDB(t)
-		service := &Service{
-			PandoraHeaderHashDB:  orchestratorDB,
-			VanguardHeaderHashDB: orchestratorDB,
-			RealmDB:              orchestratorDB,
-		}
+		ctx := context.Background()
+		service := New(ctx, orchestratorDB)
 
 		type realmPair struct {
 			pandoraSlot  uint64

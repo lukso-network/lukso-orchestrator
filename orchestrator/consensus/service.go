@@ -1,10 +1,12 @@
 package consensus
 
 import (
+	"context"
 	"fmt"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db/iface"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
+	"github.com/lukso-network/lukso-orchestrator/shared"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	log "github.com/sirupsen/logrus"
 )
@@ -14,13 +16,65 @@ type Service struct {
 	VanguardHeaderHashDB iface.VanHeaderAccessDatabase
 	PandoraHeaderHashDB  iface.PanHeaderAccessDatabase
 	RealmDB              iface.RealmAccessDatabase
+	stopChan             chan bool
+	canonicalizeChan     chan uint64
 }
 
-func New(database db.Database) (service *Service) {
+func (service *Service) Start() {
+	go func() {
+		for {
+			select {
+			case slot := <-service.canonicalizeChan:
+				vanguardErr, pandoraErr, realmErr := service.Canonicalize(slot, 500)
+
+				if nil != vanguardErr {
+					log.WithField("canonicalize", "vanguardErr").Error(vanguardErr)
+				}
+
+				if nil != pandoraErr {
+					log.WithField("canonicalize", "pandoraErr").Error(pandoraErr)
+				}
+
+				if nil != realmErr {
+					log.WithField("canonicalize", "realmErr").Error(realmErr)
+				}
+			case stop := <-service.stopChan:
+				if stop {
+					log.WithField("canonicalize", "stop").Info("Received stop signal")
+					return
+				}
+			}
+		}
+	}()
+
+	latestVerifiedSlot := service.RealmDB.LatestVerifiedRealmSlot()
+	service.canonicalizeChan <- latestVerifiedSlot
+
+	return
+}
+
+func (service *Service) Stop() error {
+	service.stopChan <- true
+
+	return nil
+}
+
+func (service *Service) Status() error {
+	return nil
+}
+
+var _ shared.Service = &Service{}
+
+func New(ctx context.Context, database db.Database) (service *Service) {
+	stopChan := make(chan bool)
+	canonicalizeChain := make(chan uint64)
+
 	return &Service{
 		VanguardHeaderHashDB: database,
 		PandoraHeaderHashDB:  database,
 		RealmDB:              database,
+		stopChan:             stopChan,
+		canonicalizeChan:     canonicalizeChain,
 	}
 }
 
@@ -52,6 +106,7 @@ func (service *Service) Canonicalize(
 	log.Info("I am starting to InvalidatePendingQueue in batches")
 
 	// If higher slot was found and is valid all the gaps between must me treated as invalid and discarded
+	// SIDE NOTE: This is invalid, when a lot of blocks were just simply not present yet due to the network traffic
 	possibleInvalidPair := make([]*events.RealmPair, 0)
 	latestSavedVerifiedRealmSlot := realmDB.LatestVerifiedRealmSlot()
 
