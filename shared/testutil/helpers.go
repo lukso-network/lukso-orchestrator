@@ -42,8 +42,9 @@ func NewPandoraHeaderHash(slot uint64, status types.Status) *types.HeaderHash {
 func NewEth1Header(slot uint64) *eth1Types.Header {
 	epoch := slot / 32
 	extraData := types.ExtraData{
-		Slot:          slot,
-		Epoch:         epoch,
+		Slot:  slot,
+		Epoch: epoch,
+		// TODO: remove this, we do not have this information
 		ProposerIndex: 786,
 	}
 	extraDataByte, _ := rlp.EncodeToBytes(extraData)

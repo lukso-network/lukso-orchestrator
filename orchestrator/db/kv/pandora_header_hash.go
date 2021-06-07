@@ -35,11 +35,7 @@ func (s *Store) PandoraHeaderHash(slot uint64) (*types.HeaderHash, error) {
 }
 
 // PanHeaders
-func (s *Store) PandoraHeaderHashes(fromSlot uint64) ([]*types.HeaderHash, error) {
-	// when requested epoch is greater than stored latest epoch
-	if fromSlot > s.latestPanSlot {
-		return nil, errors.Wrap(InvalidSlot, fmt.Sprintf("Got invalid fromSlot: %d", fromSlot))
-	}
+func (s *Store) PandoraHeaderHashes(fromSlot uint64, limit uint64) ([]*types.HeaderHash, error) {
 	pandoraHeaderHashes := make([]*types.HeaderHash, 0)
 	err := s.db.View(func(tx *bolt.Tx) error {
 		for slot := fromSlot; slot <= s.latestPanSlot; slot++ {
@@ -49,6 +45,10 @@ func (s *Store) PandoraHeaderHashes(fromSlot uint64) ([]*types.HeaderHash, error
 				return errors.Wrap(PandoraHeaderNotFoundErr, fmt.Sprintf("Could not found pandora header for slot: %d", slot))
 			}
 			pandoraHeaderHashes = append(pandoraHeaderHashes, headerHash)
+
+			if len(pandoraHeaderHashes) >= int(limit) {
+				break
+			}
 		}
 		return nil
 	})

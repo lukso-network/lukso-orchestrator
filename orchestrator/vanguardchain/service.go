@@ -16,7 +16,7 @@ var reConPeriod = 15 * time.Second
 
 type DIALGRPCFn func(endpoint string) (client.VanguardClient, error)
 
-// Service:
+// Service
 // 	- maintains connection with vanguard chain
 //	- handles vanguard subscription for consensus info.
 //  - sends new consensus info to all pandora subscribers.

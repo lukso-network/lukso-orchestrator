@@ -17,6 +17,10 @@ type MockBackend struct {
 	CurEpoch          uint64
 }
 
+func (b *MockBackend) GetPendingHashes() (response *PendingHashesResponse, err error) {
+	panic("implement me")
+}
+
 var _ Backend = &MockBackend{}
 
 func (b *MockBackend) FetchPanBlockStatus(slot uint64, hash common.Hash) (status Status, err error) {
@@ -25,10 +29,6 @@ func (b *MockBackend) FetchPanBlockStatus(slot uint64, hash common.Hash) (status
 
 func (b *MockBackend) FetchVanBlockStatus(slot uint64, hash common.Hash) (status Status, err error) {
 	panic("implement me")
-}
-
-func (b *MockBackend) InvalidatePendingQueue() (vanErr error, panErr error, realmErr error) {
-	return
 }
 
 func (b *MockBackend) CurrentEpoch() uint64 {
