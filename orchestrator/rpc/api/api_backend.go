@@ -132,7 +132,7 @@ func (backend *Backend) InvalidatePendingQueue() (
 	// This service could be fetched or created during singleton pattern
 	consensusService := &ConsensusService{backend}
 	latestSavedVerifiedRealmSlot := realmDB.LatestVerifiedRealmSlot()
-	vanguardErr, pandoraErr, realmErr = consensusService.canonicalize(
+	vanguardErr, pandoraErr, realmErr = consensusService.Canonicalize(
 		latestSavedVerifiedRealmSlot,
 		500,
 	)
@@ -161,7 +161,9 @@ type ConsensusService struct {
 	backend *Backend
 }
 
-func (service *ConsensusService) canonicalize(
+// Canonicalize must be called numerous of times with different from slot
+// new slots may arrive after canonicalization, so Canonicalize must be invoked again
+func (service *ConsensusService) Canonicalize(
 	fromSlot uint64,
 	batchLimit uint64,
 ) (
