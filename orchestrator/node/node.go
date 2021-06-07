@@ -15,6 +15,7 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/shared"
 	"github.com/lukso-network/lukso-orchestrator/shared/cmd"
 	"github.com/lukso-network/lukso-orchestrator/shared/fileutil"
+	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	"github.com/lukso-network/lukso-orchestrator/shared/version"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -68,13 +69,13 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 		return nil, err
 	}
 
-	err := orchestrator.registerConsensusService(cliCtx)
-
-	if nil != err {
+	if err := orchestrator.registerRPCService(cliCtx); err != nil {
 		return nil, err
 	}
 
-	if err := orchestrator.registerRPCService(cliCtx); err != nil {
+	err := orchestrator.registerConsensusService(cliCtx)
+
+	if nil != err {
 		return nil, err
 	}
 
@@ -168,6 +169,29 @@ func (o *OrchestratorNode) registerPandoraChainService(cliCtx *cli.Context) erro
 }
 
 func (o *OrchestratorNode) registerConsensusService(cliCtx *cli.Context) (err error) {
+	var (
+		vanguardChain             *vanguardchain.Service
+		pandoraChain              *pandorachain.Service
+		vanguardHeadersChan       chan<- *types.HeaderHash
+		vanguardConsensusInfoChan chan<- *types.MinimalEpochConsensusInfo
+		//pandoraHeadersChan chan <-*types.HeaderHash
+	)
+
+	err = o.services.FetchService(&vanguardChain)
+
+	if err != nil {
+		return err
+	}
+
+	err = o.services.FetchService(&pandoraChain)
+
+	if err != nil {
+		return err
+	}
+
+	vanguardChain.SubscribeVanNewPendingBlockHash(vanguardHeadersChan)
+	vanguardChain.SubscribeMinConsensusInfoEvent(vanguardConsensusInfoChan)
+	// TODO: insert here also channels to assure that all of them received at least one signal (prevent race condition)
 	svc := consensus.New(cliCtx.Context, o.db)
 
 	return o.services.RegisterService(svc)

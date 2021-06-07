@@ -9,21 +9,30 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/shared"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	log "github.com/sirupsen/logrus"
+	"time"
 )
 
 // This part could be moved to other place during refactor, might be registered as a service
 type Service struct {
-	VanguardHeaderHashDB iface.VanHeaderAccessDatabase
-	PandoraHeaderHashDB  iface.PanHeaderAccessDatabase
-	RealmDB              iface.RealmAccessDatabase
-	stopChan             chan bool
-	canonicalizeChan     chan uint64
+	VanguardHeaderHashDB      iface.VanHeaderAccessDatabase
+	PandoraHeaderHashDB       iface.PanHeaderAccessDatabase
+	RealmDB                   iface.RealmAccessDatabase
+	VanguardHeadersChan       chan<- *types.HeaderHash
+	VanguardConsensusInfoChan chan<- *types.MinimalEpochConsensusInfo
+	stopChan                  chan bool
+	canonicalizeChan          chan uint64
 }
 
 func (service *Service) Start() {
+	ticker := time.NewTicker(time.Second * 2)
+
 	go func() {
+		// Here insert check that will await for all 3 channels to receive at least one signal
 		for {
 			select {
+			case <-ticker.C:
+				latestVerifiedSlot := service.RealmDB.LatestVerifiedRealmSlot()
+				service.canonicalizeChan <- latestVerifiedSlot
 			case slot := <-service.canonicalizeChan:
 				vanguardErr, pandoraErr, realmErr := service.Canonicalize(slot, 500)
 
@@ -46,9 +55,6 @@ func (service *Service) Start() {
 			}
 		}
 	}()
-
-	latestVerifiedSlot := service.RealmDB.LatestVerifiedRealmSlot()
-	service.canonicalizeChan <- latestVerifiedSlot
 
 	return
 }
@@ -117,10 +123,10 @@ func (service *Service) Canonicalize(
 	}
 
 	log.WithField("latestSavedVerifiedRealmSlot", latestSavedVerifiedRealmSlot).
-		WithField("from slot", fromSlot).
+		WithField("slot", fromSlot).
 		Info("Invalidation starts")
 
-	pandoraHeaderHashes, err := pandoraHeaderHashDB.PandoraHeaderHashes(fromSlot)
+	pandoraHeaderHashes, err := pandoraHeaderHashDB.PandoraHeaderHashes(fromSlot, batchLimit)
 
 	if nil != err {
 		log.WithField("cause", "Failed to invalidate pending queue").Error(err)

@@ -26,7 +26,7 @@ type ConsensusInfoAccessDatabase interface {
 // ReadOnlyPanHeaderAccessDatabase
 type ReadOnlyPanHeaderAccessDatabase interface {
 	PandoraHeaderHash(slot uint64) (*types.HeaderHash, error)
-	PandoraHeaderHashes(fromSlot uint64) ([]*types.HeaderHash, error)
+	PandoraHeaderHashes(fromSlot uint64, limit uint64) ([]*types.HeaderHash, error)
 	LatestSavedPandoraSlot() uint64
 	LatestSavedPandoraHeaderHash() common.Hash
 	GetLatestHeaderHash() common.Hash

@@ -11,7 +11,7 @@ import (
 func (s *Service) SubscribePendingHeaders(ctx context.Context, crit *types.PandoraPendingHeaderFilter, namespace string,
 	client *rpc.Client) (*rpc.ClientSubscription, error) {
 
-	ch := make(chan *eth1Types.Header)
+	ch := make(chan *eth1Types.Header, 10000000)
 	sub, err := client.Subscribe(ctx, namespace, ch, "newPendingBlockHeaders", crit)
 	if nil != err {
 		return nil, err
