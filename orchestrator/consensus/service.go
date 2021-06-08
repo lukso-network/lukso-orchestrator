@@ -3,10 +3,10 @@ package consensus
 import (
 	"context"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db/iface"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/utils"
 	"github.com/lukso-network/lukso-orchestrator/shared"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	log "github.com/sirupsen/logrus"
@@ -359,13 +359,13 @@ func (service *Service) workLoop() {
 		header, isHeaderHash := work.(*types.HeaderHash)
 
 		if !isHeaderHash {
-			log.WithField("cause", "vanguardHeadersChanHandler").Warn("invalid header hash")
+			log.WithField("cause", "mergedChannelHandler").Warn("invalid header hash")
 
 			return
 		}
 
 		if nil == header {
-			log.WithField("cause", "vanguardHeadersChanHandler").Warn("empty header hash")
+			log.WithField("cause", "mergedChannelHandler").Warn("empty header hash")
 			return
 		}
 
@@ -373,12 +373,21 @@ func (service *Service) workLoop() {
 		vanguardHashes, err := vanguardDB.VanguardHeaderHashes(latestVerifiedRealmSlot, uint64(batchLimit))
 
 		if nil != err {
-			log.WithField("cause", "VanguardHeadersChan").Error(err)
+			log.WithField("cause", "mergedChannelHandler").Error(err)
 
 			return
 		}
 
 		pandoraHashes, err := pandoraDB.PandoraHeaderHashes(latestVerifiedRealmSlot, uint64(batchLimit))
+
+		// This is naive, but might work
+		// We need to have at least one pair to start invalidation.
+		// It might lead to 2 pairs on one side, or invalidation stall,
+		// But ATM I do not have quicker and better idea
+		if len(possiblePendingWork) < 2 {
+			log.WithField("cause", "mergedChannelHandler").Debug("not enough pending pairs")
+			return
+		}
 
 		// If hash will be found above verified slot than it means that its pending
 		// Otherwise we have an reorg (Not supported yet)
@@ -434,6 +443,12 @@ func (service *Service) workLoop() {
 	}()
 
 	// Debounce (aggregate) calls and invoke invalidation of pending queue only when needed
+	go utils.Debounce(
+		context.Background(),
+		debounceDuration,
+		mergedHeadersChanBridge,
+		mergedChannelHandler,
+	)
 }
 
 func merge(cs ...<-chan *types.HeaderHash) <-chan *types.HeaderHash {
