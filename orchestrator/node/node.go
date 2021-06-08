@@ -74,8 +74,8 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 		return nil, err
 	}
 
-	// Register consensus service only after vanguard notified about consensus info and blocks
-	go orchestrator.registerConsensusService(cliCtx)
+	// Register consensus service only after Vanguard and Pandora notified about consensus info and blocks
+	go orchestrator.registerAndStartConsensusService(cliCtx)
 
 	return orchestrator, nil
 }
@@ -166,7 +166,7 @@ func (o *OrchestratorNode) registerPandoraChainService(cliCtx *cli.Context) erro
 	return o.services.RegisterService(svc)
 }
 
-func (o *OrchestratorNode) registerConsensusService(
+func (o *OrchestratorNode) registerAndStartConsensusService(
 	cliCtx *cli.Context,
 ) {
 	var (
@@ -208,18 +208,33 @@ func (o *OrchestratorNode) registerConsensusService(
 	// This is arbitrary, it may be less or more. Depends on the approach
 	debounceDuration := time.Second * 10
 
+	// Locks that will prevent negative waitGroup counters
+	vanguardHeadersChanLock := false
+	vanguardConsensusChanLock := false
+
 	// Create bridge channels for debounce
 	vanguardHeadersChanBridge := make(chan interface{})
 	vanguardConsensusChanBridge := make(chan interface{})
 
 	// Create bridge handlers for debounce
 	vanguardHeadersChanHandler := func(interface{}) {
+		if vanguardHeadersChanLock {
+			return
+		}
+
 		log.Info("I have reached vanguardHeadersChanHandler confirmation")
 		waitGroup.Done()
+		vanguardHeadersChanLock = true
 	}
 	vanguardConsensusChanHandler := func(interface{}) {
+		if vanguardConsensusChanLock {
+			return
+		}
+
 		log.Info("I have reached vanguardConsensusChanHandler confirmation")
 		waitGroup.Done()
+
+		vanguardConsensusChanLock = true
 	}
 
 	// TODO: add pandora resolver
@@ -251,6 +266,11 @@ func (o *OrchestratorNode) registerConsensusService(
 	}
 
 	log.Info("I have registered consensus service")
+	close(vanguardHeadersChanBridge)
+	close(vanguardConsensusChanBridge)
+
+	log.Info("I am starting consensus service")
+	svc.Start()
 }
 
 // register RPC server

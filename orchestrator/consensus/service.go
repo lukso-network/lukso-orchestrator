@@ -23,15 +23,21 @@ type Service struct {
 	canonicalizeChan          chan uint64
 }
 
+// This service should be registered only after Pandora and Vanguard notified about:
+// - consensus info (Vanguard)
+// - pendingHeaders (Vanguard)
+// - pendingHeaders (Pandora)
+// In current implementation we use debounce to determine state of syncing
 func (service *Service) Start() {
-	ticker := time.NewTicker(time.Second * 2000)
+	ticker := time.NewTicker(time.Second * 2)
+	log.Info("I am starting consensus service")
 
 	go func() {
-		// Here insert check that will await for all 3 channels to receive at least one signal
 		for {
 			select {
 			case <-ticker.C:
 				latestVerifiedSlot := service.RealmDB.LatestVerifiedRealmSlot()
+				log.Info("I should start to verify pending blocks")
 				service.canonicalizeChan <- latestVerifiedSlot
 			case slot := <-service.canonicalizeChan:
 				vanguardErr, pandoraErr, realmErr := service.Canonicalize(slot, 500)
