@@ -3,12 +3,15 @@ package consensus
 import (
 	"context"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db/iface"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
 	"github.com/lukso-network/lukso-orchestrator/shared"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	log "github.com/sirupsen/logrus"
+	"sync"
+	"time"
 )
 
 // This part could be moved to other place during refactor, might be registered as a service
@@ -16,8 +19,9 @@ type Service struct {
 	VanguardHeaderHashDB      iface.VanHeaderAccessDatabase
 	PandoraHeaderHashDB       iface.PanHeaderAccessDatabase
 	RealmDB                   iface.RealmAccessDatabase
-	VanguardHeadersChan       chan<- *types.HeaderHash
-	VanguardConsensusInfoChan chan<- *types.MinimalEpochConsensusInfo
+	VanguardHeadersChan       chan *types.HeaderHash
+	VanguardConsensusInfoChan chan *types.MinimalEpochConsensusInfo
+	PandoraHeadersChan        chan *types.HeaderHash
 	stopChan                  chan bool
 	canonicalizeChan          chan uint64
 }
@@ -56,10 +60,8 @@ func (service *Service) Start() {
 		}
 	}()
 
-	latestVerifiedSlot := service.RealmDB.LatestVerifiedRealmSlot()
-	log.WithField("latestVerifiedSlot", latestVerifiedSlot).
-		Info("I am pushing work to canonicalizeChan")
-	service.canonicalizeChan <- latestVerifiedSlot
+	// There might be multiple scenarios that will trigger different slot required to trigger the canonicalize
+	service.workLoop()
 
 	return
 }
@@ -76,16 +78,25 @@ func (service *Service) Status() error {
 
 var _ shared.Service = &Service{}
 
-func New(ctx context.Context, database db.Database) (service *Service) {
+func New(
+	ctx context.Context,
+	database db.Database,
+	vanguardHeadersChan chan *types.HeaderHash,
+	vanguardConsensusInfoChan chan *types.MinimalEpochConsensusInfo,
+	pandoraHeadersChan chan *types.HeaderHash,
+) (service *Service) {
 	stopChan := make(chan bool)
 	canonicalizeChain := make(chan uint64)
 
 	return &Service{
-		VanguardHeaderHashDB: database,
-		PandoraHeaderHashDB:  database,
-		RealmDB:              database,
-		stopChan:             stopChan,
-		canonicalizeChan:     canonicalizeChain,
+		VanguardHeaderHashDB:      database,
+		PandoraHeaderHashDB:       database,
+		RealmDB:                   database,
+		VanguardHeadersChan:       vanguardHeadersChan,
+		VanguardConsensusInfoChan: vanguardConsensusInfoChan,
+		PandoraHeadersChan:        pandoraHeadersChan,
+		stopChan:                  stopChan,
+		canonicalizeChan:          canonicalizeChain,
 	}
 }
 
@@ -319,4 +330,127 @@ func (service *Service) Canonicalize(
 		Info("I have resolved InvalidatePendingQueue")
 
 	return
+}
+
+// workLoop should be responsible of handling multiple events and resolving them
+// Assumption is that if you want to validate pending queue you should receive information from Vanguard and Pandora
+// TODO: handle reorgs
+// TODO: consider working on MinimalConsensusInfo
+func (service *Service) workLoop() {
+	verifiedSlotWorkLoopStart := service.RealmDB.LatestVerifiedRealmSlot()
+	log.WithField("verifiedSlotWorkLoopStart", verifiedSlotWorkLoopStart).
+		Info("I am pushing work to canonicalizeChan")
+	service.canonicalizeChan <- verifiedSlotWorkLoopStart
+	realmDB := service.RealmDB
+	vanguardDB := service.VanguardHeaderHashDB
+	pandoraDB := service.PandoraHeaderHashDB
+	batchLimit := 1500
+	possiblePendingWork := make([]*types.HeaderHash, 0)
+
+	// This is arbitrary, it may be less or more. Depends on the approach
+	debounceDuration := time.Second
+	// Create merged channel
+	mergedChannel := merge(service.VanguardHeadersChan, service.PandoraHeadersChan)
+
+	// Create bridge for debounce
+	mergedHeadersChanBridge := make(chan interface{})
+	// Provide handlers for debounce
+	mergedChannelHandler := func(work interface{}) {
+		header, isHeaderHash := work.(*types.HeaderHash)
+
+		if !isHeaderHash {
+			log.WithField("cause", "vanguardHeadersChanHandler").Warn("invalid header hash")
+
+			return
+		}
+
+		if nil == header {
+			log.WithField("cause", "vanguardHeadersChanHandler").Warn("empty header hash")
+			return
+		}
+
+		latestVerifiedRealmSlot := realmDB.LatestVerifiedRealmSlot()
+		vanguardHashes, err := vanguardDB.VanguardHeaderHashes(latestVerifiedRealmSlot, uint64(batchLimit))
+
+		if nil != err {
+			log.WithField("cause", "VanguardHeadersChan").Error(err)
+
+			return
+		}
+
+		pandoraHashes, err := pandoraDB.PandoraHeaderHashes(latestVerifiedRealmSlot, uint64(batchLimit))
+
+		// If hash will be found above verified slot than it means that its pending
+		// Otherwise we have an reorg (Not supported yet)
+		// The most tricky part is to resolve what is the slot number for particular hash
+		// TODO: consider pushing also slot number in channel or in headerHash struct
+		for index, hash := range vanguardHashes {
+			if nil == hash {
+				continue
+			}
+
+			if hash.HeaderHash.String() != header.HeaderHash.String() {
+				continue
+			}
+
+			currentSlot := uint64(index) + latestVerifiedRealmSlot
+			service.canonicalizeChan <- currentSlot
+
+			return
+		}
+
+		for index, hash := range pandoraHashes {
+			if nil == hash {
+				continue
+			}
+
+			if hash.HeaderHash.String() != header.HeaderHash.String() {
+				continue
+			}
+
+			currentSlot := uint64(index) + latestVerifiedRealmSlot
+			service.canonicalizeChan <- currentSlot
+
+			return
+		}
+	}
+
+	go func() {
+		for {
+			select {
+			case header := <-mergedChannel:
+				possiblePendingWork = append(possiblePendingWork, header)
+				mergedHeadersChanBridge <- header
+			case <-service.canonicalizeChan:
+				possiblePendingWork = make([]*types.HeaderHash, 0)
+			case stop := <-service.stopChan:
+				if stop {
+					log.WithField("canonicalize", "stop").Info("Received stop signal")
+
+					return
+				}
+			}
+		}
+	}()
+
+	// Debounce (aggregate) calls and invoke invalidation of pending queue only when needed
+}
+
+func merge(cs ...<-chan *types.HeaderHash) <-chan *types.HeaderHash {
+	out := make(chan *types.HeaderHash)
+	var wg sync.WaitGroup
+	wg.Add(len(cs))
+	for _, c := range cs {
+		go func(c <-chan *types.HeaderHash) {
+			for v := range c {
+				out <- v
+			}
+			wg.Done()
+		}(c)
+	}
+	go func() {
+		wg.Wait()
+		close(out)
+	}()
+	return out
 }

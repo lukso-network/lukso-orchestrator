@@ -261,7 +261,6 @@ func (o *OrchestratorNode) registerAndStartConsensusService(
 		return vanguardHeadersChanLock && vanguardConsensusChanLock && pandoraHeadersChanLock
 	}
 
-	// TODO: add pandora resolver
 	go func() {
 		for {
 		loop:
@@ -302,7 +301,13 @@ func (o *OrchestratorNode) registerAndStartConsensusService(
 	log.Info("I am waiting for orchestrator to receive all pending data")
 	waitGroup.Wait()
 
-	svc := consensus.New(cliCtx.Context, o.db)
+	svc := consensus.New(
+		cliCtx.Context,
+		o.db,
+		vanguardHeadersChan,
+		vanguardConsensusInfoChan,
+		pandoraHeadersChan,
+	)
 	err = o.services.RegisterService(svc)
 
 	if nil != err {
