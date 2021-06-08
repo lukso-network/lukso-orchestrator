@@ -10,6 +10,7 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db/kv"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/pandorachain"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/utils"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/client"
 	"github.com/lukso-network/lukso-orchestrator/shared"
@@ -200,47 +201,56 @@ func (o *OrchestratorNode) registerConsensusService(
 	vanguardChain.SubscribeVanNewPendingBlockHash(vanguardHeadersChan)
 	vanguardChain.SubscribeMinConsensusInfoEvent(vanguardConsensusInfoChan)
 
+	waitGroup := sync.WaitGroup{}
 	// TODO: add 3 instead of 2 (also pandora chain should notify about availability)
-	vanguardHeaderLock := true
-	vanguardConsensusLock := true
+	waitGroup.Add(2)
 
-	// TODO: resolve synchronization. Do not start when still receiving data.
-	//  This should prevent data availability failure
-	for {
-		select {
-		case <-vanguardHeadersChan:
-			if !vanguardHeaderLock {
-				continue
-			}
+	// This is arbitrary, it may be less or more. Depends on the approach
+	debounceDuration := time.Second * 10
 
-			vanguardHeaderLock = false
-			log.WithField("context", "vanguardHeadersChan").
-				Info("received signal about vanguard headers")
-		case <-vanguardConsensusInfoChan:
-			if !vanguardConsensusLock {
-				continue
-			}
+	// Create bridge channels for debounce
+	vanguardHeadersChanBridge := make(chan interface{})
+	vanguardConsensusChanBridge := make(chan interface{})
 
-			vanguardConsensusLock = false
-			log.WithField("context", "vanguardHeadersChan").
-				Info("received signal about vanguard consensus info")
-		}
-
-		// Leave the loop
-		if !vanguardHeaderLock && !vanguardConsensusLock {
-			log.WithField("context", "consensus service lock").
-				Info("unchained all locks")
-
-			break
-		}
+	// Create bridge handlers for debounce
+	vanguardHeadersChanHandler := func(interface{}) {
+		log.Info("I have reached vanguardHeadersChanHandler confirmation")
+		waitGroup.Done()
 	}
+	vanguardConsensusChanHandler := func(interface{}) {
+		log.Info("I have reached vanguardConsensusChanHandler confirmation")
+		waitGroup.Done()
+	}
+
+	// TODO: add pandora resolver
+	go func() {
+		for {
+			select {
+			case header := <-vanguardHeadersChan:
+				vanguardHeadersChanBridge <- header
+			case info := <-vanguardConsensusInfoChan:
+				vanguardConsensusChanBridge <- info
+			}
+		}
+	}()
+
+	// Debounce and wait for sideEffect
+	go utils.Debounce(cliCtx.Context, debounceDuration, vanguardHeadersChanBridge, vanguardHeadersChanHandler)
+	go utils.Debounce(cliCtx.Context, debounceDuration, vanguardConsensusChanBridge, vanguardConsensusChanHandler)
+
+	log.Info("I am waiting for orchestrator to receive all pending data")
+	waitGroup.Wait()
 
 	svc := consensus.New(cliCtx.Context, o.db)
 	err = o.services.RegisterService(svc)
 
 	if nil != err {
 		log.WithField("err", err).Error("Consensus service not registered")
+
+		return
 	}
+
+	log.Info("I have registered consensus service")
 }
 
 // register RPC server
@@ -331,31 +341,4 @@ func (b *OrchestratorNode) Close() {
 	b.services.StopAll()
 	b.cancel()
 	close(b.stop)
-}
-
-// This will trigger handler only after certain timeout
-func Debounce(
-	ctx cli.Context,
-	interval time.Duration,
-	eventsChan <-chan interface{},
-	handler func(interface{}),
-) {
-	for event := range eventsChan {
-	loop:
-		for {
-			timer := time.NewTimer(interval)
-
-			select {
-			case event = <-eventsChan:
-			case <-timer.C:
-				handler(event)
-				break loop
-			case <-ctx.Done():
-				timer.Stop()
-				return
-			}
-
-			timer.Stop()
-		}
-	}
 }
