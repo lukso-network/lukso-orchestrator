@@ -47,7 +47,7 @@ func TestDB_PandoraHeaderHashes_Retrieve(t *testing.T) {
 	}
 
 	// checking retrieval from cache
-	retrievedPanHeaderHashes, err := db.PandoraHeaderHashes(40)
+	retrievedPanHeaderHashes, err := db.PandoraHeaderHashes(40, 100)
 	require.NoError(t, err)
 	assert.DeepEqual(t, pandoraHeaderHashes[40:], retrievedPanHeaderHashes)
 }

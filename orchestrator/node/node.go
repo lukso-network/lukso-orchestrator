@@ -174,11 +174,11 @@ func (o *OrchestratorNode) registerAndStartConsensusService(
 		pandoraChain              *pandorachain.Service
 		vanguardHeadersChan       chan *types.HeaderHash
 		vanguardConsensusInfoChan chan *types.MinimalEpochConsensusInfo
-		//pandoraHeadersChan        chan *types.HeaderHash
+		pandoraHeadersChan        chan *types.HeaderHash
 	)
 
 	vanguardHeadersChan = make(chan *types.HeaderHash, 100000)
-	//pandoraHeadersChan = make(chan *types.HeaderHash, 100000)
+	pandoraHeadersChan = make(chan *types.HeaderHash, 100000)
 	vanguardConsensusInfoChan = make(chan *types.MinimalEpochConsensusInfo, 100000)
 
 	services := o.services
@@ -200,10 +200,16 @@ func (o *OrchestratorNode) registerAndStartConsensusService(
 
 	vanguardChain.SubscribeVanNewPendingBlockHash(vanguardHeadersChan)
 	vanguardChain.SubscribeMinConsensusInfoEvent(vanguardConsensusInfoChan)
+	err = pandoraChain.SubscribeToPendingWorkChannel(pandoraHeadersChan)
+
+	if nil != err {
+		log.WithField("err", err).Error("cannot subscribe to pending work channel")
+
+		return
+	}
 
 	waitGroup := sync.WaitGroup{}
-	// TODO: add 3 instead of 2 (also pandora chain should notify about availability)
-	waitGroup.Add(2)
+	waitGroup.Add(3)
 
 	// This is arbitrary, it may be less or more. Depends on the approach
 	debounceDuration := time.Second * 10
@@ -211,10 +217,12 @@ func (o *OrchestratorNode) registerAndStartConsensusService(
 	// Locks that will prevent negative waitGroup counters
 	vanguardHeadersChanLock := false
 	vanguardConsensusChanLock := false
+	pandoraHeadersChanLock := false
 
 	// Create bridge channels for debounce
 	vanguardHeadersChanBridge := make(chan interface{})
 	vanguardConsensusChanBridge := make(chan interface{})
+	pandoraHeadersChanBridge := make(chan interface{})
 
 	// Create bridge handlers for debounce
 	vanguardHeadersChanHandler := func(interface{}) {
@@ -225,6 +233,7 @@ func (o *OrchestratorNode) registerAndStartConsensusService(
 		log.Info("I have reached vanguardHeadersChanHandler confirmation")
 		waitGroup.Done()
 		vanguardHeadersChanLock = true
+		close(vanguardHeadersChanBridge)
 	}
 	vanguardConsensusChanHandler := func(interface{}) {
 		if vanguardConsensusChanLock {
@@ -235,16 +244,52 @@ func (o *OrchestratorNode) registerAndStartConsensusService(
 		waitGroup.Done()
 
 		vanguardConsensusChanLock = true
+		close(vanguardConsensusChanBridge)
+	}
+	pandoraHeadersChanHandler := func(interface{}) {
+		if pandoraHeadersChanLock {
+			return
+		}
+
+		log.Info("I have reached pandoraHeadersChanHandler confirmation")
+		waitGroup.Done()
+		pandoraHeadersChanLock = true
+		close(pandoraHeadersChanBridge)
+	}
+
+	isLocked := func() bool {
+		return vanguardHeadersChanLock && vanguardConsensusChanLock && pandoraHeadersChanLock
 	}
 
 	// TODO: add pandora resolver
 	go func() {
 		for {
+		loop:
 			select {
 			case header := <-vanguardHeadersChan:
-				vanguardHeadersChanBridge <- header
+				if isLocked() {
+					break loop
+				}
+
+				if !vanguardHeadersChanLock {
+					vanguardHeadersChanBridge <- header
+				}
+			case header := <-pandoraHeadersChan:
+				if isLocked() {
+					break loop
+				}
+
+				if !pandoraHeadersChanLock {
+					pandoraHeadersChanBridge <- header
+				}
 			case info := <-vanguardConsensusInfoChan:
-				vanguardConsensusChanBridge <- info
+				if isLocked() {
+					break loop
+				}
+
+				if !vanguardConsensusChanLock {
+					vanguardConsensusChanBridge <- info
+				}
 			}
 		}
 	}()
@@ -252,6 +297,7 @@ func (o *OrchestratorNode) registerAndStartConsensusService(
 	// Debounce and wait for sideEffect
 	go utils.Debounce(cliCtx.Context, debounceDuration, vanguardHeadersChanBridge, vanguardHeadersChanHandler)
 	go utils.Debounce(cliCtx.Context, debounceDuration, vanguardConsensusChanBridge, vanguardConsensusChanHandler)
+	go utils.Debounce(cliCtx.Context, debounceDuration, pandoraHeadersChanBridge, pandoraHeadersChanHandler)
 
 	log.Info("I am waiting for orchestrator to receive all pending data")
 	waitGroup.Wait()
@@ -264,10 +310,6 @@ func (o *OrchestratorNode) registerAndStartConsensusService(
 
 		return
 	}
-
-	log.Info("I have registered consensus service")
-	close(vanguardHeadersChanBridge)
-	close(vanguardConsensusChanBridge)
 
 	log.Info("I am starting consensus service")
 	svc.Start()

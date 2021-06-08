@@ -9,7 +9,6 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/shared"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	log "github.com/sirupsen/logrus"
-	"time"
 )
 
 // This part could be moved to other place during refactor, might be registered as a service
@@ -29,17 +28,12 @@ type Service struct {
 // - pendingHeaders (Pandora)
 // In current implementation we use debounce to determine state of syncing
 func (service *Service) Start() {
-	ticker := time.NewTicker(time.Second * 2)
-	log.Info("I am starting consensus service")
-
 	go func() {
 		for {
 			select {
-			case <-ticker.C:
-				latestVerifiedSlot := service.RealmDB.LatestVerifiedRealmSlot()
-				log.Info("I should start to verify pending blocks")
-				service.canonicalizeChan <- latestVerifiedSlot
 			case slot := <-service.canonicalizeChan:
+				log.WithField("latestVerifiedSlot", slot).
+					Info("I am starting canonicalization")
 				vanguardErr, pandoraErr, realmErr := service.Canonicalize(slot, 500)
 
 				if nil != vanguardErr {
@@ -61,6 +55,11 @@ func (service *Service) Start() {
 			}
 		}
 	}()
+
+	latestVerifiedSlot := service.RealmDB.LatestVerifiedRealmSlot()
+	log.WithField("latestVerifiedSlot", latestVerifiedSlot).
+		Info("I am pushing work to canonicalizeChan")
+	service.canonicalizeChan <- latestVerifiedSlot
 
 	return
 }
@@ -308,6 +307,9 @@ func (service *Service) Canonicalize(
 			continue
 		}
 
+		if pair.Slot > 0 {
+			panic(fmt.Sprintf("I am here, slot: %d", pair.Slot))
+		}
 		slotCounter = pair.Slot
 	}
 

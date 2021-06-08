@@ -2,6 +2,8 @@ package pandorachain
 
 import (
 	"context"
+	"fmt"
+	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
@@ -35,8 +37,10 @@ type Service struct {
 	namespace string
 
 	// subscription
-	conInfoSubErrCh chan error
-	conInfoSub      *rpc.ClientSubscription
+	conInfoSubErrCh    chan error
+	conInfoSub         *rpc.ClientSubscription
+	pendingHeadersChan chan *eth1Types.Header
+	pendingWorkChannel chan *types.HeaderHash
 
 	// db support
 	db    db.PandoraHeaderHashDB
@@ -50,14 +54,16 @@ func NewService(ctx context.Context, endpoint string, namespace string,
 	ctx, cancel := context.WithCancel(ctx)
 	_ = cancel // govet fix for lost cancel. Cancel is handled in service.Stop()
 	return &Service{
-		ctx:             ctx,
-		cancel:          cancel,
-		endpoint:        endpoint,
-		dialRPCFn:       dialRPCFn,
-		namespace:       namespace,
-		conInfoSubErrCh: make(chan error),
-		db:              db,
-		cache:           cache,
+		ctx:                ctx,
+		cancel:             cancel,
+		endpoint:           endpoint,
+		dialRPCFn:          dialRPCFn,
+		namespace:          namespace,
+		conInfoSubErrCh:    make(chan error),
+		pendingHeadersChan: make(chan *eth1Types.Header, 10000000),
+		pendingWorkChannel: make(chan *types.HeaderHash, 10000000),
+		db:                 db,
+		cache:              cache,
 	}, nil
 }
 
@@ -96,6 +102,23 @@ func (s *Service) Status() error {
 		return s.runError
 	}
 	return nil
+}
+
+func (s *Service) SubscribeToPendingWorkChannel(subscriberChan chan<- *types.HeaderHash) (err error) {
+	if nil == s.pendingWorkChannel {
+		err = fmt.Errorf("pendingHeadersChan cannot be nil")
+
+		return
+	}
+
+	go func() {
+		for {
+			pendingWork := <-s.pendingWorkChannel
+			subscriberChan <- pendingWork
+		}
+	}()
+
+	return
 }
 
 // closes down our active eth1 clients.
@@ -199,7 +222,7 @@ func (s *Service) subscribe() error {
 	filter := &types.PandoraPendingHeaderFilter{
 		FromBlockHash: latestSavedHeaderHash,
 	}
-	// subscribe to pandora client for consensus info
+	// subscribe to pandora client for pending headers
 	sub, err := s.SubscribePendingHeaders(s.ctx, filter, s.namespace, s.rpcClient)
 	if err != nil {
 		log.WithError(err).Warn("Could not subscribe to pandora client for new pending headers")
