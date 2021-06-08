@@ -24,7 +24,7 @@ type Service struct {
 }
 
 func (service *Service) Start() {
-	ticker := time.NewTicker(time.Second * 2)
+	ticker := time.NewTicker(time.Second * 2000)
 
 	go func() {
 		// Here insert check that will await for all 3 channels to receive at least one signal

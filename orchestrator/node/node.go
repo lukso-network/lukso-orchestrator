@@ -73,11 +73,8 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 		return nil, err
 	}
 
-	err := orchestrator.registerConsensusService(cliCtx)
-
-	if nil != err {
-		return nil, err
-	}
+	// Register consensus service only after vanguard notified about consensus info and blocks
+	go orchestrator.registerConsensusService(cliCtx)
 
 	return orchestrator, nil
 }
@@ -168,33 +165,80 @@ func (o *OrchestratorNode) registerPandoraChainService(cliCtx *cli.Context) erro
 	return o.services.RegisterService(svc)
 }
 
-func (o *OrchestratorNode) registerConsensusService(cliCtx *cli.Context) (err error) {
+func (o *OrchestratorNode) registerConsensusService(
+	cliCtx *cli.Context,
+) {
 	var (
 		vanguardChain             *vanguardchain.Service
 		pandoraChain              *pandorachain.Service
-		vanguardHeadersChan       chan<- *types.HeaderHash
-		vanguardConsensusInfoChan chan<- *types.MinimalEpochConsensusInfo
-		//pandoraHeadersChan chan <-*types.HeaderHash
+		vanguardHeadersChan       chan *types.HeaderHash
+		vanguardConsensusInfoChan chan *types.MinimalEpochConsensusInfo
+		//pandoraHeadersChan        chan *types.HeaderHash
 	)
 
-	err = o.services.FetchService(&vanguardChain)
+	vanguardHeadersChan = make(chan *types.HeaderHash, 100000)
+	//pandoraHeadersChan = make(chan *types.HeaderHash, 100000)
+	vanguardConsensusInfoChan = make(chan *types.MinimalEpochConsensusInfo, 100000)
+
+	services := o.services
+	err := services.FetchService(&vanguardChain)
 
 	if err != nil {
-		return err
+		log.WithField("err", err).Error("Consensus service not registered")
+
+		return
 	}
 
-	err = o.services.FetchService(&pandoraChain)
+	err = services.FetchService(&pandoraChain)
 
 	if err != nil {
-		return err
+		log.WithField("err", err).Error("Consensus service not registered")
+
+		return
 	}
 
 	vanguardChain.SubscribeVanNewPendingBlockHash(vanguardHeadersChan)
 	vanguardChain.SubscribeMinConsensusInfoEvent(vanguardConsensusInfoChan)
-	// TODO: insert here also channels to assure that all of them received at least one signal (prevent race condition)
-	svc := consensus.New(cliCtx.Context, o.db)
 
-	return o.services.RegisterService(svc)
+	// TODO: add 3 instead of 2 (also pandora chain should notify about availability)
+	vanguardHeaderLock := true
+	vanguardConsensusLock := true
+
+	for {
+		select {
+		case <-vanguardHeadersChan:
+			if !vanguardHeaderLock {
+				continue
+			}
+
+			vanguardHeaderLock = false
+			log.WithField("context", "vanguardHeadersChan").
+				Info("received signal about vanguard headers")
+		case <-vanguardConsensusInfoChan:
+			if !vanguardConsensusLock {
+				continue
+			}
+
+			vanguardConsensusLock = false
+			log.WithField("context", "vanguardHeadersChan").
+				Info("received signal about vanguard consensus info")
+		}
+
+		// Leave the loop
+		if !vanguardHeaderLock && !vanguardConsensusLock {
+			log.WithField("context", "consensus service lock").
+				Info("unchained all locks")
+
+			break
+		}
+	}
+
+	svc := consensus.New(cliCtx.Context, o.db)
+	err = o.services.RegisterService(svc)
+
+	if nil != err {
+		log.WithField("err", err).Error("Consensus service not registered")
+	}
 }
 
 // register RPC server
