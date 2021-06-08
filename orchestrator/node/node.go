@@ -204,6 +204,8 @@ func (o *OrchestratorNode) registerConsensusService(
 	vanguardHeaderLock := true
 	vanguardConsensusLock := true
 
+	// TODO: resolve synchronization. Do not start when still receiving data.
+	//  This should prevent data availability failure
 	for {
 		select {
 		case <-vanguardHeadersChan:
@@ -329,4 +331,31 @@ func (b *OrchestratorNode) Close() {
 	b.services.StopAll()
 	b.cancel()
 	close(b.stop)
+}
+
+// This will trigger handler only after certain timeout
+func Debounce(
+	ctx cli.Context,
+	interval time.Duration,
+	eventsChan <-chan interface{},
+	handler func(interface{}),
+) {
+	for event := range eventsChan {
+	loop:
+		for {
+			timer := time.NewTimer(interval)
+
+			select {
+			case event = <-eventsChan:
+			case <-timer.C:
+				handler(event)
+				break loop
+			case <-ctx.Done():
+				timer.Stop()
+				return
+			}
+
+			timer.Stop()
+		}
+	}
 }
