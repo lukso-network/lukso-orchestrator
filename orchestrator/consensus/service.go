@@ -324,10 +324,6 @@ func (service *Service) Canonicalize(
 				continue
 			}
 
-			// TODO: resolve this, for whatsoever reason it is
-			if pair.Slot > 0 {
-				panic(fmt.Sprintf("I am here, slot: %d", pair.Slot))
-			}
 			slotCounter = pair.Slot
 		}
 

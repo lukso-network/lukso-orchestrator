@@ -387,6 +387,7 @@ func TestService_Canonicalize(t *testing.T) {
 		}
 	})
 
+	// TODO: if we maintain crawling in batches we should test with batchLimit 32 (epoch)
 	t.Run("should invalidate based on static set", func(t *testing.T) {
 		var (
 			vanguardBlocks []*types.HeaderHash
@@ -419,24 +420,28 @@ func TestService_Canonicalize(t *testing.T) {
 		require.NoError(t, pandoraErr)
 		require.NoError(t, realmErr)
 
-		vanguardHeaderHash, err := service.VanguardHeaderHashDB.VanguardHeaderHash(180)
-		require.NoError(t, err)
+		confirmValidityOfSlot := func() {
+			vanguardHeaderHash, err := service.VanguardHeaderHashDB.VanguardHeaderHash(180)
+			require.NoError(t, err)
 
-		pandoraHeaderHash, err := service.PandoraHeaderHashDB.PandoraHeaderHash(180)
-		require.NoError(t, err)
+			pandoraHeaderHash, err := service.PandoraHeaderHashDB.PandoraHeaderHash(180)
+			require.NoError(t, err)
 
-		// This will check integrity of data
-		// If mock wont change below should be true
-		require.Equal(
-			t,
-			"0x6c4b454db445110b4587a485a1ca080255731d05138fbd61d19281f664fcab6a",
-			vanguardHeaderHash.HeaderHash.String(),
-		)
-		require.Equal(
-			t,
-			"0x92bdf4ea28129191715eac13327c37c3c55bfb9cccaaa5d3d6591a217cf2188f",
-			pandoraHeaderHash.HeaderHash.String(),
-		)
+			// This will check integrity of data
+			// If mock wont change below should be true
+			require.Equal(
+				t,
+				"0x6c4b454db445110b4587a485a1ca080255731d05138fbd61d19281f664fcab6a",
+				vanguardHeaderHash.HeaderHash.String(),
+			)
+			require.Equal(
+				t,
+				"0x92bdf4ea28129191715eac13327c37c3c55bfb9cccaaa5d3d6591a217cf2188f",
+				pandoraHeaderHash.HeaderHash.String(),
+			)
+		}
+
+		confirmValidityOfSlot()
 
 		expectedLatestVerifiedRealmSlot := uint64(231)
 		expectedFirstVerifiedSlot := 180
@@ -445,47 +450,86 @@ func TestService_Canonicalize(t *testing.T) {
 		vanguardBlocksLen := len(vanguardBlocks)
 		require.Equal(t, pandoraBlocksLen, vanguardBlocksLen)
 
-		// first verified slot should be 180, below that slots should be skipped
-		for index := 0; index < len(vanguardBlocks); index++ {
-			currentVanguardHeaderHash, err := service.VanguardHeaderHashDB.VanguardHeaderHash(uint64(index))
-			require.NoError(t, err)
+		confirmValidityOfFirstBatch := func(newBatchCame bool) {
+			// first verified slot should be 180, below that slots should be skipped
+			for index := 0; index < vanguardBlocksLen; index++ {
+				currentVanguardHeaderHash, err := service.VanguardHeaderHashDB.VanguardHeaderHash(uint64(index))
+				require.NoError(t, err)
 
-			currentPandoraHeaderHash, err := service.PandoraHeaderHashDB.PandoraHeaderHash(uint64(index))
-			require.NoError(t, err)
+				currentPandoraHeaderHash, err := service.PandoraHeaderHashDB.PandoraHeaderHash(uint64(index))
+				require.NoError(t, err)
 
-			pandoraRelative := pandoraBlocks[index]
-			vanguardRelative := vanguardBlocks[index]
+				pandoraRelative := pandoraBlocks[index]
+				vanguardRelative := vanguardBlocks[index]
 
-			// No pending block were present until expectedFirstVerifiedSlot
-			if index < expectedFirstVerifiedSlot {
-				require.Equal(t, types.Skipped, currentVanguardHeaderHash.Status, index)
-				require.Equal(t, types.Skipped, currentPandoraHeaderHash.Status, index)
-			}
+				// No pending block were present until expectedFirstVerifiedSlot
+				if index < expectedFirstVerifiedSlot {
+					require.Equal(t, types.Skipped, currentVanguardHeaderHash.Status, index)
+					require.Equal(t, types.Skipped, currentPandoraHeaderHash.Status, index)
+				}
 
-			// Present on both sides
-			if nil != pandoraRelative && nil != vanguardRelative {
-				require.Equal(t, types.Verified, currentVanguardHeaderHash.Status, index)
-				require.Equal(t, types.Verified, currentPandoraHeaderHash.Status, index)
-			}
+				// Present on both sides
+				if nil != pandoraRelative && nil != vanguardRelative {
+					require.Equal(t, types.Verified, currentVanguardHeaderHash.Status, index)
+					require.Equal(t, types.Verified, currentPandoraHeaderHash.Status, index)
+				}
 
-			if index > int(expectedLatestVerifiedRealmSlot) && nil != currentVanguardHeaderHash {
-				require.Equal(t, types.Pending, currentVanguardHeaderHash.Status, index)
-			}
+				if !newBatchCame && index > int(expectedLatestVerifiedRealmSlot) && nil != currentVanguardHeaderHash {
+					require.Equal(t, types.Pending, currentVanguardHeaderHash.Status, index)
+				}
 
-			if index > int(expectedLatestVerifiedRealmSlot) && nil != currentPandoraHeaderHash {
-				require.Equal(t, types.Pending, currentPandoraHeaderHash.Status, index)
-			}
+				if !newBatchCame && index > int(expectedLatestVerifiedRealmSlot) && nil != currentPandoraHeaderHash {
+					require.Equal(t, types.Pending, currentPandoraHeaderHash.Status, index)
+				}
 
-			if index < int(expectedLatestVerifiedRealmSlot) && nil == pandoraRelative && nil != vanguardRelative {
-				require.Equal(t, types.Skipped, currentPandoraHeaderHash.Status, index)
-			}
+				if index < int(expectedLatestVerifiedRealmSlot) && nil == pandoraRelative && nil != vanguardRelative {
+					require.Equal(t, types.Skipped, currentPandoraHeaderHash.Status, index)
+				}
 
-			if index < int(expectedLatestVerifiedRealmSlot) && nil == vanguardRelative && nil != pandoraRelative {
-				require.Equal(t, types.Skipped, currentVanguardHeaderHash.Status, index)
+				if index < int(expectedLatestVerifiedRealmSlot) && nil == vanguardRelative && nil != pandoraRelative {
+					require.Equal(t, types.Skipped, currentVanguardHeaderHash.Status, index)
+				}
 			}
 		}
 
-		// TODO: Save next batch and see if crawler can go up
+		confirmValidityOfFirstBatch(false)
+
+		// Save next batch and see if crawler can go up
+		for index, block := range pandoraBlocks {
+			if nil != block {
+				require.NoError(t, service.PandoraHeaderHashDB.SavePandoraHeaderHash(
+					uint64(index+pandoraBlocksLen),
+					block,
+				))
+			}
+
+		}
+
+		for index, block := range vanguardBlocks {
+			if nil != block {
+				require.NoError(t, service.VanguardHeaderHashDB.SaveVanguardHeaderHash(
+					uint64(index+vanguardBlocksLen),
+					block,
+				))
+			}
+		}
+
+		vanguardErr, pandoraErr, realmErr = service.Canonicalize(expectedLatestVerifiedRealmSlot, 500)
+		require.NoError(t, vanguardErr)
+		require.NoError(t, pandoraErr)
+		require.NoError(t, realmErr)
+
+		// Test only crucial side effects
+		expectedHighestCheckedSlot := uint64(466)
+		require.Equal(t, expectedHighestCheckedSlot, service.RealmDB.LatestVerifiedRealmSlot())
+
+		// There should be no reorg
+		confirmValidityOfSlot()
+		confirmValidityOfFirstBatch(true)
+
+		for index := expectedLatestVerifiedRealmSlot; index < expectedHighestCheckedSlot; index++ {
+
+		}
 	})
 }
 
