@@ -150,7 +150,7 @@ func (backend *Backend) InvalidatePendingQueue() (
 	vanguardErr, pandoraErr, realmErr = consensusService.Canonicalize(
 		latestSavedVerifiedRealmSlot,
 		// TODO: pass it from cli context
-		15000,
+		50000,
 	)
 
 	return

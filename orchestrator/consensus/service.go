@@ -38,18 +38,18 @@ func (service *Service) Start() {
 			case slot := <-service.canonicalizeChan:
 				log.WithField("latestVerifiedSlot", slot).
 					Info("I am starting canonicalization")
-				vanguardErr, pandoraErr, realmErr := service.Canonicalize(slot, 500)
+				vanguardErr, pandoraErr, realmErr := service.Canonicalize(slot, 50000)
 
 				if nil != vanguardErr {
-					log.WithField("canonicalize", "vanguardErr").Error(vanguardErr)
+					log.WithField("canonicalize", "vanguardErr").Warn(vanguardErr)
 				}
 
 				if nil != pandoraErr {
-					log.WithField("canonicalize", "pandoraErr").Error(pandoraErr)
+					log.WithField("canonicalize", "pandoraErr").Warn(pandoraErr)
 				}
 
 				if nil != realmErr {
-					log.WithField("canonicalize", "realmErr").Error(realmErr)
+					log.WithField("canonicalize", "realmErr").Warn(realmErr)
 				}
 			case stop := <-service.stopChan:
 				if stop {
@@ -344,7 +344,7 @@ func (service *Service) workLoop() {
 	realmDB := service.RealmDB
 	vanguardDB := service.VanguardHeaderHashDB
 	pandoraDB := service.PandoraHeaderHashDB
-	batchLimit := 1500
+	batchLimit := 50000
 	possiblePendingWork := make([]*types.HeaderHash, 0)
 
 	// This is arbitrary, it may be less or more. Depends on the approach
@@ -373,7 +373,7 @@ func (service *Service) workLoop() {
 		vanguardHashes, err := vanguardDB.VanguardHeaderHashes(latestVerifiedRealmSlot, uint64(batchLimit))
 
 		if nil != err {
-			log.WithField("cause", "mergedChannelHandler").Error(err)
+			log.WithField("cause", "mergedChannelHandler").Warn(err)
 
 			return
 		}

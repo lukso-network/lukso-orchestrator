@@ -20,10 +20,24 @@ type realmPairSuite []struct {
 	expectedVanguardStatus types.Status
 }
 
+func prepareEnv() (
+	vanguardHeadersChan chan *types.HeaderHash,
+	vanguardConsensusInfoChan chan *types.MinimalEpochConsensusInfo,
+	pandoraHeadersChan chan *types.HeaderHash,
+) {
+	capacity := 50000
+	vanguardHeadersChan = make(chan *types.HeaderHash, capacity)
+	vanguardConsensusInfoChan = make(chan *types.MinimalEpochConsensusInfo, capacity)
+	pandoraHeadersChan = make(chan *types.HeaderHash, capacity)
+
+	return
+}
+
 func TestNew(t *testing.T) {
 	orchestratorDB := testDB.SetupDB(t)
 	ctx := context.Background()
-	service := New(ctx, orchestratorDB)
+	vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan := prepareEnv()
+	service := New(ctx, orchestratorDB, vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan)
 	require.Equal(t, orchestratorDB, service.VanguardHeaderHashDB)
 	require.Equal(t, orchestratorDB, service.PandoraHeaderHashDB)
 	require.Equal(t, orchestratorDB, service.RealmDB)
@@ -33,7 +47,8 @@ func TestService_Canonicalize(t *testing.T) {
 	t.Run("should invalidate matched blocks on slot 1", func(t *testing.T) {
 		orchestratorDB := testDB.SetupDB(t)
 		ctx := context.Background()
-		service := New(ctx, orchestratorDB)
+		vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan := prepareEnv()
+		service := New(ctx, orchestratorDB, vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan)
 
 		pandoraToken := make([]byte, 4)
 		rand.Read(pandoraToken)
@@ -85,7 +100,8 @@ func TestService_Canonicalize(t *testing.T) {
 	t.Run("should handle skipped blocks", func(t *testing.T) {
 		orchestratorDB := testDB.SetupDB(t)
 		ctx := context.Background()
-		service := New(ctx, orchestratorDB)
+		vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan := prepareEnv()
+		service := New(ctx, orchestratorDB, vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan)
 
 		pandoraToken := make([]byte, 4)
 		rand.Read(pandoraToken)
@@ -128,7 +144,8 @@ func TestService_Canonicalize(t *testing.T) {
 	t.Run("should handle skipped blocks with different states", func(t *testing.T) {
 		orchestratorDB := testDB.SetupDB(t)
 		ctx := context.Background()
-		service := New(ctx, orchestratorDB)
+		vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan := prepareEnv()
+		service := New(ctx, orchestratorDB, vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan)
 
 		pandoraToken := make([]byte, 4)
 		rand.Read(pandoraToken)
@@ -246,7 +263,8 @@ func TestService_Canonicalize(t *testing.T) {
 	t.Run("should invalidate lots of pending blocks", func(t *testing.T) {
 		orchestratorDB := testDB.SetupDB(t)
 		ctx := context.Background()
-		service := New(ctx, orchestratorDB)
+		vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan := prepareEnv()
+		service := New(ctx, orchestratorDB, vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan)
 
 		type realmPair struct {
 			pandoraSlot  uint64
