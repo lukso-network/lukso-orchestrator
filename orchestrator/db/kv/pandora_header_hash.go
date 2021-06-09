@@ -38,7 +38,11 @@ func (s *Store) PandoraHeaderHash(slot uint64) (*types.HeaderHash, error) {
 func (s *Store) PandoraHeaderHashes(fromSlot uint64, limit uint64) ([]*types.HeaderHash, error) {
 	// when requested epoch is greater than stored latest epoch
 	if fromSlot > s.latestPanSlot {
-		return nil, errors.Wrap(InvalidSlot, fmt.Sprintf("Got invalid fromSlot: %d", fromSlot))
+		return nil, errors.Wrap(InvalidSlot, fmt.Sprintf(
+			"Got invalid fromSlot: %d, currentSlot: %d",
+			fromSlot,
+			s.latestPanSlot,
+		))
 	}
 	pandoraHeaderHashes := make([]*types.HeaderHash, 0)
 	err := s.db.View(func(tx *bolt.Tx) error {

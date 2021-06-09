@@ -301,11 +301,6 @@ func (service *Service) Canonicalize(
 				continue
 			}
 
-			log.WithField("slot", pair.Slot).
-				WithField("vanguardHash", pair.VanguardHash).
-				WithField("pandoraHashes", pair.PandoraHashes).
-				Info("I am saving vanguard and pandora hash as skipped")
-
 			vanguardErr = vanguardHashDB.SaveVanguardHeaderHash(pair.Slot, &types.HeaderHash{
 				Status: types.Skipped,
 			})

@@ -438,7 +438,54 @@ func TestService_Canonicalize(t *testing.T) {
 			pandoraHeaderHash.HeaderHash.String(),
 		)
 
-		require.Equal(t, uint64(231), service.RealmDB.LatestVerifiedRealmSlot())
+		expectedLatestVerifiedRealmSlot := uint64(231)
+		expectedFirstVerifiedSlot := 180
+		require.Equal(t, expectedLatestVerifiedRealmSlot, service.RealmDB.LatestVerifiedRealmSlot())
+		pandoraBlocksLen := len(pandoraBlocks)
+		vanguardBlocksLen := len(vanguardBlocks)
+		require.Equal(t, pandoraBlocksLen, vanguardBlocksLen)
+
+		// first verified slot should be 180, below that slots should be skipped
+		for index := 0; index < len(vanguardBlocks); index++ {
+			currentVanguardHeaderHash, err := service.VanguardHeaderHashDB.VanguardHeaderHash(uint64(index))
+			require.NoError(t, err)
+
+			currentPandoraHeaderHash, err := service.PandoraHeaderHashDB.PandoraHeaderHash(uint64(index))
+			require.NoError(t, err)
+
+			pandoraRelative := pandoraBlocks[index]
+			vanguardRelative := vanguardBlocks[index]
+
+			// No pending block were present until expectedFirstVerifiedSlot
+			if index < expectedFirstVerifiedSlot {
+				require.Equal(t, types.Skipped, currentVanguardHeaderHash.Status, index)
+				require.Equal(t, types.Skipped, currentPandoraHeaderHash.Status, index)
+			}
+
+			// Present on both sides
+			if nil != pandoraRelative && nil != vanguardRelative {
+				require.Equal(t, types.Verified, currentVanguardHeaderHash.Status, index)
+				require.Equal(t, types.Verified, currentPandoraHeaderHash.Status, index)
+			}
+
+			if index > int(expectedLatestVerifiedRealmSlot) && nil != currentVanguardHeaderHash {
+				require.Equal(t, types.Pending, currentVanguardHeaderHash.Status, index)
+			}
+
+			if index > int(expectedLatestVerifiedRealmSlot) && nil != currentPandoraHeaderHash {
+				require.Equal(t, types.Pending, currentPandoraHeaderHash.Status, index)
+			}
+
+			if index < int(expectedLatestVerifiedRealmSlot) && nil == pandoraRelative && nil != vanguardRelative {
+				require.Equal(t, types.Skipped, currentPandoraHeaderHash.Status, index)
+			}
+
+			if index < int(expectedLatestVerifiedRealmSlot) && nil == vanguardRelative && nil != pandoraRelative {
+				require.Equal(t, types.Skipped, currentVanguardHeaderHash.Status, index)
+			}
+		}
+
+		// TODO: Save next batch and see if crawler can go up
 	})
 }
 
@@ -1197,7 +1244,13 @@ const (
       {
         "headerHash": "0x9cea5d4952be0bae951b717f4c8257a225cf837fb5720ce57293606219c990fc",
         "status": 0
-      }
+      },
+      null,
+      {
+        "headerHash": "0x9cea5d4952be0bae951b717f4c8257a225cf837fb5720ce57293606219c990fc",
+        "status": 0
+      },
+      null
     ]
 `
 	mockedVanguardJson = `[
@@ -1548,6 +1601,12 @@ const (
       },
       {
         "headerHash": "0x078ed0e94e50738b567764f8587b76a0c0a6bef2fd4ac8f6665b55cddba055db",
+        "status": 0
+      },
+      null,
+      null,
+      {
+        "headerHash": "0x9cea5d4952be0bae951b717f4c8257a225cf837fb5720ce57293606219c990fc",
         "status": 0
       }
     ]
