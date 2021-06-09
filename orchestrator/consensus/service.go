@@ -126,208 +126,218 @@ func (service *Service) Canonicalize(
 	}
 
 	log.Info("I am starting to InvalidatePendingQueue in batches")
+	select {
+	case stop := <-service.stopChan:
+		if stop {
+			log.Info("I stop Invalidation")
+			return
+		}
+	default:
+		// If higher slot was found and is valid all the gaps between must me treated as invalid and discarded
+		// SIDE NOTE: This is invalid, when a lot of blocks were just simply not present yet due to the network traffic
+		possibleInvalidPair := make([]*events.RealmPair, 0)
+		latestSavedVerifiedRealmSlot := realmDB.LatestVerifiedRealmSlot()
 
-	// If higher slot was found and is valid all the gaps between must me treated as invalid and discarded
-	// SIDE NOTE: This is invalid, when a lot of blocks were just simply not present yet due to the network traffic
-	possibleInvalidPair := make([]*events.RealmPair, 0)
-	latestSavedVerifiedRealmSlot := realmDB.LatestVerifiedRealmSlot()
+		if fromSlot > latestSavedVerifiedRealmSlot {
+			realmErr = fmt.Errorf("I cannot start invalidation without root")
 
-	if fromSlot > latestSavedVerifiedRealmSlot {
-		realmErr = fmt.Errorf("I cannot start invalidation without root")
-
-		return
-	}
-
-	log.WithField("latestSavedVerifiedRealmSlot", latestSavedVerifiedRealmSlot).
-		WithField("slot", fromSlot).
-		Info("Invalidation starts")
-
-	pandoraHeaderHashes, err := pandoraHeaderHashDB.PandoraHeaderHashes(fromSlot, batchLimit)
-
-	if nil != err {
-		log.WithField("cause", "Failed to invalidate pending queue").Error(err)
-		return
-	}
-
-	vanguardBlockHashes, err := vanguardHashDB.VanguardHeaderHashes(fromSlot, batchLimit)
-
-	log.WithField("pandoraHeaderHashes", len(pandoraHeaderHashes)).
-		WithField("vanguardHeaderHashes", len(vanguardBlockHashes)).
-		Trace("Got header hashes")
-
-	if nil != err {
-		log.WithField("cause", "Failed to invalidate pending queue").Error(err)
-		realmErr = err
-
-		return
-	}
-
-	pandoraRange := len(pandoraHeaderHashes)
-	vanguardRange := len(vanguardBlockHashes)
-
-	log.WithField("pandoraRange", pandoraRange).WithField("vanguardRange", vanguardRange).
-		Trace("Invalidation with range of blocks")
-
-	// You wont match anything, so short circuit
-	if pandoraRange < 1 || vanguardRange < 1 {
-		return
-	}
-
-	// TODO: move it to memory, and save in batch
-	// This is quite naive, but should work
-	for index, vanguardBlockHash := range vanguardBlockHashes {
-		slotToCheck := fromSlot + uint64(index)
-
-		if len(pandoraHeaderHashes) <= index {
-			break
+			return
 		}
 
-		pandoraHeaderHash := pandoraHeaderHashes[index]
+		log.WithField("latestSavedVerifiedRealmSlot", latestSavedVerifiedRealmSlot).
+			WithField("slot", fromSlot).
+			Info("Invalidation starts")
 
-		// Potentially skipped slot
-		if nil == pandoraHeaderHash && nil == vanguardBlockHash {
-			possibleInvalidPair = append(possibleInvalidPair, &events.RealmPair{
-				Slot:          slotToCheck,
-				VanguardHash:  nil,
-				PandoraHashes: nil,
-			})
+		pandoraHeaderHashes, err := pandoraHeaderHashDB.PandoraHeaderHashes(fromSlot, batchLimit)
 
-			continue
+		if nil != err {
+			log.WithField("cause", "Failed to invalidate pending queue").Error(err)
+			return
 		}
 
-		// I dont know yet, if it is true.
-		// In my opinion INVALID state is 100% accurate only with blockShard verification approach
-		// TODO: add additional Sharding info check VanguardBlock -> PandoraHeaderHash when implementation on vanguard side will be ready
-		if nil == pandoraHeaderHash {
-			vanguardHeaderHash := &types.HeaderHash{
-				HeaderHash: vanguardBlockHash.HeaderHash,
-				Status:     types.Pending,
+		vanguardBlockHashes, err := vanguardHashDB.VanguardHeaderHashes(fromSlot, batchLimit)
+
+		log.WithField("pandoraHeaderHashes", len(pandoraHeaderHashes)).
+			WithField("vanguardHeaderHashes", len(vanguardBlockHashes)).
+			Trace("Got header hashes")
+
+		if nil != err {
+			log.WithField("cause", "Failed to invalidate pending queue").Error(err)
+			realmErr = err
+
+			return
+		}
+
+		pandoraRange := len(pandoraHeaderHashes)
+		vanguardRange := len(vanguardBlockHashes)
+
+		log.WithField("pandoraRange", pandoraRange).WithField("vanguardRange", vanguardRange).
+			Trace("Invalidation with range of blocks")
+
+		// You wont match anything, so short circuit
+		if pandoraRange < 1 || vanguardRange < 1 {
+			return
+		}
+
+		// TODO: move it to memory, and save in batch
+		// This is quite naive, but should work
+		for index, vanguardBlockHash := range vanguardBlockHashes {
+			slotToCheck := fromSlot + uint64(index)
+
+			if len(pandoraHeaderHashes) <= index {
+				break
 			}
-			vanguardErr = vanguardHashDB.SaveVanguardHeaderHash(slotToCheck, vanguardHeaderHash)
 
-			possibleInvalidPair = append(possibleInvalidPair, &events.RealmPair{
-				Slot:          slotToCheck,
-				VanguardHash:  vanguardHeaderHash,
-				PandoraHashes: nil,
-			})
+			pandoraHeaderHash := pandoraHeaderHashes[index]
 
-			continue
-		}
+			// Potentially skipped slot
+			if nil == pandoraHeaderHash && nil == vanguardBlockHash {
+				possibleInvalidPair = append(possibleInvalidPair, &events.RealmPair{
+					Slot:          slotToCheck,
+					VanguardHash:  nil,
+					PandoraHashes: nil,
+				})
 
-		if nil == vanguardBlockHash {
-			currentPandoraHeaderHash := &types.HeaderHash{
-				HeaderHash: pandoraHeaderHash.HeaderHash,
-				Status:     types.Pending,
+				continue
 			}
-			currentPandoraHeaderHashes := make([]*types.HeaderHash, 1)
-			currentPandoraHeaderHashes[0] = currentPandoraHeaderHash
-			pandoraErr = pandoraHeaderHashDB.SavePandoraHeaderHash(slotToCheck, currentPandoraHeaderHash)
 
-			possibleInvalidPair = append(possibleInvalidPair, &events.RealmPair{
-				Slot:          slotToCheck,
-				VanguardHash:  nil,
-				PandoraHashes: currentPandoraHeaderHashes,
-			})
+			// I dont know yet, if it is true.
+			// In my opinion INVALID state is 100% accurate only with blockShard verification approach
+			// TODO: add additional Sharding info check VanguardBlock -> PandoraHeaderHash when implementation on vanguard side will be ready
+			if nil == pandoraHeaderHash {
+				vanguardHeaderHash := &types.HeaderHash{
+					HeaderHash: vanguardBlockHash.HeaderHash,
+					Status:     types.Pending,
+				}
+				vanguardErr = vanguardHashDB.SaveVanguardHeaderHash(slotToCheck, vanguardHeaderHash)
 
-			continue
+				possibleInvalidPair = append(possibleInvalidPair, &events.RealmPair{
+					Slot:          slotToCheck,
+					VanguardHash:  vanguardHeaderHash,
+					PandoraHashes: nil,
+				})
+
+				continue
+			}
+
+			if nil == vanguardBlockHash {
+				currentPandoraHeaderHash := &types.HeaderHash{
+					HeaderHash: pandoraHeaderHash.HeaderHash,
+					Status:     types.Pending,
+				}
+				currentPandoraHeaderHashes := make([]*types.HeaderHash, 1)
+				currentPandoraHeaderHashes[0] = currentPandoraHeaderHash
+				pandoraErr = pandoraHeaderHashDB.SavePandoraHeaderHash(slotToCheck, currentPandoraHeaderHash)
+
+				possibleInvalidPair = append(possibleInvalidPair, &events.RealmPair{
+					Slot:          slotToCheck,
+					VanguardHash:  nil,
+					PandoraHashes: currentPandoraHeaderHashes,
+				})
+
+				continue
+			}
+
+			if types.Verified != vanguardBlockHash.Status {
+				vanguardErr = vanguardHashDB.SaveVanguardHeaderHash(slotToCheck, &types.HeaderHash{
+					HeaderHash: vanguardBlockHash.HeaderHash,
+					Status:     types.Verified,
+				})
+			}
+
+			if types.Verified != pandoraHeaderHash.Status {
+				pandoraErr = pandoraHeaderHashDB.SavePandoraHeaderHash(slotToCheck, &types.HeaderHash{
+					HeaderHash: pandoraHeaderHash.HeaderHash,
+					Status:     types.Verified,
+				})
+			}
+
+			if nil != vanguardErr || nil != pandoraErr {
+				break
+			}
+
+			realmErr = realmDB.SaveLatestVerifiedRealmSlot(slotToCheck)
+			pandoraErr = pandoraHeaderHashDB.SaveLatestPandoraSlot()
+			vanguardErr = vanguardHashDB.SaveLatestVanguardSlot()
+
+			if nil != realmErr || nil != pandoraErr || nil != vanguardErr {
+				log.WithField("vanguardErr", vanguardErr).
+					WithField("pandoraErr", pandoraErr).
+					WithField("realmErr", realmErr).
+					Error("Got error during compare of VanguardHashes against PandoraHashes")
+				break
+			}
+
+			vanguardErr = vanguardHashDB.SaveLatestVanguardHeaderHash()
+			pandoraErr = pandoraHeaderHashDB.SaveLatestPandoraHeaderHash()
+
+			if nil != vanguardErr || nil != pandoraErr {
+				break
+			}
 		}
 
-		if types.Verified != vanguardBlockHash.Status {
-			vanguardErr = vanguardHashDB.SaveVanguardHeaderHash(slotToCheck, &types.HeaderHash{
-				HeaderHash: vanguardBlockHash.HeaderHash,
-				Status:     types.Verified,
-			})
-		}
-
-		if types.Verified != pandoraHeaderHash.Status {
-			pandoraErr = pandoraHeaderHashDB.SavePandoraHeaderHash(slotToCheck, &types.HeaderHash{
-				HeaderHash: pandoraHeaderHash.HeaderHash,
-				Status:     types.Verified,
-			})
-		}
-
-		if nil != vanguardErr || nil != pandoraErr {
-			break
-		}
-
-		realmErr = realmDB.SaveLatestVerifiedRealmSlot(slotToCheck)
-		pandoraErr = pandoraHeaderHashDB.SaveLatestPandoraSlot()
-		vanguardErr = vanguardHashDB.SaveLatestVanguardSlot()
-
-		if nil != realmErr || nil != pandoraErr || nil != vanguardErr {
-			log.WithField("vanguardErr", vanguardErr).
-				WithField("pandoraErr", pandoraErr).
-				WithField("realmErr", realmErr).
-				Error("Got error during compare of VanguardHashes against PandoraHashes")
-			break
-		}
-
-		vanguardErr = vanguardHashDB.SaveLatestVanguardHeaderHash()
-		pandoraErr = pandoraHeaderHashDB.SaveLatestPandoraHeaderHash()
-
-		if nil != vanguardErr || nil != pandoraErr {
-			break
-		}
-	}
-
-	if nil != vanguardErr || nil != pandoraErr || nil != realmErr {
-		log.WithField("vanguardErr", vanguardErr).
-			WithField("pandoraErr", pandoraErr).
-			WithField("realmErr", realmErr).
-			Error("Got error during invalidation of pending queue")
-		return
-	}
-
-	// Resolve state of possible invalid pairs
-	latestSavedVerifiedRealmSlot = realmDB.LatestVerifiedRealmSlot()
-	log.WithField("possibleInvalidPairs", len(possibleInvalidPair)).
-		WithField("latestVerifiedRealmSlot", latestSavedVerifiedRealmSlot).
-		Info("Requeue possible invalid pairs")
-
-	slotCounter := latestSavedVerifiedRealmSlot
-
-	for _, pair := range possibleInvalidPair {
-		if nil == pair {
-			continue
-		}
-
-		if pair.Slot > latestSavedVerifiedRealmSlot {
-			continue
-		}
-
-		vanguardErr = vanguardHashDB.SaveVanguardHeaderHash(pair.Slot, &types.HeaderHash{
-			Status: types.Skipped,
-		})
-
-		// TODO: when more shard will come we will need to maintain this information
-		pandoraErr = pandoraHeaderHashDB.SavePandoraHeaderHash(pair.Slot, &types.HeaderHash{
-			Status: types.Skipped,
-		})
-
-		if nil != vanguardErr || nil != pandoraErr {
+		if nil != vanguardErr || nil != pandoraErr || nil != realmErr {
 			log.WithField("vanguardErr", vanguardErr).
 				WithField("pandoraErr", pandoraErr).
 				WithField("realmErr", realmErr).
 				Error("Got error during invalidation of pending queue")
-			break
+			return
 		}
 
-		slotCounter = realmDB.LatestVerifiedRealmSlot()
+		// Resolve state of possible invalid pairs
+		latestSavedVerifiedRealmSlot = realmDB.LatestVerifiedRealmSlot()
+		log.WithField("possibleInvalidPairs", len(possibleInvalidPair)).
+			WithField("latestVerifiedRealmSlot", latestSavedVerifiedRealmSlot).
+			Info("Requeue possible invalid pairs")
 
-		if slotCounter > pair.Slot {
-			continue
+		slotCounter := latestSavedVerifiedRealmSlot
+
+		for _, pair := range possibleInvalidPair {
+			if nil == pair {
+				continue
+			}
+
+			if pair.Slot > latestSavedVerifiedRealmSlot {
+				continue
+			}
+
+			vanguardErr = vanguardHashDB.SaveVanguardHeaderHash(pair.Slot, &types.HeaderHash{
+				Status: types.Skipped,
+			})
+
+			// TODO: when more shard will come we will need to maintain this information
+			pandoraErr = pandoraHeaderHashDB.SavePandoraHeaderHash(pair.Slot, &types.HeaderHash{
+				Status: types.Skipped,
+			})
+
+			if nil != vanguardErr || nil != pandoraErr {
+				log.WithField("vanguardErr", vanguardErr).
+					WithField("pandoraErr", pandoraErr).
+					WithField("realmErr", realmErr).
+					Error("Got error during invalidation of pending queue")
+				break
+			}
+
+			slotCounter = realmDB.LatestVerifiedRealmSlot()
+
+			if slotCounter > pair.Slot {
+				continue
+			}
+
+			// TODO: resolve this, for whatsoever reason it is
+			if pair.Slot > 0 {
+				panic(fmt.Sprintf("I am here, slot: %d", pair.Slot))
+			}
+			slotCounter = pair.Slot
 		}
 
-		if pair.Slot > 0 {
-			panic(fmt.Sprintf("I am here, slot: %d", pair.Slot))
-		}
-		slotCounter = pair.Slot
+		realmErr = realmDB.SaveLatestVerifiedRealmSlot(slotCounter)
+
+		log.WithField("highestCheckedSlot", slotCounter).
+			Info("I have resolved InvalidatePendingQueue")
+
+		return
 	}
-
-	realmErr = realmDB.SaveLatestVerifiedRealmSlot(slotCounter)
-
-	log.WithField("highestCheckedSlot", slotCounter).
-		Info("I have resolved InvalidatePendingQueue")
 
 	return
 }
@@ -340,7 +350,7 @@ func (service *Service) workLoop() {
 	verifiedSlotWorkLoopStart := service.RealmDB.LatestVerifiedRealmSlot()
 	log.WithField("verifiedSlotWorkLoopStart", verifiedSlotWorkLoopStart).
 		Info("I am pushing work to canonicalizeChan")
-	service.canonicalizeChan <- verifiedSlotWorkLoopStart
+	//service.canonicalizeChan <- verifiedSlotWorkLoopStart
 	realmDB := service.RealmDB
 	vanguardDB := service.VanguardHeaderHashDB
 	pandoraDB := service.PandoraHeaderHashDB

@@ -6,6 +6,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/db/kv"
 	generalTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
 	"time"
 )
@@ -81,30 +82,6 @@ func NewPublicFilterAPI(backend Backend, timeout time.Duration) *PublicFilterAPI
 		timeout: timeout,
 	}
 
-	//// This is a simplest way I can imagine that queue will be invalidated.
-	//// TODO: move it also? to eventSystem when new pending blocks arrive
-	//go func() {
-	//	ticker := time.NewTicker(time.Second * 2)
-	//	for {
-	//		select {
-	//		case <-ticker.C:
-	//			vanguardErr, pandoraErr, realmErr := backend.InvalidatePendingQueue()
-	//
-	//			if nil != vanguardErr {
-	//				log.WithField("publicFilterApiCause", "vanguardErr").Error(vanguardErr)
-	//			}
-	//
-	//			if nil != pandoraErr {
-	//				log.WithField("publicFilterApiCause", "pandoraErr").Error(pandoraErr)
-	//			}
-	//
-	//			if nil != realmErr {
-	//				log.WithField("publicFilterApiCause", "realmErr").Error(realmErr)
-	//			}
-	//		}
-	//	}
-	//}()
-
 	return api
 }
 
@@ -123,6 +100,7 @@ func (api *PublicFilterAPI) ConfirmPanBlockHashes(
 
 	for _, blockRequest := range request {
 		status, currentErr := api.backend.FetchPanBlockStatus(blockRequest.Slot, blockRequest.Hash)
+		hash := blockRequest.Hash
 
 		if nil != currentErr {
 			log.Errorf("Invalid block in ConfirmPanBlockHashes: %v", err)
@@ -132,10 +110,14 @@ func (api *PublicFilterAPI) ConfirmPanBlockHashes(
 			return
 		}
 
+		if Skipped == status {
+			hash = kv.EmptyHash
+		}
+
 		response = append(response, &BlockStatus{
 			BlockHash: BlockHash{
 				Slot: blockRequest.Slot,
-				Hash: blockRequest.Hash,
+				Hash: hash,
 			},
 			Status: status,
 		})
@@ -164,6 +146,7 @@ func (api *PublicFilterAPI) ConfirmVanBlockHashes(
 
 	for _, blockRequest := range request {
 		status, currentErr := api.backend.FetchVanBlockStatus(blockRequest.Slot, blockRequest.Hash)
+		hash := blockRequest.Hash
 
 		if nil != currentErr {
 			log.Errorf("Invalid block in ConfirmVanBlockHashes: %v", err)
@@ -173,10 +156,14 @@ func (api *PublicFilterAPI) ConfirmVanBlockHashes(
 			return
 		}
 
+		if Skipped == status {
+			hash = kv.EmptyHash
+		}
+
 		response = append(response, &BlockStatus{
 			BlockHash: BlockHash{
 				Slot: blockRequest.Slot,
-				Hash: blockRequest.Hash,
+				Hash: hash,
 			},
 			Status: status,
 		})
