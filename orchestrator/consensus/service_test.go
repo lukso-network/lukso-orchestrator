@@ -527,9 +527,21 @@ func TestService_Canonicalize(t *testing.T) {
 		confirmValidityOfSlot()
 		confirmValidityOfFirstBatch(true)
 
-		for index := expectedLatestVerifiedRealmSlot; index < expectedHighestCheckedSlot; index++ {
+		lastVanguardBlock, err := service.VanguardHeaderHashDB.VanguardHeaderHash(expectedHighestCheckedSlot)
+		require.NoError(t, err)
+		require.Equal(t, types.Verified, lastVanguardBlock.Status)
+		require.Equal(t,
+			"0x078ed0e94e50738b567764f8587b76a0c0a6bef2fd4ac8f6665b55cddba055db",
+			lastVanguardBlock.HeaderHash.String(),
+		)
 
-		}
+		lastPandoraBlock, err := service.PandoraHeaderHashDB.PandoraHeaderHash(expectedHighestCheckedSlot)
+		require.NoError(t, err)
+		require.Equal(t, types.Verified, lastPandoraBlock.Status)
+		require.Equal(t,
+			"0x9cea5d4952be0bae951b717f4c8257a225cf837fb5720ce57293606219c990fc",
+			lastPandoraBlock.HeaderHash.String(),
+		)
 	})
 }
 
