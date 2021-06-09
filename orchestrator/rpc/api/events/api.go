@@ -18,6 +18,7 @@ type Backend interface {
 	FetchPanBlockStatus(slot uint64, hash common.Hash) (status Status, err error)
 	FetchVanBlockStatus(slot uint64, hash common.Hash) (status Status, err error)
 	InvalidatePendingQueue() (vanguardErr error, pandoraErr error, realmErr error)
+	GetPendingHashes() (response *PendingHashesResponse, err error)
 }
 
 type Status string
@@ -83,6 +84,20 @@ func NewPublicFilterAPI(backend Backend, timeout time.Duration) *PublicFilterAPI
 	}
 
 	return api
+}
+
+// This is for debug purpose only
+type PendingHashesResponse struct {
+	VanguardHashes    []*generalTypes.HeaderHash
+	PandoraHashes     []*generalTypes.HeaderHash
+	VanguardHashesLen int64
+	PandoraHashesLen  int64
+	UnixTime          int64
+}
+
+// This is only for debug purpose
+func (api *PublicFilterAPI) GetPendingHashes() (response *PendingHashesResponse, err error) {
+	return api.backend.GetPendingHashes()
 }
 
 // ConfirmPanBlockHashes

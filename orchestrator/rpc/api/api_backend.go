@@ -11,6 +11,7 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	log "github.com/sirupsen/logrus"
 	"sync"
+	"time"
 )
 
 type Backend struct {
@@ -23,6 +24,32 @@ type Backend struct {
 	// TODO: move into service registry
 	consensusService *consensus.Service
 	sync.Mutex
+}
+
+func (backend *Backend) GetPendingHashes() (response *events.PendingHashesResponse, err error) {
+	vanguardHashes, err := backend.VanguardHeaderHashDB.VanguardHeaderHashes(0, 15000)
+
+	if nil != err {
+		return
+	}
+
+	pandoraHashes, err := backend.PandoraHeaderHashDB.PandoraHeaderHashes(0, 15000)
+
+	if nil != err {
+		return
+	}
+
+	timestamp := time.Now().Unix()
+
+	response = &events.PendingHashesResponse{
+		VanguardHashes:    vanguardHashes,
+		PandoraHashes:     pandoraHashes,
+		VanguardHashesLen: int64(len(vanguardHashes)),
+		PandoraHashesLen:  int64(len(pandoraHashes)),
+		UnixTime:          timestamp,
+	}
+
+	return
 }
 
 var _ events.Backend = &Backend{}
