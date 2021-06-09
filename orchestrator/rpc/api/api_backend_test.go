@@ -22,6 +22,7 @@ func TestBackend_FetchPanBlockStatus(t *testing.T) {
 		orchestratorDB := testDB.SetupDB(t)
 		backend := Backend{
 			PandoraHeaderHashDB: orchestratorDB,
+			RealmDB:             orchestratorDB,
 		}
 
 		require.NoError(t, orchestratorDB.SavePandoraHeaderHash(1, &types.HeaderHash{
@@ -48,6 +49,7 @@ func TestBackend_FetchPanBlockStatus(t *testing.T) {
 		orchestratorDB := testDB.SetupDB(t)
 		backend := Backend{
 			PandoraHeaderHashDB: orchestratorDB,
+			RealmDB:             orchestratorDB,
 		}
 
 		require.NoError(t, orchestratorDB.SavePandoraHeaderHash(1, &types.HeaderHash{
@@ -68,6 +70,7 @@ func TestBackend_FetchPanBlockStatus(t *testing.T) {
 		orchestratorDB := testDB.SetupDB(t)
 		backend := Backend{
 			PandoraHeaderHashDB: orchestratorDB,
+			RealmDB:             orchestratorDB,
 		}
 
 		token := make([]byte, 4)
@@ -95,6 +98,7 @@ func TestBackend_FetchPanBlockStatus(t *testing.T) {
 		orchestratorDB := testDB.SetupDB(t)
 		backend := Backend{
 			PandoraHeaderHashDB: orchestratorDB,
+			RealmDB:             orchestratorDB,
 		}
 
 		token := make([]byte, 4)
@@ -142,6 +146,7 @@ func TestBackend_FetchVanBlockStatus(t *testing.T) {
 		orchestratorDB := testDB.SetupDB(t)
 		backend := Backend{
 			VanguardHeaderHashDB: orchestratorDB,
+			RealmDB:              orchestratorDB,
 		}
 
 		require.NoError(t, orchestratorDB.SaveVanguardHeaderHash(1, &types.HeaderHash{
@@ -151,6 +156,7 @@ func TestBackend_FetchVanBlockStatus(t *testing.T) {
 
 		require.NoError(t, orchestratorDB.SaveLatestVanguardSlot())
 		require.NoError(t, orchestratorDB.SaveLatestVanguardHeaderHash())
+		require.NoError(t, orchestratorDB.SaveLatestVerifiedRealmSlot(orchestratorDB.LatestSavedVanguardSlot()))
 
 		status, err := backend.FetchVanBlockStatus(1, common.Hash{})
 		require.NoError(t, err)
@@ -168,6 +174,7 @@ func TestBackend_FetchVanBlockStatus(t *testing.T) {
 		orchestratorDB := testDB.SetupDB(t)
 		backend := Backend{
 			VanguardHeaderHashDB: orchestratorDB,
+			RealmDB:              orchestratorDB,
 		}
 
 		require.NoError(t, orchestratorDB.SaveVanguardHeaderHash(1, &types.HeaderHash{
@@ -177,6 +184,7 @@ func TestBackend_FetchVanBlockStatus(t *testing.T) {
 
 		require.NoError(t, orchestratorDB.SaveLatestVanguardSlot())
 		require.NoError(t, orchestratorDB.SaveLatestVanguardHeaderHash())
+		require.NoError(t, orchestratorDB.SaveLatestVerifiedRealmSlot(orchestratorDB.LatestSavedVanguardSlot()))
 
 		status, err := backend.FetchVanBlockStatus(2, common.Hash{})
 		require.NoError(t, err)
@@ -188,6 +196,7 @@ func TestBackend_FetchVanBlockStatus(t *testing.T) {
 		orchestratorDB := testDB.SetupDB(t)
 		backend := Backend{
 			VanguardHeaderHashDB: orchestratorDB,
+			RealmDB:              orchestratorDB,
 		}
 
 		token := make([]byte, 4)
@@ -205,6 +214,7 @@ func TestBackend_FetchVanBlockStatus(t *testing.T) {
 
 		require.NoError(t, orchestratorDB.SaveLatestVanguardSlot())
 		require.NoError(t, orchestratorDB.SaveLatestVanguardHeaderHash())
+		require.NoError(t, orchestratorDB.SaveLatestVerifiedRealmSlot(orchestratorDB.LatestSavedVanguardSlot()))
 
 		status, err := backend.FetchVanBlockStatus(1, invalidHash)
 		require.Error(t, err)
@@ -215,6 +225,7 @@ func TestBackend_FetchVanBlockStatus(t *testing.T) {
 		orchestratorDB := testDB.SetupDB(t)
 		backend := Backend{
 			VanguardHeaderHashDB: orchestratorDB,
+			RealmDB:              orchestratorDB,
 		}
 
 		token := make([]byte, 4)
@@ -239,6 +250,7 @@ func TestBackend_FetchVanBlockStatus(t *testing.T) {
 
 		require.NoError(t, orchestratorDB.SaveLatestVanguardSlot())
 		require.NoError(t, orchestratorDB.SaveLatestVanguardHeaderHash())
+		require.NoError(t, orchestratorDB.SaveLatestVerifiedRealmSlot(orchestratorDB.LatestSavedVanguardSlot()))
 
 		status, err := backend.FetchVanBlockStatus(1, properHash)
 		require.NoError(t, err)

@@ -322,7 +322,7 @@ func (service *Service) Canonicalize(
 		realmErr = realmDB.SaveLatestVerifiedRealmSlot(slotCounter)
 
 		log.WithField("highestCheckedSlot", slotCounter).
-			Info("I have resolved InvalidatePendingQueue")
+			Info("I have resolved Canonicalize")
 
 		return
 	}

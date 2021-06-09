@@ -55,6 +55,7 @@ var _ events.Backend = &Backend{}
 
 func (backend *Backend) FetchPanBlockStatus(slot uint64, hash common.Hash) (status events.Status, err error) {
 	pandoraHeaderHashDB := backend.PandoraHeaderHashDB
+	realmDB := backend.RealmDB
 
 	if nil == pandoraHeaderHashDB {
 		err = fmt.Errorf("pandora database is empty")
@@ -63,10 +64,9 @@ func (backend *Backend) FetchPanBlockStatus(slot uint64, hash common.Hash) (stat
 		return
 	}
 
-	latestSlot := pandoraHeaderHashDB.LatestSavedPandoraSlot()
-
-	if slot > latestSlot {
-		status = events.Pending
+	if nil == realmDB {
+		err = fmt.Errorf("realm database is empty")
+		status = events.Invalid
 
 		return
 	}
@@ -75,6 +75,14 @@ func (backend *Backend) FetchPanBlockStatus(slot uint64, hash common.Hash) (stat
 
 	if nil != err {
 		status = events.Invalid
+
+		return
+	}
+
+	latestSlot := realmDB.LatestVerifiedRealmSlot()
+
+	if slot > latestSlot && nil == headerHash {
+		status = events.Pending
 
 		return
 	}
@@ -100,6 +108,7 @@ func (backend *Backend) FetchPanBlockStatus(slot uint64, hash common.Hash) (stat
 
 func (backend *Backend) FetchVanBlockStatus(slot uint64, hash common.Hash) (status events.Status, err error) {
 	vanHashDB := backend.VanguardHeaderHashDB
+	realmDB := backend.RealmDB
 
 	if nil == vanHashDB {
 		err = fmt.Errorf("vanguard database is empty")
@@ -108,10 +117,9 @@ func (backend *Backend) FetchVanBlockStatus(slot uint64, hash common.Hash) (stat
 		return
 	}
 
-	latestSlot := vanHashDB.LatestSavedVanguardSlot()
-
-	if slot > latestSlot {
-		status = events.Pending
+	if nil == realmDB {
+		err = fmt.Errorf("realm database is empty")
+		status = events.Invalid
 
 		return
 	}
@@ -120,6 +128,14 @@ func (backend *Backend) FetchVanBlockStatus(slot uint64, hash common.Hash) (stat
 
 	if nil != err {
 		status = events.Invalid
+
+		return
+	}
+
+	latestSlot := realmDB.LatestVerifiedRealmSlot()
+
+	if slot > latestSlot && nil == headerHash {
+		status = events.Pending
 
 		return
 	}
