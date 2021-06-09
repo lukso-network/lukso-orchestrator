@@ -234,19 +234,21 @@ func (service *Service) Canonicalize(
 				continue
 			}
 
-			if types.Verified != vanguardBlockHash.Status {
-				vanguardErr = vanguardHashDB.SaveVanguardHeaderHash(slotToCheck, &types.HeaderHash{
-					HeaderHash: vanguardBlockHash.HeaderHash,
-					Status:     types.Verified,
-				})
-			}
+			log.WithField("slot", slotToCheck).
+				WithField("hash", vanguardBlockHash.HeaderHash.String()).
+				Info("I am inserting verified vanguardBlockHash")
+			vanguardErr = vanguardHashDB.SaveVanguardHeaderHash(slotToCheck, &types.HeaderHash{
+				HeaderHash: vanguardBlockHash.HeaderHash,
+				Status:     types.Verified,
+			})
 
-			if types.Verified != pandoraHeaderHash.Status {
-				pandoraErr = pandoraHeaderHashDB.SavePandoraHeaderHash(slotToCheck, &types.HeaderHash{
-					HeaderHash: pandoraHeaderHash.HeaderHash,
-					Status:     types.Verified,
-				})
-			}
+			log.WithField("slot", slotToCheck).
+				WithField("hash", pandoraHeaderHash.HeaderHash.String()).
+				Info("I am inserting verified pandoraHeaderHash")
+			pandoraErr = pandoraHeaderHashDB.SavePandoraHeaderHash(slotToCheck, &types.HeaderHash{
+				HeaderHash: pandoraHeaderHash.HeaderHash,
+				Status:     types.Verified,
+			})
 
 			if nil != vanguardErr || nil != pandoraErr {
 				break
