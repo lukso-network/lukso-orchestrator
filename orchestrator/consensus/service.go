@@ -157,10 +157,6 @@ func (service *Service) Canonicalize(
 
 		vanguardBlockHashes, err := vanguardHashDB.VanguardHeaderHashes(fromSlot, batchLimit)
 
-		log.WithField("pandoraHeaderHashes", len(pandoraHeaderHashes)).
-			WithField("vanguardHeaderHashes", len(vanguardBlockHashes)).
-			Trace("Got header hashes")
-
 		if nil != err {
 			log.WithField("cause", "Failed to invalidate pending queue").Error(err)
 			realmErr = err
@@ -298,8 +294,17 @@ func (service *Service) Canonicalize(
 			}
 
 			if pair.Slot > latestSavedVerifiedRealmSlot {
+				log.WithField("slot", pair.Slot).
+					WithField("vanguardHash", pair.VanguardHash).
+					WithField("pandoraHashes", pair.PandoraHashes).
+					Warn("pair slot higher than latestSavedVerifiedRealmSlot")
 				continue
 			}
+
+			log.WithField("slot", pair.Slot).
+				WithField("vanguardHash", pair.VanguardHash).
+				WithField("pandoraHashes", pair.PandoraHashes).
+				Info("I am saving vanguard and pandora hash as skipped")
 
 			vanguardErr = vanguardHashDB.SaveVanguardHeaderHash(pair.Slot, &types.HeaderHash{
 				Status: types.Skipped,
