@@ -31,10 +31,6 @@ func (b *MockBackend) FetchVanBlockStatus(slot uint64, hash common.Hash) (status
 	panic("implement me")
 }
 
-func (b *MockBackend) InvalidatePendingQueue() (vanErr error, panErr error, realmErr error) {
-	return
-}
-
 func (b *MockBackend) CurrentEpoch() uint64 {
 	return b.CurEpoch
 }

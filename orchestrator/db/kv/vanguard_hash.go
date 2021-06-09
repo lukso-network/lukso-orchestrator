@@ -79,13 +79,13 @@ func (s *Store) VanguardHeaderHash(slot uint64) (headerHash *types.HeaderHash, e
 
 func (s *Store) VanguardHeaderHashes(fromSlot uint64, limit uint64) (vanguardHeaderHashes []*types.HeaderHash, err error) {
 	// when requested epoch is greater than stored latest epoch
-	if fromSlot > s.latestVanSlot {
-		return nil, errors.Wrap(InvalidSlot, fmt.Sprintf(
-			"Got invalid fromSlot: %d, latestVanSlot: %d",
-			fromSlot,
-			s.latestVanSlot,
-		))
-	}
+	//if fromSlot > s.latestVanSlot {
+	//	return nil, errors.Wrap(InvalidSlot, fmt.Sprintf(
+	//		"Got invalid fromSlot: %d, latestVanSlot: %d",
+	//		fromSlot,
+	//		s.latestVanSlot,
+	//	))
+	//}
 
 	err = s.db.View(func(tx *bolt.Tx) error {
 		for slot := fromSlot; slot <= s.latestVanSlot; slot++ {

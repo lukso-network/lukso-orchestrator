@@ -261,6 +261,8 @@ func TestService_Canonicalize(t *testing.T) {
 		require.Equal(t, uint64(6), realmSlot)
 	})
 
+	// This test is not finished, it does not test the side effect
+	// TODO: check how it can crawl up to 15000
 	t.Run("should invalidate lots of pending blocks", func(t *testing.T) {
 		orchestratorDB := testDB.SetupDB(t)
 		ctx := context.Background()

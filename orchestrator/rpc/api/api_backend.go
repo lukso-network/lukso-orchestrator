@@ -9,7 +9,6 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/iface"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
-	log "github.com/sirupsen/logrus"
 	"sync"
 	"time"
 )
@@ -140,45 +139,6 @@ func (backend *Backend) FetchVanBlockStatus(slot uint64, hash common.Hash) (stat
 	}
 
 	status = events.FromDBStatus(headerHash.Status)
-
-	return
-}
-
-// Idea is that it should be very little resource intensive as possible, because it could be triggered a lot
-// Short circuits will prevent looping when logic says to not do so
-func (backend *Backend) InvalidatePendingQueue() (
-	vanguardErr error,
-	pandoraErr error,
-	realmErr error,
-) {
-	realmDB := backend.RealmDB
-
-	// Invalidation does not need to rely on database, it can be done in multiple ways
-	// IMHO we should extend this function by strategy pattern or just stick to one source of truth
-	if nil == realmDB {
-		log.Errorf("empty realm db")
-		return
-	}
-
-	consensusService := backend.consensusService
-
-	if nil == consensusService {
-		// This service could be fetched from registry nor created during singleton pattern
-		backend.consensusService = &consensus.Service{
-			VanguardHeaderHashDB: backend.VanguardHeaderHashDB,
-			PandoraHeaderHashDB:  backend.PandoraHeaderHashDB,
-			RealmDB:              backend.RealmDB,
-		}
-
-		consensusService = backend.consensusService
-	}
-
-	latestSavedVerifiedRealmSlot := realmDB.LatestVerifiedRealmSlot()
-	vanguardErr, pandoraErr, realmErr = consensusService.Canonicalize(
-		latestSavedVerifiedRealmSlot,
-		// TODO: pass it from cli context
-		50000,
-	)
 
 	return
 }

@@ -41,15 +41,15 @@ func (service *Service) Start() {
 				vanguardErr, pandoraErr, realmErr := service.Canonicalize(slot, 50000)
 
 				if nil != vanguardErr {
-					log.WithField("canonicalize", "vanguardErr").Warn(vanguardErr)
+					log.WithField("canonicalize", "vanguardErr").Debug(vanguardErr)
 				}
 
 				if nil != pandoraErr {
-					log.WithField("canonicalize", "pandoraErr").Warn(pandoraErr)
+					log.WithField("canonicalize", "pandoraErr").Debug(pandoraErr)
 				}
 
 				if nil != realmErr {
-					log.WithField("canonicalize", "realmErr").Warn(realmErr)
+					log.WithField("canonicalize", "realmErr").Debug(realmErr)
 				}
 			case stop := <-service.stopChan:
 				if stop {
@@ -125,7 +125,7 @@ func (service *Service) Canonicalize(
 		return
 	}
 
-	log.Info("I am starting to InvalidatePendingQueue in batches")
+	log.Info("I am starting to Canonicalize in batches")
 	select {
 	case stop := <-service.stopChan:
 		if stop {
@@ -317,14 +317,6 @@ func (service *Service) Canonicalize(
 					Error("Got error during invalidation of pending queue")
 				break
 			}
-
-			slotCounter = realmDB.LatestVerifiedRealmSlot()
-
-			if slotCounter > pair.Slot {
-				continue
-			}
-
-			slotCounter = pair.Slot
 		}
 
 		realmErr = realmDB.SaveLatestVerifiedRealmSlot(slotCounter)
