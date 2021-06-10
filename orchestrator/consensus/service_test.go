@@ -74,7 +74,6 @@ func TestService_Start(t *testing.T) {
 	}
 
 	t.Run("should invoke canonicalization", func(t *testing.T) {
-		t.Parallel()
 		hook := logTest.NewGlobal()
 		orchestratorDB := testDB.SetupDBWithoutClose(t)
 		ctx := context.Background()
@@ -107,8 +106,7 @@ func TestService_Start(t *testing.T) {
 		require.NoError(t, orchestratorDB.Close())
 	})
 
-	t.Run("should reject work when canonicalization is ongoing and allow it when ready", func(t *testing.T) {
-		t.Parallel()
+	t.Run("should invoke canonicalize once per flood", func(t *testing.T) {
 		hook := logTest.NewGlobal()
 		orchestratorDB := testDB.SetupDBWithoutClose(t)
 		ctx := context.Background()
@@ -170,10 +168,20 @@ func TestService_Start(t *testing.T) {
 			return false
 		}
 
+		shouldFail := true
+
+		time.AfterFunc(time.Second*20, func() {
+			if shouldFail {
+				t.FailNow()
+			}
+		})
+
 		for {
 			isFinished := waitForCanonicalizationEnd()
 
 			if isFinished {
+				shouldFail = false
+
 				break
 			}
 
@@ -190,7 +198,6 @@ func TestService_Start(t *testing.T) {
 		require.Equal(t, types.Verified, fetchedVanguardHeader.Status)
 		require.Equal(t, vanguardHeader.HeaderHash, fetchedVanguardHeader.HeaderHash)
 		assert.LogsContainNTimes(t, hook, "I have resolved Canonicalize", 1)
-
 		require.NoError(t, orchestratorDB.Close())
 	})
 }
