@@ -527,6 +527,8 @@ func (service *Service) workLoop() {
 			select {
 			case header := <-mergedChannel:
 				possiblePendingWork = append(possiblePendingWork, header)
+				log.WithField("cause", "worker").
+					Info("I am pushing header to merged channel")
 				mergedHeadersChanBridge <- header
 			case <-service.canonicalizeChan:
 				possiblePendingWork = make([]*types.HeaderHash, 0)

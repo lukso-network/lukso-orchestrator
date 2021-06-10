@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	testDB "github.com/lukso-network/lukso-orchestrator/orchestrator/db/testing"
+	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/require"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	logTest "github.com/sirupsen/logrus/hooks/test"
@@ -53,25 +54,99 @@ func TestNew(t *testing.T) {
 }
 
 func TestService_Start(t *testing.T) {
-	hook := logTest.NewGlobal()
-	orchestratorDB := testDB.SetupDB(t)
-	ctx := context.Background()
-	vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan := prepareEnv()
-	service := New(ctx, orchestratorDB, vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan)
-	service.Start()
-	require.LogsContain(t, hook, "I am starting the work loop")
+	pandoraToken := make([]byte, 4)
+	rand.Read(pandoraToken)
+	pandoraHash := common.BytesToHash(pandoraToken)
 
-	service.isWorking = false
-	t.Run("worker should propagate to canonicalizeChan", func(t *testing.T) {
+	vanguardToken := make([]byte, 8)
+	rand.Read(vanguardToken)
+	vanguardHash := common.BytesToHash(vanguardToken)
 
+	pandoraHeader := &types.HeaderHash{
+		HeaderHash: pandoraHash,
+		Status:     types.Pending,
+	}
+
+	vanguardHeader := &types.HeaderHash{
+		HeaderHash: vanguardHash,
+		Status:     types.Pending,
+	}
+
+	t.Run("should invoke canonicalization", func(t *testing.T) {
+		t.Parallel()
+		hook := logTest.NewGlobal()
+		orchestratorDB := testDB.SetupDBWithoutClose(t)
+		ctx := context.Background()
+		vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan := prepareEnv()
+		service := New(ctx, orchestratorDB, vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan)
+		service.Start()
+		require.LogsContain(t, hook, "I am starting the work loop")
+
+		service.isWorking = false
+
+		require.NoError(t, orchestratorDB.SavePandoraHeaderHash(1, pandoraHeader))
+		require.NoError(t, orchestratorDB.SaveVanguardHeaderHash(1, vanguardHeader))
+		require.NoError(t, orchestratorDB.SaveLatestVerifiedRealmSlot(0))
+
+		vanguardHeadersChan <- vanguardHeader
+		pandoraHeadersChan <- pandoraHeader
+		time.Sleep(time.Second * 2)
+
+		require.LogsContain(t, hook, "I am pushing header to merged channel")
+		require.LogsContain(t, hook, "I am starting to Canonicalize in batches")
+
+		fetchedPandoraHeader, err := orchestratorDB.PandoraHeaderHash(1)
+		require.NoError(t, err)
+		require.Equal(t, types.Verified, fetchedPandoraHeader.Status)
+		require.Equal(t, pandoraHeader.HeaderHash, fetchedPandoraHeader.HeaderHash)
+
+		fetchedVanguardHeader, err := orchestratorDB.VanguardHeaderHash(1)
+		require.NoError(t, err)
+		require.Equal(t, types.Verified, fetchedVanguardHeader.Status)
+		require.Equal(t, vanguardHeader.HeaderHash, fetchedVanguardHeader.HeaderHash)
+		require.NoError(t, orchestratorDB.Close())
 	})
 
-	t.Run("canonicalizeChan should reject work when canonicalization is ongoing", func(t *testing.T) {
+	t.Run("should reject work when canonicalization is ongoing and allow it when ready", func(t *testing.T) {
+		t.Parallel()
+		hook := logTest.NewGlobal()
+		orchestratorDB := testDB.SetupDBWithoutClose(t)
+		ctx := context.Background()
+		vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan := prepareEnv()
+		service := New(ctx, orchestratorDB, vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan)
+		service.isWorking = true
+		service.Start()
+		require.LogsContain(t, hook, "I am starting the work loop")
+		require.NoError(t, orchestratorDB.SavePandoraHeaderHash(1, pandoraHeader))
+		require.NoError(t, orchestratorDB.SaveVanguardHeaderHash(1, vanguardHeader))
+		require.NoError(t, orchestratorDB.SaveLatestVerifiedRealmSlot(0))
 
-	})
+		vanguardHeadersChan <- vanguardHeader
+		pandoraHeadersChan <- pandoraHeader
+		time.Sleep(time.Millisecond * 1100)
+		vanguardHeadersChan <- vanguardHeader
+		pandoraHeadersChan <- pandoraHeader
 
-	t.Run("canonicalizeChan should invoke canonicalization", func(t *testing.T) {
+		time.Sleep(time.Second * 2)
+		assert.LogsContainNTimes(t, hook, "service is working still, I omit the process", 2)
 
+		fetchedPandoraHeader, err := orchestratorDB.PandoraHeaderHash(1)
+		require.NoError(t, err)
+		require.Equal(t, types.Pending, fetchedPandoraHeader.Status)
+		require.Equal(t, pandoraHeader.HeaderHash, fetchedPandoraHeader.HeaderHash)
+
+		fetchedVanguardHeader, err := orchestratorDB.VanguardHeaderHash(1)
+		require.NoError(t, err)
+		require.Equal(t, types.Pending, fetchedVanguardHeader.Status)
+		require.Equal(t, vanguardHeader.HeaderHash, fetchedVanguardHeader.HeaderHash)
+
+		service.isWorking = false
+		vanguardHeadersChan <- vanguardHeader
+		pandoraHeadersChan <- pandoraHeader
+		time.Sleep(time.Second * 2)
+		require.LogsContain(t, hook, "I am starting to Canonicalize in batches")
+
+		require.NoError(t, orchestratorDB.Close())
 	})
 }
 
