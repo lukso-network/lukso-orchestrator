@@ -706,5 +706,4 @@ func TestService_Canonicalize(t *testing.T) {
 			}
 		}
 	})
-
 }

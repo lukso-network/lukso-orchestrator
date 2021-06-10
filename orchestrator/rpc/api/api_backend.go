@@ -19,9 +19,7 @@ type Backend struct {
 	VanguardHeaderHashDB db.VanguardHeaderHashDB
 	PandoraHeaderHashDB  db.PandoraHeaderHashDB
 	RealmDB              db.RealmDB
-	// For now I will use singleton pattern instead of service registry
-	// TODO: move into service registry
-	consensusService *consensus.Service
+	consensusService     *consensus.Service
 	sync.Mutex
 }
 
