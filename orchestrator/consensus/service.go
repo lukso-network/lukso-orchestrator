@@ -501,6 +501,12 @@ func (service *Service) workLoop() {
 			}
 
 			currentSlot := uint64(index) + latestVerifiedRealmSlot
+
+			// Start at n - 1
+			if currentSlot > 0 {
+				currentSlot--
+			}
+
 			service.canonicalizeChan <- currentSlot
 
 			return
@@ -516,6 +522,12 @@ func (service *Service) workLoop() {
 			}
 
 			currentSlot := uint64(index) + latestVerifiedRealmSlot
+
+			// Start at n - 1
+			if currentSlot > 0 {
+				currentSlot--
+			}
+
 			service.canonicalizeChan <- currentSlot
 
 			return
