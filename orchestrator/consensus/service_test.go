@@ -297,7 +297,6 @@ func TestService_Canonicalize(t *testing.T) {
 			if nil != block {
 				require.NoError(t, service.PandoraHeaderHashDB.SavePandoraHeaderHash(uint64(index), block))
 			}
-
 		}
 
 		for index, block := range vanguardBlocks {
@@ -353,32 +352,26 @@ func TestService_Canonicalize(t *testing.T) {
 				pandoraRelative := pandoraBlocks[index]
 				vanguardRelative := vanguardBlocks[index]
 
+				indexMessage := fmt.Sprintf("Failed on index: %d", index)
+
 				// No pending block were present until expectedFirstVerifiedSlot
 				if index < expectedFirstVerifiedSlot && nil != currentVanguardHeaderHash && nil != currentPandoraHeaderHash {
-					require.Equal(t, types.Skipped, currentVanguardHeaderHash.Status, index)
-					require.Equal(t, types.Skipped, currentPandoraHeaderHash.Status, index)
+					require.Equal(t, types.Skipped, currentVanguardHeaderHash.Status, indexMessage)
+					require.Equal(t, types.Skipped, currentPandoraHeaderHash.Status, indexMessage)
 				}
 
 				// Present on both sides
 				if nil != pandoraRelative && nil != vanguardRelative {
-					require.Equal(t, types.Verified, currentVanguardHeaderHash.Status, index)
-					require.Equal(t, types.Verified, currentPandoraHeaderHash.Status, index)
-				}
-
-				if !newBatchCame && index > int(expectedLatestVerifiedRealmSlot) && nil != currentVanguardHeaderHash {
-					require.Equal(t, types.Pending, currentVanguardHeaderHash.Status, index)
-				}
-
-				if !newBatchCame && index > int(expectedLatestVerifiedRealmSlot) && nil != currentPandoraHeaderHash {
-					require.Equal(t, types.Pending, currentPandoraHeaderHash.Status, index)
+					require.Equal(t, types.Verified, currentVanguardHeaderHash.Status, indexMessage)
+					require.Equal(t, types.Verified, currentPandoraHeaderHash.Status, indexMessage)
 				}
 
 				if index < int(expectedLatestVerifiedRealmSlot) && nil == pandoraRelative && nil != vanguardRelative {
-					require.Equal(t, types.Skipped, currentPandoraHeaderHash.Status, index)
+					require.Equal(t, types.Skipped, currentPandoraHeaderHash.Status, indexMessage)
 				}
 
 				if index < int(expectedLatestVerifiedRealmSlot) && nil == vanguardRelative && nil != pandoraRelative && nil != currentVanguardHeaderHash {
-					require.Equal(t, types.Skipped, currentVanguardHeaderHash.Status, index)
+					require.Equal(t, types.Skipped, currentVanguardHeaderHash.Status, indexMessage)
 				}
 			}
 		}

@@ -6,6 +6,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db/iface"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/db/kv"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/utils"
 	"github.com/lukso-network/lukso-orchestrator/shared"
@@ -300,8 +301,16 @@ func (service *Service) Canonicalize(
 			})
 		}
 
+		pendingPairs := make([]*events.RealmPair, 0)
+
 		for _, pair := range possibleSkippedPair {
 			if nil == pair {
+				continue
+			}
+
+			if pair.Slot > latestSavedVerifiedRealmSlot {
+				pendingPairs = append(pendingPairs, pair)
+
 				continue
 			}
 
@@ -323,13 +332,30 @@ func (service *Service) Canonicalize(
 			}
 		}
 
+		for _, pair := range pendingPairs {
+			if nil != pair.VanguardHash {
+				vanguardErr = vanguardHashDB.SaveVanguardHeaderHash(pair.Slot, &types.HeaderHash{
+					Status:     types.Skipped,
+					HeaderHash: pair.VanguardHash.HeaderHash,
+				})
+			}
+
+			// TODO: when more shard will come we will need to maintain this information
+			if len(pair.PandoraHashes) > 0 && nil != pair.PandoraHashes[0] {
+				pandoraErr = pandoraHeaderHashDB.SavePandoraHeaderHash(pair.Slot, &types.HeaderHash{
+					Status:     types.Skipped,
+					HeaderHash: pair.PandoraHashes[0].HeaderHash,
+				})
+			}
+		}
+
 		var (
 			finalVanguardBatch []*types.HeaderHash
 			finalPandoraBatch  []*types.HeaderHash
 		)
 
 		// At the very end fill all vanguard and pandora nil entries as skipped ones
-		// Do not fetch any higher records until this loop ends
+		// Do not fetch any higher records
 		finalVanguardBatch, vanguardErr = vanguardHashDB.VanguardHeaderHashes(
 			invalidationStartRealmSlot,
 			invalidationRange,
@@ -350,36 +376,41 @@ func (service *Service) Canonicalize(
 		}
 
 		for index, headerHash := range finalVanguardBatch {
-			if nil == headerHash {
+			if nil != headerHash {
 				continue
 			}
 
-			if types.Skipped == headerHash.Status {
-				continue
-			}
-
-			headerHash.Status = types.Skipped
 			slotToCheck := fromSlot + uint64(index)
+
+			if slotToCheck > latestSavedVerifiedRealmSlot {
+				continue
+			}
+
+			headerHash = &types.HeaderHash{
+				HeaderHash: kv.EmptyHash,
+				Status:     types.Skipped,
+			}
 
 			vanguardErr = vanguardHashDB.SaveVanguardHeaderHash(slotToCheck, headerHash)
 		}
 
 		for index, headerHash := range finalPandoraBatch {
-			if nil == headerHash {
+			if nil != headerHash {
 				continue
 			}
 
-			if types.Skipped == headerHash.Status {
-				continue
-			}
-
-			headerHash.Status = types.Skipped
 			slotToCheck := fromSlot + uint64(index)
 
+			if slotToCheck > latestSavedVerifiedRealmSlot {
+				continue
+			}
+
+			headerHash = &types.HeaderHash{
+				HeaderHash: kv.EmptyHash,
+				Status:     types.Skipped,
+			}
 			pandoraErr = pandoraHeaderHashDB.SavePandoraHeaderHash(slotToCheck, headerHash)
 		}
-
-		realmErr = realmDB.SaveLatestVerifiedRealmSlot(latestSavedVerifiedRealmSlot)
 
 		log.WithField("highestCheckedSlot", latestSavedVerifiedRealmSlot).
 			Info("I have resolved Canonicalize")
