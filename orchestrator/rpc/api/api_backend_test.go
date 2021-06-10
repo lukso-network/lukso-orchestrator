@@ -32,6 +32,7 @@ func TestBackend_FetchPanBlockStatus(t *testing.T) {
 
 		require.NoError(t, orchestratorDB.SaveLatestPandoraSlot())
 		require.NoError(t, orchestratorDB.SaveLatestPandoraHeaderHash())
+		require.NoError(t, orchestratorDB.SaveLatestVerifiedRealmSlot(1))
 
 		status, err := backend.FetchPanBlockStatus(1, common.Hash{})
 		require.NoError(t, err)
@@ -88,6 +89,7 @@ func TestBackend_FetchPanBlockStatus(t *testing.T) {
 
 		require.NoError(t, orchestratorDB.SaveLatestPandoraSlot())
 		require.NoError(t, orchestratorDB.SaveLatestPandoraHeaderHash())
+		require.NoError(t, orchestratorDB.SaveLatestVerifiedRealmSlot(1))
 
 		status, err := backend.FetchPanBlockStatus(1, invalidHash)
 		require.Error(t, err)
@@ -123,6 +125,7 @@ func TestBackend_FetchPanBlockStatus(t *testing.T) {
 
 		require.NoError(t, orchestratorDB.SaveLatestPandoraSlot())
 		require.NoError(t, orchestratorDB.SaveLatestPandoraHeaderHash())
+		require.NoError(t, orchestratorDB.SaveLatestVerifiedRealmSlot(1))
 
 		status, err := backend.FetchPanBlockStatus(1, properHash)
 		require.NoError(t, err)

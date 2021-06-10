@@ -81,7 +81,7 @@ func (backend *Backend) FetchPanBlockStatus(slot uint64, hash common.Hash) (stat
 
 	latestSlot := realmDB.LatestVerifiedRealmSlot()
 
-	if slot > latestSlot && nil == headerHash {
+	if slot > latestSlot {
 		status = events.Pending
 
 		return
@@ -134,7 +134,7 @@ func (backend *Backend) FetchVanBlockStatus(slot uint64, hash common.Hash) (stat
 
 	latestSlot := realmDB.LatestVerifiedRealmSlot()
 
-	if slot > latestSlot && nil == headerHash {
+	if slot > latestSlot {
 		status = events.Pending
 
 		return
