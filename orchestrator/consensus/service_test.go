@@ -11,6 +11,7 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	logTest "github.com/sirupsen/logrus/hooks/test"
 	"io/ioutil"
+	"math/big"
 	"math/rand"
 	"os"
 	"testing"
@@ -92,7 +93,6 @@ func TestService_Start(t *testing.T) {
 		pandoraHeadersChan <- pandoraHeader
 		time.Sleep(time.Second * 2)
 
-		require.LogsContain(t, hook, "I am pushing header to merged channel")
 		require.LogsContain(t, hook, "I am starting to Canonicalize in batches")
 
 		fetchedPandoraHeader, err := orchestratorDB.PandoraHeaderHash(1)
@@ -114,37 +114,82 @@ func TestService_Start(t *testing.T) {
 		ctx := context.Background()
 		vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan := prepareEnv()
 		service := New(ctx, orchestratorDB, vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan)
-		service.isWorking = true
 		service.Start()
 		require.LogsContain(t, hook, "I am starting the work loop")
 		require.NoError(t, orchestratorDB.SavePandoraHeaderHash(1, pandoraHeader))
 		require.NoError(t, orchestratorDB.SaveVanguardHeaderHash(1, vanguardHeader))
 		require.NoError(t, orchestratorDB.SaveLatestVerifiedRealmSlot(0))
 
-		vanguardHeadersChan <- vanguardHeader
-		pandoraHeadersChan <- pandoraHeader
-		time.Sleep(time.Millisecond * 1100)
-		vanguardHeadersChan <- vanguardHeader
-		pandoraHeadersChan <- pandoraHeader
+		secondVanguardHeader := &types.HeaderHash{
+			HeaderHash: common.BigToHash(big.NewInt(2)),
+			Status:     types.Pending,
+		}
+		secondPandoraHeader := &types.HeaderHash{
+			HeaderHash: common.BigToHash(big.NewInt(2)),
+			Status:     types.Pending,
+		}
 
-		time.Sleep(time.Second * 2)
-		assert.LogsContainNTimes(t, hook, "service is working still, I omit the process", 2)
+		vanguardHeadersChan <- secondVanguardHeader
+		pandoraHeadersChan <- secondPandoraHeader
+
+		tryouts := 100
+
+		go func() {
+			// Try to mimic actual behavior
+			offset := 3
+
+			for index := 0; index < tryouts; index++ {
+				nextVanguardHeader := &types.HeaderHash{
+					HeaderHash: common.BigToHash(big.NewInt(int64(index + offset))),
+					Status:     types.Pending,
+				}
+
+				nextPandoraHeader := &types.HeaderHash{
+					HeaderHash: common.BigToHash(big.NewInt(int64(index + offset))),
+					Status:     types.Pending,
+				}
+
+				require.NoError(t, orchestratorDB.SavePandoraHeaderHash(uint64(index+offset), nextPandoraHeader))
+				require.NoError(t, orchestratorDB.SaveVanguardHeaderHash(uint64(index+offset), nextVanguardHeader))
+
+				vanguardHeadersChan <- nextVanguardHeader
+				pandoraHeadersChan <- nextPandoraHeader
+			}
+		}()
+
+		waitForCanonicalizationEnd := func() bool {
+			entries := hook.AllEntries()
+
+			for _, entry := range entries {
+				if "I have resolved Canonicalize" == entry.Message {
+					t.Log("I have found desired entry")
+					return true
+				}
+			}
+
+			return false
+		}
+
+		for {
+			isFinished := waitForCanonicalizationEnd()
+
+			if isFinished {
+				break
+			}
+
+			time.Sleep(time.Millisecond * 100)
+		}
 
 		fetchedPandoraHeader, err := orchestratorDB.PandoraHeaderHash(1)
 		require.NoError(t, err)
-		require.Equal(t, types.Pending, fetchedPandoraHeader.Status)
+		require.Equal(t, types.Verified, fetchedPandoraHeader.Status)
 		require.Equal(t, pandoraHeader.HeaderHash, fetchedPandoraHeader.HeaderHash)
 
 		fetchedVanguardHeader, err := orchestratorDB.VanguardHeaderHash(1)
 		require.NoError(t, err)
-		require.Equal(t, types.Pending, fetchedVanguardHeader.Status)
+		require.Equal(t, types.Verified, fetchedVanguardHeader.Status)
 		require.Equal(t, vanguardHeader.HeaderHash, fetchedVanguardHeader.HeaderHash)
-
-		service.isWorking = false
-		vanguardHeadersChan <- vanguardHeader
-		pandoraHeadersChan <- pandoraHeader
-		time.Sleep(time.Second * 2)
-		require.LogsContain(t, hook, "I am starting to Canonicalize in batches")
+		assert.LogsContainNTimes(t, hook, "I have resolved Canonicalize", 1)
 
 		require.NoError(t, orchestratorDB.Close())
 	})

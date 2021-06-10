@@ -27,6 +27,7 @@ type Service struct {
 	stopChan                  chan bool
 	canonicalizeChan          chan uint64
 	isWorking                 bool
+	canonicalizeLock          *sync.Mutex
 }
 
 // This service should be registered only after Pandora and Vanguard notified about:
@@ -35,33 +36,41 @@ type Service struct {
 // - pendingHeaders (Pandora)
 // In current implementation we use debounce to determine state of syncing
 func (service *Service) Start() {
+	var onceAtTheTime = sync.Once{}
+
 	go func() {
 		for {
 			select {
 			case slot := <-service.canonicalizeChan:
-				if service.isWorking {
-					log.Info("service is working still, I omit the process")
-					continue
+				if !service.isWorking {
+					onceAtTheTime = sync.Once{}
 				}
 
-				log.WithField("latestVerifiedSlot", slot).
-					Info("I am starting canonicalization")
+				onceAtTheTime.Do(func() {
+					defer func() {
+						service.isWorking = false
+					}()
+					service.isWorking = true
+					log.WithField("latestVerifiedSlot", slot).
+						Info("I am starting canonicalization")
 
-				service.isWorking = true
-				vanguardErr, pandoraErr, realmErr := service.Canonicalize(slot, 50000)
-				service.isWorking = false
+					vanguardErr, pandoraErr, realmErr := service.Canonicalize(slot, 50000)
 
-				if nil != vanguardErr {
-					log.WithField("canonicalize", "vanguardErr").Debug(vanguardErr)
-				}
+					log.WithField("latestVerifiedSlot", slot).
+						Info("After canonicalization")
 
-				if nil != pandoraErr {
-					log.WithField("canonicalize", "pandoraErr").Debug(pandoraErr)
-				}
+					if nil != vanguardErr {
+						log.WithField("canonicalize", "vanguardErr").Debug(vanguardErr)
+					}
 
-				if nil != realmErr {
-					log.WithField("canonicalize", "realmErr").Debug(realmErr)
-				}
+					if nil != pandoraErr {
+						log.WithField("canonicalize", "pandoraErr").Debug(pandoraErr)
+					}
+
+					if nil != realmErr {
+						log.WithField("canonicalize", "realmErr").Debug(realmErr)
+					}
+				})
 			case stop := <-service.stopChan:
 				if stop {
 					log.WithField("canonicalize", "stop").Info("Received stop signal")
@@ -108,6 +117,7 @@ func New(
 		PandoraHeadersChan:        pandoraHeadersChan,
 		stopChan:                  stopChan,
 		canonicalizeChan:          canonicalizeChain,
+		canonicalizeLock:          &sync.Mutex{},
 	}
 }
 
@@ -240,7 +250,7 @@ func (service *Service) Canonicalize(
 
 			log.WithField("slot", slotToCheck).
 				WithField("hash", vanguardBlockHash.HeaderHash.String()).
-				Info("I am inserting verified vanguardBlockHash")
+				Debug("I am inserting verified vanguardBlockHash")
 
 			vanguardErr = vanguardHashDB.SaveVanguardHeaderHash(slotToCheck, &types.HeaderHash{
 				HeaderHash: vanguardBlockHash.HeaderHash,
@@ -249,7 +259,7 @@ func (service *Service) Canonicalize(
 
 			log.WithField("slot", slotToCheck).
 				WithField("hash", pandoraHeaderHash.HeaderHash.String()).
-				Info("I am inserting verified pandoraHeaderHash")
+				Debug("I am inserting verified pandoraHeaderHash")
 
 			pandoraErr = pandoraHeaderHashDB.SavePandoraHeaderHash(slotToCheck, &types.HeaderHash{
 				HeaderHash: pandoraHeaderHash.HeaderHash,
@@ -440,9 +450,6 @@ func (service *Service) workLoop() {
 	log.WithField("verifiedSlotWorkLoopStart", verifiedSlotWorkLoopStart).
 		Info("I am starting the work loop")
 	realmDB := service.RealmDB
-	vanguardDB := service.VanguardHeaderHashDB
-	pandoraDB := service.PandoraHeaderHashDB
-	batchLimit := 50000
 	possiblePendingWork := make([]*types.HeaderHash, 0)
 
 	// This is arbitrary, it may be less or more. Depends on the approach
@@ -468,15 +475,6 @@ func (service *Service) workLoop() {
 		}
 
 		latestVerifiedRealmSlot := realmDB.LatestVerifiedRealmSlot()
-		vanguardHashes, err := vanguardDB.VanguardHeaderHashes(latestVerifiedRealmSlot, uint64(batchLimit))
-
-		if nil != err {
-			log.WithField("cause", "mergedChannelHandler").Warn(err)
-
-			return
-		}
-
-		pandoraHashes, err := pandoraDB.PandoraHeaderHashes(latestVerifiedRealmSlot, uint64(batchLimit))
 
 		// This is naive, but might work
 		// We need to have at least one pair to start invalidation.
@@ -487,51 +485,7 @@ func (service *Service) workLoop() {
 			return
 		}
 
-		// If hash will be found above verified slot than it means that its pending
-		// Otherwise we have an reorg (Not supported yet)
-		// The most tricky part is to resolve what is the slot number for particular hash
-		// TODO: consider pushing also slot number in channel or in headerHash struct
-		for index, hash := range vanguardHashes {
-			if nil == hash {
-				continue
-			}
-
-			if hash.HeaderHash.String() != header.HeaderHash.String() {
-				continue
-			}
-
-			currentSlot := uint64(index) + latestVerifiedRealmSlot
-
-			// Start at n - 1
-			if currentSlot > 0 {
-				currentSlot--
-			}
-
-			service.canonicalizeChan <- currentSlot
-
-			return
-		}
-
-		for index, hash := range pandoraHashes {
-			if nil == hash {
-				continue
-			}
-
-			if hash.HeaderHash.String() != header.HeaderHash.String() {
-				continue
-			}
-
-			currentSlot := uint64(index) + latestVerifiedRealmSlot
-
-			// Start at n - 1
-			if currentSlot > 0 {
-				currentSlot--
-			}
-
-			service.canonicalizeChan <- currentSlot
-
-			return
-		}
+		service.canonicalizeChan <- latestVerifiedRealmSlot
 	}
 
 	go func() {
@@ -540,7 +494,7 @@ func (service *Service) workLoop() {
 			case header := <-mergedChannel:
 				possiblePendingWork = append(possiblePendingWork, header)
 				log.WithField("cause", "worker").
-					Info("I am pushing header to merged channel")
+					Debug("I am pushing header to merged channel")
 				mergedHeadersChanBridge <- header
 			case <-service.canonicalizeChan:
 				possiblePendingWork = make([]*types.HeaderHash, 0)
