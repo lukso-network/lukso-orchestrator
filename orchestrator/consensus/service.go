@@ -26,6 +26,7 @@ type Service struct {
 	PandoraHeadersChan        chan *types.HeaderHash
 	stopChan                  chan bool
 	canonicalizeChan          chan uint64
+	isWorking                 bool
 }
 
 // This service should be registered only after Pandora and Vanguard notified about:
@@ -38,9 +39,17 @@ func (service *Service) Start() {
 		for {
 			select {
 			case slot := <-service.canonicalizeChan:
+				if service.isWorking {
+					log.Info("service is working still, I omit the process")
+					continue
+				}
+
 				log.WithField("latestVerifiedSlot", slot).
 					Info("I am starting canonicalization")
+
+				service.isWorking = true
 				vanguardErr, pandoraErr, realmErr := service.Canonicalize(slot, 50000)
+				service.isWorking = false
 
 				if nil != vanguardErr {
 					log.WithField("canonicalize", "vanguardErr").Debug(vanguardErr)
@@ -131,6 +140,7 @@ func (service *Service) Canonicalize(
 	select {
 	case stop := <-service.stopChan:
 		if stop {
+			service.isWorking = false
 			log.Info("I stop Invalidation")
 			return
 		}
@@ -428,8 +438,7 @@ func (service *Service) Canonicalize(
 func (service *Service) workLoop() {
 	verifiedSlotWorkLoopStart := service.RealmDB.LatestVerifiedRealmSlot()
 	log.WithField("verifiedSlotWorkLoopStart", verifiedSlotWorkLoopStart).
-		Info("I am pushing work to canonicalizeChan")
-	//service.canonicalizeChan <- verifiedSlotWorkLoopStart
+		Info("I am starting the work loop")
 	realmDB := service.RealmDB
 	vanguardDB := service.VanguardHeaderHashDB
 	pandoraDB := service.PandoraHeaderHashDB

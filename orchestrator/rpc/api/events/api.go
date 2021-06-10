@@ -38,8 +38,8 @@ type PublicFilterAPI struct {
 }
 
 type BlockHash struct {
-	Slot uint64
-	Hash common.Hash
+	Slot uint64      `json:"slot"`
+	Hash common.Hash `json:"hash"`
 }
 
 type BlockStatus struct {

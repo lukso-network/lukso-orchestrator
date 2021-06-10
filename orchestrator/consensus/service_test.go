@@ -8,6 +8,7 @@ import (
 	testDB "github.com/lukso-network/lukso-orchestrator/orchestrator/db/testing"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/require"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
+	logTest "github.com/sirupsen/logrus/hooks/test"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -49,6 +50,29 @@ func TestNew(t *testing.T) {
 	require.Equal(t, orchestratorDB, service.VanguardHeaderHashDB)
 	require.Equal(t, orchestratorDB, service.PandoraHeaderHashDB)
 	require.Equal(t, orchestratorDB, service.RealmDB)
+}
+
+func TestService_Start(t *testing.T) {
+	hook := logTest.NewGlobal()
+	orchestratorDB := testDB.SetupDB(t)
+	ctx := context.Background()
+	vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan := prepareEnv()
+	service := New(ctx, orchestratorDB, vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan)
+	service.Start()
+	require.LogsContain(t, hook, "I am starting the work loop")
+
+	service.isWorking = false
+	t.Run("worker should propagate to canonicalizeChan", func(t *testing.T) {
+
+	})
+
+	t.Run("canonicalizeChan should reject work when canonicalization is ongoing", func(t *testing.T) {
+
+	})
+
+	t.Run("canonicalizeChan should invoke canonicalization", func(t *testing.T) {
+
+	})
 }
 
 func TestService_Canonicalize(t *testing.T) {
