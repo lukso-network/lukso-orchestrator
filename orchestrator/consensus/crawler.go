@@ -7,7 +7,6 @@ package consensus
 import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/db/kv"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	log "github.com/sirupsen/logrus"
@@ -34,359 +33,147 @@ func handlePreparedWork(
 	case <-errChan:
 		return
 	default:
-		//vanguardBlockHashes := invalidationWorkPayload.vanguardHashes
-		//pandoraHeaderHashes := invalidationWorkPayload.pandoraHashes
-		//invalidationStartRealmSlot := invalidationWorkPayload.invalidationStartRealmSlot
-		//fromSlot := invalidationWorkPayload.fromSlot
-		//possibleSkippedPair := invalidationWorkPayload.possibleSkippedPair
-		//vanguardOrphans := invalidationWorkPayload.vanguardOrphans
-		//pandoraOrphans := invalidationWorkPayload.pandoraOrphans
 		filteredVerifiedPairsByVanguard := resolveVerifiedPairsBasedOnVanguard(invalidationWorkPayload)
+		validPairs := filteredVerifiedPairsByVanguard.validPairs
+		highestSlot := filteredVerifiedPairsByVanguard.highestVerifiedSlot
+		invalidationStartRealmSlot := invalidationWorkPayload.invalidationStartRealmSlot
+		invalidationRange := highestSlot - invalidationStartRealmSlot
 
-		//succeed := savePairsState(
-		//	filteredVerifiedPairs.validPairs,
-		//	types.Verified, vanguardHashDB,
-		//	pandoraHeaderHashDB,
-		//	realmDB,
-		//	errChan,
-		//)
+		if 0 == invalidationRange {
+			log.WithField("invalidationStartRealmSlot", invalidationStartRealmSlot).
+				WithField("highestSlot", highestSlot).
+				Warn("I did not progress any slot")
 
-		skippedPairs, pendingPairs := resolvePendingAndSkipped(possibleSkippedPairs)
+			return
+		}
 
-		waitGroup := sync.WaitGroup{}
+		if invalidationRange < 0 {
+			log.Fatal("Got wrong invalidation range. This is a fatal bug that should never happen.")
+
+			return
+		}
+
+		incompleteSkipped, pendingPairs := resolvePendingAndSkippedByHighestSlot(filteredVerifiedPairsByVanguard)
+		// Resolve completeness of skipped by orphans
+		skippedPairs := resolveSkippedByOrphans(&filteredVerifiedPairs{
+			validPairs:           filteredVerifiedPairsByVanguard.validPairs,
+			possibleSkippedPairs: incompleteSkipped,
+			pandoraOrphans:       filteredVerifiedPairsByVanguard.pandoraOrphans,
+			vanguardOrphans:      filteredVerifiedPairsByVanguard.vanguardOrphans,
+			highestVerifiedSlot:  highestSlot,
+		})
+
+		waitGroup := &sync.WaitGroup{}
 		waitGroup.Add(3)
-
-		go func() {
-			succeed := savePairsState(validPairs, types.Verified, vanguardHashDB, pandoraHeaderHashDB, realmDB, errChan)
-
-			if succeed {
-				waitGroup.Done()
-			}
-		}()
-
-		// Save pandora orphans
-		// Save vanguard orphans
-		// Save invalidPairs
-
-		go func() {
-			succeed := savePairsState(validPairs, types.Skipped, vanguardHashDB, pandoraHeaderHashDB, realmDB, errChan)
+		savePairState := func(
+			pairs []*events.RealmPair,
+			status types.Status,
+			group *sync.WaitGroup,
+		) {
+			succeed := savePairsState(validPairs, status, vanguardHashDB, pandoraHeaderHashDB, realmDB, errChan)
 
 			if succeed {
 				waitGroup.Done()
 			}
-		}()
+		}
 
+		bulkAsyncSave := func() {
+			go savePairState(validPairs, types.Verified, waitGroup)
+			go savePairState(skippedPairs, types.Skipped, waitGroup)
+			go savePairState(pendingPairs, types.Pending, waitGroup)
+		}
+
+		go bulkAsyncSave()
+		waitGroup.Wait()
+		log.WithField("highestCheckedSlot", highestSlot).
+			Info("I have resolved Canonicalize")
 	}
 
-	var (
-		vanguardErr error
-		pandoraErr  error
-		realmErr    error
-	)
-
-	validPairs, possibleSkippedPairs := resolveVerifiedPairsBasedOnVanguard(invalidationWorkPayload)
-
-	if !succeeded {
-		return
-	}
-
-	// TODO: move it to memory, and save in batch
-	// This is quite naive, but should work
-	for index, vanguardBlockHash := range vanguardBlockHashes {
-		slotToCheck := fromSlot + uint64(index)
-
-		if len(pandoraHeaderHashes) <= index {
-			break
-		}
-
-		pandoraHeaderHash := pandoraHeaderHashes[index]
-
-		// Potentially skipped slot
-		if nil == pandoraHeaderHash && nil == vanguardBlockHash {
-			possibleSkippedPair = append(possibleSkippedPair, &events.RealmPair{
-				Slot:          slotToCheck,
-				VanguardHash:  nil,
-				PandoraHashes: nil,
-			})
-
-			continue
-		}
-
-		// I dont know yet, if it is true.
-		// In my opinion INVALID state is 100% accurate only with blockShard verification approach
-		// TODO: add additional Sharding info check VanguardBlock -> PandoraHeaderHash when implementation on vanguard side will be ready
-		if nil == pandoraHeaderHash {
-			vanguardHeaderHash := &types.HeaderHash{
-				HeaderHash: vanguardBlockHash.HeaderHash,
-				Status:     types.Pending,
-			}
-			vanguardOrphans[slotToCheck] = vanguardHeaderHash
-
-			continue
-		}
-
-		if nil == vanguardBlockHash {
-			currentPandoraHeaderHash := &types.HeaderHash{
-				HeaderHash: pandoraHeaderHash.HeaderHash,
-				Status:     types.Pending,
-			}
-			pandoraOrphans[slotToCheck] = currentPandoraHeaderHash
-
-			continue
-		}
-
-		log.WithField("slot", slotToCheck).
-			WithField("hash", vanguardBlockHash.HeaderHash.String()).
-			Debug("I am inserting verified vanguardBlockHash")
-
-		vanguardErr = vanguardHashDB.SaveVanguardHeaderHash(slotToCheck, &types.HeaderHash{
-			HeaderHash: vanguardBlockHash.HeaderHash,
-			Status:     types.Verified,
-		})
-
-		log.WithField("slot", slotToCheck).
-			WithField("hash", pandoraHeaderHash.HeaderHash.String()).
-			Debug("I am inserting verified pandoraHeaderHash")
-
-		pandoraErr = pandoraHeaderHashDB.SavePandoraHeaderHash(slotToCheck, &types.HeaderHash{
-			HeaderHash: pandoraHeaderHash.HeaderHash,
-			Status:     types.Verified,
-		})
-
-		if nil != vanguardErr || nil != pandoraErr {
-			break
-		}
-
-		realmErr = realmDB.SaveLatestVerifiedRealmSlot(slotToCheck)
-	}
-
-	if nil != vanguardErr || nil != pandoraErr || nil != realmErr {
-		log.WithField("vanguardErr", vanguardErr).
-			WithField("pandoraErr", pandoraErr).
-			WithField("realmErr", realmErr).
-			Error("Got error during invalidation of pending queue")
-		errChan <- databaseErrors{
-			vanguardErr: vanguardErr,
-			pandoraErr:  pandoraErr,
-			realmErr:    realmErr,
-		}
-
-		return
-	}
-
-	// Resolve state of possible invalid pairs
-	latestSavedVerifiedRealmSlot := realmDB.LatestVerifiedRealmSlot()
-	log.WithField("possibleInvalidPairs", len(possibleSkippedPair)).
-		WithField("latestVerifiedRealmSlot", latestSavedVerifiedRealmSlot).
-		WithField("invalidationStartRealmSlot", invalidationStartRealmSlot).
-		Info("Requeue possible invalid pairs")
-
-	invalidationRange := latestSavedVerifiedRealmSlot - invalidationStartRealmSlot
-
-	// All of orphans and possibleSkipped are still pending
-	if 0 == invalidationRange {
-		log.WithField("invalidationStartRealmSlot", invalidationStartRealmSlot).
-			WithField("latestVerifiedRealmSlot", latestSavedVerifiedRealmSlot).
-			Warn("I did not progress any slot")
-
-		return
-	}
-
-	if invalidationRange < 0 {
-		log.Fatal("Got wrong invalidation range. This is a fatal bug that should never happen.")
-
-		return
-	}
-
-	// Mark all pandora Orphans as skipped
-	for slot := range pandoraOrphans {
-		pandoraErr = pandoraHeaderHashDB.SavePandoraHeaderHash(slot, &types.HeaderHash{
-			HeaderHash: common.Hash{},
-			Status:     types.Skipped,
-		})
-	}
-
-	// Mark all vanguard orphans as skipped
-	for slot := range vanguardOrphans {
-		vanguardErr = vanguardHashDB.SaveVanguardHeaderHash(slot, &types.HeaderHash{
-			HeaderHash: common.Hash{},
-			Status:     types.Skipped,
-		})
-	}
-
-	if nil != vanguardErr || nil != pandoraErr {
-		log.WithField("vanguardErr", vanguardErr).
-			WithField("pandoraErr", pandoraErr).
-			Error("Got error during invalidation of possible orphans")
-		errChan <- databaseErrors{
-			vanguardErr: vanguardErr,
-			pandoraErr:  pandoraErr,
-			realmErr:    realmErr,
-		}
-
-		return
-	}
-
-	pendingPairs := make([]*events.RealmPair, 0)
-
-	for _, pair := range possibleSkippedPair {
-		if nil == pair {
-			continue
-		}
-
-		if pair.Slot > latestSavedVerifiedRealmSlot {
-			pendingPairs = append(pendingPairs, pair)
-
-			continue
-		}
-
-		vanguardErr = vanguardHashDB.SaveVanguardHeaderHash(pair.Slot, &types.HeaderHash{
-			Status: types.Skipped,
-		})
-
-		// TODO: when more shard will come we will need to maintain this information
-		pandoraErr = pandoraHeaderHashDB.SavePandoraHeaderHash(pair.Slot, &types.HeaderHash{
-			Status: types.Skipped,
-		})
-
-		if nil != vanguardErr || nil != pandoraErr {
-			log.WithField("vanguardErr", vanguardErr).
-				WithField("pandoraErr", pandoraErr).
-				WithField("realmErr", realmErr).
-				Error("Got error during invalidation of pending queue")
-			break
-		}
-	}
-
-	if nil != vanguardErr || nil != pandoraErr {
-		log.WithField("vanguardErr", vanguardErr).
-			WithField("pandoraErr", pandoraErr).
-			Error("Got error during invalidation of possible skipped pairs")
-		errChan <- databaseErrors{
-			vanguardErr: vanguardErr,
-			pandoraErr:  pandoraErr,
-			realmErr:    realmErr,
-		}
-
-		return
-	}
-
-	for _, pair := range pendingPairs {
-		if nil != pair.VanguardHash {
-			vanguardErr = vanguardHashDB.SaveVanguardHeaderHash(pair.Slot, &types.HeaderHash{
-				Status:     types.Skipped,
-				HeaderHash: pair.VanguardHash.HeaderHash,
-			})
-		}
-
-		// TODO: when more shard will come we will need to maintain this information
-		if len(pair.PandoraHashes) > 0 && nil != pair.PandoraHashes[0] {
-			pandoraErr = pandoraHeaderHashDB.SavePandoraHeaderHash(pair.Slot, &types.HeaderHash{
-				Status:     types.Skipped,
-				HeaderHash: pair.PandoraHashes[0].HeaderHash,
-			})
-		}
-	}
-
-	if nil != vanguardErr || nil != pandoraErr {
-		log.WithField("vanguardErr", vanguardErr).
-			WithField("pandoraErr", pandoraErr).
-			Error("Got error during invalidation of pendingPairs")
-		errChan <- databaseErrors{
-			vanguardErr: vanguardErr,
-			pandoraErr:  pandoraErr,
-			realmErr:    realmErr,
-		}
-
-		return
-	}
-
-	var (
-		finalVanguardBatch []*types.HeaderHash
-		finalPandoraBatch  []*types.HeaderHash
-	)
+	// TODO: check if this code is necessary. IMHO yes
+	//var (
+	//	finalVanguardBatch []*types.HeaderHash
+	//	finalPandoraBatch  []*types.HeaderHash
+	//)
 
 	// At the very end fill all vanguard and pandora nil entries as skipped ones
 	// Do not fetch any higher records
-	finalVanguardBatch, vanguardErr = vanguardHashDB.VanguardHeaderHashes(
-		invalidationStartRealmSlot,
-		invalidationRange,
-	)
+	//finalVanguardBatch, vanguardErr = vanguardHashDB.VanguardHeaderHashes(
+	//	invalidationStartRealmSlot,
+	//	invalidationRange,
+	//)
+	//
+	//finalPandoraBatch, pandoraErr = pandoraHeaderHashDB.PandoraHeaderHashes(
+	//	invalidationStartRealmSlot,
+	//	invalidationRange,
+	//)
+	//
+	//if nil != vanguardErr || nil != pandoraErr {
+	//	log.WithField("vanguardErr", vanguardErr).
+	//		WithField("pandoraErr", pandoraErr).
+	//		WithField("realmErr", realmErr).
+	//		Error("Got error during invalidation of pending queue")
+	//
+	//	errChan <- databaseErrors{
+	//		vanguardErr: vanguardErr,
+	//		pandoraErr:  pandoraErr,
+	//		realmErr:    realmErr,
+	//	}
+	//
+	//	return
+	//}
+	//
+	//for index, headerHash := range finalVanguardBatch {
+	//	if nil != headerHash {
+	//		continue
+	//	}
+	//
+	//	slotToCheck := fromSlot + uint64(index)
+	//
+	//	if slotToCheck > latestSavedVerifiedRealmSlot {
+	//		continue
+	//	}
+	//
+	//	headerHash = &types.HeaderHash{
+	//		HeaderHash: kv.EmptyHash,
+	//		Status:     types.Skipped,
+	//	}
+	//
+	//	vanguardErr = vanguardHashDB.SaveVanguardHeaderHash(slotToCheck, headerHash)
+	//}
+	//
+	//for index, headerHash := range finalPandoraBatch {
+	//	if nil != headerHash {
+	//		continue
+	//	}
+	//
+	//	slotToCheck := fromSlot + uint64(index)
+	//
+	//	if slotToCheck > latestSavedVerifiedRealmSlot {
+	//		continue
+	//	}
+	//
+	//	headerHash = &types.HeaderHash{
+	//		HeaderHash: kv.EmptyHash,
+	//		Status:     types.Skipped,
+	//	}
+	//	pandoraErr = pandoraHeaderHashDB.SavePandoraHeaderHash(slotToCheck, headerHash)
+	//}
+	//
+	//if nil != vanguardErr || nil != pandoraErr {
+	//	log.WithField("vanguardErr", vanguardErr).
+	//		WithField("pandoraErr", pandoraErr).
+	//		WithField("realmErr", realmErr).
+	//		Error("Got error during invalidation of final Vanguard or Pandora batch")
+	//
+	//	errChan <- databaseErrors{
+	//		vanguardErr: vanguardErr,
+	//		pandoraErr:  pandoraErr,
+	//		realmErr:    realmErr,
+	//	}
+	//
+	//	return
+	//}
 
-	finalPandoraBatch, pandoraErr = pandoraHeaderHashDB.PandoraHeaderHashes(
-		invalidationStartRealmSlot,
-		invalidationRange,
-	)
-
-	if nil != vanguardErr || nil != pandoraErr {
-		log.WithField("vanguardErr", vanguardErr).
-			WithField("pandoraErr", pandoraErr).
-			WithField("realmErr", realmErr).
-			Error("Got error during invalidation of pending queue")
-
-		errChan <- databaseErrors{
-			vanguardErr: vanguardErr,
-			pandoraErr:  pandoraErr,
-			realmErr:    realmErr,
-		}
-
-		return
-	}
-
-	for index, headerHash := range finalVanguardBatch {
-		if nil != headerHash {
-			continue
-		}
-
-		slotToCheck := fromSlot + uint64(index)
-
-		if slotToCheck > latestSavedVerifiedRealmSlot {
-			continue
-		}
-
-		headerHash = &types.HeaderHash{
-			HeaderHash: kv.EmptyHash,
-			Status:     types.Skipped,
-		}
-
-		vanguardErr = vanguardHashDB.SaveVanguardHeaderHash(slotToCheck, headerHash)
-	}
-
-	for index, headerHash := range finalPandoraBatch {
-		if nil != headerHash {
-			continue
-		}
-
-		slotToCheck := fromSlot + uint64(index)
-
-		if slotToCheck > latestSavedVerifiedRealmSlot {
-			continue
-		}
-
-		headerHash = &types.HeaderHash{
-			HeaderHash: kv.EmptyHash,
-			Status:     types.Skipped,
-		}
-		pandoraErr = pandoraHeaderHashDB.SavePandoraHeaderHash(slotToCheck, headerHash)
-	}
-
-	if nil != vanguardErr || nil != pandoraErr {
-		log.WithField("vanguardErr", vanguardErr).
-			WithField("pandoraErr", pandoraErr).
-			WithField("realmErr", realmErr).
-			Error("Got error during invalidation of final Vanguard or Pandora batch")
-
-		errChan <- databaseErrors{
-			vanguardErr: vanguardErr,
-			pandoraErr:  pandoraErr,
-			realmErr:    realmErr,
-		}
-
-		return
-	}
-
-	log.WithField("highestCheckedSlot", latestSavedVerifiedRealmSlot).
-		Info("I have resolved Canonicalize")
 }
 
 // resolveVerifiedPairsBasedOnVanguard
@@ -488,13 +275,15 @@ func resolveVerifiedPairsBasedOnVanguard(
 	return
 }
 
-func resolvePendingAndSkipped(
-	possibleSkippedPair []*events.RealmPair,
-	latestSavedVerifiedRealmSlot uint64,
+func resolvePendingAndSkippedByHighestSlot(
+	filtered *filteredVerifiedPairs,
 ) (
 	skippedPairs []*events.RealmPair,
 	pendingPairs []*events.RealmPair,
 ) {
+	possibleSkippedPair := filtered.possibleSkippedPairs
+	latestSavedVerifiedRealmSlot := filtered.highestVerifiedSlot
+
 	skippedPairs = make([]*events.RealmPair, 0)
 	pendingPairs = make([]*events.RealmPair, 0)
 
@@ -510,6 +299,50 @@ func resolvePendingAndSkipped(
 		}
 
 		skippedPairs = append(skippedPairs, pair)
+	}
+
+	return
+}
+
+func resolveSkippedByOrphans(filtered *filteredVerifiedPairs) (skipped []*events.RealmPair) {
+	fullSkipped := map[uint64]*events.RealmPair{}
+	skipped = make([]*events.RealmPair, 0)
+
+	for _, pair := range filtered.possibleSkippedPairs {
+		fullSkipped[pair.Slot] = pair
+	}
+
+	insertSkippedSlot := func(slot uint64) {
+		if slot <= filtered.highestVerifiedSlot {
+			fullSkipped[slot] = &events.RealmPair{
+				Slot: slot,
+				VanguardHash: &types.HeaderHash{
+					HeaderHash: common.Hash{},
+					Status:     types.Skipped,
+				},
+				PandoraHashes: make([]*types.HeaderHash, 1),
+			}
+
+			fullSkipped[slot].PandoraHashes[0] = &types.HeaderHash{
+				HeaderHash: common.Hash{},
+				Status:     types.Skipped,
+			}
+		}
+	}
+
+	// Override map. This will be way complicated when sharding comes
+	for slot := range filtered.pandoraOrphans {
+		insertSkippedSlot(slot)
+	}
+
+	// Mark all vanguard orphans as skipped
+	for slot := range filtered.vanguardOrphans {
+		insertSkippedSlot(slot)
+	}
+
+	// For now it doesn't matter is it sorted ascending or random
+	for _, pair := range fullSkipped {
+		skipped = append(skipped, pair)
 	}
 
 	return
@@ -540,7 +373,7 @@ func savePairsState(
 
 		vanguardErr = vanguardHashDB.SaveVanguardHeaderHash(slotToCheck, &types.HeaderHash{
 			HeaderHash: vanguardBlockHash.HeaderHash,
-			Status:     status,
+			Status:     vanguardBlockHash.Status,
 		})
 
 		// TODO: handle multiple shards
@@ -551,7 +384,7 @@ func savePairsState(
 
 			pandoraErr = pandoraHeaderHashDB.SavePandoraHeaderHash(slotToCheck, &types.HeaderHash{
 				HeaderHash: pandoraHeaderHash.HeaderHash,
-				Status:     status,
+				Status:     pandoraHeaderHash.Status,
 			})
 
 			if nil != pandoraErr {
