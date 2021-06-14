@@ -319,12 +319,6 @@ func TestService_Canonicalize(t *testing.T) {
 	})
 
 	t.Run("should handle skipped blocks with different states", func(t *testing.T) {
-		orchestratorDB := testDB.SetupDBWithoutClose(t)
-		ctx := context.Background()
-		vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan := prepareEnv()
-		service := New(ctx, orchestratorDB, vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan)
-		service.Start()
-
 		pandoraToken := make([]byte, 4)
 		rand.Read(pandoraToken)
 		pandoraHash := common.BytesToHash(pandoraToken)
@@ -333,29 +327,14 @@ func TestService_Canonicalize(t *testing.T) {
 		rand.Read(vanguardToken)
 		vanguardHash := common.BytesToHash(vanguardToken)
 
-		require.NoError(t, orchestratorDB.SavePandoraHeaderHash(1, &types.HeaderHash{
-			HeaderHash: pandoraHash,
-			Status:     types.Verified,
-		}))
-
-		require.NoError(t, orchestratorDB.SaveVanguardHeaderHash(1, &types.HeaderHash{
-			HeaderHash: vanguardHash,
-			Status:     types.Verified,
-		}))
-
-		// Save state for slot 1 that is verified on each side and start iteration from slot 1
-		require.NoError(t, orchestratorDB.SaveLatestVanguardSlot())
-		require.NoError(t, orchestratorDB.SaveLatestPandoraSlot())
-		require.NoError(t, orchestratorDB.SaveLatestVerifiedRealmSlot(1))
-
-		// TODO: provide a test where there is a skipped, valid, skipped, valid, pending
+		testSuites := make([]realmPairSuite, 0)
 
 		// on vanguard side slot 2 will be skipped and on vanguard side slot 2 will be skipped
 		// on vanguard side slot 3 will be skipped and on vanguard side slot 3 will be skipped
 		// on vanguard side slot 4 will be missing, but on pandora side will be present
 		// on vanguard side slot 5 will be present, but on pandora slot 5 will be missing
 		// on vanguard side slot 6 will be present, and on pandora side slot 6 will be present
-		testSuite := realmPairSuite{
+		skippedTestSuite := realmPairSuite{
 			{
 				slot:                   2,
 				pandoraHash:            nil,
@@ -405,45 +384,132 @@ func TestService_Canonicalize(t *testing.T) {
 			},
 		}
 
-		for index, suite := range testSuite {
-			if nil != suite.pandoraHash {
-				require.NoError(t, orchestratorDB.SavePandoraHeaderHash(suite.slot, suite.pandoraHash), index)
-			}
-
-			if nil != suite.vanguardHash {
-				require.NoError(t, orchestratorDB.SaveVanguardHeaderHash(suite.slot, suite.vanguardHash), index)
-			}
+		// on vanguard side slot 2 will be skipped and on vanguard side slot 2 will be skipped
+		// on vanguard side slot 3 will be present and on vanguard side slot 3 will be present
+		// on vanguard side slot 4 will be missing, but on pandora side will be present
+		// on vanguard side slot 5 will be present, but on pandora slot 5 will be missing
+		// on vanguard side slot 6 will be present, and on pandora side slot 6 will be present
+		multipleValidTestSuite := realmPairSuite{
+			{
+				slot:                   2,
+				pandoraHash:            nil,
+				vanguardHash:           nil,
+				expectedPandoraStatus:  types.Skipped,
+				expectedVanguardStatus: types.Skipped,
+			},
+			{
+				slot: 3,
+				pandoraHash: &types.HeaderHash{
+					HeaderHash: pandoraHash,
+					Status:     types.Pending,
+				},
+				vanguardHash: &types.HeaderHash{
+					HeaderHash: vanguardHash,
+					Status:     types.Pending,
+				},
+				expectedPandoraStatus:  types.Verified,
+				expectedVanguardStatus: types.Verified,
+			},
+			{
+				slot: 4,
+				pandoraHash: &types.HeaderHash{
+					HeaderHash: pandoraHash,
+					Status:     types.Pending,
+				},
+				vanguardHash:           nil,
+				expectedPandoraStatus:  types.Skipped,
+				expectedVanguardStatus: types.Skipped,
+			},
+			{
+				slot:        5,
+				pandoraHash: nil,
+				vanguardHash: &types.HeaderHash{
+					HeaderHash: vanguardHash,
+					Status:     types.Pending,
+				},
+				expectedPandoraStatus:  types.Skipped,
+				expectedVanguardStatus: types.Skipped,
+			},
+			{
+				slot: 6,
+				pandoraHash: &types.HeaderHash{
+					HeaderHash: pandoraHash,
+					Status:     types.Pending,
+				},
+				vanguardHash: &types.HeaderHash{
+					HeaderHash: vanguardHash,
+					Status:     types.Pending,
+				},
+				expectedPandoraStatus:  types.Verified,
+				expectedVanguardStatus: types.Verified,
+			},
 		}
 
-		vanguardErr, pandoraErr, realmErr := service.Canonicalize(0, 600)
-		require.NoError(t, vanguardErr)
-		require.NoError(t, pandoraErr)
-		require.NoError(t, realmErr)
+		testSuites = append(testSuites, skippedTestSuite)
+		testSuites = append(testSuites, multipleValidTestSuite)
 
-		for index, suite := range testSuite {
-			indexMsg := fmt.Sprintf("Failed on slot: %d, index: %d", suite.slot, index)
+		for _, testSuite := range testSuites {
+			orchestratorDB := testDB.SetupDBWithoutClose(t)
+			ctx := context.Background()
+			vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan := prepareEnv()
+			service := New(ctx, orchestratorDB, vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan)
+			service.Start()
 
-			if nil != suite.vanguardHash {
-				headerHash, err := orchestratorDB.VanguardHeaderHash(suite.slot)
-				require.NoError(t, err, indexMsg)
-				require.Equal(t, suite.expectedVanguardStatus, headerHash.Status, indexMsg)
-			}
+			require.NoError(t, orchestratorDB.SavePandoraHeaderHash(1, &types.HeaderHash{
+				HeaderHash: pandoraHash,
+				Status:     types.Verified,
+			}))
 
-			if nil != suite.pandoraHash {
-				headerHash, err := orchestratorDB.PandoraHeaderHash(suite.slot)
-				require.NoError(t, err, indexMsg)
+			require.NoError(t, orchestratorDB.SaveVanguardHeaderHash(1, &types.HeaderHash{
+				HeaderHash: vanguardHash,
+				Status:     types.Verified,
+			}))
 
-				if suite.expectedPandoraStatus != headerHash.Status {
-					fmt.Printf("eeo")
+			// Save state for slot 1 that is verified on each side and start iteration from slot 1
+			require.NoError(t, orchestratorDB.SaveLatestVanguardSlot())
+			require.NoError(t, orchestratorDB.SaveLatestPandoraSlot())
+			require.NoError(t, orchestratorDB.SaveLatestVerifiedRealmSlot(1))
+
+			for index, suite := range testSuite {
+				if nil != suite.pandoraHash {
+					require.NoError(t, orchestratorDB.SavePandoraHeaderHash(suite.slot, suite.pandoraHash), index)
 				}
 
-				require.Equal(t, suite.expectedPandoraStatus, headerHash.Status, indexMsg)
+				if nil != suite.vanguardHash {
+					require.NoError(t, orchestratorDB.SaveVanguardHeaderHash(suite.slot, suite.vanguardHash), index)
+				}
 			}
-		}
 
-		realmSlot := service.RealmDB.LatestVerifiedRealmSlot()
-		require.Equal(t, uint64(6), realmSlot)
-		require.NoError(t, orchestratorDB.Close())
+			vanguardErr, pandoraErr, realmErr := service.Canonicalize(0, 600)
+			require.NoError(t, vanguardErr)
+			require.NoError(t, pandoraErr)
+			require.NoError(t, realmErr)
+
+			for index, suite := range testSuite {
+				indexMsg := fmt.Sprintf("Failed on slot: %d, index: %d", suite.slot, index)
+
+				if nil != suite.vanguardHash {
+					headerHash, err := orchestratorDB.VanguardHeaderHash(suite.slot)
+					require.NoError(t, err, indexMsg)
+					require.Equal(t, suite.expectedVanguardStatus, headerHash.Status, indexMsg)
+				}
+
+				if nil != suite.pandoraHash {
+					headerHash, err := orchestratorDB.PandoraHeaderHash(suite.slot)
+					require.NoError(t, err, indexMsg)
+
+					if suite.expectedPandoraStatus != headerHash.Status {
+						fmt.Printf("eeo")
+					}
+
+					require.Equal(t, suite.expectedPandoraStatus, headerHash.Status, indexMsg)
+				}
+			}
+
+			realmSlot := service.RealmDB.LatestVerifiedRealmSlot()
+			require.Equal(t, uint64(6), realmSlot)
+			require.NoError(t, orchestratorDB.Close())
+		}
 	})
 
 	// TODO: if we maintain crawling in batches we should test with batchLimit 32 (epoch)
