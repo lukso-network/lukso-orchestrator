@@ -2,6 +2,7 @@ package events
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
@@ -94,12 +95,12 @@ type PendingHashesResponse struct {
 	UnixTime          int64
 }
 
-// This is only for debug purpose
+// GetPendingHashes This is only for debug purpose
 func (api *PublicFilterAPI) GetPendingHashes() (response *PendingHashesResponse, err error) {
 	return api.backend.GetPendingHashes()
 }
 
-// ConfirmPanBlockHashes
+// ConfirmPanBlockHashes should be used to get the confirmation about known state of Pandora block hashes
 func (api *PublicFilterAPI) ConfirmPanBlockHashes(
 	ctx context.Context,
 	request []*BlockHash,
@@ -137,15 +138,24 @@ func (api *PublicFilterAPI) ConfirmPanBlockHashes(
 		})
 	}
 
+	respBytes, err := json.Marshal(response)
+
+	if nil != err {
+		log.WithField("err", err).Error("error unmarshaling response inConfirmVanBlockHashes")
+
+		return
+	}
+
 	log.WithField("method", "ConfirmPanBlockHashes").
 		WithField("request", request).
 		WithField("response", response).
+		WithField("jsonResponse", string(respBytes)).
 		Info("Sending back ConfirmPanBlockHashes response")
 
 	return
 }
 
-// ConfirmVanBlockHashes
+// ConfirmVanBlockHashes should be used to get the confirmation about known state of Vanguard block hashes
 func (api *PublicFilterAPI) ConfirmVanBlockHashes(
 	ctx context.Context,
 	request []*BlockHash,
@@ -183,9 +193,18 @@ func (api *PublicFilterAPI) ConfirmVanBlockHashes(
 		})
 	}
 
+	respBytes, err := json.Marshal(response)
+
+	if nil != err {
+		log.WithField("err", err).Error("error unmarshaling response inConfirmVanBlockHashes")
+
+		return
+	}
+
 	log.WithField("method", "ConfirmVanBlockHashes").
 		WithField("request", request).
 		WithField("response", response).
+		WithField("jsonResponse", string(respBytes)).
 		Info("Sending back ConfirmVanBlockHashes response")
 
 	return
