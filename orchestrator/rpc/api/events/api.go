@@ -135,6 +135,10 @@ func (api *PublicFilterAPI) ConfirmPanBlockHashes(
 			},
 			Status: status,
 		})
+		log.WithField("method", "ConfirmPanBlockHashes").
+			WithField("slot", blockRequest.Slot).
+			WithField("hash", hash).
+			Info("getting confirmation status from db for pandora client")
 	}
 
 	log.WithField("method", "ConfirmPanBlockHashes").
@@ -181,6 +185,10 @@ func (api *PublicFilterAPI) ConfirmVanBlockHashes(
 			},
 			Status: status,
 		})
+		log.WithField("method", "ConfirmVanBlockHashes").
+			WithField("slot", blockRequest.Slot).
+			WithField("hash", hash).
+			Info("getting confirmation status from db for vanguard client")
 	}
 
 	log.WithField("method", "ConfirmVanBlockHashes").
