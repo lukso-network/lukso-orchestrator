@@ -348,6 +348,8 @@ func TestService_Canonicalize(t *testing.T) {
 		require.NoError(t, orchestratorDB.SaveLatestPandoraSlot())
 		require.NoError(t, orchestratorDB.SaveLatestVerifiedRealmSlot(1))
 
+		// TODO: provide a test where there is a skipped, valid, skipped, valid, pending
+
 		// on vanguard side slot 2 will be skipped and on vanguard side slot 2 will be skipped
 		// on vanguard side slot 3 will be skipped and on vanguard side slot 3 will be skipped
 		// on vanguard side slot 4 will be missing, but on pandora side will be present
@@ -430,6 +432,11 @@ func TestService_Canonicalize(t *testing.T) {
 			if nil != suite.pandoraHash {
 				headerHash, err := orchestratorDB.PandoraHeaderHash(suite.slot)
 				require.NoError(t, err, indexMsg)
+
+				if suite.expectedPandoraStatus != headerHash.Status {
+					fmt.Printf("eeo")
+				}
+
 				require.Equal(t, suite.expectedPandoraStatus, headerHash.Status, indexMsg)
 			}
 		}

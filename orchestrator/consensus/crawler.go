@@ -7,6 +7,7 @@ package consensus
 import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/db/kv"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	log "github.com/sirupsen/logrus"
@@ -85,95 +86,37 @@ func handlePreparedWork(
 
 		go bulkAsyncSave()
 		waitGroup.Wait()
+
+		// Handle all possible nils in this batches
+		finalVanguardBatch, finalPandoraBatch := fetchFinalVanguardAndPandoraBatch(
+			vanguardHashDB,
+			pandoraHeaderHashDB,
+			invalidationStartRealmSlot,
+			invalidationRange,
+			errChan,
+		)
+
+		skippedSlots := resolveSkippedBasedOnNilRecordsInBatch(
+			finalVanguardBatch,
+			finalPandoraBatch,
+			invalidationStartRealmSlot,
+			highestSlot,
+		)
+
+		saved := savePairsState(skippedSlots, types.Skipped, vanguardHashDB, pandoraHeaderHashDB, realmDB, errChan)
+
+		if !saved {
+			log.WithField("cause", "batch based on nil records").
+				Error("failure during save of batch based on nil records")
+
+			return
+		}
+
 		log.WithField("highestCheckedSlot", highestSlot).
 			Info("I have resolved Canonicalize")
+
+		saveLatestVerifiedSlot(realmDB, highestSlot, errChan)
 	}
-
-	// TODO: check if this code is necessary. IMHO yes
-	//var (
-	//	finalVanguardBatch []*types.HeaderHash
-	//	finalPandoraBatch  []*types.HeaderHash
-	//)
-
-	// At the very end fill all vanguard and pandora nil entries as skipped ones
-	// Do not fetch any higher records
-	//finalVanguardBatch, vanguardErr = vanguardHashDB.VanguardHeaderHashes(
-	//	invalidationStartRealmSlot,
-	//	invalidationRange,
-	//)
-	//
-	//finalPandoraBatch, pandoraErr = pandoraHeaderHashDB.PandoraHeaderHashes(
-	//	invalidationStartRealmSlot,
-	//	invalidationRange,
-	//)
-	//
-	//if nil != vanguardErr || nil != pandoraErr {
-	//	log.WithField("vanguardErr", vanguardErr).
-	//		WithField("pandoraErr", pandoraErr).
-	//		WithField("realmErr", realmErr).
-	//		Error("Got error during invalidation of pending queue")
-	//
-	//	errChan <- databaseErrors{
-	//		vanguardErr: vanguardErr,
-	//		pandoraErr:  pandoraErr,
-	//		realmErr:    realmErr,
-	//	}
-	//
-	//	return
-	//}
-	//
-	//for index, headerHash := range finalVanguardBatch {
-	//	if nil != headerHash {
-	//		continue
-	//	}
-	//
-	//	slotToCheck := fromSlot + uint64(index)
-	//
-	//	if slotToCheck > latestSavedVerifiedRealmSlot {
-	//		continue
-	//	}
-	//
-	//	headerHash = &types.HeaderHash{
-	//		HeaderHash: kv.EmptyHash,
-	//		Status:     types.Skipped,
-	//	}
-	//
-	//	vanguardErr = vanguardHashDB.SaveVanguardHeaderHash(slotToCheck, headerHash)
-	//}
-	//
-	//for index, headerHash := range finalPandoraBatch {
-	//	if nil != headerHash {
-	//		continue
-	//	}
-	//
-	//	slotToCheck := fromSlot + uint64(index)
-	//
-	//	if slotToCheck > latestSavedVerifiedRealmSlot {
-	//		continue
-	//	}
-	//
-	//	headerHash = &types.HeaderHash{
-	//		HeaderHash: kv.EmptyHash,
-	//		Status:     types.Skipped,
-	//	}
-	//	pandoraErr = pandoraHeaderHashDB.SavePandoraHeaderHash(slotToCheck, headerHash)
-	//}
-	//
-	//if nil != vanguardErr || nil != pandoraErr {
-	//	log.WithField("vanguardErr", vanguardErr).
-	//		WithField("pandoraErr", pandoraErr).
-	//		WithField("realmErr", realmErr).
-	//		Error("Got error during invalidation of final Vanguard or Pandora batch")
-	//
-	//	errChan <- databaseErrors{
-	//		vanguardErr: vanguardErr,
-	//		pandoraErr:  pandoraErr,
-	//		realmErr:    realmErr,
-	//	}
-	//
-	//	return
-	//}
-
 }
 
 // resolveVerifiedPairsBasedOnVanguard
@@ -348,6 +291,96 @@ func resolveSkippedByOrphans(filtered *filteredVerifiedPairs) (skipped []*events
 	return
 }
 
+func fetchFinalVanguardAndPandoraBatch(
+	vanguardHashDB db.VanguardHeaderHashDB,
+	pandoraHeaderHashDB db.PandoraHeaderHashDB,
+	invalidationStartRealmSlot uint64,
+	invalidationRange uint64,
+	errChan chan databaseErrors,
+) (finalVanguardBatch []*types.HeaderHash, finalPandoraBatch []*types.HeaderHash) {
+	finalVanguardBatch, vanguardErr := vanguardHashDB.VanguardHeaderHashes(
+		invalidationStartRealmSlot,
+		invalidationRange,
+	)
+
+	finalPandoraBatch, pandoraErr := pandoraHeaderHashDB.PandoraHeaderHashes(
+		invalidationStartRealmSlot,
+		invalidationRange,
+	)
+
+	if nil != vanguardErr || nil != pandoraErr {
+		errChan <- databaseErrors{
+			vanguardErr: vanguardErr,
+			pandoraErr:  pandoraErr,
+			realmErr:    nil,
+		}
+
+		finalVanguardBatch = nil
+		finalPandoraBatch = nil
+	}
+
+	return
+}
+
+func resolveSkippedBasedOnNilRecordsInBatch(
+	finalVanguardBatch []*types.HeaderHash,
+	finalPandoraBatch []*types.HeaderHash,
+	fromSlot uint64,
+	latestSavedVerifiedRealmSlot uint64,
+) (skippedPairs []*events.RealmPair) {
+	skippedSlots := map[uint64]*events.RealmPair{}
+	skippedPairs = make([]*events.RealmPair, 0)
+
+	insertSkippedSlot := func(slotToCheck uint64) {
+		headerHash := &types.HeaderHash{
+			HeaderHash: kv.EmptyHash,
+			Status:     types.Skipped,
+		}
+
+		skippedSlots[slotToCheck] = &events.RealmPair{
+			Slot:          slotToCheck,
+			VanguardHash:  headerHash,
+			PandoraHashes: make([]*types.HeaderHash, 1),
+		}
+
+		skippedSlots[slotToCheck].PandoraHashes[0] = headerHash
+	}
+
+	for index, headerHash := range finalVanguardBatch {
+		if nil != headerHash {
+			continue
+		}
+
+		slotToCheck := fromSlot + uint64(index)
+
+		if slotToCheck > latestSavedVerifiedRealmSlot {
+			continue
+		}
+
+		insertSkippedSlot(slotToCheck)
+	}
+
+	for index, headerHash := range finalPandoraBatch {
+		if nil != headerHash {
+			continue
+		}
+
+		slotToCheck := fromSlot + uint64(index)
+
+		if slotToCheck > latestSavedVerifiedRealmSlot {
+			continue
+		}
+
+		insertSkippedSlot(slotToCheck)
+	}
+
+	for _, skippedSlot := range skippedSlots {
+		skippedPairs = append(skippedPairs, skippedSlot)
+	}
+
+	return
+}
+
 func savePairsState(
 	pairs []*events.RealmPair,
 	status types.Status,
@@ -418,4 +451,12 @@ func savePairsState(
 	success = true
 
 	return
+}
+
+func saveLatestVerifiedSlot(realmDB db.RealmDB, slot uint64, errChan chan databaseErrors) {
+	err := realmDB.SaveLatestVerifiedRealmSlot(slot)
+
+	if nil != err {
+		errChan <- databaseErrors{realmErr: err}
+	}
 }
