@@ -82,28 +82,35 @@ func TestService_Start(t *testing.T) {
 		service.Start()
 		require.LogsContain(t, hook, "I am starting the work loop")
 
-		service.isWorking = false
+		select {
+		case databaseError := <-service.errChan:
+			require.NoError(t, databaseError.vanguardErr)
+			require.NoError(t, databaseError.pandoraErr)
+			require.NoError(t, databaseError.realmErr)
+		default:
+			service.isWorking = false
 
-		require.NoError(t, orchestratorDB.SavePandoraHeaderHash(1, pandoraHeader))
-		require.NoError(t, orchestratorDB.SaveVanguardHeaderHash(1, vanguardHeader))
-		require.NoError(t, orchestratorDB.SaveLatestVerifiedRealmSlot(0))
+			require.NoError(t, orchestratorDB.SavePandoraHeaderHash(1, pandoraHeader))
+			require.NoError(t, orchestratorDB.SaveVanguardHeaderHash(1, vanguardHeader))
+			require.NoError(t, orchestratorDB.SaveLatestVerifiedRealmSlot(0))
 
-		vanguardHeadersChan <- vanguardHeader
-		pandoraHeadersChan <- pandoraHeader
-		time.Sleep(time.Second * 2)
+			vanguardHeadersChan <- vanguardHeader
+			pandoraHeadersChan <- pandoraHeader
+			time.Sleep(time.Second * 2)
 
-		require.LogsContain(t, hook, "I am starting to Canonicalize in batches")
+			require.LogsContain(t, hook, "I am starting to Canonicalize in batches")
 
-		fetchedPandoraHeader, err := orchestratorDB.PandoraHeaderHash(1)
-		require.NoError(t, err)
-		require.Equal(t, types.Verified, fetchedPandoraHeader.Status)
-		require.Equal(t, pandoraHeader.HeaderHash, fetchedPandoraHeader.HeaderHash)
+			fetchedPandoraHeader, err := orchestratorDB.PandoraHeaderHash(1)
+			require.NoError(t, err)
+			require.Equal(t, types.Verified, fetchedPandoraHeader.Status)
+			require.Equal(t, pandoraHeader.HeaderHash, fetchedPandoraHeader.HeaderHash)
 
-		fetchedVanguardHeader, err := orchestratorDB.VanguardHeaderHash(1)
-		require.NoError(t, err)
-		require.Equal(t, types.Verified, fetchedVanguardHeader.Status)
-		require.Equal(t, vanguardHeader.HeaderHash, fetchedVanguardHeader.HeaderHash)
-		require.NoError(t, orchestratorDB.Close())
+			fetchedVanguardHeader, err := orchestratorDB.VanguardHeaderHash(1)
+			require.NoError(t, err)
+			require.Equal(t, types.Verified, fetchedVanguardHeader.Status)
+			require.Equal(t, vanguardHeader.HeaderHash, fetchedVanguardHeader.HeaderHash)
+			require.NoError(t, orchestratorDB.Close())
+		}
 	})
 
 	t.Run("should invoke canonicalize once per flood", func(t *testing.T) {
@@ -155,59 +162,67 @@ func TestService_Start(t *testing.T) {
 			}
 		}()
 
-		waitForCanonicalizationEnd := func() bool {
-			entries := hook.AllEntries()
+		select {
+		case databaseError := <-service.errChan:
+			require.NoError(t, databaseError.vanguardErr)
+			require.NoError(t, databaseError.pandoraErr)
+			require.NoError(t, databaseError.realmErr)
+		default:
+			waitForCanonicalizationEnd := func() bool {
+				entries := hook.AllEntries()
 
-			for _, entry := range entries {
-				if "I have resolved Canonicalize" == entry.Message {
-					t.Log("I have found desired entry")
-					return true
+				for _, entry := range entries {
+					if "I have resolved Canonicalize" == entry.Message {
+						t.Log("I have found desired entry")
+						return true
+					}
 				}
+
+				return false
 			}
 
-			return false
+			shouldFail := true
+
+			time.AfterFunc(time.Second*20, func() {
+				if shouldFail {
+					t.FailNow()
+				}
+			})
+
+			for {
+				isFinished := waitForCanonicalizationEnd()
+
+				if isFinished {
+					shouldFail = false
+
+					break
+				}
+
+				time.Sleep(time.Millisecond * 100)
+			}
+
+			fetchedPandoraHeader, err := orchestratorDB.PandoraHeaderHash(1)
+			require.NoError(t, err)
+			require.Equal(t, types.Verified, fetchedPandoraHeader.Status)
+			require.Equal(t, pandoraHeader.HeaderHash, fetchedPandoraHeader.HeaderHash)
+
+			fetchedVanguardHeader, err := orchestratorDB.VanguardHeaderHash(1)
+			require.NoError(t, err)
+			require.Equal(t, types.Verified, fetchedVanguardHeader.Status)
+			require.Equal(t, vanguardHeader.HeaderHash, fetchedVanguardHeader.HeaderHash)
+			assert.LogsContainNTimes(t, hook, "I have resolved Canonicalize", 1)
+			require.NoError(t, orchestratorDB.Close())
 		}
-
-		shouldFail := true
-
-		time.AfterFunc(time.Second*20, func() {
-			if shouldFail {
-				t.FailNow()
-			}
-		})
-
-		for {
-			isFinished := waitForCanonicalizationEnd()
-
-			if isFinished {
-				shouldFail = false
-
-				break
-			}
-
-			time.Sleep(time.Millisecond * 100)
-		}
-
-		fetchedPandoraHeader, err := orchestratorDB.PandoraHeaderHash(1)
-		require.NoError(t, err)
-		require.Equal(t, types.Verified, fetchedPandoraHeader.Status)
-		require.Equal(t, pandoraHeader.HeaderHash, fetchedPandoraHeader.HeaderHash)
-
-		fetchedVanguardHeader, err := orchestratorDB.VanguardHeaderHash(1)
-		require.NoError(t, err)
-		require.Equal(t, types.Verified, fetchedVanguardHeader.Status)
-		require.Equal(t, vanguardHeader.HeaderHash, fetchedVanguardHeader.HeaderHash)
-		assert.LogsContainNTimes(t, hook, "I have resolved Canonicalize", 1)
-		require.NoError(t, orchestratorDB.Close())
 	})
 }
 
 func TestService_Canonicalize(t *testing.T) {
 	t.Run("should invalidate matched blocks on slot 1", func(t *testing.T) {
-		orchestratorDB := testDB.SetupDB(t)
+		orchestratorDB := testDB.SetupDBWithoutClose(t)
 		ctx := context.Background()
 		vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan := prepareEnv()
 		service := New(ctx, orchestratorDB, vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan)
+		service.Start()
 
 		pandoraToken := make([]byte, 4)
 		rand.Read(pandoraToken)
@@ -254,13 +269,15 @@ func TestService_Canonicalize(t *testing.T) {
 
 		realmSlot := orchestratorDB.LatestVerifiedRealmSlot()
 		require.Equal(t, uint64(2), realmSlot)
+		require.NoError(t, orchestratorDB.Close())
 	})
 
 	t.Run("should handle skipped blocks", func(t *testing.T) {
-		orchestratorDB := testDB.SetupDB(t)
+		orchestratorDB := testDB.SetupDBWithoutClose(t)
 		ctx := context.Background()
 		vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan := prepareEnv()
 		service := New(ctx, orchestratorDB, vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan)
+		service.Start()
 
 		pandoraToken := make([]byte, 4)
 		rand.Read(pandoraToken)
@@ -298,13 +315,15 @@ func TestService_Canonicalize(t *testing.T) {
 
 		realmSlot := orchestratorDB.LatestVerifiedRealmSlot()
 		require.Equal(t, uint64(5), realmSlot)
+		require.NoError(t, orchestratorDB.Close())
 	})
 
 	t.Run("should handle skipped blocks with different states", func(t *testing.T) {
-		orchestratorDB := testDB.SetupDB(t)
+		orchestratorDB := testDB.SetupDBWithoutClose(t)
 		ctx := context.Background()
 		vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan := prepareEnv()
 		service := New(ctx, orchestratorDB, vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan)
+		service.Start()
 
 		pandoraToken := make([]byte, 4)
 		rand.Read(pandoraToken)
@@ -417,6 +436,7 @@ func TestService_Canonicalize(t *testing.T) {
 
 		realmSlot := service.RealmDB.LatestVerifiedRealmSlot()
 		require.Equal(t, uint64(6), realmSlot)
+		require.NoError(t, orchestratorDB.Close())
 	})
 
 	// TODO: if we maintain crawling in batches we should test with batchLimit 32 (epoch)
@@ -439,10 +459,11 @@ func TestService_Canonicalize(t *testing.T) {
 		require.NoError(t, json.Unmarshal(mockedPandoraJson, &pandoraBlocks))
 		require.NoError(t, json.Unmarshal(mockedVanguardJson, &vanguardBlocks))
 
-		orchestratorDB := testDB.SetupDB(t)
+		orchestratorDB := testDB.SetupDBWithoutClose(t)
 		ctx := context.Background()
 		vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan := prepareEnv()
 		service := New(ctx, orchestratorDB, vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan)
+		service.Start()
 
 		for index, block := range pandoraBlocks {
 			if nil != block {
@@ -577,15 +598,18 @@ func TestService_Canonicalize(t *testing.T) {
 			"0x9cea5d4952be0bae951b717f4c8257a225cf837fb5720ce57293606219c990fc",
 			lastPandoraBlock.HeaderHash.String(),
 		)
+
+		require.NoError(t, orchestratorDB.Close())
 	})
 
 	// This test is not finished, it does not test the side effect
 	// TODO: check how it can crawl up to 15000
 	t.Run("should invalidate lots of pending blocks", func(t *testing.T) {
-		orchestratorDB := testDB.SetupDB(t)
+		orchestratorDB := testDB.SetupDBWithoutClose(t)
 		ctx := context.Background()
 		vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan := prepareEnv()
 		service := New(ctx, orchestratorDB, vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan)
+		service.Start()
 
 		type realmPair struct {
 			pandoraSlot  uint64
@@ -690,6 +714,12 @@ func TestService_Canonicalize(t *testing.T) {
 
 		for {
 			select {
+			case databaseError := <-service.errChan:
+				require.NoError(t, databaseError.vanguardErr)
+				require.NoError(t, databaseError.pandoraErr)
+				require.NoError(t, databaseError.realmErr)
+
+				return
 			case <-invalidationTicker.C:
 				vanguardErr, pandoraErr, realmErr := service.Canonicalize(
 					orchestratorDB.LatestVerifiedRealmSlot(),
@@ -698,12 +728,15 @@ func TestService_Canonicalize(t *testing.T) {
 				require.NoError(t, vanguardErr)
 				require.NoError(t, pandoraErr)
 				require.NoError(t, realmErr)
+
+				return
 			case <-invalidationTimeOut.C:
 				t.Log("I have reached the test end")
-				// Here I should test the side effect of invalidation
+				require.NoError(t, orchestratorDB.Close())
 
 				return
 			}
 		}
+
 	})
 }
