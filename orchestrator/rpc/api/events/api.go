@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db/kv"
 	generalTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
-	"time"
 )
 
 type Backend interface {
@@ -117,6 +118,11 @@ func (api *PublicFilterAPI) ConfirmPanBlockHashes(
 		status, currentErr := api.backend.FetchPanBlockStatus(blockRequest.Slot, blockRequest.Hash)
 		hash := blockRequest.Hash
 
+		log.WithField("method", "ConfirmPanBlockHashes").
+			WithField("slot number", blockRequest.Slot).
+			WithField("block hash", blockRequest.Hash).
+			WithField("status", status)
+
 		if nil != currentErr {
 			log.Errorf("Invalid block in ConfirmPanBlockHashes: %v", err)
 			response = nil
@@ -171,6 +177,11 @@ func (api *PublicFilterAPI) ConfirmVanBlockHashes(
 	for _, blockRequest := range request {
 		status, currentErr := api.backend.FetchVanBlockStatus(blockRequest.Slot, blockRequest.Hash)
 		hash := blockRequest.Hash
+
+		log.WithField("method", "ConfirmVanBlockHashes").
+			WithField("slot number", blockRequest.Slot).
+			WithField("block hash", blockRequest.Hash).
+			WithField("status", status)
 
 		if nil != currentErr {
 			log.Errorf("Invalid block in ConfirmVanBlockHashes: %v", err)
