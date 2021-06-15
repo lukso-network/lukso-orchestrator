@@ -121,7 +121,7 @@ func (api *PublicFilterAPI) ConfirmPanBlockHashes(
 		log.WithField("method", "ConfirmPanBlockHashes").
 			WithField("slot number", blockRequest.Slot).
 			WithField("block hash", blockRequest.Hash).
-			WithField("status", status)
+			WithField("status", status).Info("printing request for confirmedPanBlockHashes")
 
 		if nil != currentErr {
 			log.Errorf("Invalid block in ConfirmPanBlockHashes: %v", err)
@@ -181,7 +181,7 @@ func (api *PublicFilterAPI) ConfirmVanBlockHashes(
 		log.WithField("method", "ConfirmVanBlockHashes").
 			WithField("slot number", blockRequest.Slot).
 			WithField("block hash", blockRequest.Hash).
-			WithField("status", status)
+			WithField("status", status).Info("printing request for confirmedVanBlockHashes")
 
 		if nil != currentErr {
 			log.Errorf("Invalid block in ConfirmVanBlockHashes: %v", err)
