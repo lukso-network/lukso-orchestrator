@@ -32,7 +32,7 @@ func (s *Service) OnNewPendingHeader(ctx context.Context, header *eth1Types.Head
 	}
 
 	log.WithField("headerHash", pandoraHeaderHash).
-		WithField("slot", panExtraDataWithSig.Slot).Trace("Successfully inserted pandora hash to db")
+		WithField("slot", panExtraDataWithSig.Slot).Debug("Successfully inserted pandora hash to db")
 
 	s.pendingWorkChannel <- pandoraHeaderHash
 
