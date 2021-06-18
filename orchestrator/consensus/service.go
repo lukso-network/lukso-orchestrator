@@ -311,10 +311,10 @@ func (service *Service) workLoop() {
 		// We need to have at least one pair to start invalidation.
 		// It might lead to 2 pairs on one side, or invalidation stall,
 		// But ATM I do not have quicker and better idea
-		if len(possiblePendingWork) < 2 {
-			log.WithField("cause", "mergedChannelHandler").Debug("not enough pending pairs")
-			return
-		}
+		//if len(possiblePendingWork) < 2 {
+		//	log.WithField("cause", "mergedChannelHandler").Debug("not enough pending pairs")
+		//	return
+		//}
 
 		service.canonicalizeChan <- latestVerifiedRealmSlot
 	}
