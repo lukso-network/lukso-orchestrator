@@ -73,6 +73,7 @@ func (service *Service) Start() {
 
 func (service *Service) Stop() error {
 	service.stopChan <- true
+	close(service.stopChan)
 
 	return nil
 }
