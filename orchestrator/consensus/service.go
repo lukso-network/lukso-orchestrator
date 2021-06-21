@@ -38,7 +38,7 @@ type Service struct {
 	VanguardHeadersChan         chan *types.HeaderHash
 	VanguardConsensusInfoChan   chan *types.MinimalEpochConsensusInfo
 	PandoraHeadersChan          chan *types.HeaderHash
-	stopChan                    chan bool
+	stopChan                    chan struct{}
 	canonicalizeChan            chan uint64
 	isWorking                   bool
 	canonicalizeLock            *sync.Mutex
@@ -54,17 +54,6 @@ type Service struct {
 // - pendingHeaders (Pandora)
 // In current implementation we use debounce to determine state of syncing
 func (service *Service) Start() {
-	go func() {
-		for {
-			stop := <-service.stopChan
-
-			if stop {
-				log.WithField("canonicalize", "stop").Info("Received stop signal")
-				return
-			}
-		}
-	}()
-
 	// There might be multiple scenarios that will trigger different slot required to trigger the canonicalize
 	service.workLoop()
 
@@ -72,7 +61,7 @@ func (service *Service) Start() {
 }
 
 func (service *Service) Stop() error {
-	service.stopChan <- true
+	service.stopChan <- struct{}{}
 	close(service.stopChan)
 
 	return nil
@@ -91,7 +80,7 @@ func New(
 	vanguardConsensusInfoChan chan *types.MinimalEpochConsensusInfo,
 	pandoraHeadersChan chan *types.HeaderHash,
 ) (service *Service) {
-	stopChan := make(chan bool)
+	stopChan := make(chan struct{})
 	canonicalizeChain := make(chan uint64)
 	invalidationWorkPayloadChan := make(chan *invalidationWorkPayload, 10000)
 	errChan := make(chan databaseErrors, 10000)
@@ -232,12 +221,11 @@ func (service *Service) Canonicalize(
 
 	log.Info("I am starting to Canonicalize in batches")
 	select {
-	case stop := <-service.stopChan:
-		if stop {
-			service.isWorking = false
-			log.Info("I stop Invalidation")
-			return
-		}
+	case <-service.stopChan:
+		service.isWorking = false
+		log.Info("I stop Invalidation")
+
+		return
 	case shouldSkip := <-skipChan:
 		if shouldSkip {
 			return
@@ -306,16 +294,6 @@ func (service *Service) workLoop() {
 		}
 
 		latestVerifiedRealmSlot := realmDB.LatestVerifiedRealmSlot()
-
-		// This is naive, but might work
-		// We need to have at least one pair to start invalidation.
-		// It might lead to 2 pairs on one side, or invalidation stall,
-		// But ATM I do not have quicker and better idea
-		//if len(possiblePendingWork) < 2 {
-		//	log.WithField("cause", "mergedChannelHandler").Debug("not enough pending pairs")
-		//	return
-		//}
-
 		service.canonicalizeChan <- latestVerifiedRealmSlot
 	}
 
@@ -359,12 +337,10 @@ func (service *Service) workLoop() {
 						log.WithField("canonicalize", "realmErr").Debug(realmErr)
 					}
 				})
-			case stop := <-service.stopChan:
-				if stop {
-					log.WithField("canonicalize", "stop").Info("Received stop signal")
+			case <-service.stopChan:
+				log.WithField("canonicalize", "stop").Info("Received stop signal")
 
-					return
-				}
+				return
 			}
 		}
 	}()
