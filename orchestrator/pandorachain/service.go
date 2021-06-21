@@ -18,7 +18,7 @@ var reConPeriod = 15 * time.Second
 // DialRPCFn dials to the given endpoint
 type DialRPCFn func(endpoint string) (*rpc.Client, error)
 
-// Service:
+// Service
 // 	- maintains connection with pandora chain
 //  - maintains db and cache to store the in-coming headers from pandora.
 type Service struct {
@@ -43,13 +43,13 @@ type Service struct {
 	pendingWorkChannel chan *types.HeaderHash
 
 	// db support
-	db    db.PandoraHeaderHashDB
+	db    db.Database
 	cache cache.PandoraHeaderCache
 }
 
 // NewService creates new service with pandora ws or ipc endpoint, pandora service namespace and db
 func NewService(ctx context.Context, endpoint string, namespace string,
-	db db.PandoraHeaderHashDB, cache cache.PandoraHeaderCache, dialRPCFn DialRPCFn) (*Service, error) {
+	db db.Database, cache cache.PandoraHeaderCache, dialRPCFn DialRPCFn) (*Service, error) {
 
 	ctx, cancel := context.WithCancel(ctx)
 	_ = cancel // govet fix for lost cancel. Cancel is handled in service.Stop()

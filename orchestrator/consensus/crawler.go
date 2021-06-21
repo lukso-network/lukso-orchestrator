@@ -68,10 +68,9 @@ func handlePreparedWork(
 		waitGroup.Add(3)
 		savePairState := func(
 			pairs []*events.RealmPair,
-			status types.Status,
 			group *sync.WaitGroup,
 		) {
-			succeed := savePairsState(validPairs, status, vanguardHashDB, pandoraHeaderHashDB, realmDB, errChan)
+			succeed := savePairsState(validPairs, vanguardHashDB, pandoraHeaderHashDB, realmDB, errChan)
 
 			if succeed {
 				waitGroup.Done()
@@ -79,9 +78,9 @@ func handlePreparedWork(
 		}
 
 		bulkAsyncSave := func() {
-			go savePairState(validPairs, types.Verified, waitGroup)
-			go savePairState(skippedPairs, types.Skipped, waitGroup)
-			go savePairState(pendingPairs, types.Pending, waitGroup)
+			go savePairState(validPairs, waitGroup)
+			go savePairState(skippedPairs, waitGroup)
+			go savePairState(pendingPairs, waitGroup)
 		}
 
 		go bulkAsyncSave()
@@ -103,7 +102,7 @@ func handlePreparedWork(
 			highestSlot,
 		)
 
-		saved := savePairsState(skippedSlots, types.Skipped, vanguardHashDB, pandoraHeaderHashDB, realmDB, errChan)
+		saved := savePairsState(skippedSlots, vanguardHashDB, pandoraHeaderHashDB, realmDB, errChan)
 
 		if !saved {
 			log.WithField("cause", "batch based on nil records").
@@ -383,7 +382,6 @@ func resolveSkippedBasedOnNilRecordsInBatch(
 
 func savePairsState(
 	pairs []*events.RealmPair,
-	status types.Status,
 	vanguardHashDB db.VanguardHeaderHashDB,
 	pandoraHeaderHashDB db.PandoraHeaderHashDB,
 	realmDB db.RealmDB,
