@@ -103,83 +103,6 @@ func New(
 	}
 }
 
-// invokeInvalidation will prepare payload for crawler and will push it through the channel
-// if any error occurs it will be pushed back to databaseErrorsChan
-// if any skip must happen it will be send information via skipChan
-func invokeInvalidation(
-	vanguardHashDB db.VanguardHeaderHashDB,
-	pandoraHeaderHashDB db.PandoraHeaderHashDB,
-	realmDB db.RealmDB,
-	fromSlot uint64,
-	batchLimit uint64,
-	skipChan chan bool,
-	databaseErrorsChan chan databaseErrors,
-	invalidationWorkPayloadChan chan *invalidationWorkPayload,
-) {
-	possibleSkippedPair := make([]*events.RealmPair, 0)
-	latestSavedVerifiedRealmSlot := realmDB.LatestVerifiedRealmSlot()
-	invalidationStartRealmSlot := latestSavedVerifiedRealmSlot
-
-	if fromSlot > latestSavedVerifiedRealmSlot {
-		databaseErrorsChan <- databaseErrors{realmErr: fmt.Errorf("I cannot start invalidation without root")}
-
-		return
-	}
-
-	log.WithField("latestSavedVerifiedRealmSlot", latestSavedVerifiedRealmSlot).
-		WithField("slot", fromSlot).
-		Info("Invalidation starts")
-
-	pandoraHeaderHashes, err := pandoraHeaderHashDB.PandoraHeaderHashes(fromSlot, batchLimit)
-
-	if nil != err {
-		log.WithField("cause", "Failed to invalidate pending queue").Error(err)
-		databaseErrorsChan <- databaseErrors{pandoraErr: err}
-
-		return
-	}
-
-	vanguardBlockHashes, err := vanguardHashDB.VanguardHeaderHashes(fromSlot, batchLimit)
-
-	if nil != err {
-		log.WithField("cause", "Failed to invalidate pending queue").Error(err)
-		databaseErrorsChan <- databaseErrors{vanguardErr: err}
-
-		return
-	}
-
-	pandoraRange := len(pandoraHeaderHashes)
-	vanguardRange := len(vanguardBlockHashes)
-
-	pandoraOrphans := map[uint64]*types.HeaderHash{}
-	vanguardOrphans := map[uint64]*types.HeaderHash{}
-
-	// You wont match anything, so short circuit
-	if pandoraRange < 1 || vanguardRange < 1 {
-		log.WithField("pandoraRange", pandoraRange).WithField("vanguardRange", vanguardRange).
-			Trace("Not enough blocks to start invalidation")
-
-		skipChan <- true
-
-		return
-	}
-
-	log.WithField("pandoraRange", pandoraRange).WithField("vanguardRange", vanguardRange).
-		Trace("Invalidation with range of blocks")
-
-	invalidationWorkPayloadChan <- &invalidationWorkPayload{
-		invalidationStartRealmSlot: invalidationStartRealmSlot,
-		fromSlot:                   fromSlot,
-		possibleSkippedPair:        possibleSkippedPair,
-		pandoraHashes:              pandoraHeaderHashes,
-		vanguardHashes:             vanguardBlockHashes,
-		pandoraOrphans:             pandoraOrphans,
-		vanguardOrphans:            vanguardOrphans,
-	}
-
-	return
-}
-
 // Canonicalize must be called numerous of times with different from slot
 // new slots may arrive after canonicalization, so Canonicalize must be invoked again
 // function must be working only on started service
@@ -352,6 +275,83 @@ func (service *Service) workLoop() {
 		mergedHeadersChanBridge,
 		mergedChannelHandler,
 	)
+}
+
+// invokeInvalidation will prepare payload for crawler and will push it through the channel
+// if any error occurs it will be pushed back to databaseErrorsChan
+// if any skip must happen it will be send information via skipChan
+func invokeInvalidation(
+	vanguardHashDB db.VanguardHeaderHashDB,
+	pandoraHeaderHashDB db.PandoraHeaderHashDB,
+	realmDB db.RealmDB,
+	fromSlot uint64,
+	batchLimit uint64,
+	skipChan chan bool,
+	databaseErrorsChan chan databaseErrors,
+	invalidationWorkPayloadChan chan *invalidationWorkPayload,
+) {
+	possibleSkippedPair := make([]*events.RealmPair, 0)
+	latestSavedVerifiedRealmSlot := realmDB.LatestVerifiedRealmSlot()
+	invalidationStartRealmSlot := latestSavedVerifiedRealmSlot
+
+	if fromSlot > latestSavedVerifiedRealmSlot {
+		databaseErrorsChan <- databaseErrors{realmErr: fmt.Errorf("I cannot start invalidation without root")}
+
+		return
+	}
+
+	log.WithField("latestSavedVerifiedRealmSlot", latestSavedVerifiedRealmSlot).
+		WithField("slot", fromSlot).
+		Info("Invalidation starts")
+
+	pandoraHeaderHashes, err := pandoraHeaderHashDB.PandoraHeaderHashes(fromSlot, batchLimit)
+
+	if nil != err {
+		log.WithField("cause", "Failed to invalidate pending queue").Error(err)
+		databaseErrorsChan <- databaseErrors{pandoraErr: err}
+
+		return
+	}
+
+	vanguardBlockHashes, err := vanguardHashDB.VanguardHeaderHashes(fromSlot, batchLimit)
+
+	if nil != err {
+		log.WithField("cause", "Failed to invalidate pending queue").Error(err)
+		databaseErrorsChan <- databaseErrors{vanguardErr: err}
+
+		return
+	}
+
+	pandoraRange := len(pandoraHeaderHashes)
+	vanguardRange := len(vanguardBlockHashes)
+
+	pandoraOrphans := map[uint64]*types.HeaderHash{}
+	vanguardOrphans := map[uint64]*types.HeaderHash{}
+
+	// You wont match anything, so short circuit
+	if pandoraRange < 1 || vanguardRange < 1 {
+		log.WithField("pandoraRange", pandoraRange).WithField("vanguardRange", vanguardRange).
+			Trace("Not enough blocks to start invalidation")
+
+		skipChan <- true
+
+		return
+	}
+
+	log.WithField("pandoraRange", pandoraRange).WithField("vanguardRange", vanguardRange).
+		Trace("Invalidation with range of blocks")
+
+	invalidationWorkPayloadChan <- &invalidationWorkPayload{
+		invalidationStartRealmSlot: invalidationStartRealmSlot,
+		fromSlot:                   fromSlot,
+		possibleSkippedPair:        possibleSkippedPair,
+		pandoraHashes:              pandoraHeaderHashes,
+		vanguardHashes:             vanguardBlockHashes,
+		pandoraOrphans:             pandoraOrphans,
+		vanguardOrphans:            vanguardOrphans,
+	}
+
+	return
 }
 
 func merge(cs ...<-chan *types.HeaderHash) <-chan *types.HeaderHash {
