@@ -70,7 +70,7 @@ func (s *Service) subscribeNewConsensusInfoGRPC(
 			}
 
 			log.WithField("fromEpoch", vanMinimalConsensusInfo.Epoch).
-				Debug("subscribed to vanguard chain for consensus info")
+				Debug("received consensus info")
 
 			consensusInfo := &types.MinimalEpochConsensusInfo{
 				Epoch:            uint64(vanMinimalConsensusInfo.Epoch),

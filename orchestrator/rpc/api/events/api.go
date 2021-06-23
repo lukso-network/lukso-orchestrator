@@ -222,7 +222,8 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, epoch uint
 	alreadyKnownEpochs := api.backend.ConsensusInfoByEpochRange(epoch)
 
 	// TODO: Consider change. This is due to the mismatch on slot 0 on pandora and vanguard
-	timeMismatch := time.Second * 6
+	//timeMismatch := time.Second * 6 <- this was proper
+	timeMismatch := time.Second * 3
 
 	go func() {
 		consensusInfo := make(chan *generalTypes.MinimalEpochConsensusInfo)
@@ -259,9 +260,14 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, epoch uint
 			select {
 			case currentEpoch := <-consensusInfo:
 				// TODO: Remove it asap
-				currentEpoch.EpochStartTime = currentEpoch.EpochStartTime - uint64(timeMismatch.Seconds())
+				differ := currentEpoch.EpochStartTime - uint64(timeMismatch.Seconds())
 				log.WithField("epoch", currentEpoch.Epoch).Info("sending consensus info to subscriber")
-				err := notifier.Notify(rpcSub.ID, currentEpoch)
+				err := notifier.Notify(rpcSub.ID, &generalTypes.MinimalEpochConsensusInfo{
+					Epoch:            currentEpoch.Epoch,
+					ValidatorList:    currentEpoch.ValidatorList,
+					EpochStartTime:   differ,
+					SlotTimeDuration: currentEpoch.SlotTimeDuration,
+				})
 
 				if nil != err {
 					log.WithField("context", "error during epoch send").Error(err)
