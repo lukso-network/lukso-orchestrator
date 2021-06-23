@@ -223,7 +223,7 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, epoch uint
 
 	// TODO: Consider change. This is due to the mismatch on slot 0 on pandora and vanguard
 	//timeMismatch := time.Second * 6 <- this was proper
-	timeMismatch := time.Second * 6
+	timeMismatch := time.Second * 7
 
 	go func() {
 		consensusInfo := make(chan *generalTypes.MinimalEpochConsensusInfo)
