@@ -222,7 +222,7 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, epoch uint
 	alreadyKnownEpochs := api.backend.ConsensusInfoByEpochRange(epoch)
 
 	// TODO: Consider change. This is due to the mismatch on slot 0 on pandora and vanguard
-	timeMismatch := time.Second * 9
+	timeMismatch := time.Second * 3
 
 	go func() {
 		consensusInfo := make(chan *generalTypes.MinimalEpochConsensusInfo)
