@@ -9,6 +9,7 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/require"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
+	"github.com/sirupsen/logrus"
 	logTest "github.com/sirupsen/logrus/hooks/test"
 	"io/ioutil"
 	"math/big"
@@ -269,6 +270,69 @@ func TestService_Canonicalize(t *testing.T) {
 
 		realmSlot := orchestratorDB.LatestVerifiedRealmSlot()
 		require.Equal(t, uint64(2), realmSlot)
+		require.NoError(t, orchestratorDB.Close())
+	})
+
+	t.Run("should handle premature attempt", func(t *testing.T) {
+		orchestratorDB := testDB.SetupDBWithoutClose(t)
+		ctx := context.Background()
+		vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan := prepareEnv()
+		service := New(ctx, orchestratorDB, vanguardHeadersChan, vanguardConsensusInfoChan, pandoraHeadersChan)
+		service.Start()
+
+		//pandoraToken := make([]byte, 4)
+		//rand.Read(pandoraToken)
+		//pandoraHash := common.BytesToHash(pandoraToken)
+
+		vanguardToken := make([]byte, 8)
+		rand.Read(vanguardToken)
+		vanguardHash := common.BytesToHash(vanguardToken)
+
+		require.NoError(t, orchestratorDB.SaveLatestVerifiedRealmSlot(1))
+
+		// Vanguard is having more than pandora
+		//require.NoError(t, orchestratorDB.SavePandoraHeaderHash(5, &types.HeaderHash{
+		//	HeaderHash: pandoraHash,
+		//	Status:     types.Pending,
+		//}))
+
+		require.NoError(t, orchestratorDB.SaveVanguardHeaderHash(5, &types.HeaderHash{
+			HeaderHash: vanguardHash,
+			Status:     types.Pending,
+		}))
+
+		require.NoError(t, orchestratorDB.SaveVanguardHeaderHash(6, &types.HeaderHash{
+			HeaderHash: vanguardHash,
+			Status:     types.Pending,
+		}))
+
+		require.NoError(t, orchestratorDB.SaveVanguardHeaderHash(7, &types.HeaderHash{
+			HeaderHash: vanguardHash,
+			Status:     types.Pending,
+		}))
+
+		logrus.SetLevel(logrus.TraceLevel)
+		hook := logTest.NewGlobal()
+
+		vanguardErr, pandoraErr, realmErr := service.Canonicalize(1, 50)
+		require.NoError(t, vanguardErr)
+		require.NoError(t, pandoraErr)
+		require.NoError(t, realmErr)
+
+		require.LogsContain(t, hook, "Not enough blocks to start invalidation")
+
+		//headerHash, err := orchestratorDB.VanguardHeaderHash(5)
+		//require.NoError(t, err)
+		//require.Equal(t, types.Verified, headerHash.Status)
+		//require.Equal(t, vanguardHash, headerHash.HeaderHash)
+		//
+		//headerHash, err = orchestratorDB.PandoraHeaderHash(5)
+		//require.NoError(t, err)
+		//require.Equal(t, types.Verified, headerHash.Status)
+		//require.Equal(t, pandoraHash, headerHash.HeaderHash)
+		//
+		//realmSlot := orchestratorDB.LatestVerifiedRealmSlot()
+		//require.Equal(t, uint64(5), realmSlot)
 		require.NoError(t, orchestratorDB.Close())
 	})
 

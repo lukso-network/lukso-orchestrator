@@ -130,8 +130,6 @@ func (service *Service) Canonicalize(
 	vanguardHashDB := service.VanguardHeaderHashDB
 	pandoraHeaderHashDB := service.PandoraHeaderHashDB
 	realmDB := service.RealmDB
-
-	skipChan := make(chan bool)
 	errChan := service.errChan
 
 	// Short circuit, do not invalidate when databases are not present.
@@ -149,10 +147,6 @@ func (service *Service) Canonicalize(
 		log.Info("I stop Invalidation")
 
 		return
-	case shouldSkip := <-skipChan:
-		if shouldSkip {
-			return
-		}
 	case databaseErrorList := <-errChan:
 		vanguardErr = databaseErrorList.vanguardErr
 		pandoraErr = databaseErrorList.pandoraErr
@@ -164,16 +158,20 @@ func (service *Service) Canonicalize(
 		// Any other should be treated as pending
 		// When Sharding info comes we can determine slashing and Invalid state
 		// SIDE NOTE: This is invalid, when a lot of blocks were just simply not present yet due to the network traffic
-		invokeInvalidation(
+		err := invokeInvalidation(
 			vanguardHashDB,
 			pandoraHeaderHashDB,
 			realmDB,
 			fromSlot,
 			batchLimit,
-			skipChan,
 			errChan,
 			service.invalidationWorkPayloadChan,
 		)
+
+		if nil != err {
+			return
+		}
+
 		work := <-service.invalidationWorkPayloadChan
 		handlePreparedWork(vanguardHashDB, pandoraHeaderHashDB, realmDB, work, errChan)
 	}
@@ -286,10 +284,9 @@ func invokeInvalidation(
 	realmDB db.RealmDB,
 	fromSlot uint64,
 	batchLimit uint64,
-	skipChan chan bool,
 	databaseErrorsChan chan databaseErrors,
 	invalidationWorkPayloadChan chan *invalidationWorkPayload,
-) {
+) (err error) {
 	possibleSkippedPair := make([]*events.RealmPair, 0)
 	latestSavedVerifiedRealmSlot := realmDB.LatestVerifiedRealmSlot()
 	invalidationStartRealmSlot := latestSavedVerifiedRealmSlot
@@ -333,7 +330,8 @@ func invokeInvalidation(
 		log.WithField("pandoraRange", pandoraRange).WithField("vanguardRange", vanguardRange).
 			Trace("Not enough blocks to start invalidation")
 
-		skipChan <- true
+		err = fmt.Errorf("not enough blocks to start invalidation")
+		databaseErrorsChan <- databaseErrors{realmErr: fmt.Errorf("not enough blocks to start invalidation")}
 
 		return
 	}
