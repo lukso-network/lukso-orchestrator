@@ -35,11 +35,7 @@ func (s *Store) PandoraHeaderHash(slot uint64) (*types.HeaderHash, error) {
 }
 
 // PanHeaders
-func (s *Store) PandoraHeaderHashes(fromSlot uint64) ([]*types.HeaderHash, error) {
-	// when requested epoch is greater than stored latest epoch
-	if fromSlot > s.latestPanSlot {
-		return nil, errors.Wrap(InvalidSlot, fmt.Sprintf("Got invalid fromSlot: %d", fromSlot))
-	}
+func (s *Store) PandoraHeaderHashes(fromSlot uint64, limit uint64) ([]*types.HeaderHash, error) {
 	pandoraHeaderHashes := make([]*types.HeaderHash, 0)
 	err := s.db.View(func(tx *bolt.Tx) error {
 		for slot := fromSlot; slot <= s.latestPanSlot; slot++ {
@@ -49,6 +45,10 @@ func (s *Store) PandoraHeaderHashes(fromSlot uint64) ([]*types.HeaderHash, error
 				return errors.Wrap(PandoraHeaderNotFoundErr, fmt.Sprintf("Could not found pandora header for slot: %d", slot))
 			}
 			pandoraHeaderHashes = append(pandoraHeaderHashes, headerHash)
+
+			if len(pandoraHeaderHashes) >= int(limit) {
+				break
+			}
 		}
 		return nil
 	})
@@ -61,6 +61,9 @@ func (s *Store) PandoraHeaderHashes(fromSlot uint64) ([]*types.HeaderHash, error
 
 // SavePanHeader
 func (s *Store) SavePandoraHeaderHash(slot uint64, headerHash *types.HeaderHash) error {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
+
 	return s.db.Update(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(pandoraHeaderHashesBucket)
 		if status := s.panHeaderCache.Set(latestSavedPanHeaderHashKey, headerHash, 0); !status {
@@ -84,6 +87,9 @@ func (s *Store) SavePandoraHeaderHash(slot uint64, headerHash *types.HeaderHash)
 
 // SaveLatestPanSlot
 func (s *Store) SaveLatestPandoraSlot() error {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
+
 	return s.db.Update(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(pandoraHeaderHashesBucket)
 		val := bytesutil.Uint64ToBytesBigEndian(s.latestPanSlot)
@@ -117,6 +123,9 @@ func (s *Store) LatestSavedPandoraSlot() uint64 {
 
 // SaveLatestPandoraHeaderHash
 func (s *Store) SaveLatestPandoraHeaderHash() error {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
+
 	return s.db.Update(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(pandoraHeaderHashesBucket)
 		val := s.latestPanHeaderHash.Bytes()

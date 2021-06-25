@@ -28,6 +28,15 @@ func (s *Service) OnNewPendingVanguardBlock(ctx context.Context, block *eth.Beac
 		return
 	}
 
+	latestRealmVerifiedSlot := s.orchestratorDB.LatestVerifiedRealmSlot()
+
+	if uint64(block.Slot) < latestRealmVerifiedSlot {
+		log.WithField("extraData", block.Slot).
+			WithField("latestRealmVerifiedSlot", latestRealmVerifiedSlot).Error("reorgs not supported")
+
+		return
+	}
+
 	blockHash, err := block.HashTreeRoot()
 
 	if nil != err {
@@ -51,5 +60,7 @@ func (s *Service) OnNewPendingVanguardBlock(ctx context.Context, block *eth.Beac
 		return
 	}
 
-	log.WithField("blockHash", headerHash).Trace("Successfully inserted vanguard block to db")
+	log.WithField("blockHash", headerHash).
+		WithField("slot", block.Slot).
+		Trace("Successfully inserted vanguard block to db")
 }

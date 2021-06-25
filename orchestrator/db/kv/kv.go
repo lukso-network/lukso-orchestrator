@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"os"
 	"path"
+	"sync"
 	"time"
 )
 
@@ -46,6 +47,8 @@ type Store struct {
 	latestPanHeaderHash common.Hash
 	latestVanSlot       uint64
 	latestVanHash       common.Hash
+	// There should be mutex in store
+	sync.Mutex
 }
 
 // NewKVStore initializes a new boltDB key-value store at the directory
@@ -120,6 +123,7 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 			consensusInfosBucket,
 			pandoraHeaderHashesBucket,
 			vanguardHeaderHashesBucket,
+			realmBucket,
 		)
 	}); err != nil {
 		return nil, err

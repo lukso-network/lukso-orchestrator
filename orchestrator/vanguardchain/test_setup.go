@@ -180,7 +180,7 @@ func SetupVanguardSvc(
 	t *testing.T,
 	dialGRPCFn DIALGRPCFn,
 ) (*Service, *mocks) {
-	level, err := logrus.ParseLevel("debug")
+	level, err := logrus.ParseLevel("trace")
 	assert.NoError(t, err)
 	logrus.SetLevel(level)
 

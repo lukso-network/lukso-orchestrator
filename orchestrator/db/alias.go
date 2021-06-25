@@ -14,4 +14,8 @@ type PandoraHeaderHashDB = iface.PanHeaderAccessDatabase
 
 type ROnlyPanHeaderHashDB = iface.ReadOnlyPanHeaderAccessDatabase
 
+type ROnlyRealmDB = iface.RealmReadOnlyAccessDatabase
+
+type RealmDB = iface.RealmAccessDatabase
+
 type Database = iface.Database

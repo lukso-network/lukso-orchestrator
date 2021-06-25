@@ -2,6 +2,7 @@ package pandorachain
 
 import (
 	"context"
+	"fmt"
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
@@ -14,6 +15,17 @@ func (s *Service) OnNewPendingHeader(ctx context.Context, header *eth1Types.Head
 	var panExtraDataWithSig types.PanExtraDataWithBLSSig
 	if err := rlp.DecodeBytes(header.Extra, &panExtraDataWithSig); err != nil {
 		log.WithError(err).Error("Failed to decode extra data fields")
+		return err
+	}
+
+	// Catch for possible reorg
+	latestRealmVerifiedSlot := s.db.LatestVerifiedRealmSlot()
+
+	if latestRealmVerifiedSlot > panExtraDataWithSig.Slot {
+		err := fmt.Errorf("reorgs not supported")
+		log.WithField("extraData", panExtraDataWithSig.Slot).
+			WithField("latestRealmVerifiedSlot", latestRealmVerifiedSlot).Error(err.Error())
+
 		return err
 	}
 
@@ -31,6 +43,10 @@ func (s *Service) OnNewPendingHeader(ctx context.Context, header *eth1Types.Head
 		return err
 	}
 
-	// TODO - Need to send slot and header to consensus package to confirm the header.
+	log.WithField("headerHash", pandoraHeaderHash).
+		WithField("slot", panExtraDataWithSig.Slot).Trace("Successfully inserted pandora hash to db")
+
+	s.pendingWorkChannel <- pandoraHeaderHash
+
 	return nil
 }

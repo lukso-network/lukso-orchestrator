@@ -74,6 +74,9 @@ func (s *Store) SaveConsensusInfo(
 	ctx context.Context,
 	consensusInfo *eventTypes.MinimalEpochConsensusInfo,
 ) error {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
+
 	// storing consensus info into cache and db
 	return s.db.Update(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(consensusInfosBucket)
@@ -118,6 +121,9 @@ func (s *Store) LatestSavedEpoch() uint64 {
 
 // SaveLatestEpoch
 func (s *Store) SaveLatestEpoch(ctx context.Context) error {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
+
 	// storing latest epoch number into db
 	return s.db.Update(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(consensusInfosBucket)

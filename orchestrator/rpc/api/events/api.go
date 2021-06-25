@@ -2,31 +2,32 @@ package events
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
-	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/db/kv"
+	generalTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
 	"time"
 )
 
 type Backend interface {
 	CurrentEpoch() uint64
-	ConsensusInfoByEpochRange(fromEpoch uint64) []*eventTypes.MinimalEpochConsensusInfo
-	SubscribeNewEpochEvent(chan<- *eventTypes.MinimalEpochConsensusInfo) event.Subscription
+	ConsensusInfoByEpochRange(fromEpoch uint64) []*generalTypes.MinimalEpochConsensusInfo
+	SubscribeNewEpochEvent(chan<- *generalTypes.MinimalEpochConsensusInfo) event.Subscription
+	FetchPanBlockStatus(slot uint64, hash common.Hash) (status Status, err error)
+	FetchVanBlockStatus(slot uint64, hash common.Hash) (status Status, err error)
+	GetPendingHashes() (response *PendingHashesResponse, err error)
 }
 
-type Status int
+type Status string
 
 const (
-	Pending Status = iota
-	Verified
-	Invalid
-)
-
-const (
-	MockedHashInvalid = "0xc9a190eb52c18df5ffcb1d817214ecb08f025f8583805cd12064d30e3f9bd9d5"
-	MockedHashPending = "0xa99c69a301564970956edd897ff0590f4c0f1031daa464ded655af65ad0906df"
+	Pending  Status = "Pending"
+	Verified Status = "Verified"
+	Invalid  Status = "Invalid"
+	Skipped  Status = "Skipped"
 )
 
 // PublicFilterAPI offers support to create and manage filters. This will allow external clients to retrieve various
@@ -38,13 +39,40 @@ type PublicFilterAPI struct {
 }
 
 type BlockHash struct {
-	Slot uint64
-	Hash common.Hash
+	Slot uint64      `json:"slot"`
+	Hash common.Hash `json:"hash"`
 }
 
 type BlockStatus struct {
 	BlockHash
 	Status Status
+}
+
+type RealmPair struct {
+	Slot          uint64
+	VanguardHash  *generalTypes.HeaderHash
+	PandoraHashes []*generalTypes.HeaderHash
+}
+
+// TODO: consider it to merge into only string-based statuses
+func FromDBStatus(status generalTypes.Status) (eventStatus Status) {
+	if generalTypes.Pending == status {
+		eventStatus = Pending
+	}
+
+	if generalTypes.Verified == status {
+		eventStatus = Verified
+	}
+
+	if generalTypes.Invalid == status {
+		eventStatus = Invalid
+	}
+
+	if generalTypes.Skipped == status {
+		eventStatus = Skipped
+	}
+
+	return
 }
 
 // NewPublicFilterAPI returns a new PublicFilterAPI instance.
@@ -58,7 +86,21 @@ func NewPublicFilterAPI(backend Backend, timeout time.Duration) *PublicFilterAPI
 	return api
 }
 
-// ConfirmPanBlockHashes
+// This is for debug purpose only
+type PendingHashesResponse struct {
+	VanguardHashes    []*generalTypes.HeaderHash
+	PandoraHashes     []*generalTypes.HeaderHash
+	VanguardHashesLen int64
+	PandoraHashesLen  int64
+	UnixTime          int64
+}
+
+// GetPendingHashes This is only for debug purpose
+func (api *PublicFilterAPI) GetPendingHashes() (response *PendingHashesResponse, err error) {
+	return api.backend.GetPendingHashes()
+}
+
+// ConfirmPanBlockHashes should be used to get the confirmation about known state of Pandora block hashes
 func (api *PublicFilterAPI) ConfirmPanBlockHashes(
 	ctx context.Context,
 	request []*BlockHash,
@@ -72,34 +114,48 @@ func (api *PublicFilterAPI) ConfirmPanBlockHashes(
 	response = make([]*BlockStatus, 0)
 
 	for _, blockRequest := range request {
-		status := Verified
+		status, currentErr := api.backend.FetchPanBlockStatus(blockRequest.Slot, blockRequest.Hash)
+		hash := blockRequest.Hash
 
-		if MockedHashInvalid == blockRequest.Hash.String() {
-			status = Invalid
+		if nil != currentErr {
+			log.Errorf("Invalid block in ConfirmPanBlockHashes: %v", err)
+			response = nil
+			err = currentErr
+
+			return
 		}
 
-		if MockedHashPending == blockRequest.Hash.String() {
-			status = Pending
+		if Skipped == status {
+			hash = kv.EmptyHash
 		}
 
 		response = append(response, &BlockStatus{
 			BlockHash: BlockHash{
 				Slot: blockRequest.Slot,
-				Hash: blockRequest.Hash,
+				Hash: hash,
 			},
 			Status: status,
 		})
 	}
 
+	respBytes, err := json.Marshal(response)
+
+	if nil != err {
+		log.WithField("err", err).Error("error unmarshaling response inConfirmVanBlockHashes")
+
+		return
+	}
+
 	log.WithField("method", "ConfirmPanBlockHashes").
 		WithField("request", request).
 		WithField("response", response).
+		WithField("jsonResponse", string(respBytes)).
 		Info("Sending back ConfirmPanBlockHashes response")
 
 	return
 }
 
-// ConfirmVanBlockHashes
+// ConfirmVanBlockHashes should be used to get the confirmation about known state of Vanguard block hashes
 func (api *PublicFilterAPI) ConfirmVanBlockHashes(
 	ctx context.Context,
 	request []*BlockHash,
@@ -113,28 +169,42 @@ func (api *PublicFilterAPI) ConfirmVanBlockHashes(
 	response = make([]*BlockStatus, 0)
 
 	for _, blockRequest := range request {
-		status := Verified
+		status, currentErr := api.backend.FetchVanBlockStatus(blockRequest.Slot, blockRequest.Hash)
+		hash := blockRequest.Hash
 
-		if MockedHashInvalid == blockRequest.Hash.String() {
-			status = Invalid
+		if nil != currentErr {
+			log.Errorf("Invalid block in ConfirmVanBlockHashes: %v", err)
+			response = nil
+			err = currentErr
+
+			return
 		}
 
-		if MockedHashPending == blockRequest.Hash.String() {
-			status = Pending
+		if Skipped == status {
+			hash = kv.EmptyHash
 		}
 
 		response = append(response, &BlockStatus{
 			BlockHash: BlockHash{
 				Slot: blockRequest.Slot,
-				Hash: blockRequest.Hash,
+				Hash: hash,
 			},
 			Status: status,
 		})
 	}
 
+	respBytes, err := json.Marshal(response)
+
+	if nil != err {
+		log.WithField("err", err).Error("error unmarshaling response inConfirmVanBlockHashes")
+
+		return
+	}
+
 	log.WithField("method", "ConfirmVanBlockHashes").
 		WithField("request", request).
 		WithField("response", response).
+		WithField("jsonResponse", string(respBytes)).
 		Info("Sending back ConfirmVanBlockHashes response")
 
 	return
@@ -152,10 +222,10 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, epoch uint
 	alreadyKnownEpochs := api.backend.ConsensusInfoByEpochRange(epoch)
 
 	// TODO: Consider change. This is due to the mismatch on slot 0 on pandora and vanguard
-	timeMismatch := time.Second * 6
+	timeMismatch := time.Second * 3
 
 	go func() {
-		consensusInfo := make(chan *eventTypes.MinimalEpochConsensusInfo)
+		consensusInfo := make(chan *generalTypes.MinimalEpochConsensusInfo)
 		consensusInfoSub := api.events.SubscribeConsensusInfo(consensusInfo, epoch)
 		log.WithField("fromEpoch", epoch).
 			WithField("alreadyKnown", alreadyKnownEpochs).
@@ -168,12 +238,17 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, epoch uint
 
 		for index, currentEpoch := range alreadyKnownEpochs {
 			// TODO: Remove it ASAP. This should not be that way
-			currentEpoch.EpochStartTime = currentEpoch.EpochStartTime - uint64(timeMismatch.Seconds())
+			differ := currentEpoch.EpochStartTime - uint64(timeMismatch.Seconds())
 
 			log.WithField("epoch", index).
 				WithField("epochStartTime", currentEpoch.EpochStartTime).
 				Info("sending already known consensus info to subscriber")
-			err := notifier.Notify(rpcSub.ID, currentEpoch)
+			err := notifier.Notify(rpcSub.ID, &generalTypes.MinimalEpochConsensusInfo{
+				Epoch:            currentEpoch.Epoch,
+				ValidatorList:    currentEpoch.ValidatorList,
+				EpochStartTime:   differ,
+				SlotTimeDuration: currentEpoch.SlotTimeDuration,
+			})
 
 			if nil != err {
 				log.WithField("context", "already known epochs notification failure").Error(err)
@@ -184,9 +259,14 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, epoch uint
 			select {
 			case currentEpoch := <-consensusInfo:
 				// TODO: Remove it asap
-				currentEpoch.EpochStartTime = currentEpoch.EpochStartTime - uint64(timeMismatch.Seconds())
+				differ := currentEpoch.EpochStartTime - uint64(timeMismatch.Seconds())
 				log.WithField("epoch", currentEpoch.Epoch).Info("sending consensus info to subscriber")
-				err := notifier.Notify(rpcSub.ID, currentEpoch)
+				err := notifier.Notify(rpcSub.ID, &generalTypes.MinimalEpochConsensusInfo{
+					Epoch:            currentEpoch.Epoch,
+					ValidatorList:    currentEpoch.ValidatorList,
+					EpochStartTime:   differ,
+					SlotTimeDuration: currentEpoch.SlotTimeDuration,
+				})
 
 				if nil != err {
 					log.WithField("context", "error during epoch send").Error(err)

@@ -1,0 +1,266 @@
+package api
+
+import (
+	"github.com/ethereum/go-ethereum/common"
+	testDB "github.com/lukso-network/lukso-orchestrator/orchestrator/db/testing"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
+	"github.com/lukso-network/lukso-orchestrator/shared/types"
+	"github.com/stretchr/testify/require"
+	"math/rand"
+	"testing"
+)
+
+func TestBackend_FetchPanBlockStatus(t *testing.T) {
+	t.Run("should return error when no database is present", func(t *testing.T) {
+		backend := Backend{}
+		status, err := backend.FetchPanBlockStatus(0, common.Hash{})
+		require.Error(t, err)
+		require.Equal(t, events.Invalid, status)
+	})
+
+	t.Run("should return skipped with any hash", func(t *testing.T) {
+		orchestratorDB := testDB.SetupDB(t)
+		backend := Backend{
+			PandoraHeaderHashDB: orchestratorDB,
+			RealmDB:             orchestratorDB,
+		}
+
+		require.NoError(t, orchestratorDB.SavePandoraHeaderHash(1, &types.HeaderHash{
+			HeaderHash: common.Hash{},
+			Status:     types.Skipped,
+		}))
+
+		require.NoError(t, orchestratorDB.SaveLatestPandoraSlot())
+		require.NoError(t, orchestratorDB.SaveLatestPandoraHeaderHash())
+		require.NoError(t, orchestratorDB.SaveLatestVerifiedRealmSlot(1))
+
+		status, err := backend.FetchPanBlockStatus(1, common.Hash{})
+		require.NoError(t, err)
+
+		require.Equal(t, events.Skipped, status)
+
+		status, err = backend.FetchPanBlockStatus(
+			1,
+			common.HexToHash("0x8040da14e5c49a5ca64802844c5aa7248e78eecf104ac8f4c3176226ced06116"),
+		)
+		require.NoError(t, err)
+	})
+
+	t.Run("should return pending, if slot is higher than known slot", func(t *testing.T) {
+		orchestratorDB := testDB.SetupDB(t)
+		backend := Backend{
+			PandoraHeaderHashDB: orchestratorDB,
+			RealmDB:             orchestratorDB,
+		}
+
+		require.NoError(t, orchestratorDB.SavePandoraHeaderHash(1, &types.HeaderHash{
+			HeaderHash: common.Hash{},
+			Status:     types.Pending,
+		}))
+
+		require.NoError(t, orchestratorDB.SaveLatestPandoraSlot())
+		require.NoError(t, orchestratorDB.SaveLatestPandoraHeaderHash())
+
+		status, err := backend.FetchPanBlockStatus(2, common.Hash{})
+		require.NoError(t, err)
+
+		require.Equal(t, events.Pending, status)
+	})
+
+	t.Run("should return invalid when hash does not match", func(t *testing.T) {
+		orchestratorDB := testDB.SetupDB(t)
+		backend := Backend{
+			PandoraHeaderHashDB: orchestratorDB,
+			RealmDB:             orchestratorDB,
+		}
+
+		token := make([]byte, 4)
+		rand.Read(token)
+		properHash := common.BytesToHash(token)
+
+		invalidToken := make([]byte, 8)
+		rand.Read(invalidToken)
+		invalidHash := common.BytesToHash(invalidToken)
+
+		require.NoError(t, orchestratorDB.SavePandoraHeaderHash(1, &types.HeaderHash{
+			HeaderHash: properHash,
+			Status:     types.Pending,
+		}))
+
+		require.NoError(t, orchestratorDB.SaveLatestPandoraSlot())
+		require.NoError(t, orchestratorDB.SaveLatestPandoraHeaderHash())
+		require.NoError(t, orchestratorDB.SaveLatestVerifiedRealmSlot(1))
+
+		status, err := backend.FetchPanBlockStatus(1, invalidHash)
+		require.Error(t, err)
+		require.Equal(t, events.Invalid, status)
+	})
+
+	t.Run("should return state when present in database", func(t *testing.T) {
+		orchestratorDB := testDB.SetupDB(t)
+		backend := Backend{
+			PandoraHeaderHashDB: orchestratorDB,
+			RealmDB:             orchestratorDB,
+		}
+
+		token := make([]byte, 4)
+		rand.Read(token)
+		properHash := common.BytesToHash(token)
+		properHeaderHash := &types.HeaderHash{
+			HeaderHash: properHash,
+			Status:     types.Verified,
+		}
+
+		nextToken := make([]byte, 8)
+		rand.Read(nextToken)
+		nextHash := common.BytesToHash(nextToken)
+		nextProperHeaderHash := &types.HeaderHash{
+			HeaderHash: nextHash,
+			Status:     types.Pending,
+		}
+
+		require.NoError(t, orchestratorDB.SavePandoraHeaderHash(1, properHeaderHash))
+
+		require.NoError(t, orchestratorDB.SavePandoraHeaderHash(2, nextProperHeaderHash))
+
+		require.NoError(t, orchestratorDB.SaveLatestPandoraSlot())
+		require.NoError(t, orchestratorDB.SaveLatestPandoraHeaderHash())
+		require.NoError(t, orchestratorDB.SaveLatestVerifiedRealmSlot(1))
+
+		status, err := backend.FetchPanBlockStatus(1, properHash)
+		require.NoError(t, err)
+		require.Equal(t, events.Verified, status)
+
+		status, err = backend.FetchPanBlockStatus(2, nextHash)
+		require.NoError(t, err)
+		require.Equal(t, events.Pending, status)
+	})
+}
+
+func TestBackend_FetchVanBlockStatus(t *testing.T) {
+	t.Run("should return error when no database is present", func(t *testing.T) {
+		backend := Backend{}
+		status, err := backend.FetchVanBlockStatus(0, common.Hash{})
+		require.Error(t, err)
+		require.Equal(t, events.Invalid, status)
+	})
+
+	t.Run("should return skipped with any hash", func(t *testing.T) {
+		orchestratorDB := testDB.SetupDB(t)
+		backend := Backend{
+			VanguardHeaderHashDB: orchestratorDB,
+			RealmDB:              orchestratorDB,
+		}
+
+		require.NoError(t, orchestratorDB.SaveVanguardHeaderHash(1, &types.HeaderHash{
+			HeaderHash: common.Hash{},
+			Status:     types.Skipped,
+		}))
+
+		require.NoError(t, orchestratorDB.SaveLatestVanguardSlot())
+		require.NoError(t, orchestratorDB.SaveLatestVanguardHeaderHash())
+		require.NoError(t, orchestratorDB.SaveLatestVerifiedRealmSlot(orchestratorDB.LatestSavedVanguardSlot()))
+
+		status, err := backend.FetchVanBlockStatus(1, common.Hash{})
+		require.NoError(t, err)
+
+		require.Equal(t, events.Skipped, status)
+
+		status, err = backend.FetchVanBlockStatus(
+			1,
+			common.HexToHash("0x8040da14e5c49a5ca64802844c5aa7248e78eecf104ac8f4c3176226ced06116"),
+		)
+		require.NoError(t, err)
+	})
+
+	t.Run("should return pending, if slot is higher than known slot", func(t *testing.T) {
+		orchestratorDB := testDB.SetupDB(t)
+		backend := Backend{
+			VanguardHeaderHashDB: orchestratorDB,
+			RealmDB:              orchestratorDB,
+		}
+
+		require.NoError(t, orchestratorDB.SaveVanguardHeaderHash(1, &types.HeaderHash{
+			HeaderHash: common.Hash{},
+			Status:     types.Pending,
+		}))
+
+		require.NoError(t, orchestratorDB.SaveLatestVanguardSlot())
+		require.NoError(t, orchestratorDB.SaveLatestVanguardHeaderHash())
+		require.NoError(t, orchestratorDB.SaveLatestVerifiedRealmSlot(orchestratorDB.LatestSavedVanguardSlot()))
+
+		status, err := backend.FetchVanBlockStatus(2, common.Hash{})
+		require.NoError(t, err)
+
+		require.Equal(t, events.Pending, status)
+	})
+
+	t.Run("should return invalid when hash does not match", func(t *testing.T) {
+		orchestratorDB := testDB.SetupDB(t)
+		backend := Backend{
+			VanguardHeaderHashDB: orchestratorDB,
+			RealmDB:              orchestratorDB,
+		}
+
+		token := make([]byte, 4)
+		rand.Read(token)
+		properHash := common.BytesToHash(token)
+
+		invalidToken := make([]byte, 8)
+		rand.Read(invalidToken)
+		invalidHash := common.BytesToHash(invalidToken)
+
+		require.NoError(t, orchestratorDB.SaveVanguardHeaderHash(1, &types.HeaderHash{
+			HeaderHash: properHash,
+			Status:     types.Pending,
+		}))
+
+		require.NoError(t, orchestratorDB.SaveLatestVanguardSlot())
+		require.NoError(t, orchestratorDB.SaveLatestVanguardHeaderHash())
+		require.NoError(t, orchestratorDB.SaveLatestVerifiedRealmSlot(orchestratorDB.LatestSavedVanguardSlot()))
+
+		status, err := backend.FetchVanBlockStatus(1, invalidHash)
+		require.Error(t, err)
+		require.Equal(t, events.Invalid, status)
+	})
+
+	t.Run("should return state when present in database", func(t *testing.T) {
+		orchestratorDB := testDB.SetupDB(t)
+		backend := Backend{
+			VanguardHeaderHashDB: orchestratorDB,
+			RealmDB:              orchestratorDB,
+		}
+
+		token := make([]byte, 4)
+		rand.Read(token)
+		properHash := common.BytesToHash(token)
+		properHeaderHash := &types.HeaderHash{
+			HeaderHash: properHash,
+			Status:     types.Verified,
+		}
+
+		nextToken := make([]byte, 8)
+		rand.Read(nextToken)
+		nextHash := common.BytesToHash(nextToken)
+		nextProperHeaderHash := &types.HeaderHash{
+			HeaderHash: nextHash,
+			Status:     types.Pending,
+		}
+
+		require.NoError(t, orchestratorDB.SaveVanguardHeaderHash(1, properHeaderHash))
+
+		require.NoError(t, orchestratorDB.SaveVanguardHeaderHash(2, nextProperHeaderHash))
+
+		require.NoError(t, orchestratorDB.SaveLatestVanguardSlot())
+		require.NoError(t, orchestratorDB.SaveLatestVanguardHeaderHash())
+		require.NoError(t, orchestratorDB.SaveLatestVerifiedRealmSlot(orchestratorDB.LatestSavedVanguardSlot()))
+
+		status, err := backend.FetchVanBlockStatus(1, properHash)
+		require.NoError(t, err)
+		require.Equal(t, events.Verified, status)
+
+		status, err = backend.FetchVanBlockStatus(2, nextHash)
+		require.NoError(t, err)
+		require.Equal(t, events.Pending, status)
+	})
+}

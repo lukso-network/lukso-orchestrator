@@ -25,7 +25,7 @@ func setup(t *testing.T) (*Config, error) {
 
 	return &Config{
 		ConsensusInfoFeed: consensusInfoFeed,
-		ConsensusInfoDB:   orchestratorDB,
+		Db:                orchestratorDB,
 		IPCPath:           cmd.DefaultIpcPath,
 		HTTPEnable:        true,
 		HTTPHost:          cmd.DefaultHTTPHost,

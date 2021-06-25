@@ -26,7 +26,7 @@ func (s *Store) LatestSavedVanguardHeaderHash() (hash common.Hash) {
 			// not found the latest block number in db. so latest block number will be zero
 			if latestHeaderHashBytes == nil {
 				hash = EmptyHash
-				log.Trace("Latest header hash could not find in db. It may happen for brand new DB")
+				log.Trace("Latest vanguard header hash could not find in db. It may happen for brand new DB")
 				return nil
 			}
 			hash = common.BytesToHash(latestHeaderHashBytes)
@@ -77,23 +77,22 @@ func (s *Store) VanguardHeaderHash(slot uint64) (headerHash *types.HeaderHash, e
 	return
 }
 
-func (s *Store) VanguardHeaderHashes(fromSlot uint64) (vanguardHeaderHashes []*types.HeaderHash, err error) {
-	// when requested epoch is greater than stored latest epoch
-	if fromSlot > s.latestVanSlot {
-		return nil, errors.Wrap(InvalidSlot, fmt.Sprintf(
-			"Got invalid fromSlot: %d, latestVanSlot: %d",
-			fromSlot,
-			s.latestVanSlot,
-		))
-	}
+func (s *Store) VanguardHeaderHashes(fromSlot uint64, limit uint64) (vanguardHeaderHashes []*types.HeaderHash, err error) {
 	err = s.db.View(func(tx *bolt.Tx) error {
 		for slot := fromSlot; slot <= s.latestVanSlot; slot++ {
 			// fast finding into cache, if the value does not exist in cache, it starts finding into db
 			headerHash, err := s.VanguardHeaderHash(slot)
 			if err != nil {
-				return errors.Wrap(VanguardHeaderNotFoundErr, fmt.Sprintf("Could not found pandora header for slot: %d", slot))
+				return errors.Wrap(
+					VanguardHeaderNotFoundErr,
+					fmt.Sprintf("Could not found pandora header for slot: %d", slot),
+				)
 			}
 			vanguardHeaderHashes = append(vanguardHeaderHashes, headerHash)
+
+			if len(vanguardHeaderHashes) >= int(limit) {
+				break
+			}
 		}
 		return nil
 	})
@@ -105,6 +104,9 @@ func (s *Store) VanguardHeaderHashes(fromSlot uint64) (vanguardHeaderHashes []*t
 }
 
 func (s *Store) SaveVanguardHeaderHash(slot uint64, headerHash *types.HeaderHash) (err error) {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
+
 	err = s.db.Update(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(vanguardHeaderHashesBucket)
 		if status := s.vanHeaderCache.Set(latestSavedVanHashKey, headerHash, 0); !status {
@@ -129,6 +131,9 @@ func (s *Store) SaveVanguardHeaderHash(slot uint64, headerHash *types.HeaderHash
 }
 
 func (s *Store) SaveLatestVanguardSlot() (err error) {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
+
 	err = s.db.Update(func(tx *bolt.Tx) (dbErr error) {
 		bkt := tx.Bucket(vanguardHeaderHashesBucket)
 		val := bytesutil.Uint64ToBytesBigEndian(s.latestVanSlot)
@@ -141,6 +146,9 @@ func (s *Store) SaveLatestVanguardSlot() (err error) {
 }
 
 func (s *Store) SaveLatestVanguardHeaderHash() (err error) {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
+
 	err = s.db.Update(func(tx *bolt.Tx) (dbErr error) {
 		bkt := tx.Bucket(vanguardHeaderHashesBucket)
 		val := s.latestVanHash.Bytes()

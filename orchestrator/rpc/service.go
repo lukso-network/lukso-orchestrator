@@ -14,7 +14,7 @@ import (
 // Config
 type Config struct {
 	ConsensusInfoFeed iface.ConsensusInfoFeed
-	ConsensusInfoDB   db.ROnlyConsensusInfoDB
+	Db                db.Database
 	// ipc config
 	IPCPath string
 	// http config
@@ -43,7 +43,7 @@ type Service struct {
 	runError       error
 	stop           chan struct{} // Channel to wait for termination notifications
 
-	backend       *api.APIBackend
+	backend       *api.Backend
 	config        *Config
 	rpcAPIs       []rpc.API   // List of APIs currently provided by the node
 	http          *httpServer //
@@ -63,9 +63,12 @@ func NewService(ctx context.Context, cfg *Config) (*Service, error) {
 		cancel:        cancel,
 		config:        cfg,
 		inprocHandler: rpc.NewServer(),
-		backend: &api.APIBackend{
-			ConsensusInfoFeed: cfg.ConsensusInfoFeed,
-			ConsensusInfoDB:   cfg.ConsensusInfoDB,
+		backend: &api.Backend{
+			ConsensusInfoFeed:    cfg.ConsensusInfoFeed,
+			ConsensusInfoDB:      cfg.Db,
+			VanguardHeaderHashDB: cfg.Db,
+			PandoraHeaderHashDB:  cfg.Db,
+			RealmDB:              cfg.Db,
 		},
 	}
 	// Configure RPC servers.
