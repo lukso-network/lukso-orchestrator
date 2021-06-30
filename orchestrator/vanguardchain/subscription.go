@@ -24,7 +24,7 @@ func (s *Service) subscribeVanNewPendingBlockHash(
 		for {
 			log.WithField("context", "awaiting to fetch vanBlock from stream").Trace("Got new block")
 			vanBlock, currentErr := stream.Recv()
-			log.WithField("block", vanBlock).Trace("Got new van block")
+			log.WithField("slot", vanBlock.Slot).Debug("Got new van block")
 
 			if nil != currentErr {
 				log.WithError(currentErr).Error("Failed to receive chain header")

@@ -17,7 +17,7 @@ func (s *Service) OnNewPendingHeader(ctx context.Context, header *eth1Types.Head
 		log.WithError(err).Error("Failed to decode extra data fields")
 		return err
 	}
-
+	log.WithField("slot", panExtraDataWithSig.Slot).Debug("Got new pan block")
 	// Catch for possible reorg
 	latestRealmVerifiedSlot := s.db.LatestVerifiedRealmSlot()
 
