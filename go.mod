@@ -40,4 +40,4 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
-replace github.com/prysmaticlabs/ethereumapis => github.com/lukso-network/vanguard-apis v0.0.1-alpha.0.20210625075520-ec2f01b55886
+replace github.com/prysmaticlabs/ethereumapis => github.com/lukso-network/vanguard-apis v0.0.1-alpha.0.20210519191023-19569d809edc
