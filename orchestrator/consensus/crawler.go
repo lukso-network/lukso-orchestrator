@@ -5,13 +5,15 @@ package consensus
 // Treat it more like gateway to commandBus or CQRS
 
 import (
+	"sync"
+	"time"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db/kv"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	log "github.com/sirupsen/logrus"
-	"sync"
 )
 
 type filteredVerifiedPairs struct {
@@ -146,6 +148,10 @@ func resolveVerifiedPairsBasedOnVanguard(
 
 		pandoraHeaderHash := pandoraHeaderHashes[index]
 
+		log.WithField("pandoraInfo", pandoraHeaderHash).
+			WithField("vanguardInfo", vanguardBlockHash).
+			WithField("timestamp", time.Now()).
+			WithField("slot number", slotToCheck).Debug("crawler decision")
 		// Potentially skipped slot
 		if nil == pandoraHeaderHash && nil == vanguardBlockHash {
 			possibleSkippedPairs = append(possibleSkippedPairs, &events.RealmPair{
@@ -161,6 +167,7 @@ func resolveVerifiedPairsBasedOnVanguard(
 		// In my opinion INVALID state is 100% accurate only with blockShard verification approach
 		// TODO: add additional Sharding info check VanguardBlock -> PandoraHeaderHash when implementation on vanguard side will be ready
 		if nil == pandoraHeaderHash {
+
 			vanguardHeaderHash := &types.HeaderHash{
 				HeaderHash: vanguardBlockHash.HeaderHash,
 				Status:     types.Pending,
