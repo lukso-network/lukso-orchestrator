@@ -2,13 +2,15 @@ package vanguardchain
 
 import (
 	"context"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
+	"sync"
+	"time"
+
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/client"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
-	"sync"
-	"time"
 )
 
 // time to wait before trying to reconnect with the vanguard node.
@@ -44,6 +46,9 @@ type Service struct {
 
 	// db support
 	orchestratorDB db.Database
+
+	// lru cache support
+	shardingInfoCache cache.VanguardShardCache
 }
 
 // NewService creates new service with vanguard endpoint, vanguard namespace and consensusInfoDB
@@ -51,6 +56,7 @@ func NewService(
 	ctx context.Context,
 	vanGRPCEndpoint string,
 	db db.Database,
+	cache cache.VanguardShardCache,
 	dialGRPCFn DIALGRPCFn,
 ) (*Service, error) {
 
@@ -63,6 +69,7 @@ func NewService(
 		dialGRPCFn:      dialGRPCFn,
 		conInfoSubErrCh: make(chan error),
 		orchestratorDB:  db,
+		shardingInfoCache: cache,
 	}, nil
 }
 

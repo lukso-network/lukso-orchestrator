@@ -3,6 +3,7 @@ package vanguardchain
 import (
 	"context"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
 	testDB "github.com/lukso-network/lukso-orchestrator/orchestrator/db/testing"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/client"
@@ -190,6 +191,7 @@ func SetupVanguardSvc(
 		ctx,
 		"127.0.0.1:4000",
 		db,
+		cache.NewVanShardInfoCache(1 << 10),
 		dialGRPCFn,
 	)
 	if err != nil {

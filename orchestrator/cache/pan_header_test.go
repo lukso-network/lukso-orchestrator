@@ -36,7 +36,7 @@ func Test_PandoraHeaderCache_Apis(t *testing.T) {
 
 // Test_PandoraHeaderCache_Size
 func Test_PandoraHeaderCache_Size(t *testing.T) {
-	maxPanHeaderCacheSize = 10
+	maxCacheSize = 10
 	pc := NewPanHeaderCache()
 	ctx := context.Background()
 	setup(100)

@@ -2,19 +2,11 @@ package cache
 
 import (
 	"context"
+	"sync"
+
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
-	"github.com/pkg/errors"
-	"sync"
-)
-
-var (
-	// maxPanHeaderCacheSize with 1024 consensus infos will be 1024 * 1.5kb.
-	maxPanHeaderCacheSize = 1 << 10
-
-	// errInvalidSlot
-	errInvalidSlot = errors.New("Invalid slot")
 )
 
 // PanHeaderCache
@@ -25,7 +17,7 @@ type PanHeaderCache struct {
 
 // NewPanHeaderCache initializes the map and underlying cache.
 func NewPanHeaderCache() *PanHeaderCache {
-	cache, err := lru.New(maxPanHeaderCacheSize)
+	cache, err := lru.New(maxCacheSize)
 	if err != nil {
 		panic(err)
 	}

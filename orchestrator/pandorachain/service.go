@@ -3,13 +3,14 @@ package pandorachain
 import (
 	"context"
 	"fmt"
+	"sync"
+	"time"
+
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
-	"sync"
-	"time"
 )
 
 // time to wait before trying to reconnect.

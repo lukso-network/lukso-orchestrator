@@ -43,6 +43,10 @@ type OrchestratorNode struct {
 
 	//kv database with cache
 	db db.Database
+
+	// lru caches
+	pandoraInfoCache *cache.PanHeaderCache
+	vanShardInfoCache *cache.VanShardingInfoCache
 }
 
 // New creates a new node instance, sets up configuration options, and registers
@@ -56,6 +60,8 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 		cancel:   cancel,
 		services: registry,
 		stop:     make(chan struct{}),
+		pandoraInfoCache: cache.NewPanHeaderCache(),
+		vanShardInfoCache: cache.NewVanShardInfoCache(1 << 10),
 	}
 
 	if err := orchestrator.startDB(orchestrator.cliCtx); err != nil {
@@ -137,6 +143,7 @@ func (o *OrchestratorNode) registerVanguardChainService(cliCtx *cli.Context) err
 		o.ctx,
 		vanguardGRPCUrl,
 		o.db,
+		o.vanShardInfoCache,
 		dialGRPCClient,
 	)
 	if err != nil {
@@ -157,8 +164,7 @@ func (o *OrchestratorNode) registerPandoraChainService(cliCtx *cli.Context) erro
 		return rpcClient, nil
 	}
 	namespace := "eth"
-	panCache := cache.NewPanHeaderCache()
-	svc, err := pandorachain.NewService(o.ctx, pandoraRPCUrl, namespace, o.db, panCache, dialRPCClient)
+	svc, err := pandorachain.NewService(o.ctx, pandoraRPCUrl, namespace, o.db, o.pandoraInfoCache, dialRPCClient)
 	if err != nil {
 		return nil
 	}

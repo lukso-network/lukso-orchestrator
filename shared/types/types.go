@@ -1,9 +1,10 @@
 package types
 
 import (
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
-	"math/big"
 )
 
 type Status int
@@ -26,6 +27,9 @@ type ExtraData struct {
 type HeaderHash struct {
 	HeaderHash common.Hash `json:"headerHash"`
 	Status     Status      `json:"status"`
+	// TODO: For temporary purpose we are using it. We need to change it while refactoring
+	Signature        []byte      `json:"signature,omitempty"`
+	PandoraShardHash common.Hash `json:"pandoraShardHash,omitempty"`
 }
 
 // CopyHeader creates a deep copy of a block header to prevent side effects from
