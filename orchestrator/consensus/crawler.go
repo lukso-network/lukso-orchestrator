@@ -12,6 +12,7 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	log "github.com/sirupsen/logrus"
 	"sync"
+	"time"
 )
 
 type filteredVerifiedPairs struct {
@@ -145,6 +146,11 @@ func resolveVerifiedPairsBasedOnVanguard(
 		}
 
 		pandoraHeaderHash := pandoraHeaderHashes[index]
+
+		log.WithField("pandoraInfo", pandoraHeaderHash).
+			WithField("vanguardInfo", vanguardBlockHash).
+			WithField("timestamp", time.Now()).
+			WithField("slot number", slotToCheck).Debug("crawler decision")
 
 		// Potentially skipped slot
 		if nil == pandoraHeaderHash && nil == vanguardBlockHash {
