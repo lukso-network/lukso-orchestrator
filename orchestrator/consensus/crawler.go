@@ -164,6 +164,13 @@ func resolveVerifiedPairsBasedOnVanguard(
 			vanguardHeaderHash := &types.HeaderHash{
 				HeaderHash: vanguardBlockHash.HeaderHash,
 				Status:     types.Pending,
+				// TODO: Will remove this after refactoring
+				ReceiptHash: vanguardBlockHash.ReceiptHash,
+				BlockNumber: vanguardBlockHash.BlockNumber,
+				Signature: vanguardBlockHash.Signature,
+				StateRoot: vanguardBlockHash.StateRoot,
+				TxHash: vanguardBlockHash.TxHash,
+				ParentHash: vanguardBlockHash.ParentHash,
 			}
 			vanguardOrphans[slotToCheck] = vanguardHeaderHash
 
@@ -174,27 +181,81 @@ func resolveVerifiedPairsBasedOnVanguard(
 			currentPandoraHeaderHash := &types.HeaderHash{
 				HeaderHash: pandoraHeaderHash.HeaderHash,
 				Status:     types.Pending,
+				// TODO: Will remove it when refactor the code
+				ReceiptHash: pandoraHeaderHash.ReceiptHash,
+				BlockNumber: pandoraHeaderHash.BlockNumber,
+				Signature: pandoraHeaderHash.Signature,
+				StateRoot: pandoraHeaderHash.StateRoot,
+				TxHash: pandoraHeaderHash.TxHash,
+				ParentHash: pandoraHeaderHash.ParentHash,
+
 			}
 			pandoraOrphans[slotToCheck] = currentPandoraHeaderHash
 
 			continue
 		}
 
-		// Here lays multiple shards handling logic
-		pandoraHashes := make([]*types.HeaderHash, 0)
-		pandoraHashes = append(pandoraHashes, &types.HeaderHash{
-			HeaderHash: pandoraHeaderHash.HeaderHash,
-			Status:     types.Verified,
-		})
-
-		validPairs = append(validPairs, &events.RealmPair{
-			Slot: slotToCheck,
-			VanguardHash: &types.HeaderHash{
-				HeaderHash: vanguardBlockHash.HeaderHash,
+		if CompareShardingInfo(pandoraHeaderHash, vanguardBlockHash) {
+			// Here lays multiple shards handling logic
+			pandoraHashes := make([]*types.HeaderHash, 0)
+			pandoraHashes = append(pandoraHashes, &types.HeaderHash{
+				HeaderHash: pandoraHeaderHash.HeaderHash,
 				Status:     types.Verified,
-			},
-			PandoraHashes: pandoraHashes,
-		})
+				// TODO: Will remove this after refactoring
+				ReceiptHash: pandoraHeaderHash.ReceiptHash,
+				BlockNumber: pandoraHeaderHash.BlockNumber,
+				Signature:   pandoraHeaderHash.Signature,
+				StateRoot:   pandoraHeaderHash.StateRoot,
+				TxHash:      pandoraHeaderHash.TxHash,
+				ParentHash:  pandoraHeaderHash.ParentHash,
+			})
+
+			validPairs = append(validPairs, &events.RealmPair{
+				Slot: slotToCheck,
+				VanguardHash: &types.HeaderHash{
+					HeaderHash: vanguardBlockHash.HeaderHash,
+					Status:     types.Verified,
+					// TODO: Will remove this after refactoring
+					ReceiptHash: vanguardBlockHash.ReceiptHash,
+					BlockNumber: vanguardBlockHash.BlockNumber,
+					Signature:   vanguardBlockHash.Signature,
+					StateRoot:   vanguardBlockHash.StateRoot,
+					TxHash:      vanguardBlockHash.TxHash,
+					ParentHash:  vanguardBlockHash.ParentHash,
+				},
+				PandoraHashes: pandoraHashes,
+			})
+		} else {
+			// Here lays multiple shards handling logic
+			pandoraHashes := make([]*types.HeaderHash, 0)
+			pandoraHashes = append(pandoraHashes, &types.HeaderHash{
+				HeaderHash: pandoraHeaderHash.HeaderHash,
+				Status:     types.Invalid,
+				// TODO: Will remove this after refactoring
+				ReceiptHash: pandoraHeaderHash.ReceiptHash,
+				BlockNumber: pandoraHeaderHash.BlockNumber,
+				Signature:   pandoraHeaderHash.Signature,
+				StateRoot:   pandoraHeaderHash.StateRoot,
+				TxHash:      pandoraHeaderHash.TxHash,
+				ParentHash:  pandoraHeaderHash.ParentHash,
+			})
+
+			validPairs = append(validPairs, &events.RealmPair{
+				Slot: slotToCheck,
+				VanguardHash: &types.HeaderHash{
+					HeaderHash: vanguardBlockHash.HeaderHash,
+					Status:     types.Invalid,
+					// TODO: Will remove this after refactoring
+					ReceiptHash: vanguardBlockHash.ReceiptHash,
+					BlockNumber: vanguardBlockHash.BlockNumber,
+					Signature:   vanguardBlockHash.Signature,
+					StateRoot:   vanguardBlockHash.StateRoot,
+					TxHash:      vanguardBlockHash.TxHash,
+					ParentHash:  vanguardBlockHash.ParentHash,
+				},
+				PandoraHashes: pandoraHashes,
+			})
+		}
 
 		// Keep in-memory track of highest verified pair
 		if highestVerifiedSlot < slotToCheck {

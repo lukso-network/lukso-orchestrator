@@ -44,10 +44,27 @@ func (s *Service) OnNewPendingVanguardBlock(ctx context.Context, block *eth.Beac
 		return
 	}
 
+	pandoraShards := block.GetBody().GetPandoraShard()
+	if len(pandoraShards) < 1 {
+		// The first value is the sharding info. If not present throw error
+		log.WithField("pandoraShard length", len(pandoraShards)).Error("pandora sharding info not present")
+
+		return
+	}
+
+	shardInfo := pandoraShards[0]
+
 	hash := common.BytesToHash(blockHash[:])
 	headerHash := &types.HeaderHash{
 		HeaderHash: hash,
 		Status:     types.Pending,
+		BlockNumber: shardInfo.BlockNumber,
+		Signature: shardInfo.Signature,
+		StateRoot: shardInfo.StateRoot,
+		ReceiptHash: shardInfo.ReceiptHash,
+		TxHash: shardInfo.TxHash,
+		ParentHash: shardInfo.ParentHash,
+
 	}
 
 	nSent := s.vanguardPendingBlockHashFeed.Send(headerHash)

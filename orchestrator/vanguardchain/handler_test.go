@@ -33,6 +33,15 @@ func TestService_OnNewPendingVanguardBlock(t *testing.T) {
 			Deposits:          []*eth.Deposit{},
 			ProposerSlashings: []*eth.ProposerSlashing{},
 			VoluntaryExits:    []*eth.SignedVoluntaryExit{},
+			PandoraShard: []*eth.PandoraShard{{
+				ParentHash: make([]byte, 32),
+				TxHash: make([]byte, 32),
+				StateRoot: make([]byte, 32),
+				BlockNumber: slot,
+				ReceiptHash: make([]byte, 32),
+				Signature: make([]byte, 96),
+				Hash: make([]byte, 32),
+			}},
 		},
 	}
 	vanSvc.OnNewPendingVanguardBlock(ctx, beaconBlock)
