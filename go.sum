@@ -326,8 +326,8 @@ github.com/kylelemons/godebug v1.1.0/go.mod h1:9/0rRGxNHcop5bhtWyNeEfOS8JIWk580+
 github.com/leanovate/gopter v0.2.8/go.mod h1:gNcbPWNEWRe4lm+bycKqxUYoH5uoVje5SkOJ3uoLer8=
 github.com/leanovate/gopter v0.2.9/go.mod h1:U2L/78B+KVFIx2VmW6onHJQzXtFb+p5y3y2Sh+Jxxv8=
 github.com/lib/pq v1.0.0/go.mod h1:5WUZQaWbwv1U+lTReE5YruASi9Al49XbQIvNi/34Woo=
-github.com/lukso-network/vanguard-apis v0.0.1-alpha.0.20210625075520-ec2f01b55886 h1:BZO3C5oyVUoZGnjOjJxNOEa2Z1pruw6pYKw+oVQVu1o=
-github.com/lukso-network/vanguard-apis v0.0.1-alpha.0.20210625075520-ec2f01b55886/go.mod h1:ow1tUXTZT+BCRwNBqvIloIo/sZI7nXEdxMttpgrMf3s=
+github.com/lukso-network/vanguard-apis v0.0.1-alpha.0.20210706064022-e42dc815d43b h1:l57bZIY0tjm4Y4ffRdo0oxRZQXZ4WRJrV6mfsBp7eW4=
+github.com/lukso-network/vanguard-apis v0.0.1-alpha.0.20210706064022-e42dc815d43b/go.mod h1:3PKjp+3N2vYL2PRhftp8pHzfpTHjsT4pnseUYPirXAY=
 github.com/magiconair/properties v1.8.1/go.mod h1:PppfXfuXeibc/6YijjN8zIbojt8czPbwD3XqdrwzmxQ=
 github.com/mattn/go-colorable v0.0.9/go.mod h1:9vuHe8Xs5qXnSaW/c/ABM9alt+Vo+STaOChaDxuIBZU=
 github.com/mattn/go-colorable v0.1.0/go.mod h1:9vuHe8Xs5qXnSaW/c/ABM9alt+Vo+STaOChaDxuIBZU=
