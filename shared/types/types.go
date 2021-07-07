@@ -28,13 +28,8 @@ type HeaderHash struct {
 	HeaderHash common.Hash `json:"headerHash"`
 	Status     Status      `json:"status"`
 	// TODO: For temporary purpose we are using it. We need to change it while refactoring
-	BlockNumber uint64 `json:"block_number,omitempty"`
-	ParentHash  []byte `json:"parent_hash,omitempty"`
-	StateRoot   []byte `json:"state_root,omitempty"`
-	TxHash      []byte `json:"tx_hash,omitempty"`
-	ReceiptHash []byte `json:"receipt_hash,omitempty"`
-	Signature   []byte `json:"signature,omitempty"`
-	Hash        []byte `json:"hash,omitempty"`
+	Signature []byte `json:"signature,omitempty"`
+	Hash      []byte `json:"hash,omitempty"`
 }
 
 // CopyHeader creates a deep copy of a block header to prevent side effects from

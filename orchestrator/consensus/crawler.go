@@ -5,13 +5,14 @@ package consensus
 // Treat it more like gateway to commandBus or CQRS
 
 import (
+	"sync"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db/kv"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	log "github.com/sirupsen/logrus"
-	"sync"
 )
 
 type filteredVerifiedPairs struct {
@@ -165,12 +166,8 @@ func resolveVerifiedPairsBasedOnVanguard(
 				HeaderHash: vanguardBlockHash.HeaderHash,
 				Status:     types.Pending,
 				// TODO: Will remove this after refactoring
-				ReceiptHash: vanguardBlockHash.ReceiptHash,
-				BlockNumber: vanguardBlockHash.BlockNumber,
+				Hash:      vanguardBlockHash.Hash,
 				Signature: vanguardBlockHash.Signature,
-				StateRoot: vanguardBlockHash.StateRoot,
-				TxHash: vanguardBlockHash.TxHash,
-				ParentHash: vanguardBlockHash.ParentHash,
 			}
 			vanguardOrphans[slotToCheck] = vanguardHeaderHash
 
@@ -182,13 +179,8 @@ func resolveVerifiedPairsBasedOnVanguard(
 				HeaderHash: pandoraHeaderHash.HeaderHash,
 				Status:     types.Pending,
 				// TODO: Will remove it when refactor the code
-				ReceiptHash: pandoraHeaderHash.ReceiptHash,
-				BlockNumber: pandoraHeaderHash.BlockNumber,
+				Hash:      pandoraHeaderHash.Hash,
 				Signature: pandoraHeaderHash.Signature,
-				StateRoot: pandoraHeaderHash.StateRoot,
-				TxHash: pandoraHeaderHash.TxHash,
-				ParentHash: pandoraHeaderHash.ParentHash,
-
 			}
 			pandoraOrphans[slotToCheck] = currentPandoraHeaderHash
 
@@ -202,12 +194,8 @@ func resolveVerifiedPairsBasedOnVanguard(
 				HeaderHash: pandoraHeaderHash.HeaderHash,
 				Status:     types.Verified,
 				// TODO: Will remove this after refactoring
-				ReceiptHash: pandoraHeaderHash.ReceiptHash,
-				BlockNumber: pandoraHeaderHash.BlockNumber,
-				Signature:   pandoraHeaderHash.Signature,
-				StateRoot:   pandoraHeaderHash.StateRoot,
-				TxHash:      pandoraHeaderHash.TxHash,
-				ParentHash:  pandoraHeaderHash.ParentHash,
+				Hash:      pandoraHeaderHash.Hash,
+				Signature: pandoraHeaderHash.Signature,
 			})
 
 			validPairs = append(validPairs, &events.RealmPair{
@@ -216,12 +204,8 @@ func resolveVerifiedPairsBasedOnVanguard(
 					HeaderHash: vanguardBlockHash.HeaderHash,
 					Status:     types.Verified,
 					// TODO: Will remove this after refactoring
-					ReceiptHash: vanguardBlockHash.ReceiptHash,
-					BlockNumber: vanguardBlockHash.BlockNumber,
-					Signature:   vanguardBlockHash.Signature,
-					StateRoot:   vanguardBlockHash.StateRoot,
-					TxHash:      vanguardBlockHash.TxHash,
-					ParentHash:  vanguardBlockHash.ParentHash,
+					Hash:      vanguardBlockHash.Hash,
+					Signature: vanguardBlockHash.Signature,
 				},
 				PandoraHashes: pandoraHashes,
 			})
@@ -232,12 +216,8 @@ func resolveVerifiedPairsBasedOnVanguard(
 				HeaderHash: pandoraHeaderHash.HeaderHash,
 				Status:     types.Invalid,
 				// TODO: Will remove this after refactoring
-				ReceiptHash: pandoraHeaderHash.ReceiptHash,
-				BlockNumber: pandoraHeaderHash.BlockNumber,
-				Signature:   pandoraHeaderHash.Signature,
-				StateRoot:   pandoraHeaderHash.StateRoot,
-				TxHash:      pandoraHeaderHash.TxHash,
-				ParentHash:  pandoraHeaderHash.ParentHash,
+				Hash:      pandoraHeaderHash.Hash,
+				Signature: pandoraHeaderHash.Signature,
 			})
 
 			validPairs = append(validPairs, &events.RealmPair{
@@ -246,12 +226,8 @@ func resolveVerifiedPairsBasedOnVanguard(
 					HeaderHash: vanguardBlockHash.HeaderHash,
 					Status:     types.Invalid,
 					// TODO: Will remove this after refactoring
-					ReceiptHash: vanguardBlockHash.ReceiptHash,
-					BlockNumber: vanguardBlockHash.BlockNumber,
-					Signature:   vanguardBlockHash.Signature,
-					StateRoot:   vanguardBlockHash.StateRoot,
-					TxHash:      vanguardBlockHash.TxHash,
-					ParentHash:  vanguardBlockHash.ParentHash,
+					Hash:      vanguardBlockHash.Hash,
+					Signature: vanguardBlockHash.Signature,
 				},
 				PandoraHashes: pandoraHashes,
 			})

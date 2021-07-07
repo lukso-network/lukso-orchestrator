@@ -3,6 +3,7 @@ package pandorachain
 import (
 	"context"
 	"fmt"
+
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
@@ -37,12 +38,8 @@ func (s *Service) OnNewPendingHeader(ctx context.Context, header *eth1Types.Head
 	pandoraHeaderHash := &types.HeaderHash{
 		HeaderHash: header.Hash(),
 		Status:     types.Pending,
-		BlockNumber: header.Number.Uint64(),
-		ParentHash: header.ParentHash.Bytes(),
-		TxHash: header.TxHash.Bytes(),
-		ReceiptHash: header.ReceiptHash.Bytes(),
-		StateRoot: header.Root.Bytes(),
-		Signature: panExtraDataWithSig.BlsSignatureBytes.Bytes(),
+		Hash:       header.Hash().Bytes(),
+		Signature:  panExtraDataWithSig.BlsSignatureBytes.Bytes(),
 	}
 	if err := s.db.SavePandoraHeaderHash(panExtraDataWithSig.Slot, pandoraHeaderHash); err != nil {
 		log.WithError(err).Error("Failed to store pandora header hash into db")

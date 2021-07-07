@@ -20,24 +20,7 @@ func generateHeaderHash() (*types.HeaderHash, error){
 	if _, err := rand.Read(randomBytes); err != nil {
 		return headerHash, err
 	}
-	headerHash.TxHash = randomBytes
-
-	if _, err := rand.Read(randomBytes); err != nil {
-		return headerHash, err
-	}
-
-	headerHash.ReceiptHash = randomBytes
-
-	if _, err := rand.Read(randomBytes); err != nil {
-		return headerHash, err
-	}
-	headerHash.ParentHash = randomBytes
-
-	if _, err := rand.Read(randomBytes); err != nil {
-		return headerHash, err
-	}
-	headerHash.StateRoot = randomBytes
-	headerHash.BlockNumber = rand.Uint64()
+	headerHash.Hash = randomBytes
 
 	if _, err := rand.Read(randomBytes); err != nil {
 		return headerHash, err

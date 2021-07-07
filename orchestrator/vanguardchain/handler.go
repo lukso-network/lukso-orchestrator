@@ -3,6 +3,7 @@ package vanguardchain
 import (
 	"context"
 	"fmt"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	eth "github.com/prysmaticlabs/ethereumapis/eth/v1alpha1"
@@ -58,13 +59,8 @@ func (s *Service) OnNewPendingVanguardBlock(ctx context.Context, block *eth.Beac
 	headerHash := &types.HeaderHash{
 		HeaderHash: hash,
 		Status:     types.Pending,
-		BlockNumber: shardInfo.BlockNumber,
-		Signature: shardInfo.Signature,
-		StateRoot: shardInfo.StateRoot,
-		ReceiptHash: shardInfo.ReceiptHash,
-		TxHash: shardInfo.TxHash,
-		ParentHash: shardInfo.ParentHash,
-
+		Hash:       shardInfo.Hash,
+		Signature:  shardInfo.Signature,
 	}
 
 	nSent := s.vanguardPendingBlockHashFeed.Send(headerHash)

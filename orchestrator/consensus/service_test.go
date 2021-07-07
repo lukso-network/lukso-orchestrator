@@ -260,12 +260,12 @@ func TestService_Canonicalize(t *testing.T) {
 
 		headerHash, err := orchestratorDB.VanguardHeaderHash(2)
 		require.NoError(t, err)
-		require.Equal(t, types.Invalid, headerHash.Status)
+		require.Equal(t, types.Verified, headerHash.Status)
 		require.Equal(t, vanguardHash, headerHash.HeaderHash)
 
 		headerHash, err = orchestratorDB.PandoraHeaderHash(2)
 		require.NoError(t, err)
-		require.Equal(t, types.Invalid, headerHash.Status)
+		require.Equal(t, types.Verified, headerHash.Status)
 		require.Equal(t, pandoraHash, headerHash.HeaderHash)
 
 		realmSlot := orchestratorDB.LatestVerifiedRealmSlot()
@@ -369,12 +369,12 @@ func TestService_Canonicalize(t *testing.T) {
 
 		headerHash, err := orchestratorDB.VanguardHeaderHash(5)
 		require.NoError(t, err)
-		require.Equal(t, types.Invalid, headerHash.Status)
+		require.Equal(t, types.Verified, headerHash.Status)
 		require.Equal(t, vanguardHash, headerHash.HeaderHash)
 
 		headerHash, err = orchestratorDB.PandoraHeaderHash(5)
 		require.NoError(t, err)
-		require.Equal(t, types.Invalid, headerHash.Status)
+		require.Equal(t, types.Verified, headerHash.Status)
 		require.Equal(t, pandoraHash, headerHash.HeaderHash)
 
 		realmSlot := orchestratorDB.LatestVerifiedRealmSlot()
@@ -443,8 +443,8 @@ func TestService_Canonicalize(t *testing.T) {
 					HeaderHash: vanguardHash,
 					Status:     types.Pending,
 				},
-				expectedPandoraStatus:  types.Invalid,
-				expectedVanguardStatus: types.Invalid,
+				expectedPandoraStatus:  types.Verified,
+				expectedVanguardStatus: types.Verified,
 			},
 		}
 
@@ -471,8 +471,8 @@ func TestService_Canonicalize(t *testing.T) {
 					HeaderHash: vanguardHash,
 					Status:     types.Pending,
 				},
-				expectedPandoraStatus:  types.Invalid,
-				expectedVanguardStatus: types.Invalid,
+				expectedPandoraStatus:  types.Verified,
+				expectedVanguardStatus: types.Verified,
 			},
 			{
 				slot: 4,
@@ -504,8 +504,8 @@ func TestService_Canonicalize(t *testing.T) {
 					HeaderHash: vanguardHash,
 					Status:     types.Pending,
 				},
-				expectedPandoraStatus:  types.Invalid,
-				expectedVanguardStatus: types.Invalid,
+				expectedPandoraStatus:  types.Verified,
+				expectedVanguardStatus: types.Verified,
 			},
 		}
 
@@ -671,8 +671,8 @@ func TestService_Canonicalize(t *testing.T) {
 
 				// Present on both sides
 				if nil != pandoraRelative && nil != vanguardRelative {
-					require.Equal(t, types.Invalid, currentVanguardHeaderHash.Status, indexMessage)
-					require.Equal(t, types.Invalid, currentPandoraHeaderHash.Status, indexMessage)
+					require.Equal(t, types.Verified, currentVanguardHeaderHash.Status, indexMessage)
+					require.Equal(t, types.Verified, currentPandoraHeaderHash.Status, indexMessage)
 				}
 
 				if index < int(expectedLatestVerifiedRealmSlot) && nil == pandoraRelative && nil != vanguardRelative {
@@ -722,7 +722,7 @@ func TestService_Canonicalize(t *testing.T) {
 
 		lastVanguardBlock, err := service.VanguardHeaderHashDB.VanguardHeaderHash(expectedHighestCheckedSlot)
 		require.NoError(t, err)
-		require.Equal(t, types.Invalid, lastVanguardBlock.Status)
+		require.Equal(t, types.Verified, lastVanguardBlock.Status)
 		require.Equal(t,
 			"0x078ed0e94e50738b567764f8587b76a0c0a6bef2fd4ac8f6665b55cddba055db",
 			lastVanguardBlock.HeaderHash.String(),
@@ -730,7 +730,7 @@ func TestService_Canonicalize(t *testing.T) {
 
 		lastPandoraBlock, err := service.PandoraHeaderHashDB.PandoraHeaderHash(expectedHighestCheckedSlot)
 		require.NoError(t, err)
-		require.Equal(t, types.Invalid, lastPandoraBlock.Status)
+		require.Equal(t, types.Verified, lastPandoraBlock.Status)
 		require.Equal(t,
 			"0x9cea5d4952be0bae951b717f4c8257a225cf837fb5720ce57293606219c990fc",
 			lastPandoraBlock.HeaderHash.String(),
