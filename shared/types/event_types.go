@@ -21,6 +21,9 @@ type PandoraPendingHeaderFilter struct {
 
 type BlsSignatureBytes [BLSSignatureSize]byte
 
+// Bytes gets the byte representation of the underlying hash.
+func (h BlsSignatureBytes) Bytes() []byte { return h[:] }
+
 type PanExtraDataWithBLSSig struct {
 	ExtraData
 	BlsSignatureBytes *BlsSignatureBytes
