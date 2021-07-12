@@ -172,8 +172,8 @@ func resolveVerifiedPairsBasedOnVanguard(
 				HeaderHash: vanguardBlockHash.HeaderHash,
 				Status:     types.Pending,
 				// TODO: Will remove this after refactoring
-				Hash:      vanguardBlockHash.Hash,
-				Signature: vanguardBlockHash.Signature,
+				PandoraShardHash: vanguardBlockHash.PandoraShardHash,
+				Signature:        vanguardBlockHash.Signature,
 			}
 			vanguardOrphans[slotToCheck] = vanguardHeaderHash
 
@@ -185,59 +185,40 @@ func resolveVerifiedPairsBasedOnVanguard(
 				HeaderHash: pandoraHeaderHash.HeaderHash,
 				Status:     types.Pending,
 				// TODO: Will remove it when refactor the code
-				Hash:      pandoraHeaderHash.Hash,
-				Signature: pandoraHeaderHash.Signature,
+				PandoraShardHash: pandoraHeaderHash.PandoraShardHash,
+				Signature:        pandoraHeaderHash.Signature,
 			}
 			pandoraOrphans[slotToCheck] = currentPandoraHeaderHash
 
 			continue
 		}
 
-		if CompareShardingInfo(pandoraHeaderHash, vanguardBlockHash) {
-			// Here lays multiple shards handling logic
-			pandoraHashes := make([]*types.HeaderHash, 0)
-			pandoraHashes = append(pandoraHashes, &types.HeaderHash{
-				HeaderHash: pandoraHeaderHash.HeaderHash,
-				Status:     types.Verified,
-				// TODO: Will remove this after refactoring
-				Hash:      pandoraHeaderHash.Hash,
-				Signature: pandoraHeaderHash.Signature,
-			})
-
-			validPairs = append(validPairs, &events.RealmPair{
-				Slot: slotToCheck,
-				VanguardHash: &types.HeaderHash{
-					HeaderHash: vanguardBlockHash.HeaderHash,
-					Status:     types.Verified,
-					// TODO: Will remove this after refactoring
-					Hash:      vanguardBlockHash.Hash,
-					Signature: vanguardBlockHash.Signature,
-				},
-				PandoraHashes: pandoraHashes,
-			})
-		} else {
-			// Here lays multiple shards handling logic
-			pandoraHashes := make([]*types.HeaderHash, 0)
-			pandoraHashes = append(pandoraHashes, &types.HeaderHash{
-				HeaderHash: pandoraHeaderHash.HeaderHash,
-				Status:     types.Invalid,
-				// TODO: Will remove this after refactoring
-				Hash:      pandoraHeaderHash.Hash,
-				Signature: pandoraHeaderHash.Signature,
-			})
-
-			validPairs = append(validPairs, &events.RealmPair{
-				Slot: slotToCheck,
-				VanguardHash: &types.HeaderHash{
-					HeaderHash: vanguardBlockHash.HeaderHash,
-					Status:     types.Invalid,
-					// TODO: Will remove this after refactoring
-					Hash:      vanguardBlockHash.Hash,
-					Signature: vanguardBlockHash.Signature,
-				},
-				PandoraHashes: pandoraHashes,
-			})
+		status := types.Verified
+		if !CompareShardingInfo(pandoraHeaderHash, vanguardBlockHash) {
+			// compairson failed. so invalid block
+			status = types.Invalid
 		}
+		// Here lays multiple shards handling logic
+		pandoraHashes := make([]*types.HeaderHash, 0)
+		pandoraHashes = append(pandoraHashes, &types.HeaderHash{
+			HeaderHash: pandoraHeaderHash.HeaderHash,
+			Status:     status,
+			// TODO: Will remove this after refactoring
+			PandoraShardHash: pandoraHeaderHash.PandoraShardHash,
+			Signature:        pandoraHeaderHash.Signature,
+		})
+
+		validPairs = append(validPairs, &events.RealmPair{
+			Slot: slotToCheck,
+			VanguardHash: &types.HeaderHash{
+				HeaderHash: vanguardBlockHash.HeaderHash,
+				Status:     status,
+				// TODO: Will remove this after refactoring
+				PandoraShardHash: vanguardBlockHash.PandoraShardHash,
+				Signature:        vanguardBlockHash.Signature,
+			},
+			PandoraHashes: pandoraHashes,
+		})
 
 		// Keep in-memory track of highest verified pair
 		if highestVerifiedSlot < slotToCheck {

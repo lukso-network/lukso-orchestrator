@@ -41,7 +41,7 @@ func (s *Service) OnNewPendingVanguardBlock(ctx context.Context, block *eth.Beac
 	blockHash, err := block.HashTreeRoot()
 
 	if nil != err {
-		log.WithError(err).Warn("failed to save vanguard block hash")
+		log.WithError(err).Warn("failed to retrieve vanguard block hash from HashTreeRoot")
 		return
 	}
 
@@ -57,14 +57,14 @@ func (s *Service) OnNewPendingVanguardBlock(ctx context.Context, block *eth.Beac
 
 	hash := common.BytesToHash(blockHash[:])
 	headerHash := &types.HeaderHash{
-		HeaderHash: hash,
-		Status:     types.Pending,
-		Hash:       shardInfo.Hash,
-		Signature:  shardInfo.Signature,
+		HeaderHash:       hash,
+		Status:           types.Pending,
+		PandoraShardHash: common.BytesToHash(shardInfo.Hash[:]),
+		Signature:        shardInfo.Signature,
 	}
 
 	nSent := s.vanguardPendingBlockHashFeed.Send(headerHash)
-	log.WithField("nsent", nSent).Trace("Pending Block Hash feed info to subscribers")
+	log.WithField("nsent", nSent).Trace("Pending Block PandoraShardHash feed info to subscribers")
 
 	err = s.orchestratorDB.SaveVanguardHeaderHash(uint64(block.Slot), headerHash)
 

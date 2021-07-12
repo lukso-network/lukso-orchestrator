@@ -13,9 +13,9 @@ func CompareShardingInfo(ob1, ob2 *types.HeaderHash) bool {
 		return true
 	}
 	// TODO: IT WILL OPEN AFTER RESOLVING HASHING PROBLEM IN VANGUARD
-	//if !reflect.DeepEqual(ob1.Hash, ob2.Hash) {
-	//	log.WithField("object1 hash", ob1.Hash).
-	//		WithField("object2 hash", ob2.Hash).
+	//if !reflect.DeepEqual(ob1.PandoraShardHash, ob2.PandoraShardHash) {
+	//	log.WithField("object1 hash", ob1.PandoraShardHash).
+	//		WithField("object2 hash", ob2.PandoraShardHash).
 	//		Error("hash mismatched")
 	//	return false
 	//}
