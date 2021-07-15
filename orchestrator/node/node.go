@@ -212,7 +212,7 @@ func (o *OrchestratorNode) registerAndStartConsensusService(
 	waitGroup.Add(3)
 
 	// This is arbitrary, it may be less or more. Depends on the approach
-	debounceDuration := time.Second * 3
+	debounceDuration := time.Millisecond * 100
 
 	// Locks that will prevent negative waitGroup counters
 	vanguardHeadersChanLock := false
