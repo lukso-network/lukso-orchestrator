@@ -209,7 +209,7 @@ func (o *OrchestratorNode) registerAndStartConsensusService(
 	}
 
 	waitGroup := sync.WaitGroup{}
-	waitGroup.Add(3)
+	waitGroup.Add(1)
 
 	// This is arbitrary, it may be less or more. Depends on the approach
 	debounceDuration := time.Millisecond * 100
@@ -225,16 +225,16 @@ func (o *OrchestratorNode) registerAndStartConsensusService(
 	pandoraHeadersChanBridge := make(chan interface{})
 
 	// Create bridge handlers for debounce
-	vanguardHeadersChanHandler := func(interface{}) {
-		if vanguardHeadersChanLock {
-			return
-		}
-
-		log.Info("I have reached vanguardHeadersChanHandler confirmation")
-		waitGroup.Done()
-		vanguardHeadersChanLock = true
-		close(vanguardHeadersChanBridge)
-	}
+	//vanguardHeadersChanHandler := func(interface{}) {
+	//	if vanguardHeadersChanLock {
+	//		return
+	//	}
+	//
+	//	log.Info("I have reached vanguardHeadersChanHandler confirmation")
+	//	waitGroup.Done()
+	//	vanguardHeadersChanLock = true
+	//	close(vanguardHeadersChanBridge)
+	//}
 	vanguardConsensusChanHandler := func(interface{}) {
 		if vanguardConsensusChanLock {
 			return
@@ -246,16 +246,16 @@ func (o *OrchestratorNode) registerAndStartConsensusService(
 		vanguardConsensusChanLock = true
 		close(vanguardConsensusChanBridge)
 	}
-	pandoraHeadersChanHandler := func(interface{}) {
-		if pandoraHeadersChanLock {
-			return
-		}
-
-		log.Info("I have reached pandoraHeadersChanHandler confirmation")
-		waitGroup.Done()
-		pandoraHeadersChanLock = true
-		close(pandoraHeadersChanBridge)
-	}
+	//pandoraHeadersChanHandler := func(interface{}) {
+	//	if pandoraHeadersChanLock {
+	//		return
+	//	}
+	//
+	//	log.Info("I have reached pandoraHeadersChanHandler confirmation")
+	//	waitGroup.Done()
+	//	pandoraHeadersChanLock = true
+	//	close(pandoraHeadersChanBridge)
+	//}
 
 	isLocked := func() bool {
 		return vanguardHeadersChanLock && vanguardConsensusChanLock && pandoraHeadersChanLock
@@ -294,9 +294,9 @@ func (o *OrchestratorNode) registerAndStartConsensusService(
 	}()
 
 	// Debounce and wait for sideEffect
-	go utils.Debounce(cliCtx.Context, debounceDuration, vanguardHeadersChanBridge, vanguardHeadersChanHandler)
+	//go utils.Debounce(cliCtx.Context, debounceDuration, vanguardHeadersChanBridge, vanguardHeadersChanHandler)
 	go utils.Debounce(cliCtx.Context, debounceDuration, vanguardConsensusChanBridge, vanguardConsensusChanHandler)
-	go utils.Debounce(cliCtx.Context, debounceDuration, pandoraHeadersChanBridge, pandoraHeadersChanHandler)
+	//go utils.Debounce(cliCtx.Context, debounceDuration, pandoraHeadersChanBridge, pandoraHeadersChanHandler)
 
 	log.Info("I am waiting for orchestrator to receive all pending data")
 	waitGroup.Wait()
