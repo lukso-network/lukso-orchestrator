@@ -193,7 +193,7 @@ func (service *Service) workLoop() {
 	possiblePendingWork := make([]*types.HeaderHash, 0)
 
 	// This is arbitrary, it may be less or more. Depends on the approach
-	debounceDuration := time.Second
+	debounceDuration := time.Millisecond * 5
 	// Create merged channel
 	mergedChannel := merge(service.VanguardHeadersChan, service.PandoraHeadersChan)
 
@@ -225,7 +225,7 @@ func (service *Service) workLoop() {
 				possiblePendingWork = append(possiblePendingWork, header)
 				log.WithField("cause", "worker").
 					Debug("I am pushing header to merged channel")
-				mergedHeadersChanBridge <- header
+				mergedChannelHandler(header)
 			case slot := <-service.canonicalizeChan:
 				possiblePendingWork = make([]*types.HeaderHash, 0)
 

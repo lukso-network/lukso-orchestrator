@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	log "github.com/sirupsen/logrus"
 	"time"
 )
 
@@ -19,6 +20,7 @@ func Debounce(
 
 			select {
 			case event = <-eventsChan:
+				log.WithField("event", event).Warn("I am discarding the flood")
 			case <-timer.C:
 				handler(event)
 				timer.Stop()
