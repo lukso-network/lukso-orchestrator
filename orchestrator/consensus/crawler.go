@@ -198,6 +198,7 @@ func resolveVerifiedPairsBasedOnVanguard(
 			// compairson failed. so invalid block
 			status = types.Invalid
 
+			//Put on continue
 			continue
 		}
 		// Here lays multiple shards handling logic
