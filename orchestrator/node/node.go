@@ -225,16 +225,6 @@ func (o *OrchestratorNode) registerAndStartConsensusService(
 	pandoraHeadersChanBridge := make(chan interface{})
 
 	// Create bridge handlers for debounce
-	//vanguardHeadersChanHandler := func(interface{}) {
-	//	if vanguardHeadersChanLock {
-	//		return
-	//	}
-	//
-	//	log.Info("I have reached vanguardHeadersChanHandler confirmation")
-	//	waitGroup.Done()
-	//	vanguardHeadersChanLock = true
-	//	close(vanguardHeadersChanBridge)
-	//}
 	vanguardConsensusChanHandler := func(interface{}) {
 		if vanguardConsensusChanLock {
 			return
@@ -246,21 +236,14 @@ func (o *OrchestratorNode) registerAndStartConsensusService(
 		vanguardConsensusChanLock = true
 		close(vanguardConsensusChanBridge)
 	}
-	//pandoraHeadersChanHandler := func(interface{}) {
-	//	if pandoraHeadersChanLock {
-	//		return
-	//	}
-	//
-	//	log.Info("I have reached pandoraHeadersChanHandler confirmation")
-	//	waitGroup.Done()
-	//	pandoraHeadersChanLock = true
-	//	close(pandoraHeadersChanBridge)
-	//}
 
 	isLocked := func() bool {
-		return vanguardHeadersChanLock && vanguardConsensusChanLock && pandoraHeadersChanLock
+		return vanguardConsensusChanLock
 	}
 
+	// TODO: consider removing it or making it more precise.
+	// consensusInfoConfirmation seems reasonable, decide if vanguard and pandora header channel should be debounced
+	// and awaited here
 	go func() {
 		for {
 		loop:
@@ -294,9 +277,7 @@ func (o *OrchestratorNode) registerAndStartConsensusService(
 	}()
 
 	// Debounce and wait for sideEffect
-	//go utils.Debounce(cliCtx.Context, debounceDuration, vanguardHeadersChanBridge, vanguardHeadersChanHandler)
 	go utils.Debounce(cliCtx.Context, debounceDuration, vanguardConsensusChanBridge, vanguardConsensusChanHandler)
-	//go utils.Debounce(cliCtx.Context, debounceDuration, pandoraHeadersChanBridge, pandoraHeadersChanHandler)
 
 	log.Info("I am waiting for orchestrator to receive all pending data")
 	waitGroup.Wait()
