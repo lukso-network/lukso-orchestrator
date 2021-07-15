@@ -193,7 +193,7 @@ func (service *Service) workLoop() {
 	possiblePendingWork := make([]*types.HeaderHash, 0)
 
 	// This is arbitrary, it may be less or more. Depends on the approach
-	debounceDuration := time.Second
+	debounceDuration := time.Millisecond * 200
 	// Create merged channel
 	mergedChannel := merge(service.VanguardHeadersChan, service.PandoraHeadersChan)
 

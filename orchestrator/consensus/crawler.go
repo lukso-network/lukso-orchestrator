@@ -197,6 +197,8 @@ func resolveVerifiedPairsBasedOnVanguard(
 		if !CompareShardingInfo(pandoraHeaderHash, vanguardBlockHash) {
 			// compairson failed. so invalid block
 			status = types.Invalid
+
+			continue
 		}
 		// Here lays multiple shards handling logic
 		pandoraHashes := make([]*types.HeaderHash, 0)
