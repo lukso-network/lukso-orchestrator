@@ -1,10 +1,7 @@
 package consensus
 
 import (
-	"reflect"
-
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
-	log "github.com/sirupsen/logrus"
 )
 
 func CompareShardingInfo(ob1, ob2 *types.HeaderHash) bool {
@@ -19,11 +16,11 @@ func CompareShardingInfo(ob1, ob2 *types.HeaderHash) bool {
 	//		Error("hash mismatched")
 	//	return false
 	//}
-	if !reflect.DeepEqual(ob1.Signature, ob2.Signature) {
-		log.WithField("object1 Signature", ob1.Signature).
-			WithField("object2 Signature", ob2.Signature).
-			Error("Signature mismatched")
-		return false
-	}
+	//if !reflect.DeepEqual(ob1.Signature, ob2.Signature) {
+	//	log.WithField("object1 Signature", ob1.Signature).
+	//		WithField("object2 Signature", ob2.Signature).
+	//		Error("Signature mismatched")
+	//	return false
+	//}
 	return true
 }
