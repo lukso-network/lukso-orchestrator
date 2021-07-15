@@ -6,12 +6,10 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db/iface"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/utils"
 	"github.com/lukso-network/lukso-orchestrator/shared"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	log "github.com/sirupsen/logrus"
 	"sync"
-	"time"
 )
 
 type databaseErrors struct {
@@ -189,33 +187,45 @@ func (service *Service) workLoop() {
 	verifiedSlotWorkLoopStart := service.RealmDB.LatestVerifiedRealmSlot()
 	log.WithField("verifiedSlotWorkLoopStart", verifiedSlotWorkLoopStart).
 		Info("I am starting the work loop")
-	realmDB := service.RealmDB
+
 	possiblePendingWork := make([]*types.HeaderHash, 0)
 
 	// This is arbitrary, it may be less or more. Depends on the approach
-	debounceDuration := time.Millisecond * 5
 	// Create merged channel
 	mergedChannel := merge(service.VanguardHeadersChan, service.PandoraHeadersChan)
-
-	// Create bridge for debounce
-	mergedHeadersChanBridge := make(chan interface{})
 	// Provide handlers for debounce
-	mergedChannelHandler := func(workHeader interface{}) {
-		header, isHeaderHash := workHeader.(*types.HeaderHash)
+	mergedChannelHandler := func(slot uint64) {
+		possiblePendingWork = make([]*types.HeaderHash, 0)
 
-		if !isHeaderHash {
-			log.WithField("cause", "mergedChannelHandler").Warn("invalid header hash")
-
-			return
+		if !service.isWorking {
+			onceAtTheTime = sync.Once{}
 		}
 
-		if nil == header {
-			log.WithField("cause", "mergedChannelHandler").Warn("empty header hash")
-			return
-		}
+		onceAtTheTime.Do(func() {
+			defer func() {
+				service.isWorking = false
+			}()
+			service.isWorking = true
+			log.WithField("latestVerifiedSlot", slot).
+				Info("I am starting canonicalization")
 
-		latestVerifiedRealmSlot := realmDB.LatestVerifiedRealmSlot()
-		service.canonicalizeChan <- latestVerifiedRealmSlot
+			vanguardErr, pandoraErr, realmErr := service.Canonicalize(slot, 50000)
+
+			log.WithField("latestVerifiedSlot", slot).
+				Info("After canonicalization")
+
+			if nil != vanguardErr {
+				log.WithField("canonicalize", "vanguardErr").Debug(vanguardErr)
+			}
+
+			if nil != pandoraErr {
+				log.WithField("canonicalize", "pandoraErr").Debug(pandoraErr)
+			}
+
+			if nil != realmErr {
+				log.WithField("canonicalize", "realmErr").Debug(realmErr)
+			}
+		})
 	}
 
 	go func() {
@@ -223,41 +233,13 @@ func (service *Service) workLoop() {
 			select {
 			case header := <-mergedChannel:
 				possiblePendingWork = append(possiblePendingWork, header)
-				log.WithField("cause", "worker").
+				log.WithField("cause", "mergedChannel").
 					Debug("I am pushing header to merged channel")
-				mergedChannelHandler(header)
+				mergedChannelHandler(service.RealmDB.LatestVerifiedRealmSlot())
 			case slot := <-service.canonicalizeChan:
-				possiblePendingWork = make([]*types.HeaderHash, 0)
-
-				if !service.isWorking {
-					onceAtTheTime = sync.Once{}
-				}
-
-				onceAtTheTime.Do(func() {
-					defer func() {
-						service.isWorking = false
-					}()
-					service.isWorking = true
-					log.WithField("latestVerifiedSlot", slot).
-						Info("I am starting canonicalization")
-
-					vanguardErr, pandoraErr, realmErr := service.Canonicalize(slot, 50000)
-
-					log.WithField("latestVerifiedSlot", slot).
-						Info("After canonicalization")
-
-					if nil != vanguardErr {
-						log.WithField("canonicalize", "vanguardErr").Debug(vanguardErr)
-					}
-
-					if nil != pandoraErr {
-						log.WithField("canonicalize", "pandoraErr").Debug(pandoraErr)
-					}
-
-					if nil != realmErr {
-						log.WithField("canonicalize", "realmErr").Debug(realmErr)
-					}
-				})
+				log.WithField("cause", "canonicalizeChan").
+					Debug("I am pushing header to merged channel")
+				mergedChannelHandler(slot)
 			case <-service.stopChan:
 				log.WithField("canonicalize", "stop").Info("Received stop signal")
 
@@ -265,14 +247,6 @@ func (service *Service) workLoop() {
 			}
 		}
 	}()
-
-	// Debounce (aggregate) calls and invoke invalidation of pending queue only when needed
-	go utils.Debounce(
-		context.Background(),
-		debounceDuration,
-		mergedHeadersChanBridge,
-		mergedChannelHandler,
-	)
 }
 
 // invokeInvalidation will prepare payload for crawler and will push it through the channel

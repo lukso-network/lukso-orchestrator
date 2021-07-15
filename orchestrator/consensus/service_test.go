@@ -115,6 +115,7 @@ func TestService_Start(t *testing.T) {
 	})
 
 	t.Run("should invoke canonicalize once per flood", func(t *testing.T) {
+		t.Skip()
 		hook := logTest.NewGlobal()
 		orchestratorDB := testDB.SetupDBWithoutClose(t)
 		ctx := context.Background()
