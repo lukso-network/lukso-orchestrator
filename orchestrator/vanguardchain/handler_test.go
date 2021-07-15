@@ -41,6 +41,7 @@ func TestService_OnNewPendingVanguardBlock(t *testing.T) {
 				ReceiptHash: make([]byte, 32),
 				Signature: make([]byte, 96),
 				Hash: make([]byte, 32),
+				SealHash: make([]byte, 32),
 			}},
 		},
 	}
