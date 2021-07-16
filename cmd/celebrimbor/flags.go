@@ -32,6 +32,8 @@ const (
 	validatorVanguardRpcProviderFlag = "validator-vanguard-rpc"
 	validatorVerbosityFlag           = "validator-verbosity"
 	validatorTrustedPandoraFlag      = "validator-trusted-pandora"
+	validatorWalletPasswordFileFlag  = "validator-wallet-password-file"
+	validatorDatadirFlag             = "validator-datadir"
 
 	// Vanguard related flag names
 	vanguardTagFlag                     = "vanguard-tag"
@@ -156,6 +158,16 @@ var (
 			Name:  validatorTrustedPandoraFlag,
 			Usage: "provide host:port for trusted pandora, default: http://127.0.0.1:8565",
 			Value: "http://127.0.0.1:8565",
+		},
+		&cli.StringFlag{
+			Name:  validatorWalletPasswordFileFlag,
+			Usage: "location of file password that you used for generation keys from deposit-cli",
+			Value: "./password.txt",
+		},
+		&cli.StringFlag{
+			Name:  validatorDatadirFlag,
+			Usage: "location of keys from deposit-cli",
+			Value: "./validator_keys",
 		},
 	}
 	vanguardFlags = []cli.Flag{
@@ -311,6 +323,14 @@ func prepareValidatorFlags(ctx *cli.Context) (validatorArguments []string) {
 	validatorArguments = append(validatorArguments, fmt.Sprintf(
 		"--log-file=%s",
 		"./vanguard/validator.log",
+	))
+	validatorArguments = append(validatorArguments, fmt.Sprintf(
+		"--wallet-password-file=%s",
+		ctx.String(validatorWalletPasswordFileFlag),
+	))
+	validatorArguments = append(validatorArguments, fmt.Sprintf(
+		"--datadir=%s",
+		ctx.String(validatorDatadirFlag),
 	))
 
 	return
