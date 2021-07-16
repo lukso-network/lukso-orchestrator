@@ -135,12 +135,41 @@ func downloadAndRunApps(ctx *cli.Context) (err error) {
 		return
 	}
 
+	err = downloadValidator(ctx)
+
+	if nil != err {
+		return
+	}
+
+	err = downloadVanguard(ctx)
+
+	if nil != err {
+		return
+	}
+
 	return startOrchestrator(ctx)
 }
 
 func downloadPandora(ctx *cli.Context) (err error) {
+	log.WithField("dependencyTag", pandoraTag).Info("I am downloading pandora")
 	pandoraDataDir := ctx.String(pandoraDatadirFlag)
 	err = clientDependencies[pandoraDependencyName].Download(pandoraTag, pandoraDataDir)
+
+	return
+}
+
+func downloadVanguard(ctx *cli.Context) (err error) {
+	log.WithField("dependencyTag", pandoraTag).Info("I am downloading vanguard")
+	vanguardDataDir := ctx.String(vanguardDatadirFlag)
+	err = clientDependencies[vanguardDependencyName].Download(vanguardTag, vanguardDataDir)
+
+	return
+}
+
+func downloadValidator(ctx *cli.Context) (err error) {
+	log.WithField("dependencyTag", pandoraTag).Info("I am downloading validator")
+	validatorDataDir := ctx.String(vanguardDatadirFlag)
+	err = clientDependencies[validatorDependencyName].Download(vanguardTag, validatorDataDir)
 
 	return
 }

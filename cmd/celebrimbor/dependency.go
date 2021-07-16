@@ -9,7 +9,9 @@ import (
 
 // TODO: consider to move it to common/shared
 const (
-	pandoraDependencyName = "pandora"
+	pandoraDependencyName   = "pandora"
+	vanguardDependencyName  = "vanguard"
+	validatorDependencyName = "validator"
 )
 
 var (
@@ -17,6 +19,14 @@ var (
 		pandoraDependencyName: {
 			baseUnixUrl: "https://github.com/lukso-network/pandora-execution-engine/releases/download/%s/geth",
 			name:        pandoraDependencyName,
+		},
+		vanguardDependencyName: {
+			baseUnixUrl: "https://github.com/lukso-network/vanguard-consensus-engine/releases/download/%s/beacon-chain",
+			name:        vanguardDependencyName,
+		},
+		validatorDependencyName: {
+			baseUnixUrl: "https://github.com/lukso-network/vanguard-consensus-engine/releases/download/%s/validator",
+			name:        validatorDependencyName,
 		},
 	}
 )
