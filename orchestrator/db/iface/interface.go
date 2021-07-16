@@ -70,6 +70,8 @@ type RealmAccessDatabase interface {
 
 type ReadOnlyVerifiedSlotInfoDatabase interface {
 	VerifiedSlotInfo(slot uint64) (*types.SlotInfo, error)
+	SaveLatestVerifiedSlot(ctx context.Context) error
+	LatestSavedVerifiedSlot() uint64
 }
 
 type VerifiedSlotDatabase interface {

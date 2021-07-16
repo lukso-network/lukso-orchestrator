@@ -14,6 +14,10 @@ type NewConsensusInfoHandler interface {
 	OnNewConsensusInfo(ctx context.Context, consensusInfo *types.MinimalEpochConsensusInfo)
 }
 
+type VanguardShardInfoFeed interface {
+	SubscribeShardInfoEvent(chan<- *types.VanguardShardInfo) event.Subscription
+}
+
 type NewHeaderHandler interface {
 	OnNewHeader()
 	OnHeaderSubError(err error)

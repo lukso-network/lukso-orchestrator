@@ -49,6 +49,7 @@ type Store struct {
 	latestPanHeaderHash common.Hash
 	latestVanSlot       uint64
 	latestVanHash       common.Hash
+	latestVerifiedSlot  uint64
 	// There should be mutex in store
 	sync.Mutex
 }
@@ -166,7 +167,11 @@ func (s *Store) ClearDB() error {
 // Close closes the underlying BoltDB database.
 func (s *Store) Close() error {
 	err := s.SaveLatestEpoch(s.ctx)
+	if nil != err {
+		return err
+	}
 
+	err = s.SaveLatestVerifiedSlot(s.ctx)
 	if nil != err {
 		return err
 	}
@@ -191,6 +196,8 @@ func (s *Store) initLatestDataFromDB() {
 	s.latestVanHash = s.LatestSavedVanguardHeaderHash()
 	// Retrieve latest savend vanguard slot from db
 	s.latestVanSlot = s.LatestSavedVanguardSlot()
+
+	s.latestVerifiedSlot = s.LatestSavedVerifiedSlot()
 }
 
 // createBuckets
