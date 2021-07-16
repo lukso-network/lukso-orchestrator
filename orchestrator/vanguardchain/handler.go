@@ -54,7 +54,8 @@ func (s *Service) OnNewPendingVanguardBlock(ctx context.Context, block *eth.Beac
 	}
 
 	shardInfo := pandoraShards[0]
-	if err := s.shardingInfoCache.Put(ctx, uint64(block.Slot), shardInfo); err != nil {
+	err = s.shardingInfoCache.Put(ctx, uint64(block.Slot), &types.VanguardShardInfo{Slot: uint64(block.Slot), BlockHash: blockHash[:], ShardInfo: shardInfo})
+	if err != nil {
 		log.WithField("slot number", block.Slot).
 			WithField("error", err).Error("error while inserting sharding info into vanguard cache")
 	}

@@ -11,4 +11,7 @@ var (
 
 	// errAddingCache is error while put data into cache failed
 	errAddingCache = errors.New("error adding data to cache")
+
+	// errRemoveCache is error while removing invalid slot number from the cache
+	errRemoveCache = errors.New("invalid slot removal")
 )
