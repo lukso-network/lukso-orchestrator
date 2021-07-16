@@ -2,8 +2,6 @@ package pandorachain
 
 import (
 	"context"
-	"fmt"
-
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
@@ -18,38 +16,15 @@ func (s *Service) OnNewPendingHeader(ctx context.Context, header *eth1Types.Head
 		log.WithError(err).Error("Failed to decode extra data fields")
 		return err
 	}
-	log.WithField("slot", panExtraDataWithSig.Slot).Debug("Got new pan header")
-	// Catch for possible reorg
-	latestRealmVerifiedSlot := s.db.LatestVerifiedRealmSlot()
 
-	if latestRealmVerifiedSlot > panExtraDataWithSig.Slot {
-		err := fmt.Errorf("reorgs not supported")
-		log.WithField("extraData", panExtraDataWithSig.Slot).
-			WithField("latestRealmVerifiedSlot", latestRealmVerifiedSlot).Error(err.Error())
+	log.WithField("slot", panExtraDataWithSig.Slot).
+		WithField("blockNumber", header.Number.Uint64()).
+		WithField("headerHash", header.Hash()).
+		Info("New pandora header info has arrived")
 
-		return err
-	}
-
-	if err := s.cache.Put(ctx, panExtraDataWithSig.Slot, header); err != nil {
-		log.WithError(err).Error("Failed to cache header")
-		return err
-	}
-
-	pandoraHeaderHash := &types.HeaderHash{
-		HeaderHash:       header.Hash(),
-		Status:           types.Pending,
-		PandoraShardHash: header.Hash(),
-		Signature:        panExtraDataWithSig.BlsSignatureBytes.Bytes(),
-	}
-	//if err := s.db.SavePandoraHeaderHash(panExtraDataWithSig.Slot, pandoraHeaderHash); err != nil {
-	//	log.WithError(err).Error("Failed to store pandora header hash into db")
-	//	return err
-	//}
-
-	log.WithField("headerHash", pandoraHeaderHash).
-		WithField("slot", panExtraDataWithSig.Slot).Trace("Successfully inserted pandora hash to db")
-
-	s.pendingWorkChannel <- pandoraHeaderHash
-
+	s.pandoraHeaderInfoFeed.Send(&types.PandoraHeaderInfo{
+		Header: header,
+		Slot:   panExtraDataWithSig.Slot,
+	})
 	return nil
 }

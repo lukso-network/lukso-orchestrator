@@ -43,3 +43,28 @@ func (c *PanHeaderCache) Get(ctx context.Context, slot uint64) (*eth1Types.Heade
 	}
 	return nil, errInvalidSlot
 }
+
+func (c *PanHeaderCache) Remove(ctx context.Context, slot uint64) {
+	for i := slot; i >= 0; i-- {
+		if !c.cache.Remove(i) {
+			// removed all the previous slot number from cache. Now return
+			return
+		}
+	}
+}
+
+func (c *PanHeaderCache) GetAll() ([]*eth1Types.Header, error) {
+	keys := c.cache.Keys()
+	pendingHeaders := make([]*eth1Types.Header, 0)
+
+	for _, key := range keys {
+		slot := key.(uint64)
+		item, exists := c.cache.Get(slot)
+		if exists && item != nil {
+			header := item.(*eth1Types.Header)
+			copiedHeader := types.CopyHeader(header)
+			pendingHeaders = append(pendingHeaders, copiedHeader)
+		}
+	}
+	return pendingHeaders, nil
+}

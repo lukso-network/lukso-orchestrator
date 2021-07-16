@@ -1,18 +1,12 @@
 package kv
 
 var (
-	consensusInfosBucket       = []byte("consensus-info")
-	pandoraHeaderHashesBucket  = []byte("headers-pandora")
-	vanguardHeaderHashesBucket = []byte("headers-vanguard")
-	realmBucket                = []byte("realm")
+	// 3 buckets for containing orchestrator data
+	consensusInfosBucket    = []byte("consensus-info")
+	verifiedSlotInfosBucket = []byte("verified-slots")
+	invalidSlotInfosBucket  = []byte("invalid-slots")
 
-	lastStoredEpochKey          = []byte("last-epoch")
-	latestSavedPanSlotKey       = []byte("latest-pandora-slot")
-	latestSavedPanHeaderHashKey = []byte("latest-pandora-header-hash")
-
-	latestSavedVanSlotKey = []byte("latest-vanguard-slot")
-	latestSavedVanHashKey = []byte("latest-vanguard-hash")
-
-	//	 Realm
-	latestVerifiedRealmSlot = []byte("latest-verified-realm-slot")
+	latestHeaderHashKey        = []byte("latest-header-hash")
+	lastStoredEpochKey         = []byte("last-epoch")
+	latestSavedVerifiedSlotKey = []byte("latest-verified-slot")
 )

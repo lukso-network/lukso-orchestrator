@@ -2,11 +2,11 @@ package pandorachain
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
-	eth1Types "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/event"
+
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
@@ -14,7 +14,7 @@ import (
 )
 
 // time to wait before trying to reconnect.
-var reConPeriod = 15 * time.Second
+var reConPeriod = 2 * time.Second
 
 // DialRPCFn dials to the given endpoint
 type DialRPCFn func(endpoint string) (*rpc.Client, error)
@@ -38,33 +38,38 @@ type Service struct {
 	namespace string
 
 	// subscription
-	conInfoSubErrCh    chan error
-	conInfoSub         *rpc.ClientSubscription
-	pendingHeadersChan chan *eth1Types.Header
-	pendingWorkChannel chan *types.HeaderHash
+	conInfoSubErrCh chan error
+	conInfoSub      *rpc.ClientSubscription
 
 	// db support
 	db    db.Database
 	cache cache.PandoraHeaderCache
+
+	scope                 event.SubscriptionScope
+	pandoraHeaderInfoFeed event.Feed
 }
 
 // NewService creates new service with pandora ws or ipc endpoint, pandora service namespace and db
-func NewService(ctx context.Context, endpoint string, namespace string,
-	db db.Database, cache cache.PandoraHeaderCache, dialRPCFn DialRPCFn) (*Service, error) {
+func NewService(
+	ctx context.Context,
+	endpoint string,
+	namespace string,
+	db db.Database,
+	cache cache.PandoraHeaderCache,
+	dialRPCFn DialRPCFn,
+) (*Service, error) {
 
 	ctx, cancel := context.WithCancel(ctx)
 	_ = cancel // govet fix for lost cancel. Cancel is handled in service.Stop()
 	return &Service{
-		ctx:                ctx,
-		cancel:             cancel,
-		endpoint:           endpoint,
-		dialRPCFn:          dialRPCFn,
-		namespace:          namespace,
-		conInfoSubErrCh:    make(chan error),
-		pendingHeadersChan: make(chan *eth1Types.Header, 10000000),
-		pendingWorkChannel: make(chan *types.HeaderHash, 10000000),
-		db:                 db,
-		cache:              cache,
+		ctx:             ctx,
+		cancel:          cancel,
+		endpoint:        endpoint,
+		dialRPCFn:       dialRPCFn,
+		namespace:       namespace,
+		conInfoSubErrCh: make(chan error),
+		db:              db,
+		cache:           cache,
 	}, nil
 }
 
@@ -90,6 +95,7 @@ func (s *Service) Stop() error {
 		defer s.cancel()
 	}
 	s.closeClients()
+	s.scope.Close()
 	return nil
 }
 
@@ -103,23 +109,6 @@ func (s *Service) Status() error {
 		return s.runError
 	}
 	return nil
-}
-
-func (s *Service) SubscribeToPendingWorkChannel(subscriberChan chan<- *types.HeaderHash) (err error) {
-	if nil == s.pendingWorkChannel {
-		err = fmt.Errorf("pendingHeadersChan cannot be nil")
-
-		return
-	}
-
-	go func() {
-		for {
-			pendingWork := <-s.pendingWorkChannel
-			subscriberChan <- pendingWork
-		}
-	}()
-
-	return
 }
 
 // closes down our active eth1 clients.
@@ -159,7 +148,7 @@ func (s *Service) waitForConnection() {
 			log.WithField("endpoint", s.endpoint).Info("Connected and subscribed to pandora chain")
 			return
 		case <-s.ctx.Done():
-			log.Debug("Received cancelled context,closing existing pandora client service")
+			log.Info("Received cancelled context, closing existing pandora client connection service")
 			return
 		}
 	}
@@ -177,7 +166,7 @@ func (s *Service) run(done <-chan struct{}) {
 		case <-done:
 			s.isRunning = false
 			s.runError = nil
-			log.Debug("Context closed, exiting goroutine")
+			log.Info("Context closed, exiting pandora chain service goroutine")
 			return
 		case err := <-s.conInfoSubErrCh:
 			log.WithError(err).Debug("Got subscription error")
@@ -219,7 +208,7 @@ func (s *Service) retryToConnectAndSubscribe(err error) {
 
 // subscribe subscribes to pandora events
 func (s *Service) subscribe() error {
-	latestSavedHeaderHash := s.db.GetLatestHeaderHash()
+	latestSavedHeaderHash := s.db.InMemoryLatestVerifiedHeaderHash()
 	filter := &types.PandoraPendingHeaderFilter{
 		FromBlockHash: latestSavedHeaderHash,
 	}
@@ -231,4 +220,8 @@ func (s *Service) subscribe() error {
 	}
 	s.conInfoSub = sub
 	return nil
+}
+
+func (s *Service) SubscribeHeaderInfoEvent(ch chan<- *types.PandoraHeaderInfo) event.Subscription {
+	return s.scope.Track(s.pandoraHeaderInfoFeed.Subscribe(ch))
 }

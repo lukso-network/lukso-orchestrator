@@ -14,7 +14,7 @@ import (
 )
 
 // time to wait before trying to reconnect with the vanguard node.
-var reConPeriod = 15 * time.Second
+var reConPeriod = 2 * time.Second
 
 type DIALGRPCFn func(endpoint string) (client.VanguardClient, error)
 
@@ -38,15 +38,13 @@ type Service struct {
 	dialGRPCFn        DIALGRPCFn
 
 	// subscription
-	consensusInfoFeed            event.Feed
-	scope                        event.SubscriptionScope
-	conInfoSubErrCh              chan error
-	conInfoSub                   *rpc.ClientSubscription
-	vanguardPendingBlockHashFeed event.Feed
-
+	consensusInfoFeed        event.Feed
+	scope                    event.SubscriptionScope
+	conInfoSubErrCh          chan error
+	conInfoSub               *rpc.ClientSubscription
+	vanguardShardingInfoFeed event.Feed
 	// db support
 	orchestratorDB db.Database
-
 	// lru cache support
 	shardingInfoCache cache.VanguardShardCache
 }
@@ -63,12 +61,12 @@ func NewService(
 	ctx, cancel := context.WithCancel(ctx)
 	_ = cancel // govet fix for lost cancel. Cancel is handled in service.Stop()
 	return &Service{
-		ctx:             ctx,
-		cancel:          cancel,
-		vanGRPCEndpoint: vanGRPCEndpoint,
-		dialGRPCFn:      dialGRPCFn,
-		conInfoSubErrCh: make(chan error),
-		orchestratorDB:  db,
+		ctx:               ctx,
+		cancel:            cancel,
+		vanGRPCEndpoint:   vanGRPCEndpoint,
+		dialGRPCFn:        dialGRPCFn,
+		conInfoSubErrCh:   make(chan error),
+		orchestratorDB:    db,
 		shardingInfoCache: cache,
 	}, nil
 }
@@ -214,6 +212,6 @@ func (s *Service) SubscribeMinConsensusInfoEvent(ch chan<- *types.MinimalEpochCo
 	return s.scope.Track(s.consensusInfoFeed.Subscribe(ch))
 }
 
-func (s *Service) SubscribeVanNewPendingBlockHash(ch chan<- *types.HeaderHash) event.Subscription {
-	return s.scope.Track(s.vanguardPendingBlockHashFeed.Subscribe(ch))
+func (s *Service) SubscribeShardInfoEvent(ch chan<- *types.VanguardShardInfo) event.Subscription {
+	return s.scope.Track(s.vanguardShardingInfoFeed.Subscribe(ch))
 }
