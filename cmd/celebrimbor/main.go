@@ -34,15 +34,18 @@ var (
 	nickname            string
 	operatingSystem     string
 	pandoraTag          string
+	validatorTag        string
 	vanguardTag         string
 	orchestratorTag     string
 	log                 = logrus.WithField("prefix", appName)
 
-	pandoraRuntimeFlags []string
+	pandoraRuntimeFlags   []string
+	validatorRuntimeFlags []string
 )
 
 func init() {
 	flags := append(appFlags, pandoraFlags...)
+	flags = append(appFlags, validatorFlags...)
 	appFlags = cmd.WrapFlags(flags)
 }
 
@@ -89,8 +92,13 @@ func main() {
 
 		runtime.GOMAXPROCS(runtime.NumCPU())
 
-		pandoraRuntimeFlags = preparePandoraFlags(ctx)
+		// Pandora related parsing
 		pandoraTag = ctx.String(pandoraTagFlag)
+		pandoraRuntimeFlags = preparePandoraFlags(ctx)
+
+		// Validator related parsing
+		validatorTag = ctx.String(validatorTagFlag)
+		validatorRuntimeFlags = prepareValidatorFlags(ctx)
 
 		return nil
 	}

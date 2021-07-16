@@ -102,6 +102,13 @@ var (
 		Usage: "Specify log file name, relative or absolute",
 	}
 
+	AcceptTOUFlag = &cli.BoolFlag{
+		Name:     "accept-terms-of-use",
+		Usage:    "you must accept terms of use",
+		Required: true,
+		Value:    true,
+	}
+
 	CommonFlagSet = []cli.Flag{
 		VanguardGRPCEndpoint,
 		PandoraRPCEndpoint,
@@ -118,5 +125,6 @@ var (
 		ForceClearDB,
 		LogFileName,
 		LogFormat,
+		AcceptTOUFlag,
 	}
 )

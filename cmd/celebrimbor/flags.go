@@ -19,12 +19,19 @@ const (
 	pandoraEtherbaseFlag = "pandora-etherbase"
 	pandoraNotifyFlag    = "pandora-notify"
 	pandoraVerbosityFlag = "pandora-verbosity"
+	pandoraHttpPortFlag  = "pandora-http-port"
 
 	// Validator related flag names
+	validatorTagFlag                 = "validator-tag"
+	validatorVanguardRpcProviderFlag = "validator-vanguard-rpc"
+	validatorChainConfigFileFlag     = "validator-chain-config"
+	validatorVerbosityFlag           = "validator-verbosity"
+	validatorTrustedPandoraFlag      = "validator-trusted-pandora"
 
 	// Orchestrator related flag names
 
-	//
+	// Vanguard related flag names
+	//vanguardRpcProviderFlag = "vanguard-rpc"
 )
 
 var (
@@ -61,6 +68,11 @@ var (
 			Value: "eth,net",
 		},
 		&cli.StringFlag{
+			Name:  pandoraHttpPortFlag,
+			Usage: "port used in pandora http communication",
+			Value: "8565",
+		},
+		&cli.StringFlag{
 			Name:  pandoraWSApiFlag,
 			Usage: "comma separated apis",
 			Value: "eth,net",
@@ -87,7 +99,65 @@ var (
 			Value: "info",
 		},
 	}
+	validatorFlags = []cli.Flag{
+		&cli.StringFlag{
+			Name:  validatorVanguardRpcProviderFlag,
+			Usage: "provide url without prefix, example: localhost:4000",
+			Value: "localhost:4000",
+		},
+		&cli.StringFlag{
+			Name:  validatorChainConfigFileFlag,
+			Usage: "path to chain config of vanguard and validator",
+			// TODO: check if this can be done from url. As far as I understand it can.
+			Value: "./chain-config.yml",
+		},
+		&cli.StringFlag{
+			Name:  validatorVerbosityFlag,
+			Usage: "provide verbosity of validator",
+			Value: "info",
+		},
+		&cli.StringFlag{
+			Name:  validatorTrustedPandoraFlag,
+			Usage: "provide host:port for trusted pandora, default: http://127.0.0.1:8565",
+			Value: "http://127.0.0.1:8565",
+		},
+		&cli.StringFlag{
+			Name:  validatorTagFlag,
+			Usage: "provide tag for validator binary. Release must be present in lukso namespace on github",
+			Value: "v0.0.16-alpha",
+		},
+	}
 )
+
+func prepareValidatorFlags(ctx *cli.Context) (validatorArguments []string) {
+	if !ctx.Bool(cmd.AcceptTOUFlag.Name) {
+		log.Fatal("you must accept terms of use")
+		ctx.Done()
+
+		return
+	}
+
+	validatorArguments = append(validatorArguments, "--accept-terms-of-use")
+
+	if ctx.IsSet(cmd.ForceClearDB.Name) {
+		validatorArguments = append(validatorArguments, "--force-clear-db")
+	}
+
+	validatorArguments = append(validatorArguments, fmt.Sprintf(
+		"--chain-config-file=%s",
+		ctx.String(validatorChainConfigFileFlag),
+	))
+	validatorArguments = append(validatorArguments, fmt.Sprintf(
+		"--verbosity %s",
+		ctx.String(validatorVerbosityFlag),
+	))
+	validatorArguments = append(validatorArguments, fmt.Sprintf(
+		"--pandora-http-provider=%s",
+		ctx.String(validatorTrustedPandoraFlag),
+	))
+
+	return
+}
 
 func preparePandoraFlags(ctx *cli.Context) (pandoraArguments []string) {
 	pandoraArguments = append(pandoraArguments, fmt.Sprintf("--datadir %s", ctx.String(pandoraDatadirFlag)))
@@ -100,6 +170,7 @@ func preparePandoraFlags(ctx *cli.Context) (pandoraArguments []string) {
 	pandoraArguments = append(pandoraArguments, "--rpc")
 	pandoraArguments = append(pandoraArguments, "--rpcaddr 0.0.0.0")
 	pandoraArguments = append(pandoraArguments, fmt.Sprintf("--rpcapi %s", ctx.String(pandoraHttpApiFlag)))
+	pandoraArguments = append(pandoraArguments, fmt.Sprintf("--rpcport %s", ctx.String(pandoraHttpPortFlag)))
 
 	// Websocket
 	pandoraArguments = append(pandoraArguments, "--ws")
