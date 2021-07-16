@@ -1,17 +1,22 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
+	"strings"
 )
 
 // TODO: consider to move it to common/shared
 const (
-	pandoraDependencyName   = "pandora"
-	vanguardDependencyName  = "vanguard"
-	validatorDependencyName = "validator"
+	pandoraDependencyName        = "pandora"
+	pandoraGenesisDependencyName = "pandora_private_testnet_genesis.json"
+	vanguardDependencyName       = "vanguard"
+	validatorDependencyName      = "validator"
 )
 
 var (
@@ -19,6 +24,10 @@ var (
 		pandoraDependencyName: {
 			baseUnixUrl: "https://github.com/lukso-network/pandora-execution-engine/releases/download/%s/geth",
 			name:        pandoraDependencyName,
+		},
+		pandoraGenesisDependencyName: {
+			baseUnixUrl: "https://storage.googleapis.com/l16-common/pandora/pandora_private_testnet_genesis.json",
+			name:        pandoraGenesisDependencyName,
 		},
 		vanguardDependencyName: {
 			baseUnixUrl: "https://github.com/lukso-network/vanguard-consensus-engine/releases/download/%s/beacon-chain",
@@ -37,6 +46,13 @@ type ClientDependency struct {
 }
 
 func (dependency *ClientDependency) ParseUrl(tagName string) (url string) {
+	// do not parse when no occurencies
+	sprintOccurrences := strings.Count(dependency.baseUnixUrl, "%s")
+
+	if sprintOccurrences < 1 {
+		return dependency.baseUnixUrl
+	}
+
 	return fmt.Sprintf(dependency.baseUnixUrl, tagName)
 }
 
@@ -48,6 +64,40 @@ func (dependency *ClientDependency) ResolveDirPath(tagName string, datadir strin
 
 func (dependency *ClientDependency) ResolveBinaryPath(tagName string, datadir string) (location string) {
 	location = fmt.Sprintf("%s/%s", dependency.ResolveDirPath(tagName, datadir), dependency.name)
+
+	return
+}
+
+func (dependency *ClientDependency) Run(
+	tagName string,
+	destination string,
+	arguments []string,
+) (err error, out bytes.Buffer) {
+	binaryPath := dependency.ResolveBinaryPath(tagName, destination)
+	command := exec.Command(binaryPath, arguments...)
+	command.Stdout = &out
+
+	newLogger := logrus.New()
+	loggerFilePath := fmt.Sprintf("%s/%s.log", dependency.ResolveDirPath(tagName, destination), dependency.name)
+	file, err := os.OpenFile(loggerFilePath, os.O_WRONLY|os.O_CREATE, 0755)
+
+	if nil != err {
+		return
+	}
+
+	defer func() {
+		_ = file.Close()
+	}()
+
+	newLogger.SetOutput(io.MultiWriter(&out, file, os.Stdout))
+	newLogger.Info(fmt.Sprintf(
+		"I am staring %s dependency, args: %s, cmd: %s",
+		dependency.name,
+		command.String(),
+		binaryPath,
+	))
+
+	err = command.Run()
 
 	return
 }

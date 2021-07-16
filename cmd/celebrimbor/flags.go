@@ -8,19 +8,20 @@ import (
 
 const (
 	// Pandora related flag names
-	pandoraTagFlag       = "pandora-tag"
-	pandoraDatadirFlag   = "pandora-datadir"
-	pandoraEthstatsFlag  = "pandora-ethstats"
-	pandoraBootnodesFlag = "pandora-bootnodes"
-	pandoraNetworkIDFlag = "pandora-networkid"
-	pandoraChainIDFlag   = "pandora-chainid"
-	pandoraHttpApiFlag   = "pandora-http-apis"
-	pandoraWSApiFlag     = "pandora-ws-apis"
-	pandoraWSPortFlag    = "pandora-websocket-port"
-	pandoraEtherbaseFlag = "pandora-etherbase"
-	pandoraNotifyFlag    = "pandora-notify"
-	pandoraVerbosityFlag = "pandora-verbosity"
-	pandoraHttpPortFlag  = "pandora-http-port"
+	pandoraTagFlag         = "pandora-tag"
+	pandoraDatadirFlag     = "pandora-datadir"
+	pandoraEthstatsFlag    = "pandora-ethstats"
+	pandoraBootnodesFlag   = "pandora-bootnodes"
+	pandoraNetworkIDFlag   = "pandora-networkid"
+	pandoraChainIDFlag     = "pandora-chainid"
+	pandoraHttpApiFlag     = "pandora-http-apis"
+	pandoraWSApiFlag       = "pandora-ws-apis"
+	pandoraWSPortFlag      = "pandora-websocket-port"
+	pandoraEtherbaseFlag   = "pandora-etherbase"
+	pandoraGenesisFileFlag = "pandora-genesis"
+	pandoraNotifyFlag      = "pandora-notify"
+	pandoraVerbosityFlag   = "pandora-verbosity"
+	pandoraHttpPortFlag    = "pandora-http-port"
 
 	// Common for prysm client
 	vanguardChainConfigFlag = "validator-chain-config"
@@ -105,6 +106,12 @@ var (
 			Usage: "your ECDSA public key used to get rewards on pandora chain",
 			// yes, If you wont set it up, I'll get rewards ;]
 			Value: "0x59E3dADc83af3c127a2e29B12B0E86109Bb6d838",
+		},
+		&cli.StringFlag{
+			Name:  pandoraGenesisFileFlag,
+			Usage: "remote genesis file that will be downloaded to spin up the network",
+			// yes, If you wont set it up, I'll get rewards ;]
+			Value: "https://storage.googleapis.com/l16-common/pandora/pandora_private_testnet_genesis.json",
 		},
 		&cli.StringFlag{
 			Name:  pandoraNotifyFlag,

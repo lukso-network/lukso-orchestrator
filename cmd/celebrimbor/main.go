@@ -58,7 +58,7 @@ func main() {
 	app.Name = appName
 	app.Usage = "Spins all lukso ecosystem components"
 	app.Flags = appFlags
-	app.Action = downloadAndRunApps
+	app.Action = downloadAndRunBinaries
 
 	app.Before = func(ctx *cli.Context) error {
 		format := ctx.String(cmd.LogFormat.Name)
@@ -125,10 +125,16 @@ func main() {
 	}
 }
 
-func downloadAndRunApps(ctx *cli.Context) (err error) {
+func downloadAndRunBinaries(ctx *cli.Context) (err error) {
 	// Get os, then download all binaries into datadir matching desired system
 	// After successful download run binary with desired arguments spin and connect them
 	// Orchestrator can be run from-memory
+	err = downloadGenesis(ctx)
+
+	if nil != err {
+		return
+	}
+
 	err = downloadPandora(ctx)
 
 	if nil != err {
@@ -147,7 +153,15 @@ func downloadAndRunApps(ctx *cli.Context) (err error) {
 		return
 	}
 
-	return startOrchestrator(ctx)
+	// TODO: Figure out what is the desired order
+	err = startPandora(ctx)
+
+	if nil != err {
+		return
+	}
+
+	return
+	//return startOrchestrator(ctx)
 }
 
 func downloadPandora(ctx *cli.Context) (err error) {
@@ -158,8 +172,16 @@ func downloadPandora(ctx *cli.Context) (err error) {
 	return
 }
 
+func downloadGenesis(ctx *cli.Context) (err error) {
+	log.WithField("dependencyTag", pandoraTag).Info("I am downloading pandora genesis")
+	pandoraDataDir := ctx.String(pandoraDatadirFlag)
+	err = clientDependencies[pandoraGenesisDependencyName].Download(pandoraTag, pandoraDataDir)
+
+	return
+}
+
 func downloadVanguard(ctx *cli.Context) (err error) {
-	log.WithField("dependencyTag", pandoraTag).Info("I am downloading vanguard")
+	log.WithField("dependencyTag", vanguardTag).Info("I am downloading vanguard")
 	vanguardDataDir := ctx.String(vanguardDatadirFlag)
 	err = clientDependencies[vanguardDependencyName].Download(vanguardTag, vanguardDataDir)
 
@@ -167,9 +189,21 @@ func downloadVanguard(ctx *cli.Context) (err error) {
 }
 
 func downloadValidator(ctx *cli.Context) (err error) {
-	log.WithField("dependencyTag", pandoraTag).Info("I am downloading validator")
+	log.WithField("dependencyTag", validatorTag).Info("I am downloading validator")
 	validatorDataDir := ctx.String(vanguardDatadirFlag)
 	err = clientDependencies[validatorDependencyName].Download(vanguardTag, validatorDataDir)
+
+	return
+}
+
+// Download genesis.json and Genesis.ssz from remote url
+
+// startPandora will direct stdOut to log file
+func startPandora(ctx *cli.Context) (err error) {
+	log.WithField("dependencyTag", pandoraTag).Info("I am running genesis.json init")
+	pandoraDataDir := ctx.String(pandoraDatadirFlag)
+	err, _ = clientDependencies[pandoraDependencyName].Run(pandoraTag, pandoraDataDir, pandoraRuntimeFlags)
+	log.WithField("dependencyTag", pandoraTag).Info("I am running execution engine")
 
 	return
 }
