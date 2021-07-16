@@ -43,6 +43,7 @@ type Service struct {
 	conInfoSubErrCh              chan error
 	conInfoSub                   *rpc.ClientSubscription
 	vanguardPendingBlockHashFeed event.Feed
+	vanguardShardingInfoFeed event.Feed
 
 	// db support
 	orchestratorDB db.Database
@@ -216,4 +217,8 @@ func (s *Service) SubscribeMinConsensusInfoEvent(ch chan<- *types.MinimalEpochCo
 
 func (s *Service) SubscribeVanNewPendingBlockHash(ch chan<- *types.HeaderHash) event.Subscription {
 	return s.scope.Track(s.vanguardPendingBlockHashFeed.Subscribe(ch))
+}
+
+func (s *Service) SubscribeShardInfoEvent(ch chan<- *types.VanguardShardInfo) event.Subscription {
+	return s.scope.Track(s.vanguardShardingInfoFeed.Subscribe(ch))
 }

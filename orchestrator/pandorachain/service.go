@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/event"
+
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
@@ -46,6 +48,9 @@ type Service struct {
 	// db support
 	db    db.Database
 	cache cache.PandoraHeaderCache
+
+	scope event.SubscriptionScope
+	pandoraHeaderInfoFeed event.Feed
 }
 
 // NewService creates new service with pandora ws or ipc endpoint, pandora service namespace and db
@@ -90,6 +95,7 @@ func (s *Service) Stop() error {
 		defer s.cancel()
 	}
 	s.closeClients()
+	s.scope.Close()
 	return nil
 }
 
@@ -231,4 +237,8 @@ func (s *Service) subscribe() error {
 	}
 	s.conInfoSub = sub
 	return nil
+}
+
+func (s *Service) SubscribeHeaderInfoEvent(ch chan<- *types.PandoraHeaderInfo) event.Subscription {
+	return s.scope.Track(s.pandoraHeaderInfoFeed.Subscribe(ch))
 }

@@ -54,7 +54,8 @@ func (s *Service) OnNewPendingVanguardBlock(ctx context.Context, block *eth.Beac
 	}
 
 	shardInfo := pandoraShards[0]
-	err = s.shardingInfoCache.Put(ctx, uint64(block.Slot), &types.VanguardShardInfo{Slot: uint64(block.Slot), BlockHash: blockHash[:], ShardInfo: shardInfo})
+	cachedShardInfo := &types.VanguardShardInfo{Slot: uint64(block.Slot), BlockHash: blockHash[:], ShardInfo: shardInfo}
+	err = s.shardingInfoCache.Put(ctx, uint64(block.Slot), cachedShardInfo)
 	if err != nil {
 		log.WithField("slot number", block.Slot).
 			WithField("error", err).Error("error while inserting sharding info into vanguard cache")
@@ -70,6 +71,9 @@ func (s *Service) OnNewPendingVanguardBlock(ctx context.Context, block *eth.Beac
 
 	nSent := s.vanguardPendingBlockHashFeed.Send(headerHash)
 	log.WithField("nsent", nSent).Trace("Pending Block PandoraShardHash feed info to subscribers")
+
+	nSent = s.vanguardShardingInfoFeed.Send(cachedShardInfo)
+	log.WithField("nSent", nSent).Trace("Sharding info pushed to vanguardShardingInfoFeed")
 
 	//err = s.orchestratorDB.SaveVanguardHeaderHash(uint64(block.Slot), headerHash)
 

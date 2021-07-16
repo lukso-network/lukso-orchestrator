@@ -35,6 +35,10 @@ func (s *Service) OnNewPendingHeader(ctx context.Context, header *eth1Types.Head
 		return err
 	}
 
+	nSent := s.pandoraHeaderInfoFeed.Send(&types.PandoraHeaderInfo{Header: header, Slot: panExtraDataWithSig.Slot})
+	log.WithField("nSent", nSent).Trace("Pushing header info into pandoraHeaderInfoFeed")
+
+
 	pandoraHeaderHash := &types.HeaderHash{
 		HeaderHash:       header.Hash(),
 		Status:           types.Pending,
