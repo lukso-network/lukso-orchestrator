@@ -18,4 +18,8 @@ type ROnlyRealmDB = iface.RealmReadOnlyAccessDatabase
 
 type RealmDB = iface.RealmAccessDatabase
 
+type ROnlyVerifiedSlotInfo = iface.ReadOnlyVerifiedSlotInfoDatabase
+
+type ROnlyInvalidSlotInfo = iface.ReadOnlyInvalidSlotInfoDatabase
+
 type Database = iface.Database

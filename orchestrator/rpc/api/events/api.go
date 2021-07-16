@@ -2,12 +2,10 @@ package events
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/db/kv"
 	generalTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
 	"time"
 )
@@ -19,6 +17,8 @@ type Backend interface {
 	FetchPanBlockStatus(slot uint64, hash common.Hash) (status Status, err error)
 	FetchVanBlockStatus(slot uint64, hash common.Hash) (status Status, err error)
 	GetPendingHashes() (response *PendingHashesResponse, err error)
+
+	GetSlotStatus(ctx context.Context, slot uint64, requestType bool) Status
 }
 
 type Status string
@@ -103,111 +103,61 @@ func (api *PublicFilterAPI) GetPendingHashes() (response *PendingHashesResponse,
 // ConfirmPanBlockHashes should be used to get the confirmation about known state of Pandora block hashes
 func (api *PublicFilterAPI) ConfirmPanBlockHashes(
 	ctx context.Context,
-	request []*BlockHash,
-) (response []*BlockStatus, err error) {
-	if len(request) < 1 {
-		err = fmt.Errorf("request has empty slice")
-
-		return
+	requests []*BlockHash,
+) ([]*BlockStatus, error) {
+	if len(requests) < 1 {
+		err := fmt.Errorf("request has empty slice")
+		return nil, err
 	}
 
-	response = make([]*BlockStatus, 0)
+	res := make([]*BlockStatus, 0)
 
-	for _, blockRequest := range request {
-		status, currentErr := api.backend.FetchPanBlockStatus(blockRequest.Slot, blockRequest.Hash)
-		hash := blockRequest.Hash
-
-		if nil != currentErr {
-			log.Errorf("Invalid block in ConfirmPanBlockHashes: %v", err)
-			response = nil
-			err = currentErr
-
-			return
-		}
-
-		if Skipped == status {
-			hash = kv.EmptyHash
-		}
-
-		response = append(response, &BlockStatus{
+	for _, req := range requests {
+		status := api.backend.GetSlotStatus(ctx, req.Slot, true)
+		hash := req.Hash
+		res = append(res, &BlockStatus{
 			BlockHash: BlockHash{
-				Slot: blockRequest.Slot,
+				Slot: req.Slot,
 				Hash: hash,
 			},
 			Status: status,
 		})
 	}
 
-	respBytes, err := json.Marshal(response)
+	log.WithField("method", "ConfirmPanBlockHashes").WithField(
+		"request", requests).WithField("response", res).Debug("Sending back ConfirmPanBlockHashes response")
 
-	if nil != err {
-		log.WithField("err", err).Error("error unmarshaling response inConfirmVanBlockHashes")
-
-		return
-	}
-
-	log.WithField("method", "ConfirmPanBlockHashes").
-		WithField("request", request).
-		WithField("response", response).
-		WithField("jsonResponse", string(respBytes)).
-		Info("Sending back ConfirmPanBlockHashes response")
-
-	return
+	return res, nil
 }
 
 // ConfirmVanBlockHashes should be used to get the confirmation about known state of Vanguard block hashes
 func (api *PublicFilterAPI) ConfirmVanBlockHashes(
 	ctx context.Context,
-	request []*BlockHash,
+	requests []*BlockHash,
 ) (response []*BlockStatus, err error) {
-	if len(request) < 1 {
-		err = fmt.Errorf("request has empty slice")
-
-		return
+	if len(requests) < 1 {
+		err := fmt.Errorf("request has empty slice")
+		return nil, err
 	}
 
-	response = make([]*BlockStatus, 0)
+	res := make([]*BlockStatus, 0)
 
-	for _, blockRequest := range request {
-		status, currentErr := api.backend.FetchVanBlockStatus(blockRequest.Slot, blockRequest.Hash)
-		hash := blockRequest.Hash
-
-		if nil != currentErr {
-			log.Errorf("Invalid block in ConfirmVanBlockHashes: %v", err)
-			response = nil
-			err = currentErr
-
-			return
-		}
-
-		if Skipped == status {
-			hash = kv.EmptyHash
-		}
-
-		response = append(response, &BlockStatus{
+	for _, req := range requests {
+		status := api.backend.GetSlotStatus(ctx, req.Slot, false)
+		hash := req.Hash
+		res = append(res, &BlockStatus{
 			BlockHash: BlockHash{
-				Slot: blockRequest.Slot,
+				Slot: req.Slot,
 				Hash: hash,
 			},
 			Status: status,
 		})
 	}
 
-	respBytes, err := json.Marshal(response)
+	log.WithField("method", "ConfirmPanBlockHashes").WithField(
+		"request", requests).WithField("response", res).Debug("Sending back ConfirmPanBlockHashes response")
 
-	if nil != err {
-		log.WithField("err", err).Error("error unmarshaling response inConfirmVanBlockHashes")
-
-		return
-	}
-
-	log.WithField("method", "ConfirmVanBlockHashes").
-		WithField("request", request).
-		WithField("response", response).
-		WithField("jsonResponse", string(respBytes)).
-		Info("Sending back ConfirmVanBlockHashes response")
-
-	return
+	return res, nil
 }
 
 // MinimalConsensusInfo

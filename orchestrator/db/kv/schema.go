@@ -15,4 +15,7 @@ var (
 
 	//	 Realm
 	latestVerifiedRealmSlot = []byte("latest-verified-realm-slot")
+
+	verifiedSlotInfosBucket = []byte("verified-slots")
+	invalidSlotInfosBucket  = []byte("invalid-slots")
 )

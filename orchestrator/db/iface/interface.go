@@ -68,6 +68,26 @@ type RealmAccessDatabase interface {
 	SaveLatestVerifiedRealmSlot(slot uint64) (err error)
 }
 
+type ReadOnlyVerifiedSlotInfoDatabase interface {
+	VerifiedSlotInfo(slot uint64) (*types.SlotInfo, error)
+}
+
+type VerifiedSlotDatabase interface {
+	ReadOnlyVerifiedSlotInfoDatabase
+
+	SaveVerifiedSlotInfo(slot uint64, slotInfo *types.SlotInfo) error
+}
+
+type ReadOnlyInvalidSlotInfoDatabase interface {
+	InvalidSlotInfo(slots uint64) (*types.SlotInfo, error)
+}
+
+type InvalidSlotDatabase interface {
+	ReadOnlyInvalidSlotInfoDatabase
+
+	SaveInvalidSlotInfo(slot uint64, slotInfo *types.SlotInfo) error
+}
+
 // Database interface with full access.
 type Database interface {
 	io.Closer
@@ -79,6 +99,10 @@ type Database interface {
 	VanHeaderAccessDatabase
 
 	RealmAccessDatabase
+
+	VerifiedSlotDatabase
+
+	InvalidSlotDatabase
 
 	DatabasePath() string
 	ClearDB() error
