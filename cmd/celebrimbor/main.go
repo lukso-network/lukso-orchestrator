@@ -3,11 +3,9 @@ package main
 import (
 	"fmt"
 	joonix "github.com/joonix/log"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/node"
 	"github.com/lukso-network/lukso-orchestrator/shared/cmd"
 	"github.com/lukso-network/lukso-orchestrator/shared/journald"
 	"github.com/lukso-network/lukso-orchestrator/shared/logutil"
-	"github.com/lukso-network/lukso-orchestrator/shared/version"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	prefixed "github.com/x-cray/logrus-prefixed-formatter"
@@ -16,7 +14,31 @@ import (
 	runtimeDebug "runtime/debug"
 )
 
-var appFlags = cmd.CommonFlagSet
+// ANYBODY HAS THE BETTER NAME JUST GIVE PROPOSAL!
+
+// This library is responsible to spin your lukso infrastructure (Pandora, Vanguard, Validator, Orchestrator)
+// In Tolkien's stories, Celebrimbor is an elven-smith who was manipulated into forging the Rings of Power
+// by the disguised villain Sauron. While Celebrimbor created a set of Three on his own,
+// Sauron left for Mordor and forged the One Ring, a master ring to control all the others, in the fires of Mount Doom.
+// https://en.wikipedia.org/wiki/Celebrimbor
+// We want to spin also 3 libraries at once, and secretly rule them by orchestrator. It matches for me somehow
+
+// This binary will also support only some of the possible networks.
+// Make a pull request to attach your network.
+// We are also very open to any improvements. Please make some issue or hackmd proposal to make it better.
+// Join our lukso discord https://discord.gg/E2rJPP4 to ask some questions
+
+var (
+	ethstatsCredentials string
+	nickname            string
+	operatingSystem     string
+	pandoraTag          string
+	vanguardTag         string
+	orchestratorTag     string
+	appName             = "celebrimbor"
+	log                 = logrus.WithField("prefix", appName)
+	appFlags            = cmd.CommonFlagSet
+)
 
 func init() {
 	appFlags = cmd.WrapFlags(append(appFlags))
@@ -24,12 +46,10 @@ func init() {
 
 func main() {
 	app := cli.App{}
-	app.Name = "orchestrator"
-	app.Usage = "Orchestrator client orchestrates pandora and vanguard client"
-	app.Action = startNode
-	app.Version = version.Version()
-
+	app.Name = appName
+	app.Usage = "Spins all lukso ecosystem components"
 	app.Flags = appFlags
+
 	app.Before = func(ctx *cli.Context) error {
 		format := ctx.String(cmd.LogFormat.Name)
 		switch format {
@@ -75,24 +95,9 @@ func main() {
 		}
 	}()
 
-	if err := app.Run(os.Args); err != nil {
+	err := app.Run(os.Args)
+
+	if nil != err {
 		log.Error(err.Error())
 	}
-}
-
-// startNode
-func startNode(ctx *cli.Context) error {
-	verbosity := ctx.String(cmd.VerbosityFlag.Name)
-	level, err := logrus.ParseLevel(verbosity)
-	if err != nil {
-		return err
-	}
-	logrus.SetLevel(level)
-
-	orchestrator, err := node.New(ctx)
-	if err != nil {
-		return err
-	}
-	orchestrator.Start()
-	return nil
 }

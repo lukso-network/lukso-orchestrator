@@ -101,4 +101,22 @@ var (
 		Name:  "log-file",
 		Usage: "Specify log file name, relative or absolute",
 	}
+
+	CommonFlagSet = []cli.Flag{
+		VanguardGRPCEndpoint,
+		PandoraRPCEndpoint,
+		VerbosityFlag,
+		IPCPathFlag,
+		HTTPEnabledFlag,
+		HTTPListenAddrFlag,
+		HTTPPortFlag,
+		WSEnabledFlag,
+		WSListenAddrFlag,
+		WSPortFlag,
+		DataDirFlag,
+		ClearDB,
+		ForceClearDB,
+		LogFileName,
+		LogFormat,
+	}
 )
