@@ -54,7 +54,7 @@ var (
 		&cli.StringFlag{
 			Name:  pandoraTagFlag,
 			Usage: "provide a tag of pandora you would like to run",
-			Value: "p-v0.0.10-alpha-bloom-debug2",
+			Value: "v0.0.10-stable-without-mix-digest",
 		},
 		&cli.StringFlag{
 			Name:  pandoraDatadirFlag,
@@ -121,7 +121,7 @@ var (
 		&cli.StringFlag{
 			Name:  pandoraVerbosityFlag,
 			Usage: "this flag sets up verobosity for pandora",
-			Value: "info",
+			Value: "5",
 		},
 	}
 	validatorFlags = []cli.Flag{
@@ -307,8 +307,20 @@ func prepareValidatorFlags(ctx *cli.Context) (validatorArguments []string) {
 
 func preparePandoraFlags(ctx *cli.Context) (pandoraArguments []string) {
 	pandoraArguments = append(pandoraArguments, fmt.Sprintf("--datadir %s", ctx.String(pandoraDatadirFlag)))
-	pandoraArguments = append(pandoraArguments, fmt.Sprintf("--ethstats %s", ctx.String(pandoraEthstatsFlag)))
-	pandoraArguments = append(pandoraArguments, fmt.Sprintf("--bootnodes %s", ctx.String(pandoraBootnodesFlag)))
+
+	if len(ctx.String(pandoraEthstatsFlag)) > 1 {
+		pandoraArguments = append(pandoraArguments, fmt.Sprintf(
+			"--ethstats %s",
+			ctx.String(pandoraEthstatsFlag),
+		))
+	}
+
+	if len(ctx.String(pandoraBootnodesFlag)) > 1 {
+		pandoraArguments = append(
+			pandoraArguments,
+			fmt.Sprintf("--bootnodes %s", ctx.String(pandoraBootnodesFlag)))
+	}
+
 	pandoraArguments = append(pandoraArguments, fmt.Sprintf("--networkid %s", ctx.String(pandoraNetworkIDFlag)))
 
 	// Http api
