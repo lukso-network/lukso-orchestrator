@@ -104,7 +104,7 @@ var (
 		},
 		&cli.StringFlag{
 			Name:  pandoraWSPortFlag,
-			Usage: "port for pandora ws api",
+			Usage: "port for pandora api",
 			Value: "8546",
 		},
 		&cli.StringFlag{

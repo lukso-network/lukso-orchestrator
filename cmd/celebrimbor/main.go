@@ -13,6 +13,8 @@ import (
 	"os"
 	"runtime"
 	runtimeDebug "runtime/debug"
+	"sync"
+	"time"
 )
 
 // ANYBODY HAS THE BETTER NAME JUST GIVE PROPOSAL!
@@ -217,6 +219,31 @@ func startPandora(ctx *cli.Context) (err error) {
 
 	log.WithField("dependencyTag", pandoraTag).Info("I am running execution engine")
 	err = clientDependencies[pandoraDependencyName].Run(pandoraTag, pandoraDataDir, pandoraRuntimeFlags)
+
+	waitGroup := &sync.WaitGroup{}
+	waitGroup.Add(1)
+
+	go func() {
+		for {
+			_, currentErr := os.Stat(cmd.DefaultPandoraRPCEndpoint)
+			if nil != currentErr {
+				log.Info("Pandora ipc is up")
+				waitGroup.Done()
+
+				return
+			}
+
+			if os.IsNotExist(currentErr) {
+				time.Sleep(time.Millisecond * 50)
+
+				return
+			}
+
+			panic(err)
+		}
+	}()
+
+	waitGroup.Wait()
 
 	return
 }
