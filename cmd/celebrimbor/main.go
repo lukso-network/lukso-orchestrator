@@ -41,11 +41,13 @@ var (
 
 	pandoraRuntimeFlags   []string
 	validatorRuntimeFlags []string
+	vanguardRuntimeFlags  []string
 )
 
 func init() {
 	flags := append(appFlags, pandoraFlags...)
 	flags = append(appFlags, validatorFlags...)
+	flags = append(appFlags, vanguardFlags...)
 	appFlags = cmd.WrapFlags(flags)
 }
 
@@ -99,6 +101,10 @@ func main() {
 		// Validator related parsing
 		validatorTag = ctx.String(validatorTagFlag)
 		validatorRuntimeFlags = prepareValidatorFlags(ctx)
+
+		// Vanguard related parsing
+		vanguardTag = ctx.String(vanguardTagFlag)
+		vanguardRuntimeFlags = prepareVanguardFlags(ctx)
 
 		return nil
 	}

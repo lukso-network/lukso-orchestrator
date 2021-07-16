@@ -13,6 +13,7 @@ const (
 	pandoraEthstatsFlag  = "pandora-ethstats"
 	pandoraBootnodesFlag = "pandora-bootnodes"
 	pandoraNetworkIDFlag = "pandora-networkid"
+	pandoraChainIDFlag   = "pandora-chainid"
 	pandoraHttpApiFlag   = "pandora-http-apis"
 	pandoraWSApiFlag     = "pandora-ws-apis"
 	pandoraWSPortFlag    = "pandora-websocket-port"
@@ -21,17 +22,30 @@ const (
 	pandoraVerbosityFlag = "pandora-verbosity"
 	pandoraHttpPortFlag  = "pandora-http-port"
 
+	// Common for prysm client
+	vanguardChainConfigFlag = "validator-chain-config"
+
 	// Validator related flag names
 	validatorTagFlag                 = "validator-tag"
 	validatorVanguardRpcProviderFlag = "validator-vanguard-rpc"
-	validatorChainConfigFileFlag     = "validator-chain-config"
 	validatorVerbosityFlag           = "validator-verbosity"
 	validatorTrustedPandoraFlag      = "validator-trusted-pandora"
 
+	// Vanguard related flag names
+	vanguardTagFlag                     = "vanguard-tag"
+	vanguardGenesisStateFlag            = "vanguard-genesis-state"
+	vanguardDatadirFlag                 = "vanguard-datadir"
+	vanguardBootnodesFlag               = "vanguard-bootnode"
+	vanguardWeb3ProviderFlag            = "vanguard-web3provider"
+	vanguardDepositContractFlag         = "vanguard-deposit-contract"
+	vanguardContractDeploymentBlockFlag = "vanguard-deposit-deployment"
+	vanguardVerbosityFlag               = "vanguard-verbosity"
+	vanguardMinSyncPeersFlag            = "vanguard-min-sync-peers"
+	vanguardMaxSyncPeersFlag            = "vanguard-max-sync-peers"
+	vanguardP2pHostFlag                 = "vanguard-p2p-host"
+
 	// Orchestrator related flag names
 
-	// Vanguard related flag names
-	//vanguardRpcProviderFlag = "vanguard-rpc"
 )
 
 var (
@@ -60,6 +74,11 @@ var (
 		&cli.StringFlag{
 			Name:  pandoraNetworkIDFlag,
 			Usage: "provide network id if must be different than default",
+			Value: "4004181",
+		},
+		&cli.StringFlag{
+			Name:  pandoraChainIDFlag,
+			Usage: "provide chain id if must be different than default",
 			Value: "4004181",
 		},
 		&cli.StringFlag{
@@ -101,12 +120,17 @@ var (
 	}
 	validatorFlags = []cli.Flag{
 		&cli.StringFlag{
+			Name:  validatorTagFlag,
+			Usage: "provide tag for validator binary. Release must be present in lukso namespace on github",
+			Value: "v0.0.16-alpha",
+		},
+		&cli.StringFlag{
 			Name:  validatorVanguardRpcProviderFlag,
 			Usage: "provide url without prefix, example: localhost:4000",
 			Value: "localhost:4000",
 		},
 		&cli.StringFlag{
-			Name:  validatorChainConfigFileFlag,
+			Name:  vanguardChainConfigFlag,
 			Usage: "path to chain config of vanguard and validator",
 			// TODO: check if this can be done from url. As far as I understand it can.
 			Value: "./chain-config.yml",
@@ -121,13 +145,129 @@ var (
 			Usage: "provide host:port for trusted pandora, default: http://127.0.0.1:8565",
 			Value: "http://127.0.0.1:8565",
 		},
+	}
+	vanguardFlags = []cli.Flag{
 		&cli.StringFlag{
-			Name:  validatorTagFlag,
-			Usage: "provide tag for validator binary. Release must be present in lukso namespace on github",
+			Name:  vanguardTagFlag,
+			Usage: "provide tag for vanguard",
 			Value: "v0.0.16-alpha",
+		},
+		&cli.StringFlag{
+			Name: vanguardGenesisStateFlag,
+			// TODO: see if it is possible to do this via url
+			Usage: "provide genesis.ssz file",
+			Value: "./genesis.ssz",
+		},
+		&cli.StringFlag{
+			Name:  vanguardDatadirFlag,
+			Usage: "provide vanguard datadir",
+			Value: "./vanguard",
+		},
+		&cli.StringFlag{
+			Name:  vanguardBootnodesFlag,
+			Usage: `provide coma separated bootnode enr, default: "enr:-Ku4QANldTRLCRUrY9K4OAmk_ATOAyS_sxdTAaGeSh54AuDJXxOYij1fbgh4KOjD4tb2g3T-oJmMjuJyzonLYW9OmRQBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpD1pf1CAAAAAP__________gmlkgnY0gmlwhAoABweJc2VjcDI1NmsxoQKWfbT1atCho149MGMvpgBWUymiOv9QyXYhgYEBZvPBW4N1ZHCCD6A"`,
+			Value: `"enr:-Ku4QANldTRLCRUrY9K4OAmk_ATOAyS_sxdTAaGeSh54AuDJXxOYij1fbgh4KOjD4tb2g3T-oJmMjuJyzonLYW9OmRQBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpD1pf1CAAAAAP__________gmlkgnY0gmlwhAoABweJc2VjcDI1NmsxoQKWfbT1atCho149MGMvpgBWUymiOv9QyXYhgYEBZvPBW4N1ZHCCD6A"`,
+		},
+		&cli.StringFlag{
+			Name:  vanguardWeb3ProviderFlag,
+			Usage: "provide web3 provider (network of deposit contract deployment), default: http://127.0.0.1:8565",
+			Value: "http://127.0.0.1:8565",
+		},
+		&cli.StringFlag{
+			Name:  vanguardDepositContractFlag,
+			Usage: "provide deposit contract address",
+			Value: "0x000000000000000000000000000000000000cafe",
+		},
+		&cli.StringFlag{
+			Name:  vanguardContractDeploymentBlockFlag,
+			Usage: "provide deployment height of deposit contract, default 0.",
+			Value: "0",
+		},
+		&cli.StringFlag{
+			Name:  vanguardVerbosityFlag,
+			Usage: "provide verobosity for vanguard",
+			Value: "info",
+		},
+		&cli.StringFlag{
+			Name:  vanguardMinSyncPeersFlag,
+			Usage: "provide min sync peers for vanguard, default 0",
+			Value: "0",
+		},
+		&cli.StringFlag{
+			Name:  vanguardMaxSyncPeersFlag,
+			Usage: "provide max sync peers for vanguard, default 25",
+			Value: "25",
+		},
+		&cli.StringFlag{
+			Name:  vanguardP2pHostFlag,
+			Usage: "provide p2p host for vanguard, default 127.0.0.1",
+			Value: "127.0.0.1",
 		},
 	}
 )
+
+func prepareVanguardFlags(ctx *cli.Context) (vanguardArguments []string) {
+	if !ctx.Bool(cmd.AcceptTOUFlag.Name) {
+		log.Fatal("you must accept terms of use")
+		ctx.Done()
+
+		return
+	}
+
+	vanguardArguments = append(vanguardArguments, "--accept-terms-of-use")
+
+	if ctx.IsSet(cmd.ForceClearDB.Name) {
+		vanguardArguments = append(vanguardArguments, "--force-clear-db")
+	}
+
+	vanguardArguments = append(vanguardArguments, fmt.Sprintf("--chain-id=%s", ctx.String(pandoraChainIDFlag)))
+	vanguardArguments = append(
+		vanguardArguments,
+		fmt.Sprintf("--network-id=%s", ctx.String(pandoraNetworkIDFlag)))
+	vanguardArguments = append(vanguardArguments, fmt.Sprintf("--datadir %s", ctx.String(vanguardDatadirFlag)))
+
+	// This flag can be shared for sure. There is no possibility to use different specs for validator and vanguard.
+	vanguardArguments = append(vanguardArguments, fmt.Sprintf(
+		"--chain-config-file=%s",
+		ctx.String(vanguardChainConfigFlag),
+	))
+	vanguardArguments = append(vanguardArguments, fmt.Sprintf(
+		"--bootstrap-node=%s",
+		ctx.String(vanguardBootnodesFlag),
+	))
+	vanguardArguments = append(vanguardArguments, fmt.Sprintf(
+		"--http-web3provider=%s",
+		ctx.String(vanguardWeb3ProviderFlag),
+	))
+	vanguardArguments = append(vanguardArguments, fmt.Sprintf(
+		"--deposit-contract=%s",
+		ctx.String(vanguardDepositContractFlag),
+	))
+	vanguardArguments = append(vanguardArguments, fmt.Sprintf(
+		"--contract-deployment-block=%s",
+		ctx.String(vanguardContractDeploymentBlockFlag),
+	))
+	vanguardArguments = append(vanguardArguments, "--rpc-host=0.0.0.0")
+	vanguardArguments = append(vanguardArguments, "--monitoring-host=0.0.0.0")
+	vanguardArguments = append(vanguardArguments, fmt.Sprintf(
+		"--verbosity=%s",
+		ctx.String(vanguardVerbosityFlag),
+	))
+	vanguardArguments = append(vanguardArguments, fmt.Sprintf(
+		"--min-sync-peers=%s",
+		ctx.String(vanguardMinSyncPeersFlag),
+	))
+	vanguardArguments = append(vanguardArguments, fmt.Sprintf(
+		"--p2p-max-peers=%s",
+		ctx.String(vanguardMaxSyncPeersFlag),
+	))
+	vanguardArguments = append(vanguardArguments, fmt.Sprintf(
+		"--p2p-host-ip=%s",
+		ctx.String(vanguardP2pHostFlag),
+	))
+
+	return
+}
 
 func prepareValidatorFlags(ctx *cli.Context) (validatorArguments []string) {
 	if !ctx.Bool(cmd.AcceptTOUFlag.Name) {
@@ -145,7 +285,7 @@ func prepareValidatorFlags(ctx *cli.Context) (validatorArguments []string) {
 
 	validatorArguments = append(validatorArguments, fmt.Sprintf(
 		"--chain-config-file=%s",
-		ctx.String(validatorChainConfigFileFlag),
+		ctx.String(vanguardChainConfigFlag),
 	))
 	validatorArguments = append(validatorArguments, fmt.Sprintf(
 		"--verbosity %s",
