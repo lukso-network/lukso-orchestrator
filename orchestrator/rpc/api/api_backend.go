@@ -24,8 +24,8 @@ type Backend struct {
 	RealmDB              db.RealmDB
 	consensusService     *consensus.Service
 
-	VerifiedSlotInfo             db.ROnlyVerifiedSlotInfo
-	InvalidSlotInfo              db.ROnlyInvalidSlotInfo
+	VerifiedSlotInfo             db.ROnlyVerifiedSlotInfoDB
+	InvalidSlotInfo              db.ROnlyInvalidSlotInfoDB
 	VanguardPendingShardingCache cache.PandoraHeaderCache
 	PandoraPendingHeaderCache    cache.PandoraHeaderCache
 

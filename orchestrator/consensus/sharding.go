@@ -2,7 +2,6 @@ package consensus
 
 import (
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
-	log "github.com/sirupsen/logrus"
 	"reflect"
 )
 

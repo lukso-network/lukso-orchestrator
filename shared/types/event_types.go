@@ -32,11 +32,12 @@ type PanExtraDataWithBLSSig struct {
 }
 
 type PandoraHeaderInfo struct {
-	 Slot uint64
-	 Header *eth1Types.Header
+	Slot   uint64
+	Header *eth1Types.Header
 }
 
 type VanguardShardInfo struct {
-	Slot uint64
+	Slot      uint64
 	ShardInfo *eth2Types.PandoraShard
+	BlockHash []byte
 }

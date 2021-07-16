@@ -33,8 +33,8 @@ type HeaderHash struct {
 }
 
 type SlotInfo struct {
-	VanguardBlockHash 		  common.Hash
-	PandoraHeaderHash         common.Hash
+	VanguardBlockHash common.Hash
+	PandoraHeaderHash common.Hash
 }
 
 // CopyHeader creates a deep copy of a block header to prevent side effects from

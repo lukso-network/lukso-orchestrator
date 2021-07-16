@@ -4,17 +4,20 @@ import (
 	"context"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain"
+	iface2 "github.com/lukso-network/lukso-orchestrator/orchestrator/pandorachain/iface"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/iface"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	"sync"
 )
 
 type Config struct {
-	VerifiedSlotInfo             db.ROnlyVerifiedSlotInfo
-	InvalidSlotInfo              db.ROnlyInvalidSlotInfo
+	VerifiedSlotInfoDB           db.VerifiedSlotInfoDB
+	InvalidSlotInfoDB            db.InvalidSlotInfoDB
 	VanguardPendingShardingCache cache.PandoraHeaderCache
 	PandoraPendingHeaderCache    cache.PandoraHeaderCache
+
+	VanguardShardFeed iface.VanguardShardInfoFeed
+	PandoraHeaderFeed iface2.PandoraHeaderFeed
 }
 
 // Service This part could be moved to other place during refactor, might be registered as a service
@@ -25,15 +28,13 @@ type Service struct {
 	cancel         context.CancelFunc
 	runError       error
 
-	verifiedSlotInfo             db.ROnlyVerifiedSlotInfo
-	invalidSlotInfo              db.ROnlyInvalidSlotInfo
+	verifiedSlotInfoDB           db.VerifiedSlotInfoDB
+	invalidSlotInfoDB            db.InvalidSlotInfoDB
 	vanguardPendingShardingCache cache.PandoraHeaderCache
 	pandoraPendingHeaderCache    cache.PandoraHeaderCache
 
-	vanguardShardInfoChan chan *types.VanguardShardInfo
-	pandoraHeaderInfoChan chan *types.PandoraHeaderInfo
-
-	vanguardService iface.VanguardShardInfoFeed
+	vanguardShardFeed iface.VanguardShardInfoFeed
+	pandoraHeaderFeed iface2.PandoraHeaderFeed
 }
 
 func New(ctx context.Context, cfg *Config) (service *Service) {
@@ -44,12 +45,12 @@ func New(ctx context.Context, cfg *Config) (service *Service) {
 		ctx:    ctx,
 		cancel: cancel,
 
-		verifiedSlotInfo:             cfg.VerifiedSlotInfo,
-		invalidSlotInfo:              cfg.InvalidSlotInfo,
+		verifiedSlotInfoDB:           cfg.VerifiedSlotInfoDB,
+		invalidSlotInfoDB:            cfg.InvalidSlotInfoDB,
 		vanguardPendingShardingCache: cfg.VanguardPendingShardingCache,
 		pandoraPendingHeaderCache:    cfg.PandoraPendingHeaderCache,
-		vanguardShardInfoChan:        make(chan *types.VanguardShardInfo),
-		pandoraHeaderInfoChan:        make(chan *types.PandoraHeaderInfo),
+		vanguardShardFeed:            cfg.VanguardShardFeed,
+		pandoraHeaderFeed:            cfg.PandoraHeaderFeed,
 	}
 }
 
@@ -60,14 +61,43 @@ func (s *Service) Start() {
 	}
 
 	go func() {
+		vanShardInfoCh := make(chan *types.VanguardShardInfo)
+		panHeaderInfoCh := make(chan *types.PandoraHeaderInfo)
 
+		s.vanguardShardFeed.SubscribeShardInfoEvent(vanShardInfoCh)
+		s.pandoraHeaderFeed.SubscribeHeaderInfoEvent(panHeaderInfoCh)
+
+		for {
+			select {
+			case newPanHeaderInfo := <-panHeaderInfoCh:
+				log.WithField("slot", newPanHeaderInfo.Slot).Debug("New pandora header is validating")
+
+			case newVanShardInfo := <-vanShardInfoCh:
+				log.WithField("slot", newVanShardInfo.Slot).Debug("New vanguard shard info is validating")
+
+			case <-s.ctx.Done():
+				log.Debug("Received cancelled context,closing existing pandora client service")
+				return
+			}
+		}
 	}()
 }
 
 func (s *Service) Stop() error {
-
+	if s.cancel != nil {
+		defer s.cancel()
+	}
+	return nil
 }
 
 func (s *Service) Status() error {
-
+	// Service don't start
+	if !s.isRunning {
+		return nil
+	}
+	// get error from run function
+	if s.runError != nil {
+		return s.runError
+	}
+	return nil
 }
