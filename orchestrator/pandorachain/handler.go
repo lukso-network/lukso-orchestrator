@@ -41,10 +41,10 @@ func (s *Service) OnNewPendingHeader(ctx context.Context, header *eth1Types.Head
 		PandoraShardHash: header.Hash(),
 		Signature:        panExtraDataWithSig.BlsSignatureBytes.Bytes(),
 	}
-	if err := s.db.SavePandoraHeaderHash(panExtraDataWithSig.Slot, pandoraHeaderHash); err != nil {
-		log.WithError(err).Error("Failed to store pandora header hash into db")
-		return err
-	}
+	//if err := s.db.SavePandoraHeaderHash(panExtraDataWithSig.Slot, pandoraHeaderHash); err != nil {
+	//	log.WithError(err).Error("Failed to store pandora header hash into db")
+	//	return err
+	//}
 
 	log.WithField("headerHash", pandoraHeaderHash).
 		WithField("slot", panExtraDataWithSig.Slot).Trace("Successfully inserted pandora hash to db")
