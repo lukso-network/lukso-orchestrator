@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"io"
 	"net/http"
 	"os"
@@ -75,29 +74,26 @@ func (dependency *ClientDependency) Run(
 ) (err error, out bytes.Buffer) {
 	binaryPath := dependency.ResolveBinaryPath(tagName, destination)
 	command := exec.Command(binaryPath, arguments...)
-	command.Stdout = &out
+	command.Stdout = os.Stdout
+	command.Stderr = os.Stderr
 
-	newLogger := logrus.New()
-	loggerFilePath := fmt.Sprintf("%s/%s.log", dependency.ResolveDirPath(tagName, destination), dependency.name)
-	file, err := os.OpenFile(loggerFilePath, os.O_WRONLY|os.O_CREATE, 0755)
+	//newLogger := logrus.New()
+	//loggerFilePath := fmt.Sprintf("%s/%s.log", dependency.ResolveDirPath(tagName, destination), dependency.name)
+	//writeCloser, err := ioutils.NewAtomicFileWriter(loggerFilePath, 0755)
+	//
+	//if nil != err {
+	//	return
+	//}
+	//
+	//newLogger.SetOutput(io.MultiWriter(writeCloser, os.Stdout))
+	//newLogger.Info(fmt.Sprintf(
+	//	"I am staring %s dependency, args: %s, cmd: %s",
+	//	dependency.name,
+	//	command.String(),
+	//	binaryPath,
+	//))
 
-	if nil != err {
-		return
-	}
-
-	defer func() {
-		_ = file.Close()
-	}()
-
-	newLogger.SetOutput(io.MultiWriter(&out, file, os.Stdout))
-	newLogger.Info(fmt.Sprintf(
-		"I am staring %s dependency, args: %s, cmd: %s",
-		dependency.name,
-		command.String(),
-		binaryPath,
-	))
-
-	err = command.Run()
+	err = command.Start()
 
 	return
 }

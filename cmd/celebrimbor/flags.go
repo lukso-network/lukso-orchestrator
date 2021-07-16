@@ -13,6 +13,7 @@ const (
 	pandoraEthstatsFlag    = "pandora-ethstats"
 	pandoraBootnodesFlag   = "pandora-bootnodes"
 	pandoraNetworkIDFlag   = "pandora-networkid"
+	pandoraPortFlag        = "pandora-port"
 	pandoraChainIDFlag     = "pandora-chainid"
 	pandoraHttpApiFlag     = "pandora-http-apis"
 	pandoraWSApiFlag       = "pandora-ws-apis"
@@ -59,7 +60,7 @@ var (
 		&cli.StringFlag{
 			Name:  pandoraDatadirFlag,
 			Usage: "provide a path you would like to store your data",
-			Value: "./pandora",
+			Value: `"./pandora"`,
 		},
 		&cli.StringFlag{
 			Name:  pandoraEthstatsFlag,
@@ -80,6 +81,11 @@ var (
 			Name:  pandoraChainIDFlag,
 			Usage: "provide chain id if must be different than default",
 			Value: "4004181",
+		},
+		&cli.StringFlag{
+			Name:  pandoraPortFlag,
+			Usage: "provide port for pandora",
+			Value: "30405",
 		},
 		&cli.StringFlag{
 			Name:  pandoraHttpApiFlag,
@@ -306,46 +312,55 @@ func prepareValidatorFlags(ctx *cli.Context) (validatorArguments []string) {
 }
 
 func preparePandoraFlags(ctx *cli.Context) (pandoraArguments []string) {
-	pandoraArguments = append(pandoraArguments, fmt.Sprintf("--datadir %s", ctx.String(pandoraDatadirFlag)))
+	pandoraArguments = append(pandoraArguments, "--datadir")
+	pandoraArguments = append(pandoraArguments, ctx.String(pandoraDatadirFlag))
 
 	if len(ctx.String(pandoraEthstatsFlag)) > 1 {
-		pandoraArguments = append(pandoraArguments, fmt.Sprintf(
-			"--ethstats %s",
-			ctx.String(pandoraEthstatsFlag),
-		))
+		pandoraArguments = append(pandoraArguments, "--ethstats")
+		pandoraArguments = append(pandoraArguments, ctx.String(pandoraEthstatsFlag))
 	}
 
 	if len(ctx.String(pandoraBootnodesFlag)) > 1 {
-		pandoraArguments = append(
-			pandoraArguments,
-			fmt.Sprintf("--bootnodes %s", ctx.String(pandoraBootnodesFlag)))
+		pandoraArguments = append(pandoraArguments, "--bootnodes")
+		pandoraArguments = append(pandoraArguments, ctx.String(pandoraBootnodesFlag))
 	}
 
-	pandoraArguments = append(pandoraArguments, fmt.Sprintf("--networkid %s", ctx.String(pandoraNetworkIDFlag)))
+	pandoraArguments = append(pandoraArguments, "--networkid")
+	pandoraArguments = append(pandoraArguments, ctx.String(pandoraNetworkIDFlag))
+	pandoraArguments = append(pandoraArguments, "--port")
+	pandoraArguments = append(pandoraArguments, ctx.String(pandoraPortFlag))
 
 	// Http api
 	// TODO: change to new --http, because -rpc is deprecated in pandora
 	pandoraArguments = append(pandoraArguments, "--rpc")
-	pandoraArguments = append(pandoraArguments, "--rpcaddr 0.0.0.0")
-	pandoraArguments = append(pandoraArguments, fmt.Sprintf("--rpcapi %s", ctx.String(pandoraHttpApiFlag)))
-	pandoraArguments = append(pandoraArguments, fmt.Sprintf("--rpcport %s", ctx.String(pandoraHttpPortFlag)))
+	pandoraArguments = append(pandoraArguments, "--rpcaddr")
+	pandoraArguments = append(pandoraArguments, "0.0.0.0")
+	pandoraArguments = append(pandoraArguments, "--rpcapi")
+	pandoraArguments = append(pandoraArguments, ctx.String(pandoraHttpApiFlag))
+	pandoraArguments = append(pandoraArguments, "--rpcport")
+	pandoraArguments = append(pandoraArguments, ctx.String(pandoraHttpPortFlag))
 
 	// Websocket
 	pandoraArguments = append(pandoraArguments, "--ws")
-	pandoraArguments = append(pandoraArguments, "--ws.addr 0.0.0.0")
-	pandoraArguments = append(pandoraArguments, fmt.Sprintf("--ws.api %s", ctx.String(pandoraWSApiFlag)))
-	pandoraArguments = append(pandoraArguments, fmt.Sprintf("--ws.port %s", ctx.String(pandoraWSPortFlag)))
-	pandoraArguments = append(pandoraArguments, "--ws.origins '*'")
+	pandoraArguments = append(pandoraArguments, "--ws.addr")
+	pandoraArguments = append(pandoraArguments, "0.0.0.0")
+	pandoraArguments = append(pandoraArguments, "--ws.api")
+	pandoraArguments = append(pandoraArguments, ctx.String(pandoraWSApiFlag))
+	pandoraArguments = append(pandoraArguments, "--ws.port")
+	pandoraArguments = append(pandoraArguments, ctx.String(pandoraWSPortFlag))
+	pandoraArguments = append(pandoraArguments, "--ws.origins")
+	pandoraArguments = append(pandoraArguments, "'*'")
 
 	// Miner
-	pandoraArguments = append(pandoraArguments, fmt.Sprintf(
-		"--miner.etherbase %s", ctx.String(pandoraEtherbaseFlag),
-	))
+	pandoraArguments = append(pandoraArguments, "--miner.etherbase")
+	pandoraArguments = append(pandoraArguments, ctx.String(pandoraEtherbaseFlag))
 	pandoraArguments = append(pandoraArguments, "--mine")
-	pandoraArguments = append(pandoraArguments, fmt.Sprintf("--miner.notify %s", ctx.String(pandoraNotifyFlag)))
+	pandoraArguments = append(pandoraArguments, "--miner.notify")
+	pandoraArguments = append(pandoraArguments, ctx.String(pandoraNotifyFlag))
 
 	// Verbosity
-	pandoraArguments = append(pandoraArguments, fmt.Sprintf("--verbosity %s", ctx.String(pandoraVerbosityFlag)))
+	pandoraArguments = append(pandoraArguments, "--verbosity")
+	pandoraArguments = append(pandoraArguments, ctx.String(pandoraVerbosityFlag))
 
 	return
 }

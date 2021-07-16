@@ -160,8 +160,8 @@ func downloadAndRunBinaries(ctx *cli.Context) (err error) {
 		return
 	}
 
-	return
-	//return startOrchestrator(ctx)
+	//return
+	return startOrchestrator(ctx)
 }
 
 func downloadPandora(ctx *cli.Context) (err error) {
