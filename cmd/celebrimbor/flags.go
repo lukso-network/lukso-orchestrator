@@ -301,12 +301,16 @@ func prepareValidatorFlags(ctx *cli.Context) (validatorArguments []string) {
 		ctx.String(vanguardChainConfigFlag),
 	))
 	validatorArguments = append(validatorArguments, fmt.Sprintf(
-		"--verbosity %s",
+		"--verbosity=%s",
 		ctx.String(validatorVerbosityFlag),
 	))
 	validatorArguments = append(validatorArguments, fmt.Sprintf(
 		"--pandora-http-provider=%s",
 		ctx.String(validatorTrustedPandoraFlag),
+	))
+	validatorArguments = append(validatorArguments, fmt.Sprintf(
+		"--log-file=%s",
+		"./vanguard/validator.log",
 	))
 
 	return

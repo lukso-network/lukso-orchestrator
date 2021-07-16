@@ -167,8 +167,13 @@ func downloadAndRunBinaries(ctx *cli.Context) (err error) {
 		return
 	}
 
-	// TODO: Figure out what is the desired order
 	err = startVanguard(ctx)
+
+	if nil != err {
+		return
+	}
+
+	err = startValidator(ctx)
 
 	if nil != err {
 		return
@@ -277,6 +282,14 @@ func startVanguard(ctx *cli.Context) (err error) {
 	log.WithField("dependencyTag", vanguardTag).Info("I am running vanguard")
 	vanguardDataDir := ctx.String(vanguardDatadirFlag)
 	err = clientDependencies[vanguardDependencyName].Run(vanguardTag, vanguardDataDir, vanguardRuntimeFlags)
+
+	return
+}
+
+func startValidator(ctx *cli.Context) (err error) {
+	log.WithField("dependencyTag", validatorTag).Info("I am running vanguard")
+	vanguardDataDir := ctx.String(vanguardDatadirFlag)
+	err = clientDependencies[validatorDependencyName].Run(validatorTag, vanguardDataDir, validatorRuntimeFlags)
 
 	return
 }
