@@ -2,10 +2,12 @@ package cache
 
 import (
 	"context"
-	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
-	eth "github.com/prysmaticlabs/ethereumapis/eth/v1alpha1"
 	"math/rand"
 	"testing"
+
+	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
+	"github.com/lukso-network/lukso-orchestrator/shared/testutil/require"
+	eth "github.com/prysmaticlabs/ethereumapis/eth/v1alpha1"
 )
 
 func NewPandoraShardingInfo() (*eth.PandoraShard, error) {
@@ -63,7 +65,6 @@ func setupShardingCache(slotNumber int) (map[uint64]*eth.PandoraShard, error) {
 	return slotShardMap, nil
 }
 
-
 func TestVanguardShardingInfoCacheAPIs(t *testing.T) {
 	vanguardCache := NewVanShardInfoCache(100)
 	ctx := context.Background()
@@ -84,4 +85,28 @@ func TestVanguardShardingInfoCacheAPIs(t *testing.T) {
 		}
 		assert.DeepEqual(t, genInfo, receivedDataFromCache)
 	}
+}
+
+func TestVanguardShardingInfoCacheSize(t *testing.T) {
+	vanguardCache := NewVanShardInfoCache(10)
+	ctx := context.Background()
+	generatedPandoraShardInfo, err := setupShardingCache(100)
+	if err != nil {
+		t.Error("vanguard sharding data generation failed", "error", err)
+		return
+	}
+
+	for slot := 0; slot < 100; slot++ {
+		slotUint64 := uint64(slot)
+		vanguardCache.Put(ctx, slotUint64, generatedPandoraShardInfo[slotUint64])
+	}
+
+	// Should not found slot-0 because cache size is 10
+	actualHeader, err := vanguardCache.Get(ctx, 88)
+	require.ErrorContains(t, "Invalid slot", err, "Should not found because cache size is 10")
+
+	actualHeader, err = vanguardCache.Get(ctx, 90)
+	require.NoError(t, err, "Should be found slot 90")
+	assert.DeepEqual(t, generatedPandoraShardInfo[90], actualHeader)
+
 }
