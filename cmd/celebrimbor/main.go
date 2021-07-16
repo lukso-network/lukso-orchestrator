@@ -29,19 +29,21 @@ import (
 // Join our lukso discord https://discord.gg/E2rJPP4 to ask some questions
 
 var (
+	appName             = "celebrimbor"
 	ethstatsCredentials string
 	nickname            string
 	operatingSystem     string
 	pandoraTag          string
 	vanguardTag         string
 	orchestratorTag     string
-	appName             = "celebrimbor"
 	log                 = logrus.WithField("prefix", appName)
-	appFlags            = cmd.CommonFlagSet
+
+	pandoraRuntimeFlags []string
 )
 
 func init() {
-	appFlags = cmd.WrapFlags(append(appFlags))
+	flags := append(appFlags, pandoraFlags...)
+	appFlags = cmd.WrapFlags(flags)
 }
 
 func main() {
@@ -49,6 +51,7 @@ func main() {
 	app.Name = appName
 	app.Usage = "Spins all lukso ecosystem components"
 	app.Flags = appFlags
+	app.Action = downloadAndRunApps
 
 	app.Before = func(ctx *cli.Context) error {
 		format := ctx.String(cmd.LogFormat.Name)
@@ -85,6 +88,10 @@ func main() {
 		}
 
 		runtime.GOMAXPROCS(runtime.NumCPU())
+
+		pandoraRuntimeFlags = preparePandoraFlags(ctx)
+		pandoraTag = ctx.String(pandoraTagFlag)
+
 		return nil
 	}
 
@@ -100,4 +107,11 @@ func main() {
 	if nil != err {
 		log.Error(err.Error())
 	}
+}
+
+func downloadAndRunApps(ctx *cli.Context) (err error) {
+	// Get os, then download all binaries into datadir matching desired system
+	// After successful download run binary with desired arguments spin and connect them
+
+	return
 }
