@@ -11,10 +11,11 @@ import (
 
 // TODO: consider to move it to common/shared
 const (
-	pandoraDependencyName        = "pandora"
-	pandoraGenesisDependencyName = "pandora_private_testnet_genesis.json"
-	vanguardDependencyName       = "vanguard"
-	validatorDependencyName      = "validator"
+	pandoraDependencyName         = "pandora"
+	pandoraGenesisDependencyName  = "pandora_private_testnet_genesis.json"
+	vanguardDependencyName        = "vanguard"
+	validatorDependencyName       = "validator"
+	vanguardGenesisDependencyName = "vanguard_private_testnet_genesis.ssz"
 )
 
 var (
@@ -34,6 +35,10 @@ var (
 		validatorDependencyName: {
 			baseUnixUrl: "https://github.com/lukso-network/vanguard-consensus-engine/releases/download/%s/validator",
 			name:        validatorDependencyName,
+		},
+		vanguardGenesisDependencyName: {
+			baseUnixUrl: "https://storage.googleapis.com/l16-common/vanguard/vanguard_private_testnet_genesis.ssz",
+			name:        vanguardGenesisDependencyName,
 		},
 	}
 )
@@ -75,23 +80,6 @@ func (dependency *ClientDependency) Run(
 	command := exec.Command(binaryPath, arguments...)
 	command.Stdout = os.Stdout
 	command.Stderr = os.Stderr
-
-	//newLogger := logrus.New()
-	//loggerFilePath := fmt.Sprintf("%s/%s.log", dependency.ResolveDirPath(tagName, destination), dependency.name)
-	//writeCloser, err := ioutils.NewAtomicFileWriter(loggerFilePath, 0755)
-	//
-	//if nil != err {
-	//	return
-	//}
-	//
-	//newLogger.SetOutput(io.MultiWriter(writeCloser, os.Stdout))
-	//newLogger.Info(fmt.Sprintf(
-	//	"I am staring %s dependency, args: %s, cmd: %s",
-	//	dependency.name,
-	//	command.String(),
-	//	binaryPath,
-	//))
-
 	err = command.Start()
 
 	return

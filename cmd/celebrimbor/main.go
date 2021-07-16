@@ -162,7 +162,6 @@ func downloadAndRunBinaries(ctx *cli.Context) (err error) {
 		return
 	}
 
-	//return
 	return startOrchestrator(ctx)
 }
 
@@ -178,6 +177,14 @@ func downloadGenesis(ctx *cli.Context) (err error) {
 	log.WithField("dependencyTag", pandoraTag).Info("I am downloading pandora genesis")
 	pandoraDataDir := ctx.String(pandoraDatadirFlag)
 	err = clientDependencies[pandoraGenesisDependencyName].Download(pandoraTag, pandoraDataDir)
+
+	if nil != err {
+		return
+	}
+
+	log.WithField("dependencyTag", vanguardTag).Info("I am downloading vanguard genesis")
+	vanguardDataDir := ctx.String(vanguardDatadirFlag)
+	err = clientDependencies[vanguardGenesisDependencyName].Download(vanguardTag, vanguardDataDir)
 
 	return
 }
@@ -197,8 +204,6 @@ func downloadValidator(ctx *cli.Context) (err error) {
 
 	return
 }
-
-// Download genesis.json and Genesis.ssz from remote url
 
 // startPandora will direct stdOut to log file
 func startPandora(ctx *cli.Context) (err error) {
@@ -244,6 +249,16 @@ func startPandora(ctx *cli.Context) (err error) {
 	}()
 
 	waitGroup.Wait()
+
+	return
+}
+
+func startVanguard(ctx *cli.Context) (err error) {
+	//err = clientDependencies[pandoraDependencyName].Run(pandoraTag, pandoraDataDir, pandoraGenesisArguments)
+	//
+	//if nil != err {
+	//	return
+	//}
 
 	return
 }
