@@ -33,13 +33,15 @@ type Config struct {
 }
 
 type Store struct {
-	ctx                context.Context
-	isRunning          bool
-	db                 *bolt.DB
-	databasePath       string
-	consensusInfoCache *ristretto.Cache
-	panHeaderCache     *ristretto.Cache
-	vanHeaderCache     *ristretto.Cache
+	ctx                   context.Context
+	isRunning             bool
+	db                    *bolt.DB
+	databasePath          string
+	consensusInfoCache    *ristretto.Cache
+	panHeaderCache        *ristretto.Cache
+	vanHeaderCache        *ristretto.Cache
+	verifiedSlotInfoCache *ristretto.Cache
+	invalidSlotInfoCache  *ristretto.Cache
 
 	// Latest information need to be stored into db
 	latestEpoch         uint64
@@ -47,6 +49,7 @@ type Store struct {
 	latestPanHeaderHash common.Hash
 	latestVanSlot       uint64
 	latestVanHash       common.Hash
+	latestVerifiedSlot  uint64
 	// There should be mutex in store
 	sync.Mutex
 }
@@ -104,17 +107,31 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 		BufferItems: 64,                    // number of keys per Get buffer.
 	})
 
+	verifiedSlotInfoCache, err := ristretto.NewCache(&ristretto.Config{
+		NumCounters: 1000,                  // number of keys to track frequency of (1000).
+		MaxCost:     HeaderHashesCacheSize, // maximum cost of cache (1000 headers).
+		BufferItems: 64,                    // number of keys per Get buffer.
+	})
+
+	invalidSlotInfoCache, err := ristretto.NewCache(&ristretto.Config{
+		NumCounters: 1000,                  // number of keys to track frequency of (1000).
+		MaxCost:     HeaderHashesCacheSize, // maximum cost of cache (1000 headers).
+		BufferItems: 64,                    // number of keys per Get buffer.
+	})
+
 	if nil != err {
 		return nil, err
 	}
 
 	kv := &Store{
-		ctx:                ctx,
-		db:                 boltDB,
-		databasePath:       dirPath,
-		consensusInfoCache: consensusInfoCache,
-		panHeaderCache:     panHeaderCache,
-		vanHeaderCache:     vanBlockCache,
+		ctx:                   ctx,
+		db:                    boltDB,
+		databasePath:          dirPath,
+		consensusInfoCache:    consensusInfoCache,
+		panHeaderCache:        panHeaderCache,
+		vanHeaderCache:        vanBlockCache,
+		verifiedSlotInfoCache: verifiedSlotInfoCache,
+		invalidSlotInfoCache:  invalidSlotInfoCache,
 	}
 
 	if err := kv.db.Update(func(tx *bolt.Tx) error {
@@ -124,6 +141,8 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 			pandoraHeaderHashesBucket,
 			vanguardHeaderHashesBucket,
 			realmBucket,
+			verifiedSlotInfosBucket,
+			invalidSlotInfosBucket,
 		)
 	}); err != nil {
 		return nil, err
@@ -148,7 +167,11 @@ func (s *Store) ClearDB() error {
 // Close closes the underlying BoltDB database.
 func (s *Store) Close() error {
 	err := s.SaveLatestEpoch(s.ctx)
+	if nil != err {
+		return err
+	}
 
+	err = s.SaveLatestVerifiedSlot(s.ctx)
 	if nil != err {
 		return err
 	}
@@ -173,6 +196,8 @@ func (s *Store) initLatestDataFromDB() {
 	s.latestVanHash = s.LatestSavedVanguardHeaderHash()
 	// Retrieve latest savend vanguard slot from db
 	s.latestVanSlot = s.LatestSavedVanguardSlot()
+
+	s.latestVerifiedSlot = s.LatestSavedVerifiedSlot()
 }
 
 // createBuckets

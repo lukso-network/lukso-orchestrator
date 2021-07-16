@@ -1,14 +1,17 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/consensus"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/iface"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
+	log "github.com/sirupsen/logrus"
 	"sync"
 	"time"
 )
@@ -20,6 +23,12 @@ type Backend struct {
 	PandoraHeaderHashDB  db.PandoraHeaderHashDB
 	RealmDB              db.RealmDB
 	consensusService     *consensus.Service
+
+	VerifiedSlotInfo             db.ROnlyVerifiedSlotInfo
+	InvalidSlotInfo              db.ROnlyInvalidSlotInfo
+	VanguardPendingShardingCache cache.PandoraHeaderCache
+	PandoraPendingHeaderCache    cache.PandoraHeaderCache
+
 	sync.Mutex
 }
 
@@ -171,4 +180,31 @@ func (backend *Backend) ConsensusInfoByEpochRange(fromEpoch uint64) []*types.Min
 		return nil
 	}
 	return consensusInfos
+}
+
+// GetSlotStatus
+func (b *Backend) GetSlotStatus(ctx context.Context, slot uint64, requestType bool) events.Status {
+	if requestType {
+		if headerInfo, _ := b.PandoraPendingHeaderCache.Get(ctx, slot); headerInfo != nil {
+			log.WithField("slot", slot).WithField("api", "ConfirmPanBlockHashes").Debug("Pending slot")
+			return events.Pending
+		}
+	} else {
+		if headerInfo, _ := b.VanguardPendingShardingCache.Get(ctx, slot); headerInfo != nil {
+			log.WithField("slot", slot).WithField("api", "ConfirmPanBlockHashes").Debug("Pending slot")
+			return events.Pending
+		}
+	}
+
+	if slotInfo, _ := b.VerifiedSlotInfo.VerifiedSlotInfo(slot); slotInfo != nil {
+		log.WithField("slot", slot).WithField("api", "ConfirmPanBlockHashes").Debug("Verified slot")
+		return events.Verified
+	}
+
+	if slotInfo, _ := b.InvalidSlotInfo.InvalidSlotInfo(slot); slotInfo != nil {
+		log.WithField("slot", slot).WithField("api", "ConfirmPanBlockHashes").Debug("Invalid slot")
+		return events.Invalid
+	}
+
+	return events.Skipped
 }

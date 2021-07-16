@@ -32,6 +32,11 @@ type HeaderHash struct {
 	PandoraShardHash common.Hash `json:"pandoraShardHash,omitempty"`
 }
 
+type SlotInfo struct {
+	VanguardBlockHash 		  common.Hash
+	PandoraHeaderHash         common.Hash
+}
+
 // CopyHeader creates a deep copy of a block header to prevent side effects from
 // modifying a header variable.
 func CopyHeader(h *eth1Types.Header) *eth1Types.Header {
