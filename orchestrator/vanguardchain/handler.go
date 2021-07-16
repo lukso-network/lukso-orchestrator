@@ -54,6 +54,10 @@ func (s *Service) OnNewPendingVanguardBlock(ctx context.Context, block *eth.Beac
 	}
 
 	shardInfo := pandoraShards[0]
+	if err := s.shardingInfoCache.Put(ctx, uint64(block.Slot), shardInfo); err != nil {
+		log.WithField("slot number", block.Slot).
+			WithField("error", err).Error("error while inserting sharding info into vanguard cache")
+	}
 
 	hash := common.BytesToHash(blockHash[:])
 	headerHash := &types.HeaderHash{
@@ -66,12 +70,12 @@ func (s *Service) OnNewPendingVanguardBlock(ctx context.Context, block *eth.Beac
 	nSent := s.vanguardPendingBlockHashFeed.Send(headerHash)
 	log.WithField("nsent", nSent).Trace("Pending Block PandoraShardHash feed info to subscribers")
 
-	err = s.orchestratorDB.SaveVanguardHeaderHash(uint64(block.Slot), headerHash)
+	//err = s.orchestratorDB.SaveVanguardHeaderHash(uint64(block.Slot), headerHash)
 
-	if nil != err {
-		log.WithError(err).Warn("failed to save vanguard block hash")
-		return
-	}
+	//if nil != err {
+	//	log.WithError(err).Warn("failed to save vanguard block hash")
+	//	return
+	//}
 
 	log.WithField("blockHash", headerHash).
 		WithField("slot", block.Slot).

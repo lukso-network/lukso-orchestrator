@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
 	testDB "github.com/lukso-network/lukso-orchestrator/orchestrator/db/testing"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain"
 	"github.com/lukso-network/lukso-orchestrator/shared/cmd"
@@ -17,6 +18,7 @@ func setup(t *testing.T) (*Config, error) {
 		context.Background(),
 		cmd.DefaultVanguardGRPCEndpoint,
 		orchestratorDB,
+		cache.NewVanShardInfoCache(1 << 10),
 		vanguardchain.GRPCFunc,
 	)
 	if err != nil {
