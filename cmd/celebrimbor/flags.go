@@ -44,8 +44,7 @@ const (
 	vanguardMaxSyncPeersFlag            = "vanguard-max-sync-peers"
 	vanguardP2pHostFlag                 = "vanguard-p2p-host"
 
-	// Orchestrator related flag names
-
+	// Orchestrator related flag names are already present
 )
 
 var (

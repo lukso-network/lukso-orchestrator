@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	joonix "github.com/joonix/log"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/node"
 	"github.com/lukso-network/lukso-orchestrator/shared/cmd"
 	"github.com/lukso-network/lukso-orchestrator/shared/journald"
 	"github.com/lukso-network/lukso-orchestrator/shared/logutil"
@@ -29,15 +30,13 @@ import (
 // Join our lukso discord https://discord.gg/E2rJPP4 to ask some questions
 
 var (
-	appName             = "celebrimbor"
-	ethstatsCredentials string
-	nickname            string
-	operatingSystem     string
-	pandoraTag          string
-	validatorTag        string
-	vanguardTag         string
-	orchestratorTag     string
-	log                 = logrus.WithField("prefix", appName)
+	appName         = "celebrimbor"
+	operatingSystem string
+	pandoraTag      string
+	validatorTag    string
+	vanguardTag     string
+	orchestratorTag string
+	log             = logrus.WithField("prefix", appName)
 
 	pandoraRuntimeFlags   []string
 	validatorRuntimeFlags []string
@@ -126,6 +125,27 @@ func main() {
 func downloadAndRunApps(ctx *cli.Context) (err error) {
 	// Get os, then download all binaries into datadir matching desired system
 	// After successful download run binary with desired arguments spin and connect them
+	// Orchestrator can be run from-memory
 
-	return
+	return startOrchestrator(ctx)
+}
+
+func startOrchestrator(ctx *cli.Context) (err error) {
+	verbosity := ctx.String(cmd.VerbosityFlag.Name)
+	level, err := logrus.ParseLevel(verbosity)
+	if err != nil {
+		return err
+	}
+	logrus.SetLevel(level)
+
+	log.WithField("pandoraFlags", pandoraRuntimeFlags).
+		WithField("vanguardFlags", vanguardFlags).
+		WithField("validatorFlags", validatorFlags).Info("\n I will try to run setup with this additional flags \n")
+
+	orchestrator, err := node.New(ctx)
+	if err != nil {
+		return err
+	}
+	orchestrator.Start()
+	return nil
 }
