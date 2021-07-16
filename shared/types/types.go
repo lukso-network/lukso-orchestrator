@@ -28,7 +28,7 @@ type HeaderHash struct {
 	HeaderHash common.Hash `json:"headerHash"`
 	Status     Status      `json:"status"`
 	// TODO: For temporary purpose we are using it. We need to change it while refactoring
-	Signature        []byte `json:"signature,omitempty"`
+	Signature        []byte      `json:"signature,omitempty"`
 	PandoraShardHash common.Hash `json:"pandoraShardHash,omitempty"`
 }
 
