@@ -10,8 +10,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	prefixed "github.com/x-cray/logrus-prefixed-formatter"
-	"io"
-	"net/http"
 	"os"
 	"runtime"
 	runtimeDebug "runtime/debug"
@@ -142,62 +140,7 @@ func downloadAndRunApps(ctx *cli.Context) (err error) {
 
 func downloadPandora(ctx *cli.Context) (err error) {
 	pandoraDataDir := ctx.String(pandoraDatadirFlag)
-	pandoraTagPath := fmt.Sprintf("%s/%s", pandoraDataDir, pandoraTag)
-	err = os.MkdirAll(pandoraTagPath, 0755)
-
-	if nil != err {
-		return
-	}
-
-	pandoraLocation := fmt.Sprintf("%s/pandora", pandoraTagPath)
-
-	if fileExists(pandoraLocation) {
-		log.Warning("I am not downloading pandora, file already exists")
-
-		return
-	}
-
-	// For now unix-only. MAC OSX later on. We do not have builds for macOsx
-	fileUrl := fmt.Sprintf(
-		"https://github.com/lukso-network/pandora-execution-engine/releases/download/%s/geth",
-		pandoraTag,
-	)
-
-	response, err := http.Get(fileUrl)
-
-	if nil != err {
-		return
-	}
-
-	defer func() {
-		_ = response.Body.Close()
-	}()
-
-	if http.StatusOK != response.StatusCode {
-		return fmt.Errorf(
-			"invalid response when downloading pandora on file url: %s. Response: %s",
-			fileUrl,
-			response.Status,
-		)
-	}
-
-	output, err := os.Create(pandoraLocation)
-
-	if nil != err {
-		return
-	}
-
-	defer func() {
-		_ = output.Close()
-	}()
-
-	_, err = io.Copy(output, response.Body)
-
-	if nil != err {
-		return
-	}
-
-	err = os.Chmod(pandoraLocation, os.ModePerm)
+	err = clientDependencies[pandoraDependencyName].Download(pandoraTag, pandoraDataDir)
 
 	return
 }

@@ -10,7 +10,7 @@ import (
 )
 
 var appHelpTemplate = `NAME:
-   {{.App.Name}} - {{.App.Usage}}
+   {{.App.name}} - {{.App.Usage}}
 USAGE:
    {{.App.HelpName}} [options]{{if .App.Commands}} command [command options]{{end}} {{if .App.ArgsUsage}}{{.App.ArgsUsage}}{{else}}[arguments...]{{end}}
    {{if .App.Version}}
@@ -20,7 +20,7 @@ AUTHOR:
 GLOBAL OPTIONS:
    {{range .App.Commands}}{{join .Names ", "}}{{ "\t" }}{{.Usage}}
    {{end}}{{end}}{{if .FlagGroups}}
-{{range .FlagGroups}}{{.Name}} OPTIONS:
+{{range .FlagGroups}}{{.name}} OPTIONS:
    {{range .Flags}}{{.}}
    {{end}}
 {{end}}{{end}}{{if .App.Copyright }}
