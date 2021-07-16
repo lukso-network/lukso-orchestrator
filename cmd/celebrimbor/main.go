@@ -10,6 +10,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	prefixed "github.com/x-cray/logrus-prefixed-formatter"
+	"io"
+	"net/http"
 	"os"
 	"runtime"
 	runtimeDebug "runtime/debug"
@@ -44,10 +46,13 @@ var (
 )
 
 func init() {
-	flags := append(appFlags, pandoraFlags...)
-	flags = append(appFlags, validatorFlags...)
-	flags = append(appFlags, vanguardFlags...)
-	appFlags = cmd.WrapFlags(flags)
+	allFlags := make([]cli.Flag, 0)
+	allFlags = append(allFlags, pandoraFlags...)
+	allFlags = append(allFlags, validatorFlags...)
+	allFlags = append(allFlags, vanguardFlags...)
+	allFlags = append(allFlags, appFlags...)
+
+	appFlags = cmd.WrapFlags(allFlags)
 }
 
 func main() {
@@ -126,8 +131,75 @@ func downloadAndRunApps(ctx *cli.Context) (err error) {
 	// Get os, then download all binaries into datadir matching desired system
 	// After successful download run binary with desired arguments spin and connect them
 	// Orchestrator can be run from-memory
+	err = downloadPandora(ctx)
+
+	if nil != err {
+		return
+	}
 
 	return startOrchestrator(ctx)
+}
+
+func downloadPandora(ctx *cli.Context) (err error) {
+	pandoraDataDir := ctx.String(pandoraDatadirFlag)
+	pandoraTagPath := fmt.Sprintf("%s/%s", pandoraDataDir, pandoraTag)
+	err = os.MkdirAll(pandoraTagPath, 0755)
+
+	if nil != err {
+		return
+	}
+
+	pandoraLocation := fmt.Sprintf("%s/pandora", pandoraTagPath)
+
+	if fileExists(pandoraLocation) {
+		log.Warning("I am not downloading pandora, file already exists")
+
+		return
+	}
+
+	// For now unix-only. MAC OSX later on. We do not have builds for macOsx
+	fileUrl := fmt.Sprintf(
+		"https://github.com/lukso-network/pandora-execution-engine/releases/download/%s/geth",
+		pandoraTag,
+	)
+
+	response, err := http.Get(fileUrl)
+
+	if nil != err {
+		return
+	}
+
+	defer func() {
+		_ = response.Body.Close()
+	}()
+
+	if http.StatusOK != response.StatusCode {
+		return fmt.Errorf(
+			"invalid response when downloading pandora on file url: %s. Response: %s",
+			fileUrl,
+			response.Status,
+		)
+	}
+
+	output, err := os.Create(pandoraLocation)
+
+	if nil != err {
+		return
+	}
+
+	defer func() {
+		_ = output.Close()
+	}()
+
+	_, err = io.Copy(output, response.Body)
+
+	if nil != err {
+		return
+	}
+
+	err = os.Chmod(pandoraLocation, os.ModePerm)
+
+	return
 }
 
 func startOrchestrator(ctx *cli.Context) (err error) {
@@ -148,4 +220,9 @@ func startOrchestrator(ctx *cli.Context) (err error) {
 	}
 	orchestrator.Start()
 	return nil
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return !os.IsNotExist(err)
 }
