@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"net/http"
@@ -71,7 +70,7 @@ func (dependency *ClientDependency) Run(
 	tagName string,
 	destination string,
 	arguments []string,
-) (err error, out bytes.Buffer) {
+) (err error) {
 	binaryPath := dependency.ResolveBinaryPath(tagName, destination)
 	command := exec.Command(binaryPath, arguments...)
 	command.Stdout = os.Stdout

@@ -202,8 +202,21 @@ func downloadValidator(ctx *cli.Context) (err error) {
 func startPandora(ctx *cli.Context) (err error) {
 	log.WithField("dependencyTag", pandoraTag).Info("I am running genesis.json init")
 	pandoraDataDir := ctx.String(pandoraDatadirFlag)
-	err, _ = clientDependencies[pandoraDependencyName].Run(pandoraTag, pandoraDataDir, pandoraRuntimeFlags)
+	pandoraGenesisArguments := []string{
+		"init",
+		clientDependencies[pandoraGenesisDependencyName].ResolveBinaryPath(pandoraTag, pandoraDataDir),
+		"--datadir",
+		pandoraDataDir,
+	}
+
+	err = clientDependencies[pandoraDependencyName].Run(pandoraTag, pandoraDataDir, pandoraGenesisArguments)
+
+	if nil != err {
+		return
+	}
+
 	log.WithField("dependencyTag", pandoraTag).Info("I am running execution engine")
+	err = clientDependencies[pandoraDependencyName].Run(pandoraTag, pandoraDataDir, pandoraRuntimeFlags)
 
 	return
 }

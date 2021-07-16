@@ -60,7 +60,7 @@ var (
 		&cli.StringFlag{
 			Name:  pandoraDatadirFlag,
 			Usage: "provide a path you would like to store your data",
-			Value: `"./pandora"`,
+			Value: "./pandora",
 		},
 		&cli.StringFlag{
 			Name:  pandoraEthstatsFlag,
