@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/common/math"
 	joonix "github.com/joonix/log"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/node"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/client"
 	"github.com/lukso-network/lukso-orchestrator/shared/cmd"
 	"github.com/lukso-network/lukso-orchestrator/shared/journald"
 	"github.com/lukso-network/lukso-orchestrator/shared/logutil"
@@ -167,11 +169,21 @@ func downloadAndRunBinaries(ctx *cli.Context) (err error) {
 		return
 	}
 
+	time.Sleep(time.Second * 3)
+
 	err = startVanguard(ctx)
 
 	if nil != err {
 		return
 	}
+
+	err = startOrchestrator(ctx)
+
+	if nil != err {
+		return
+	}
+
+	time.Sleep(time.Second * 6)
 
 	err = startValidator(ctx)
 
@@ -179,7 +191,9 @@ func downloadAndRunBinaries(ctx *cli.Context) (err error) {
 		return
 	}
 
-	return startOrchestrator(ctx)
+	time.Sleep(time.Second * 3)
+
+	return
 }
 
 func downloadPandora(ctx *cli.Context) (err error) {
@@ -247,6 +261,8 @@ func startPandora(ctx *cli.Context) (err error) {
 		return
 	}
 
+	time.Sleep(time.Second * 3)
+
 	log.WithField("dependencyTag", pandoraTag).Info("I am running execution engine")
 	err = clientDependencies[pandoraDependencyName].Run(pandoraTag, pandoraDataDir, pandoraRuntimeFlags)
 
@@ -256,7 +272,7 @@ func startPandora(ctx *cli.Context) (err error) {
 	go func() {
 		for {
 			_, currentErr := os.Stat(cmd.DefaultPandoraRPCEndpoint)
-			if nil != currentErr {
+			if nil == currentErr {
 				log.Info("Pandora ipc is up")
 				waitGroup.Done()
 
@@ -265,8 +281,9 @@ func startPandora(ctx *cli.Context) (err error) {
 
 			if os.IsNotExist(currentErr) {
 				time.Sleep(time.Millisecond * 50)
+				log.Info("Pandora ipc is dead")
 
-				return
+				continue
 			}
 
 			panic(err)
@@ -282,6 +299,31 @@ func startVanguard(ctx *cli.Context) (err error) {
 	log.WithField("dependencyTag", vanguardTag).Info("I am running vanguard")
 	vanguardDataDir := ctx.String(vanguardDatadirFlag)
 	err = clientDependencies[vanguardDependencyName].Run(vanguardTag, vanguardDataDir, vanguardRuntimeFlags)
+
+	if nil != err {
+		return
+	}
+
+	for {
+		log.Info("vanguard readiness check")
+		time.Sleep(time.Millisecond * 250)
+		vanClient, currentErr := client.Dial(
+			ctx.Context,
+			ctx.String(cmd.VanguardGRPCEndpoint.Name),
+			time.Second,
+			32,
+			math.MaxInt32,
+		)
+
+		if nil != currentErr {
+			log.WithField("cause", "vanguard not ready yet").Error(currentErr)
+			continue
+		}
+
+		log.Info("vanguard is ready")
+		vanClient.Close()
+		break
+	}
 
 	return
 }

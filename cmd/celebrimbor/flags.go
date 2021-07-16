@@ -47,6 +47,7 @@ const (
 	vanguardMinSyncPeersFlag            = "vanguard-min-sync-peers"
 	vanguardMaxSyncPeersFlag            = "vanguard-max-sync-peers"
 	vanguardP2pHostFlag                 = "vanguard-p2p-host"
+	vanguardOrcProviderFlag             = "vanguard-orc-provider"
 
 	// Orchestrator related flag names are already present
 )
@@ -227,6 +228,11 @@ var (
 			Usage: "provide p2p host for vanguard, default 127.0.0.1",
 			Value: "127.0.0.1",
 		},
+		&cli.StringFlag{
+			Name:  vanguardOrcProviderFlag,
+			Usage: "provide orchestrator provider, default http://127.0.0.1:7878",
+			Value: "http://127.0.0.1:7878",
+		},
 	}
 )
 
@@ -289,6 +295,11 @@ func prepareVanguardFlags(ctx *cli.Context) (vanguardArguments []string) {
 	vanguardArguments = append(vanguardArguments, fmt.Sprintf(
 		"--p2p-host-ip=%s",
 		ctx.String(vanguardP2pHostFlag),
+	))
+	vanguardArguments = append(vanguardArguments, "--lukso-network")
+	vanguardArguments = append(vanguardArguments, fmt.Sprintf(
+		"--orc-http-provider=%s",
+		ctx.String(vanguardOrcProviderFlag),
 	))
 
 	return
