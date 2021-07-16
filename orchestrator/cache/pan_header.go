@@ -17,7 +17,7 @@ type PanHeaderCache struct {
 
 // NewPanHeaderCache initializes the map and underlying cache.
 func NewPanHeaderCache() *PanHeaderCache {
-	cache, err := lru.New(maxPanHeaderCacheSize)
+	cache, err := lru.New(maxCacheSize)
 	if err != nil {
 		panic(err)
 	}

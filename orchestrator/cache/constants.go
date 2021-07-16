@@ -3,8 +3,8 @@ package cache
 import "github.com/pkg/errors"
 
 var (
-	// maxPanHeaderCacheSize with 1024 consensus infos will be 1024 * 1.5kb.
-	maxPanHeaderCacheSize = 1 << 10
+	// maxCacheSize with 1024 consensus infos will be 1024 * 1.5kb.
+	maxCacheSize = 1 << 10
 
 	// errInvalidSlot
 	errInvalidSlot = errors.New("Invalid slot")

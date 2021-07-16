@@ -7,11 +7,6 @@ import (
 	"sync"
 )
 
-var (
-	// maxVanShardCacheSize with 1024 consensus infos will be 1024 * 1.5kb.
-	maxVanShardCacheSize = 1 << 10
-)
-
 // VanShardingInfoCache common struct for storing sharding info in a LRU cache
 type VanShardingInfoCache struct {
 	cache *lru.Cache
@@ -19,8 +14,8 @@ type VanShardingInfoCache struct {
 }
 
 // NewVanShardInfoCache initializes the map and underlying cache.
-func NewVanShardInfoCache() *VanShardingInfoCache {
-	cache, err := lru.New(maxVanShardCacheSize)
+func NewVanShardInfoCache(cacheSize int) *VanShardingInfoCache {
+	cache, err := lru.New(cacheSize)
 	if err != nil {
 		panic(err)
 	}
@@ -31,7 +26,7 @@ func NewVanShardInfoCache() *VanShardingInfoCache {
 
 // Put puts sharding info into a lru cache. return error if fails.
 func (vc *VanShardingInfoCache) Put(ctx context.Context, slot uint64, shardInfo *eth.PandoraShard) error {
-	if !vc.cache.Add(slot, shardInfo) {
+	if vc.cache.Add(slot, shardInfo) {
 		return errAddingCache
 	}
 	return nil
