@@ -14,7 +14,7 @@ const (
 	DefaultWSPort               = 8546        // Default TCP port for the websocket RPC server
 	DefaultIpcPath              = "orchestrator.ipc"
 	DefaultVanguardGRPCEndpoint = "127.0.0.1:4000"
-	DefaultPandoraRPCEndpoint   = "http://127.0.0.1:8545"
+	DefaultPandoraRPCEndpoint   = "http://127.0.0.1:8565"
 )
 
 // DefaultConfigDir is the default config directory to use for the vaults and other
