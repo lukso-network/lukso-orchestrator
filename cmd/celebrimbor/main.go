@@ -155,8 +155,20 @@ func downloadAndRunBinaries(ctx *cli.Context) (err error) {
 		return
 	}
 
-	// TODO: Figure out what is the desired order
+	err = downloadConfig(ctx)
+
+	if nil != err {
+		return
+	}
+
 	err = startPandora(ctx)
+
+	if nil != err {
+		return
+	}
+
+	// TODO: Figure out what is the desired order
+	err = startVanguard(ctx)
 
 	if nil != err {
 		return
@@ -185,6 +197,14 @@ func downloadGenesis(ctx *cli.Context) (err error) {
 	log.WithField("dependencyTag", vanguardTag).Info("I am downloading vanguard genesis")
 	vanguardDataDir := ctx.String(vanguardDatadirFlag)
 	err = clientDependencies[vanguardGenesisDependencyName].Download(vanguardTag, vanguardDataDir)
+
+	return
+}
+
+func downloadConfig(ctx *cli.Context) (err error) {
+	log.WithField("dependencyTag", vanguardTag).Info("I am downloading vanguard config")
+	vanguardDataDir := ctx.String(vanguardDatadirFlag)
+	err = clientDependencies[vanguardConfigDependencyName].Download(vanguardTag, vanguardDataDir)
 
 	return
 }
@@ -254,11 +274,9 @@ func startPandora(ctx *cli.Context) (err error) {
 }
 
 func startVanguard(ctx *cli.Context) (err error) {
-	//err = clientDependencies[pandoraDependencyName].Run(pandoraTag, pandoraDataDir, pandoraGenesisArguments)
-	//
-	//if nil != err {
-	//	return
-	//}
+	log.WithField("dependencyTag", vanguardTag).Info("I am running vanguard")
+	vanguardDataDir := ctx.String(vanguardDatadirFlag)
+	err = clientDependencies[vanguardDependencyName].Run(vanguardTag, vanguardDataDir, vanguardRuntimeFlags)
 
 	return
 }

@@ -16,6 +16,7 @@ const (
 	vanguardDependencyName        = "vanguard"
 	validatorDependencyName       = "validator"
 	vanguardGenesisDependencyName = "vanguard_private_testnet_genesis.ssz"
+	vanguardConfigDependencyName  = "config.yml"
 )
 
 var (
@@ -39,6 +40,10 @@ var (
 		vanguardGenesisDependencyName: {
 			baseUnixUrl: "https://storage.googleapis.com/l16-common/vanguard/vanguard_private_testnet_genesis.ssz",
 			name:        vanguardGenesisDependencyName,
+		},
+		vanguardConfigDependencyName: {
+			baseUnixUrl: "https://storage.googleapis.com/l16-common/vanguard/chain-config.yaml",
+			name:        vanguardConfigDependencyName,
 		},
 	}
 )

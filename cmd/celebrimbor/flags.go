@@ -25,7 +25,7 @@ const (
 	pandoraHttpPortFlag    = "pandora-http-port"
 
 	// Common for prysm client
-	vanguardChainConfigFlag = "validator-chain-config"
+	vanguardChainConfigFlag = "vanguard-chain-config"
 
 	// Validator related flag names
 	validatorTagFlag                 = "validator-tag"
@@ -144,8 +144,8 @@ var (
 		&cli.StringFlag{
 			Name:  vanguardChainConfigFlag,
 			Usage: "path to chain config of vanguard and validator",
-			// TODO: check if this can be done from url. As far as I understand it can.
-			Value: "./chain-config.yml",
+			// TODO: Parse it automatically
+			Value: "./vanguard/v0.0.16-alpha/config.yml",
 		},
 		&cli.StringFlag{
 			Name:  validatorVerbosityFlag,
@@ -168,7 +168,7 @@ var (
 			Name: vanguardGenesisStateFlag,
 			// TODO: see if it is possible to do this via url
 			Usage: "provide genesis.ssz file",
-			Value: "./genesis.ssz",
+			Value: "./vanguard/v0.0.16-alpha/vanguard_private_testnet_genesis.ssz",
 		},
 		&cli.StringFlag{
 			Name:  vanguardDatadirFlag,
@@ -178,12 +178,12 @@ var (
 		&cli.StringFlag{
 			Name:  vanguardBootnodesFlag,
 			Usage: `provide coma separated bootnode enr, default: "enr:-Ku4QANldTRLCRUrY9K4OAmk_ATOAyS_sxdTAaGeSh54AuDJXxOYij1fbgh4KOjD4tb2g3T-oJmMjuJyzonLYW9OmRQBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpD1pf1CAAAAAP__________gmlkgnY0gmlwhAoABweJc2VjcDI1NmsxoQKWfbT1atCho149MGMvpgBWUymiOv9QyXYhgYEBZvPBW4N1ZHCCD6A"`,
-			Value: `"enr:-Ku4QANldTRLCRUrY9K4OAmk_ATOAyS_sxdTAaGeSh54AuDJXxOYij1fbgh4KOjD4tb2g3T-oJmMjuJyzonLYW9OmRQBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpD1pf1CAAAAAP__________gmlkgnY0gmlwhAoABweJc2VjcDI1NmsxoQKWfbT1atCho149MGMvpgBWUymiOv9QyXYhgYEBZvPBW4N1ZHCCD6A"`,
+			Value: "enr:-Ku4QANldTRLCRUrY9K4OAmk_ATOAyS_sxdTAaGeSh54AuDJXxOYij1fbgh4KOjD4tb2g3T-oJmMjuJyzonLYW9OmRQBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpD1pf1CAAAAAP__________gmlkgnY0gmlwhAoABweJc2VjcDI1NmsxoQKWfbT1atCho149MGMvpgBWUymiOv9QyXYhgYEBZvPBW4N1ZHCCD6A",
 		},
 		&cli.StringFlag{
 			Name:  vanguardWeb3ProviderFlag,
 			Usage: "provide web3 provider (network of deposit contract deployment), default: http://127.0.0.1:8565",
-			Value: "http://127.0.0.1:8565",
+			Value: cmd.DefaultPandoraRPCEndpoint,
 		},
 		&cli.StringFlag{
 			Name:  vanguardDepositContractFlag,
@@ -236,7 +236,8 @@ func prepareVanguardFlags(ctx *cli.Context) (vanguardArguments []string) {
 	vanguardArguments = append(
 		vanguardArguments,
 		fmt.Sprintf("--network-id=%s", ctx.String(pandoraNetworkIDFlag)))
-	vanguardArguments = append(vanguardArguments, fmt.Sprintf("--datadir %s", ctx.String(vanguardDatadirFlag)))
+	vanguardArguments = append(vanguardArguments, fmt.Sprintf("--datadir"))
+	vanguardArguments = append(vanguardArguments, ctx.String(vanguardDatadirFlag))
 
 	// This flag can be shared for sure. There is no possibility to use different specs for validator and vanguard.
 	vanguardArguments = append(vanguardArguments, fmt.Sprintf(
