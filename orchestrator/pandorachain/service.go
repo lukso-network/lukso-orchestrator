@@ -49,7 +49,7 @@ type Service struct {
 	db    db.Database
 	cache cache.PandoraHeaderCache
 
-	scope event.SubscriptionScope
+	scope                 event.SubscriptionScope
 	pandoraHeaderInfoFeed event.Feed
 }
 

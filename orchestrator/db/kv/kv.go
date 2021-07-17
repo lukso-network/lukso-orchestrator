@@ -108,15 +108,15 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 	})
 
 	verifiedSlotInfoCache, err := ristretto.NewCache(&ristretto.Config{
-		NumCounters: 1000,                  // number of keys to track frequency of (1000).
-		MaxCost:     HeaderHashesCacheSize, // maximum cost of cache (1000 headers).
-		BufferItems: 64,                    // number of keys per Get buffer.
+		NumCounters: 1000,                    // number of keys to track frequency of (1000).
+		MaxCost:     ConsensusInfosCacheSize, // maximum cost of cache (1000 headers).
+		BufferItems: 64,                      // number of keys per Get buffer.
 	})
 
 	invalidSlotInfoCache, err := ristretto.NewCache(&ristretto.Config{
-		NumCounters: 1000,                  // number of keys to track frequency of (1000).
-		MaxCost:     HeaderHashesCacheSize, // maximum cost of cache (1000 headers).
-		BufferItems: 64,                    // number of keys per Get buffer.
+		NumCounters: 1000,                    // number of keys to track frequency of (1000).
+		MaxCost:     ConsensusInfosCacheSize, // maximum cost of cache (1000 headers).
+		BufferItems: 64,                      // number of keys per Get buffer.
 	})
 
 	if nil != err {

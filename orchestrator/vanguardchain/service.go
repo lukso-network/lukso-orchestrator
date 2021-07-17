@@ -43,7 +43,7 @@ type Service struct {
 	conInfoSubErrCh              chan error
 	conInfoSub                   *rpc.ClientSubscription
 	vanguardPendingBlockHashFeed event.Feed
-	vanguardShardingInfoFeed event.Feed
+	vanguardShardingInfoFeed     event.Feed
 
 	// db support
 	orchestratorDB db.Database

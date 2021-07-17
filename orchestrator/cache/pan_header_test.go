@@ -56,8 +56,7 @@ func Test_PandoraHeaderCache_Size(t *testing.T) {
 	assert.DeepEqual(t, expectedPanHeaders[90], actualHeader)
 }
 
-
-func Test_PandoraHeaderRemoveCache (t *testing.T) {
+func Test_PandoraHeaderRemoveCache(t *testing.T) {
 	maxCacheSize = 1 << 10
 	pc := NewPanHeaderCache()
 	ctx := context.Background()
@@ -84,4 +83,3 @@ func Test_PandoraHeaderRemoveCache (t *testing.T) {
 		assert.DeepEqual(t, expectedPanHeaders[uint64(i)], actualHeader)
 	}
 }
-

@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	"github.com/pkg/errors"
+	ethpb "github.com/prysmaticlabs/ethereumapis/eth/v1alpha1"
 	"golang.org/x/crypto/sha3"
 	"math/big"
 	"time"
@@ -105,4 +106,25 @@ func GenerateExtraDataWithBLSSig(header *eth1Types.Header) (*types.PanExtraDataW
 	extraDataWithBlsSig.ExtraData = *extraData
 	extraDataWithBlsSig.BlsSignatureBytes = &blsSignatureBytes
 	return extraDataWithBlsSig, nil
+}
+
+// NewBeaconBlock
+func NewVanguardShardInfo(slot uint64, header *eth1Types.Header) *types.VanguardShardInfo {
+	return &types.VanguardShardInfo{
+		Slot:      slot,
+		ShardInfo: NewPandoraShard(header),
+		BlockHash: make([]byte, 32),
+	}
+}
+
+func NewPandoraShard(panHeader *eth1Types.Header) *ethpb.PandoraShard {
+	return &ethpb.PandoraShard{
+		BlockNumber: panHeader.Number.Uint64() - 1,
+		Hash:        panHeader.Hash().Bytes(),
+		ParentHash:  panHeader.ParentHash.Bytes(),
+		StateRoot:   panHeader.Root.Bytes(),
+		TxHash:      panHeader.TxHash.Bytes(),
+		ReceiptHash: panHeader.ReceiptHash.Bytes(),
+		Signature:   make([]byte, 96),
+	}
 }

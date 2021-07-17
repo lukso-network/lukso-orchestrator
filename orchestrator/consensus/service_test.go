@@ -2,58 +2,18 @@ package consensus
 
 import (
 	"context"
-	"github.com/ethereum/go-ethereum/event"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
-	testDB "github.com/lukso-network/lukso-orchestrator/orchestrator/db/testing"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
+	"github.com/lukso-network/lukso-orchestrator/shared/testutil/require"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	logTest "github.com/sirupsen/logrus/hooks/test"
 	"testing"
 	"time"
 )
 
-type mockFeedService struct {
-	headerInfoFeed event.Feed
-	shardInfoFeed  event.Feed
-	scope          event.SubscriptionScope
-}
-
-func (mc *mockFeedService) SubscribeHeaderInfoEvent(ch chan<- *types.PandoraHeaderInfo) event.Subscription {
-	return mc.scope.Track(mc.headerInfoFeed.Subscribe(ch))
-}
-
-func (mc *mockFeedService) SubscribeShardInfoEvent(ch chan<- *types.VanguardShardInfo) event.Subscription {
-	return mc.scope.Track(mc.shardInfoFeed.Subscribe(ch))
-}
-
-func (mc *mockFeedService) sendHeaderInfo(headerInfo *types.PandoraHeaderInfo) {
-	mc.headerInfoFeed.Send(headerInfo)
-}
-
-func (mc *mockFeedService) sendShardInfo(shardInfo *types.VanguardShardInfo) {
-	mc.shardInfoFeed.Send(shardInfo)
-}
-
-func setup(ctx context.Context, t *testing.T) *Service {
-	testDB := testDB.SetupDB(t)
-	mfs := new(mockFeedService)
-
-	cfg := &Config{
-		VerifiedSlotInfoDB:           testDB,
-		InvalidSlotInfoDB:            testDB,
-		VanguardPendingShardingCache: cache.NewVanShardInfoCache(1024),
-		PandoraPendingHeaderCache:    cache.NewPanHeaderCache(),
-		VanguardShardFeed:            mfs,
-		PandoraHeaderFeed:            mfs,
-	}
-
-	return New(ctx, cfg)
-}
-
 func TestService_Start(t *testing.T) {
 	hook := logTest.NewGlobal()
 	ctx := context.Background()
-	svc := setup(ctx, t)
+	svc, _ := setup(ctx, t)
 	defer svc.Stop()
 
 	svc.Start()
@@ -62,17 +22,54 @@ func TestService_Start(t *testing.T) {
 	hook.Reset()
 }
 
-func TestSevice_Subscription(t *testing.T) {
-	hook := logTest.NewGlobal()
-	ctx := context.Background()
-	svc := setup(ctx, t)
-	defer svc.Stop()
+func TestService(t *testing.T) {
+	headerInfos, shardInfos := getHeaderInfosAndShardInfos(1, 6)
+	tests := []struct {
+		name              string
+		vanShardInfos     []*types.VanguardShardInfo
+		panHeaderInfos    []*types.PandoraHeaderInfo
+		verifiedSlots     []uint64
+		invalidSlots      []uint64
+		expectedOutputMsg string
+	}{
+		{
+			name:              "Test subscription process",
+			vanShardInfos:     shardInfos,
+			panHeaderInfos:    headerInfos,
+			verifiedSlots:     []uint64{1, 2, 3, 4, 5},
+			invalidSlots:      []uint64{},
+			expectedOutputMsg: "Successfully verified sharding info",
+		},
+	}
 
-	svc.Start()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 
-	svc.vanguardShardFeed.SubscribeShardInfoEvent()
+			hook := logTest.NewGlobal()
+			ctx := context.Background()
+			svc, mockedFeed := setup(ctx, t)
+			defer svc.Stop()
+			svc.Start()
 
-	time.Sleep(1 * time.Second)
-	assert.LogsContain(t, hook, "Starting consensus service")
-	hook.Reset()
+			for i := 0; i < 5; i++ {
+				slot := tt.vanShardInfos[i].Slot
+				svc.vanguardPendingShardingCache.Put(ctx, slot, tt.vanShardInfos[i])
+				mockedFeed.shardInfoFeed.Send(tt.vanShardInfos[i])
+
+				time.Sleep(20 * time.Millisecond)
+
+				svc.pandoraPendingHeaderCache.Put(ctx, slot, tt.panHeaderInfos[i].Header)
+				mockedFeed.headerInfoFeed.Send(tt.panHeaderInfos[i])
+
+				time.Sleep(100 * time.Millisecond)
+				slotInfo, err := svc.verifiedSlotInfoDB.VerifiedSlotInfo(slot)
+				require.NoError(t, err)
+				assert.NotNil(t, slotInfo)
+			}
+
+			time.Sleep(2 * time.Second)
+			assert.LogsContain(t, hook, tt.expectedOutputMsg)
+			hook.Reset()
+		})
+	}
 }

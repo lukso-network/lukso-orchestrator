@@ -37,14 +37,14 @@ type Service struct {
 	pandoraHeaderFeed iface2.PandoraHeaderFeed
 }
 
+//
 func New(ctx context.Context, cfg *Config) (service *Service) {
 	ctx, cancel := context.WithCancel(ctx)
 	_ = cancel // govet fix for lost cancel. Cancel is handled in service.Stop()
 
 	return &Service{
-		ctx:    ctx,
-		cancel: cancel,
-
+		ctx:                          ctx,
+		cancel:                       cancel,
 		verifiedSlotInfoDB:           cfg.VerifiedSlotInfoDB,
 		invalidSlotInfoDB:            cfg.InvalidSlotInfoDB,
 		vanguardPendingShardingCache: cfg.VanguardPendingShardingCache,
@@ -65,18 +65,20 @@ func (s *Service) Start() {
 		vanShardInfoCh := make(chan *types.VanguardShardInfo)
 		panHeaderInfoCh := make(chan *types.PandoraHeaderInfo)
 
-		s.vanguardShardFeed.SubscribeShardInfoEvent(vanShardInfoCh)
-		s.pandoraHeaderFeed.SubscribeHeaderInfoEvent(panHeaderInfoCh)
+		vanShardInfoSub := s.vanguardShardFeed.SubscribeShardInfoEvent(vanShardInfoCh)
+		panHeaderInfoSub := s.pandoraHeaderFeed.SubscribeHeaderInfoEvent(panHeaderInfoCh)
 
 		for {
 			select {
 			case newPanHeaderInfo := <-panHeaderInfoCh:
 				log.WithField("slot", newPanHeaderInfo.Slot).Debug("New pandora header is validating")
-
+				s.processPandoraHeader(newPanHeaderInfo)
 			case newVanShardInfo := <-vanShardInfoCh:
 				log.WithField("slot", newVanShardInfo.Slot).Debug("New vanguard shard info is validating")
-
+				s.processVanguardShardInfo(newVanShardInfo)
 			case <-s.ctx.Done():
+				vanShardInfoSub.Unsubscribe()
+				panHeaderInfoSub.Unsubscribe()
 				log.Debug("Received cancelled context,closing existing consensus service")
 				return
 			}
