@@ -13,7 +13,7 @@ import (
 type Config struct {
 	VerifiedSlotInfoDB           db.VerifiedSlotInfoDB
 	InvalidSlotInfoDB            db.InvalidSlotInfoDB
-	VanguardPendingShardingCache cache.PandoraHeaderCache
+	VanguardPendingShardingCache cache.VanguardShardCache
 	PandoraPendingHeaderCache    cache.PandoraHeaderCache
 
 	VanguardShardFeed iface.VanguardShardInfoFeed
@@ -30,7 +30,7 @@ type Service struct {
 
 	verifiedSlotInfoDB           db.VerifiedSlotInfoDB
 	invalidSlotInfoDB            db.InvalidSlotInfoDB
-	vanguardPendingShardingCache cache.PandoraHeaderCache
+	vanguardPendingShardingCache cache.VanguardShardCache
 	pandoraPendingHeaderCache    cache.PandoraHeaderCache
 
 	vanguardShardFeed iface.VanguardShardInfoFeed
@@ -59,8 +59,9 @@ func (s *Service) Start() {
 		log.Error("Attempted to start rpc server when it was already started")
 		return
 	}
-
+	s.isRunning = true
 	go func() {
+		log.Info("Starting consensus service")
 		vanShardInfoCh := make(chan *types.VanguardShardInfo)
 		panHeaderInfoCh := make(chan *types.PandoraHeaderInfo)
 
@@ -76,7 +77,7 @@ func (s *Service) Start() {
 				log.WithField("slot", newVanShardInfo.Slot).Debug("New vanguard shard info is validating")
 
 			case <-s.ctx.Done():
-				log.Debug("Received cancelled context,closing existing pandora client service")
+				log.Debug("Received cancelled context,closing existing consensus service")
 				return
 			}
 		}

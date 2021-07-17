@@ -191,7 +191,7 @@ func SetupVanguardSvc(
 		ctx,
 		"127.0.0.1:4000",
 		db,
-		cache.NewVanShardInfoCache(1 << 10),
+		cache.NewVanShardInfoCache(1<<10),
 		dialGRPCFn,
 	)
 	if err != nil {

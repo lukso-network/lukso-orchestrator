@@ -18,7 +18,7 @@ func setup(t *testing.T) (*Config, error) {
 		context.Background(),
 		cmd.DefaultVanguardGRPCEndpoint,
 		orchestratorDB,
-		cache.NewVanShardInfoCache(1 << 10),
+		cache.NewVanShardInfoCache(1<<10),
 		vanguardchain.GRPCFunc,
 	)
 	if err != nil {

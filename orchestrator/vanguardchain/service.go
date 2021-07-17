@@ -63,12 +63,12 @@ func NewService(
 	ctx, cancel := context.WithCancel(ctx)
 	_ = cancel // govet fix for lost cancel. Cancel is handled in service.Stop()
 	return &Service{
-		ctx:             ctx,
-		cancel:          cancel,
-		vanGRPCEndpoint: vanGRPCEndpoint,
-		dialGRPCFn:      dialGRPCFn,
-		conInfoSubErrCh: make(chan error),
-		orchestratorDB:  db,
+		ctx:               ctx,
+		cancel:            cancel,
+		vanGRPCEndpoint:   vanGRPCEndpoint,
+		dialGRPCFn:        dialGRPCFn,
+		conInfoSubErrCh:   make(chan error),
+		orchestratorDB:    db,
 		shardingInfoCache: cache,
 	}, nil
 }

@@ -45,7 +45,7 @@ type OrchestratorNode struct {
 	db db.Database
 
 	// lru caches
-	pandoraInfoCache *cache.PanHeaderCache
+	pandoraInfoCache  *cache.PanHeaderCache
 	vanShardInfoCache *cache.VanShardingInfoCache
 }
 
@@ -55,12 +55,12 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 	registry := shared.NewServiceRegistry()
 	ctx, cancel := context.WithCancel(cliCtx.Context)
 	orchestrator := &OrchestratorNode{
-		cliCtx:   cliCtx,
-		ctx:      ctx,
-		cancel:   cancel,
-		services: registry,
-		stop:     make(chan struct{}),
-		pandoraInfoCache: cache.NewPanHeaderCache(),
+		cliCtx:            cliCtx,
+		ctx:               ctx,
+		cancel:            cancel,
+		services:          registry,
+		stop:              make(chan struct{}),
+		pandoraInfoCache:  cache.NewPanHeaderCache(),
 		vanShardInfoCache: cache.NewVanShardInfoCache(1 << 10),
 	}
 

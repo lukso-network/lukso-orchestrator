@@ -32,7 +32,6 @@ func (vc *VanShardingInfoCache) Put(ctx context.Context, slot uint64, shardInfo 
 	return nil
 }
 
-
 // Get retrieves sharding info from a cache. returns error if fails
 func (vc *VanShardingInfoCache) Get(ctx context.Context, slot uint64) (*eth.PandoraShard, error) {
 	item, exists := vc.cache.Get(slot)
