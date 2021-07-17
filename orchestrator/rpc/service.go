@@ -67,12 +67,8 @@ func NewService(ctx context.Context, cfg *Config) (*Service, error) {
 		config:        cfg,
 		inprocHandler: rpc.NewServer(),
 		backend: &api.Backend{
-			ConsensusInfoFeed:    cfg.ConsensusInfoFeed,
-			ConsensusInfoDB:      cfg.Db,
-			VanguardHeaderHashDB: cfg.Db,
-			PandoraHeaderHashDB:  cfg.Db,
-			RealmDB:              cfg.Db,
-
+			ConsensusInfoFeed:            cfg.ConsensusInfoFeed,
+			ConsensusInfoDB:              cfg.Db,
 			VerifiedSlotInfoDB:           cfg.Db,
 			InvalidSlotInfoDB:            cfg.Db,
 			PandoraPendingHeaderCache:    cfg.PandoraPendingHeaderCache,

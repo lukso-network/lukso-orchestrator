@@ -11,13 +11,8 @@ import (
 )
 
 type Backend interface {
-	CurrentEpoch() uint64
 	ConsensusInfoByEpochRange(fromEpoch uint64) []*generalTypes.MinimalEpochConsensusInfo
 	SubscribeNewEpochEvent(chan<- *generalTypes.MinimalEpochConsensusInfo) event.Subscription
-	FetchPanBlockStatus(slot uint64, hash common.Hash) (status Status, err error)
-	FetchVanBlockStatus(slot uint64, hash common.Hash) (status Status, err error)
-	GetPendingHashes() (response *PendingHashesResponse, err error)
-
 	GetSlotStatus(ctx context.Context, slot uint64, requestType bool) Status
 }
 
@@ -49,33 +44,6 @@ type BlockStatus struct {
 	Status Status
 }
 
-type RealmPair struct {
-	Slot          uint64
-	VanguardHash  *generalTypes.HeaderHash
-	PandoraHashes []*generalTypes.HeaderHash
-}
-
-// TODO: consider it to merge into only string-based statuses
-func FromDBStatus(status generalTypes.Status) (eventStatus Status) {
-	if generalTypes.Pending == status {
-		eventStatus = Pending
-	}
-
-	if generalTypes.Verified == status {
-		eventStatus = Verified
-	}
-
-	if generalTypes.Invalid == status {
-		eventStatus = Invalid
-	}
-
-	if generalTypes.Skipped == status {
-		eventStatus = Skipped
-	}
-
-	return
-}
-
 // NewPublicFilterAPI returns a new PublicFilterAPI instance.
 func NewPublicFilterAPI(backend Backend, timeout time.Duration) *PublicFilterAPI {
 	api := &PublicFilterAPI{
@@ -96,23 +64,16 @@ type PendingHashesResponse struct {
 	UnixTime          int64
 }
 
-// GetPendingHashes This is only for debug purpose
-func (api *PublicFilterAPI) GetPendingHashes() (response *PendingHashesResponse, err error) {
-	return api.backend.GetPendingHashes()
-}
-
 // ConfirmPanBlockHashes should be used to get the confirmation about known state of Pandora block hashes
 func (api *PublicFilterAPI) ConfirmPanBlockHashes(
 	ctx context.Context,
 	requests []*BlockHash,
 ) ([]*BlockStatus, error) {
 	if len(requests) < 1 {
-		err := fmt.Errorf("request has empty slice")
+		err := fmt.Errorf("invalid request")
 		return nil, err
 	}
-
 	res := make([]*BlockStatus, 0)
-
 	for _, req := range requests {
 		status := api.backend.GetSlotStatus(ctx, req.Slot, true)
 		hash := req.Hash
@@ -126,8 +87,8 @@ func (api *PublicFilterAPI) ConfirmPanBlockHashes(
 	}
 
 	log.WithField("method", "ConfirmPanBlockHashes").WithField(
-		"request", requests).WithField("response", res).Debug("Sending back ConfirmPanBlockHashes response")
-
+		"request", requests).WithField("response", res).Debug(
+		"Sending back ConfirmPanBlockHashes response")
 	return res, nil
 }
 
@@ -140,9 +101,7 @@ func (api *PublicFilterAPI) ConfirmVanBlockHashes(
 		err := fmt.Errorf("request has empty slice")
 		return nil, err
 	}
-
 	res := make([]*BlockStatus, 0)
-
 	for _, req := range requests {
 		status := api.backend.GetSlotStatus(ctx, req.Slot, false)
 		hash := req.Hash
@@ -155,9 +114,9 @@ func (api *PublicFilterAPI) ConfirmVanBlockHashes(
 		})
 	}
 
-	log.WithField("method", "ConfirmPanBlockHashes").WithField(
-		"request", requests).WithField("response", res).Debug("Sending back ConfirmPanBlockHashes response")
-
+	log.WithField("method", "ConfirmVanBlockHashes").WithField(
+		"request", requests).WithField("response", res).Debug(
+		"Sending back ConfirmVanBlockHashes response")
 	return res, nil
 }
 
@@ -168,41 +127,32 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, epoch uint
 		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported
 	}
 	rpcSub := notifier.CreateSubscription()
-
 	// Fill already known epochs
 	alreadyKnownEpochs := api.backend.ConsensusInfoByEpochRange(epoch)
-
 	// TODO: Consider change. This is due to the mismatch on slot 0 on pandora and vanguard
-	timeMismatch := time.Second * 3
-
+	//timeMismatch := time.Second * 3
 	go func() {
 		consensusInfo := make(chan *generalTypes.MinimalEpochConsensusInfo)
 		consensusInfoSub := api.events.SubscribeConsensusInfo(consensusInfo, epoch)
-		log.WithField("fromEpoch", epoch).
-			WithField("alreadyKnown", alreadyKnownEpochs).
-			Info("registered new subscriber for consensus info")
 
+		log.WithField("fromEpoch", epoch).Info("registered new subscriber for consensus info")
 		if len(alreadyKnownEpochs) < 1 {
-			log.WithField("fromEpoch", epoch).
-				Info("there are no already known epochs, try to fetch lowest")
+			log.WithField("fromEpoch", epoch).Info("there are no already known epochs, try to fetch lowest")
 		}
 
 		for index, currentEpoch := range alreadyKnownEpochs {
 			// TODO: Remove it ASAP. This should not be that way
-			differ := currentEpoch.EpochStartTime - uint64(timeMismatch.Seconds())
-
-			log.WithField("epoch", index).
-				WithField("epochStartTime", currentEpoch.EpochStartTime).
-				Info("sending already known consensus info to subscriber")
+			//differ := currentEpoch.EpochStartTime - uint64(timeMismatch.Seconds())
+			log.WithField("epoch", index).WithField("epochStartTime", currentEpoch.EpochStartTime).Info(
+				"sending already known consensus info to subscriber")
 			err := notifier.Notify(rpcSub.ID, &generalTypes.MinimalEpochConsensusInfo{
 				Epoch:            currentEpoch.Epoch,
 				ValidatorList:    currentEpoch.ValidatorList,
-				EpochStartTime:   differ,
+				EpochStartTime:   currentEpoch.EpochStartTime,
 				SlotTimeDuration: currentEpoch.SlotTimeDuration,
 			})
-
 			if nil != err {
-				log.WithField("context", "already known epochs notification failure").Error(err)
+				log.WithError(err).Error("Failed to notify already known consensus infos")
 			}
 		}
 
@@ -210,17 +160,19 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, epoch uint
 			select {
 			case currentEpoch := <-consensusInfo:
 				// TODO: Remove it asap
-				differ := currentEpoch.EpochStartTime - uint64(timeMismatch.Seconds())
-				log.WithField("epoch", currentEpoch.Epoch).Info("sending consensus info to subscriber")
+				//differ := currentEpoch.EpochStartTime - uint64(timeMismatch.Seconds())
+				log.WithField("epoch", currentEpoch.Epoch).WithField(
+					"epochStartTime", currentEpoch.EpochStartTime).Info(
+					"sending consensus info to subscriber")
 				err := notifier.Notify(rpcSub.ID, &generalTypes.MinimalEpochConsensusInfo{
 					Epoch:            currentEpoch.Epoch,
 					ValidatorList:    currentEpoch.ValidatorList,
-					EpochStartTime:   differ,
+					EpochStartTime:   currentEpoch.EpochStartTime,
 					SlotTimeDuration: currentEpoch.SlotTimeDuration,
 				})
-
 				if nil != err {
-					log.WithField("context", "error during epoch send").Error(err)
+					log.WithField("epoch", currentEpoch.Epoch).WithError(err).Error(
+						"Failed to notify consensus info")
 				}
 			case <-rpcSub.Err():
 				log.Info("unsubscribing registered subscriber")
