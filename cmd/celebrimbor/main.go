@@ -329,6 +329,7 @@ func startVanguard(ctx *cli.Context) (err error) {
 }
 
 func startValidator(ctx *cli.Context) (err error) {
+	// First command should be to create wallet or prompt to do this by your own. This is one-time
 	log.WithField("dependencyTag", validatorTag).Info("I am running vanguard")
 	vanguardDataDir := ctx.String(vanguardDatadirFlag)
 	err = clientDependencies[validatorDependencyName].Run(validatorTag, vanguardDataDir, validatorRuntimeFlags)

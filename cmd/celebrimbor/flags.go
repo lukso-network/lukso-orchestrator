@@ -296,6 +296,10 @@ func prepareVanguardFlags(ctx *cli.Context) (vanguardArguments []string) {
 		"--p2p-host-ip=%s",
 		ctx.String(vanguardP2pHostFlag),
 	))
+	vanguardArguments = append(vanguardArguments, fmt.Sprintf(
+		"--log-file=%s",
+		"./vanguard/vanguard.log",
+	))
 	vanguardArguments = append(vanguardArguments, "--lukso-network")
 	vanguardArguments = append(vanguardArguments, fmt.Sprintf(
 		"--orc-http-provider=%s",
