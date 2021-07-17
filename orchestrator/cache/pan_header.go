@@ -43,3 +43,12 @@ func (c *PanHeaderCache) Get(ctx context.Context, slot uint64) (*eth1Types.Heade
 	}
 	return nil, errInvalidSlot
 }
+
+func (c *PanHeaderCache) Remove(ctx context.Context, slot uint64) {
+	for i := slot; i >= 0; i-- {
+		if !c.cache.Remove(i) {
+			// removed all the previous slot number from cache. Now return
+			return
+		}
+	}
+}
