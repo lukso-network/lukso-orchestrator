@@ -86,3 +86,7 @@ func (s *Store) LatestSavedVerifiedSlot() uint64 {
 	// db is already started so latest epoch must be initialized in store
 	return latestSavedVerifiedSlot
 }
+
+func (s *Store) InMemoryLatestVerifiedSlot() uint64 {
+	return s.latestVerifiedSlot
+}

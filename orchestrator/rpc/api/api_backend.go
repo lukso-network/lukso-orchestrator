@@ -6,7 +6,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/consensus"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/iface"
@@ -22,11 +21,10 @@ type Backend struct {
 	VanguardHeaderHashDB db.VanguardHeaderHashDB
 	PandoraHeaderHashDB  db.PandoraHeaderHashDB
 	RealmDB              db.RealmDB
-	consensusService     *consensus.Service
 
-	VerifiedSlotInfo             db.ROnlyVerifiedSlotInfoDB
-	InvalidSlotInfo              db.ROnlyInvalidSlotInfoDB
-	VanguardPendingShardingCache cache.PandoraHeaderCache
+	VerifiedSlotInfoDB           db.ROnlyVerifiedSlotInfoDB
+	InvalidSlotInfoDB            db.ROnlyInvalidSlotInfoDB
+	VanguardPendingShardingCache cache.VanguardShardCache
 	PandoraPendingHeaderCache    cache.PandoraHeaderCache
 
 	sync.Mutex
@@ -184,25 +182,37 @@ func (backend *Backend) ConsensusInfoByEpochRange(fromEpoch uint64) []*types.Min
 
 // GetSlotStatus
 func (b *Backend) GetSlotStatus(ctx context.Context, slot uint64, requestType bool) events.Status {
+	// when requested slot is greater than latest verified slot
+	latestVerifiedSlot := b.VerifiedSlotInfoDB.InMemoryLatestVerifiedSlot()
+	if slot > latestVerifiedSlot {
+		log.WithField("slot", slot).WithField(
+			"latestVerifiedSlot", latestVerifiedSlot).Debug("Requested slot is unknown")
+		return events.Unknown
+	}
+
 	if requestType {
 		if headerInfo, _ := b.PandoraPendingHeaderCache.Get(ctx, slot); headerInfo != nil {
-			log.WithField("slot", slot).WithField("api", "ConfirmPanBlockHashes").Debug("Pending slot")
+			log.WithField("slot", slot).WithField(
+				"api", "ConfirmPanBlockHashes").Debug("Requested slot is pending")
 			return events.Pending
 		}
 	} else {
-		if headerInfo, _ := b.VanguardPendingShardingCache.Get(ctx, slot); headerInfo != nil {
-			log.WithField("slot", slot).WithField("api", "ConfirmPanBlockHashes").Debug("Pending slot")
+		if shardInfo, _ := b.VanguardPendingShardingCache.Get(ctx, slot); shardInfo != nil {
+			log.WithField("slot", slot).WithField(
+				"api", "ConfirmVanBlockHashes").Debug("Requested slot is pending")
 			return events.Pending
 		}
 	}
 
-	if slotInfo, _ := b.VerifiedSlotInfo.VerifiedSlotInfo(slot); slotInfo != nil {
-		log.WithField("slot", slot).WithField("api", "ConfirmPanBlockHashes").Debug("Verified slot")
+	if slotInfo, _ := b.VerifiedSlotInfoDB.VerifiedSlotInfo(slot); slotInfo != nil {
+		log.WithField("slot", slot).WithField(
+			"api", "ConfirmPanBlockHashes").Debug("Requested slot is verified")
 		return events.Verified
 	}
 
-	if slotInfo, _ := b.InvalidSlotInfo.InvalidSlotInfo(slot); slotInfo != nil {
-		log.WithField("slot", slot).WithField("api", "ConfirmPanBlockHashes").Debug("Invalid slot")
+	if slotInfo, _ := b.InvalidSlotInfoDB.InvalidSlotInfo(slot); slotInfo != nil {
+		log.WithField("slot", slot).WithField(
+			"api", "ConfirmPanBlockHashes").Debug("Requested slot is invalid")
 		return events.Invalid
 	}
 

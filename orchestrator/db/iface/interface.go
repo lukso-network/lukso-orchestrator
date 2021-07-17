@@ -72,6 +72,7 @@ type ReadOnlyVerifiedSlotInfoDatabase interface {
 	VerifiedSlotInfo(slot uint64) (*types.SlotInfo, error)
 	SaveLatestVerifiedSlot(ctx context.Context) error
 	LatestSavedVerifiedSlot() uint64
+	InMemoryLatestVerifiedSlot() uint64
 }
 
 type VerifiedSlotDatabase interface {
