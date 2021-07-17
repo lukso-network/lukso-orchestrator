@@ -47,12 +47,12 @@ func TestService_OnNewPendingVanguardBlock(t *testing.T) {
 	}
 	vanSvc.OnNewPendingVanguardBlock(ctx, beaconBlock)
 	time.Sleep(100 * time.Millisecond)
-	assert.LogsContain(t, hook, "Successfully inserted vanguard block to db")
+	assert.LogsContain(t, hook, "Sharding info pushed to consensus service")
 
 	//	 Should return error when possible reorg will happen
 	require.NoError(t, vanSvc.orchestratorDB.SaveLatestVerifiedRealmSlot(6))
 	vanSvc.OnNewPendingVanguardBlock(ctx, beaconBlock)
 
 	time.Sleep(100 * time.Millisecond)
-	assert.LogsContain(t, hook, "Successfully inserted vanguard block to db")
+	assert.LogsContain(t, hook, "Sharding info pushed to consensus service")
 }

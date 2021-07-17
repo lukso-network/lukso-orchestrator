@@ -38,16 +38,13 @@ type Service struct {
 	dialGRPCFn        DIALGRPCFn
 
 	// subscription
-	consensusInfoFeed            event.Feed
-	scope                        event.SubscriptionScope
-	conInfoSubErrCh              chan error
-	conInfoSub                   *rpc.ClientSubscription
-	vanguardPendingBlockHashFeed event.Feed
-	vanguardShardingInfoFeed     event.Feed
-
+	consensusInfoFeed        event.Feed
+	scope                    event.SubscriptionScope
+	conInfoSubErrCh          chan error
+	conInfoSub               *rpc.ClientSubscription
+	vanguardShardingInfoFeed event.Feed
 	// db support
 	orchestratorDB db.Database
-
 	// lru cache support
 	shardingInfoCache cache.VanguardShardCache
 }
@@ -213,10 +210,6 @@ func (s *Service) retryVanguardNode(err error) {
 // SubscribeMinConsensusInfoEvent registers a subscription of ChainHeadEvent.
 func (s *Service) SubscribeMinConsensusInfoEvent(ch chan<- *types.MinimalEpochConsensusInfo) event.Subscription {
 	return s.scope.Track(s.consensusInfoFeed.Subscribe(ch))
-}
-
-func (s *Service) SubscribeVanNewPendingBlockHash(ch chan<- *types.HeaderHash) event.Subscription {
-	return s.scope.Track(s.vanguardPendingBlockHashFeed.Subscribe(ch))
 }
 
 func (s *Service) SubscribeShardInfoEvent(ch chan<- *types.VanguardShardInfo) event.Subscription {
