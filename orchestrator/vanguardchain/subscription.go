@@ -12,7 +12,6 @@ func (s *Service) subscribeVanNewPendingBlockHash(
 	client client.VanguardClient,
 ) (err error) {
 	stream, err := client.StreamNewPendingBlocks()
-
 	if nil != err {
 		log.WithError(err).Error("Failed to subscribe to stream of new pending blocks")
 		return

@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/boltdb/bolt"
 	"github.com/dgraph-io/ristretto"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/lukso-network/lukso-orchestrator/shared/fileutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/params"
 	"github.com/pkg/errors"
@@ -17,8 +16,6 @@ import (
 const (
 	// ConsensusInfosCacheSize with 1024 consensus infos will be 1.5MB.
 	ConsensusInfosCacheSize = 1 << 10
-	// HeaderHashesCacheSize with
-	HeaderHashesCacheSize = 1 << 20
 	// OrchestratorNodeDbDirName is the name of the directory containing the orchestrator node database.
 	OrchestratorNodeDbDirName = "orchestrator"
 	// DatabaseFileName is the name of the orchestrator node database.
@@ -38,18 +35,11 @@ type Store struct {
 	db                    *bolt.DB
 	databasePath          string
 	consensusInfoCache    *ristretto.Cache
-	panHeaderCache        *ristretto.Cache
-	vanHeaderCache        *ristretto.Cache
 	verifiedSlotInfoCache *ristretto.Cache
-	invalidSlotInfoCache  *ristretto.Cache
 
 	// Latest information need to be stored into db
-	latestEpoch         uint64
-	latestPanSlot       uint64
-	latestPanHeaderHash common.Hash
-	latestVanSlot       uint64
-	latestVanHash       common.Hash
-	latestVerifiedSlot  uint64
+	latestEpoch        uint64
+	latestVerifiedSlot uint64
 	// There should be mutex in store
 	sync.Mutex
 }
@@ -91,35 +81,12 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 	if err != nil {
 		return nil, err
 	}
-
-	panHeaderCache, err := ristretto.NewCache(&ristretto.Config{
-		NumCounters: 1000,                  // number of keys to track frequency of (1000).
-		MaxCost:     HeaderHashesCacheSize, // maximum cost of cache (1000 headers).
-		BufferItems: 64,                    // number of keys per Get buffer.
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	vanBlockCache, err := ristretto.NewCache(&ristretto.Config{
-		NumCounters: 1000,                  // number of keys to track frequency of (1000).
-		MaxCost:     HeaderHashesCacheSize, // maximum cost of cache (1000 headers).
-		BufferItems: 64,                    // number of keys per Get buffer.
-	})
-
 	verifiedSlotInfoCache, err := ristretto.NewCache(&ristretto.Config{
 		NumCounters: 1000,                    // number of keys to track frequency of (1000).
 		MaxCost:     ConsensusInfosCacheSize, // maximum cost of cache (1000 headers).
 		BufferItems: 64,                      // number of keys per Get buffer.
 	})
-
-	invalidSlotInfoCache, err := ristretto.NewCache(&ristretto.Config{
-		NumCounters: 1000,                    // number of keys to track frequency of (1000).
-		MaxCost:     ConsensusInfosCacheSize, // maximum cost of cache (1000 headers).
-		BufferItems: 64,                      // number of keys per Get buffer.
-	})
-
-	if nil != err {
+	if err != nil {
 		return nil, err
 	}
 
@@ -128,19 +95,13 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 		db:                    boltDB,
 		databasePath:          dirPath,
 		consensusInfoCache:    consensusInfoCache,
-		panHeaderCache:        panHeaderCache,
-		vanHeaderCache:        vanBlockCache,
 		verifiedSlotInfoCache: verifiedSlotInfoCache,
-		invalidSlotInfoCache:  invalidSlotInfoCache,
 	}
 
 	if err := kv.db.Update(func(tx *bolt.Tx) error {
 		return createBuckets(
 			tx,
 			consensusInfosBucket,
-			pandoraHeaderHashesBucket,
-			vanguardHeaderHashesBucket,
-			realmBucket,
 			verifiedSlotInfosBucket,
 			invalidSlotInfosBucket,
 		)
@@ -188,15 +149,6 @@ func (s *Store) DatabasePath() string {
 func (s *Store) initLatestDataFromDB() {
 	// Retrieve latest saved epoch number from db
 	s.latestEpoch = s.LatestSavedEpoch()
-	// Retrieve latest saved pandora slot from db
-	s.latestPanSlot = s.LatestSavedPandoraSlot()
-	// Retrieve latest saved pandora header hash from db
-	s.latestPanHeaderHash = s.LatestSavedPandoraHeaderHash()
-	// Retrieve latest saved vanguard hash from db
-	s.latestVanHash = s.LatestSavedVanguardHeaderHash()
-	// Retrieve latest savend vanguard slot from db
-	s.latestVanSlot = s.LatestSavedVanguardSlot()
-
 	s.latestVerifiedSlot = s.LatestSavedVerifiedSlot()
 }
 

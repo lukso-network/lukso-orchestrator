@@ -9,6 +9,7 @@ import (
 )
 
 func TestStore_VerifiedSlotInfo(t *testing.T) {
+	t.Parallel()
 	db := setupDB(t, true)
 	slotInfos := make([]*types.SlotInfo, 2001)
 	for i := 0; i <= 2000; i++ {

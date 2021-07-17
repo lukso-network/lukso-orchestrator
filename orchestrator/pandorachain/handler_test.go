@@ -23,9 +23,4 @@ func Test_PandoraSvc_OnNewPendingHeader(t *testing.T) {
 	newPanHeader.Extra, err = rlp.EncodeToBytes(extraDataWithSig)
 	require.NoError(t, err)
 	require.NoError(t, panSvc.OnNewPendingHeader(ctx, newPanHeader))
-
-	//	 Should return error when possible reorg will happen
-	require.NoError(t, panSvc.db.SaveLatestVerifiedRealmSlot(124))
-	require.NoError(t, err)
-	require.ErrorContains(t, "reorgs not supported", panSvc.OnNewPendingHeader(ctx, newPanHeader))
 }

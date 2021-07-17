@@ -8,9 +8,6 @@ import (
 
 // InvalidSlotInfo
 func (s *Store) InvalidSlotInfo(slot uint64) (*types.SlotInfo, error) {
-	if v, ok := s.invalidSlotInfoCache.Get(slot); v != nil && ok {
-		return v.(*types.SlotInfo), nil
-	}
 	var slotInfo *types.SlotInfo
 	err := s.db.View(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(invalidSlotInfosBucket)
@@ -36,9 +33,6 @@ func (s *Store) SaveInvalidSlotInfo(slot uint64, slotInfo *types.SlotInfo) error
 		enc, err := encode(slotInfo)
 		if err != nil {
 			return err
-		}
-		if status := s.invalidSlotInfoCache.Set(slot, slotInfo, 0); !status {
-			log.WithField("slot", slot).Warn("could not store invalid slot info into cache")
 		}
 		if err := bkt.Put(slotBytes, enc); err != nil {
 			return err
