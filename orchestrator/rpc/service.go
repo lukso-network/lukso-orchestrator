@@ -16,7 +16,7 @@ import (
 type Config struct {
 	ConsensusInfoFeed            iface.ConsensusInfoFeed
 	Db                           db.Database
-	VanguardPendingShardingCache cache.PandoraHeaderCache
+	VanguardPendingShardingCache cache.VanguardShardCache
 	PandoraPendingHeaderCache    cache.PandoraHeaderCache
 	// ipc config
 	IPCPath string
@@ -73,8 +73,8 @@ func NewService(ctx context.Context, cfg *Config) (*Service, error) {
 			PandoraHeaderHashDB:  cfg.Db,
 			RealmDB:              cfg.Db,
 
-			VerifiedSlotInfo:             cfg.Db,
-			InvalidSlotInfo:              cfg.Db,
+			VerifiedSlotInfoDB:           cfg.Db,
+			InvalidSlotInfoDB:            cfg.Db,
 			PandoraPendingHeaderCache:    cfg.PandoraPendingHeaderCache,
 			VanguardPendingShardingCache: cfg.VanguardPendingShardingCache,
 		},

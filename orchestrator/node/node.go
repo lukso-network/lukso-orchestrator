@@ -233,6 +233,9 @@ func (o *OrchestratorNode) registerRPCService(cliCtx *cli.Context) error {
 		WSEnable:          wsEnable,
 		WSHost:            wsListenerAddr,
 		WSPort:            wsPort,
+
+		VanguardPendingShardingCache: o.vanShardInfoCache,
+		PandoraPendingHeaderCache:    o.pandoraInfoCache,
 	})
 	if err != nil {
 		return nil
