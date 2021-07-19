@@ -73,7 +73,7 @@ var (
 		&cli.StringFlag{
 			Name:  pandoraBootnodesFlag,
 			Usage: "Default value should be ok for test network. Otherwise provide Comma separated enode urls, see at https://geth.ethereum.org/docs/getting-started/private-net.",
-			Value: "enode://967db4f56ad0a1a35e3d30632fa600565329a23aff50c9762181810166f3c15b078cca522f930d1a2747778893232336bffd1ea5d2ca60543f1801d4360ea63a@10.0.6.6:0?discport=30301",
+			Value: "enode://967db4f56ad0a1a35e3d30632fa600565329a23aff50c9762181810166f3c15b078cca522f930d1a2747778893232336bffd1ea5d2ca60543f1801d4360ea63a@35.204.255.172:0?discport=30301",
 		},
 		&cli.StringFlag{
 			Name:  pandoraNetworkIDFlag,
@@ -168,7 +168,7 @@ var (
 		&cli.StringFlag{
 			Name:  validatorDatadirFlag,
 			Usage: "location of keys from deposit-cli",
-			Value: "./validator_keys",
+			Value: "",
 		},
 	}
 	vanguardFlags = []cli.Flag{
@@ -191,7 +191,7 @@ var (
 		&cli.StringFlag{
 			Name:  vanguardBootnodesFlag,
 			Usage: `provide coma separated bootnode enr, default: "enr:-Ku4QANldTRLCRUrY9K4OAmk_ATOAyS_sxdTAaGeSh54AuDJXxOYij1fbgh4KOjD4tb2g3T-oJmMjuJyzonLYW9OmRQBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpD1pf1CAAAAAP__________gmlkgnY0gmlwhAoABweJc2VjcDI1NmsxoQKWfbT1atCho149MGMvpgBWUymiOv9QyXYhgYEBZvPBW4N1ZHCCD6A"`,
-			Value: "enr:-Ku4QANldTRLCRUrY9K4OAmk_ATOAyS_sxdTAaGeSh54AuDJXxOYij1fbgh4KOjD4tb2g3T-oJmMjuJyzonLYW9OmRQBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpD1pf1CAAAAAP__________gmlkgnY0gmlwhAoABweJc2VjcDI1NmsxoQKWfbT1atCho149MGMvpgBWUymiOv9QyXYhgYEBZvPBW4N1ZHCCD6A",
+			Value: "enr:-Ku4QA3oi1X-748lqAlNNQKPZAY2-KWMcBBp0BXN0VtiQlnEPf54uwJM84GiKNypMLd3uvkvs2XALmp9FJ2G5IPdcRMBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpD1pf1CAAAAAP__________gmlkgnY0gmlwhCPM_6yJc2VjcDI1NmsxoQKWfbT1atCho149MGMvpgBWUymiOv9QyXYhgYEBZvPBW4N1ZHCCD6A",
 		},
 		&cli.StringFlag{
 			Name:  vanguardWeb3ProviderFlag,
@@ -343,10 +343,13 @@ func prepareValidatorFlags(ctx *cli.Context) (validatorArguments []string) {
 		"--datadir=%s",
 		ctx.String(vanguardDatadirFlag),
 	))
-	validatorArguments = append(validatorArguments, fmt.Sprintf(
-		"--wallet-dir=%s",
-		ctx.String(validatorDatadirFlag),
-	))
+
+	if "" != ctx.String(validatorDatadirFlag) {
+		validatorArguments = append(validatorArguments, fmt.Sprintf(
+			"--wallet-dir=%s",
+			ctx.String(validatorDatadirFlag),
+		))
+	}
 
 	return
 }

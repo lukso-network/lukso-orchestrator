@@ -234,7 +234,6 @@ func downloadValidator(ctx *cli.Context) (err error) {
 	return
 }
 
-// startPandora will direct stdOut to log file
 func startPandora(ctx *cli.Context) (err error) {
 	log.WithField("dependencyTag", pandoraTag).Info("I am running genesis.json init")
 	pandoraDataDir := ctx.String(pandoraDatadirFlag)
