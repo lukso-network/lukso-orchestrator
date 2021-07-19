@@ -27,8 +27,9 @@ var (
 			name:          pandoraDependencyName,
 		},
 		pandoraGenesisDependencyName: {
-			baseUnixUrl: "https://storage.googleapis.com/l16-common/pandora/pandora_private_testnet_genesis.json",
-			name:        pandoraGenesisDependencyName,
+			baseUnixUrl:   "https://storage.googleapis.com/l16-common/pandora/pandora_private_testnet_genesis.json",
+			baseDarwinUrl: "https://storage.googleapis.com/l16-common/pandora/pandora_private_testnet_genesis.json",
+			name:          pandoraGenesisDependencyName,
 		},
 		vanguardDependencyName: {
 			baseUnixUrl:   "https://github.com/lukso-network/vanguard-consensus-engine/releases/download/%s/beacon-chain",
@@ -41,12 +42,14 @@ var (
 			name:          validatorDependencyName,
 		},
 		vanguardGenesisDependencyName: {
-			baseUnixUrl: "https://storage.googleapis.com/l16-common/vanguard/vanguard_private_testnet_genesis.ssz",
-			name:        vanguardGenesisDependencyName,
+			baseUnixUrl:   "https://storage.googleapis.com/l16-common/vanguard/vanguard_private_testnet_genesis.ssz",
+			baseDarwinUrl: "https://storage.googleapis.com/l16-common/vanguard/vanguard_private_testnet_genesis.ssz",
+			name:          vanguardGenesisDependencyName,
 		},
 		vanguardConfigDependencyName: {
-			baseUnixUrl: "https://storage.googleapis.com/l16-common/vanguard/chain-config.yaml",
-			name:        vanguardConfigDependencyName,
+			baseUnixUrl:   "https://storage.googleapis.com/l16-common/vanguard/chain-config.yaml",
+			baseDarwinUrl: "https://storage.googleapis.com/l16-common/vanguard/chain-config.yaml",
+			name:          vanguardConfigDependencyName,
 		},
 	}
 )
