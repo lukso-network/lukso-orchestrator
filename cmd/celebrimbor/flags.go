@@ -7,6 +7,9 @@ import (
 )
 
 const (
+	// OS FLAGS
+	macOsFlag = "macos"
+
 	// Pandora related flag names
 	pandoraTagFlag         = "pandora-tag"
 	pandoraDatadirFlag     = "pandora-datadir"
@@ -53,7 +56,14 @@ const (
 )
 
 var (
-	appFlags     = cmd.CommonFlagSet
+	appFlags    = cmd.CommonFlagSet
+	commonFlags = []cli.Flag{
+		&cli.BoolFlag{
+			Name:  macOsFlag,
+			Usage: "provide this if you want to run on MACOS",
+			Value: false,
+		},
+	}
 	pandoraFlags = []cli.Flag{
 		&cli.StringFlag{
 			Name:  pandoraTagFlag,
@@ -235,6 +245,17 @@ var (
 		},
 	}
 )
+
+// setupOperatingSystem will parse flags and use it to deduce which system dependencies are required
+func setupOperatingSystem(ctx *cli.Context) {
+	if ctx.Bool(macOsFlag) {
+		systemOs = macos
+
+		return
+	}
+
+	systemOs = ubuntu
+}
 
 func prepareVanguardFlags(ctx *cli.Context) (vanguardArguments []string) {
 	if !ctx.Bool(cmd.AcceptTOUFlag.Name) {

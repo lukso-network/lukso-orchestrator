@@ -33,15 +33,20 @@ import (
 // We are also very open to any improvements. Please make some issue or hackmd proposal to make it better.
 // Join our lukso discord https://discord.gg/E2rJPP4 to ask some questions
 
-var (
-	appName         = "celebrimbor"
-	operatingSystem string
-	pandoraTag      string
-	validatorTag    string
-	vanguardTag     string
-	orchestratorTag string
-	log             = logrus.WithField("prefix", appName)
+const (
+	ubuntu = iota
+	macos
+	windows // Not supported yet
+)
 
+var (
+	appName               = "celebrimbor"
+	pandoraTag            string
+	validatorTag          string
+	vanguardTag           string
+	orchestratorTag       string
+	log                   = logrus.WithField("prefix", appName)
+	systemOs              int
 	pandoraRuntimeFlags   []string
 	validatorRuntimeFlags []string
 	vanguardRuntimeFlags  []string
@@ -53,6 +58,7 @@ func init() {
 	allFlags = append(allFlags, validatorFlags...)
 	allFlags = append(allFlags, vanguardFlags...)
 	allFlags = append(allFlags, appFlags...)
+	allFlags = append(allFlags, commonFlags...)
 
 	appFlags = cmd.WrapFlags(allFlags)
 }
@@ -99,6 +105,8 @@ func main() {
 		}
 
 		runtime.GOMAXPROCS(runtime.NumCPU())
+
+		setupOperatingSystem(ctx)
 
 		// Pandora related parsing
 		pandoraTag = ctx.String(pandoraTagFlag)

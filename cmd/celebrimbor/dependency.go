@@ -22,20 +22,23 @@ const (
 var (
 	clientDependencies = map[string]*ClientDependency{
 		pandoraDependencyName: {
-			baseUnixUrl: "https://github.com/lukso-network/pandora-execution-engine/releases/download/%s/geth",
-			name:        pandoraDependencyName,
+			baseUnixUrl:   "https://github.com/lukso-network/pandora-execution-engine/releases/download/%s/geth",
+			baseDarwinUrl: "https://github.com/lukso-network/pandora-execution-engine/releases/download/%s/geth-darwin",
+			name:          pandoraDependencyName,
 		},
 		pandoraGenesisDependencyName: {
 			baseUnixUrl: "https://storage.googleapis.com/l16-common/pandora/pandora_private_testnet_genesis.json",
 			name:        pandoraGenesisDependencyName,
 		},
 		vanguardDependencyName: {
-			baseUnixUrl: "https://github.com/lukso-network/vanguard-consensus-engine/releases/download/%s/beacon-chain",
-			name:        vanguardDependencyName,
+			baseUnixUrl:   "https://github.com/lukso-network/vanguard-consensus-engine/releases/download/%s/beacon-chain",
+			baseDarwinUrl: "https://github.com/lukso-network/vanguard-consensus-engine/releases/download/%s/beacon-chain-darwin",
+			name:          vanguardDependencyName,
 		},
 		validatorDependencyName: {
-			baseUnixUrl: "https://github.com/lukso-network/vanguard-consensus-engine/releases/download/%s/validator",
-			name:        validatorDependencyName,
+			baseUnixUrl:   "https://github.com/lukso-network/vanguard-consensus-engine/releases/download/%s/validator",
+			baseDarwinUrl: "https://github.com/lukso-network/vanguard-consensus-engine/releases/download/%s/validator-darwin",
+			name:          validatorDependencyName,
 		},
 		vanguardGenesisDependencyName: {
 			baseUnixUrl: "https://storage.googleapis.com/l16-common/vanguard/vanguard_private_testnet_genesis.ssz",
@@ -49,16 +52,25 @@ var (
 )
 
 type ClientDependency struct {
-	baseUnixUrl string
-	name        string
+	baseUnixUrl   string
+	baseDarwinUrl string
+	name          string
 }
 
 func (dependency *ClientDependency) ParseUrl(tagName string) (url string) {
 	// do not parse when no occurencies
 	sprintOccurrences := strings.Count(dependency.baseUnixUrl, "%s")
 
-	if sprintOccurrences < 1 {
+	if sprintOccurrences < 1 && systemOs == ubuntu {
 		return dependency.baseUnixUrl
+	}
+
+	if sprintOccurrences < 1 && systemOs == macos {
+		return dependency.baseDarwinUrl
+	}
+
+	if sprintOccurrences < 1 && systemOs == macos {
+		return fmt.Sprintf(dependency.baseDarwinUrl, tagName)
 	}
 
 	return fmt.Sprintf(dependency.baseUnixUrl, tagName)
