@@ -208,7 +208,7 @@ func (s *Service) retryToConnectAndSubscribe(err error) {
 
 // subscribe subscribes to pandora events
 func (s *Service) subscribe() error {
-	latestSavedHeaderHash := s.db.GetLatestHeaderHash()
+	latestSavedHeaderHash := s.db.InMemoryLatestVerifiedHeaderHash()
 	filter := &types.PandoraPendingHeaderFilter{
 		FromBlockHash: latestSavedHeaderHash,
 	}

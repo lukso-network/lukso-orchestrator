@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/boltdb/bolt"
 	"github.com/dgraph-io/ristretto"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/lukso-network/lukso-orchestrator/shared/fileutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/params"
 	"github.com/pkg/errors"
@@ -40,6 +41,7 @@ type Store struct {
 	// Latest information need to be stored into db
 	latestEpoch        uint64
 	latestVerifiedSlot uint64
+	latestHeaderHash   common.Hash
 	// There should be mutex in store
 	sync.Mutex
 }
@@ -137,6 +139,11 @@ func (s *Store) Close() error {
 		return err
 	}
 
+	err = s.SaveLatestVerifiedHeaderHash()
+	if err != nil {
+		return err
+	}
+
 	return s.db.Close()
 }
 
@@ -150,6 +157,7 @@ func (s *Store) initLatestDataFromDB() {
 	// Retrieve latest saved epoch number from db
 	s.latestEpoch = s.LatestSavedEpoch()
 	s.latestVerifiedSlot = s.LatestSavedVerifiedSlot()
+	s.latestHeaderHash = s.LatestVerifiedHeaderHash()
 }
 
 // createBuckets

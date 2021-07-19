@@ -2,6 +2,7 @@ package iface
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	"io"
 )
@@ -24,15 +25,18 @@ type ConsensusInfoAccessDatabase interface {
 
 type ReadOnlyVerifiedSlotInfoDatabase interface {
 	VerifiedSlotInfo(slot uint64) (*types.SlotInfo, error)
-	SaveLatestVerifiedSlot(ctx context.Context) error
 	LatestSavedVerifiedSlot() uint64
 	InMemoryLatestVerifiedSlot() uint64
+	LatestVerifiedHeaderHash() common.Hash
+	InMemoryLatestVerifiedHeaderHash() common.Hash
 }
 
 type VerifiedSlotDatabase interface {
 	ReadOnlyVerifiedSlotInfoDatabase
 
 	SaveVerifiedSlotInfo(slot uint64, slotInfo *types.SlotInfo) error
+	SaveLatestVerifiedSlot(ctx context.Context) error
+	SaveLatestVerifiedHeaderHash() error
 }
 
 type ReadOnlyInvalidSlotInfoDatabase interface {
