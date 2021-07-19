@@ -26,6 +26,7 @@ const (
 	pandoraNotifyFlag      = "pandora-notify"
 	pandoraVerbosityFlag   = "pandora-verbosity"
 	pandoraHttpPortFlag    = "pandora-http-port"
+	pandoraOutputFlag      = "pandora-output"
 
 	// Common for prysm client
 	vanguardChainConfigFlag = "vanguard-chain-config"
@@ -43,6 +44,8 @@ const (
 	vanguardGenesisStateFlag            = "vanguard-genesis-state"
 	vanguardDatadirFlag                 = "vanguard-datadir"
 	vanguardBootnodesFlag               = "vanguard-bootnode"
+	vanguardPeerFlag                    = "vanguard-peer"
+	vanguardOutputFlag                  = "vanguard-output"
 	vanguardWeb3ProviderFlag            = "vanguard-web3provider"
 	vanguardDepositContractFlag         = "vanguard-deposit-contract"
 	vanguardContractDeploymentBlockFlag = "vanguard-deposit-deployment"
@@ -74,6 +77,11 @@ var (
 			Name:  pandoraDatadirFlag,
 			Usage: "provide a path you would like to store your data",
 			Value: "./pandora",
+		},
+		&cli.BoolFlag{
+			Name:  pandoraOutputFlag,
+			Usage: "do you want to have output attached to your combined output",
+			Value: false,
 		},
 		&cli.StringFlag{
 			Name:  pandoraEthstatsFlag,
@@ -160,6 +168,12 @@ var (
 			// TODO: Parse it automatically
 			Value: "./vanguard/v0.0.16-alpha/config.yml",
 		},
+		&cli.BoolFlag{
+			Name:  vanguardOutputFlag,
+			Usage: "path to chain config of vanguard and validator",
+			// TODO: Parse it automatically
+			Value: false,
+		},
 		&cli.StringFlag{
 			Name:  validatorVerbosityFlag,
 			Usage: "provide verbosity of validator",
@@ -201,7 +215,12 @@ var (
 		&cli.StringFlag{
 			Name:  vanguardBootnodesFlag,
 			Usage: `provide coma separated bootnode enr, default: "enr:-Ku4QANldTRLCRUrY9K4OAmk_ATOAyS_sxdTAaGeSh54AuDJXxOYij1fbgh4KOjD4tb2g3T-oJmMjuJyzonLYW9OmRQBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpD1pf1CAAAAAP__________gmlkgnY0gmlwhAoABweJc2VjcDI1NmsxoQKWfbT1atCho149MGMvpgBWUymiOv9QyXYhgYEBZvPBW4N1ZHCCD6A"`,
-			Value: "enr:-Ku4QA3oi1X-748lqAlNNQKPZAY2-KWMcBBp0BXN0VtiQlnEPf54uwJM84GiKNypMLd3uvkvs2XALmp9FJ2G5IPdcRMBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpD1pf1CAAAAAP__________gmlkgnY0gmlwhCPM_6yJc2VjcDI1NmsxoQKWfbT1atCho149MGMvpgBWUymiOv9QyXYhgYEBZvPBW4N1ZHCCD6A",
+			Value: "",
+		},
+		&cli.StringFlag{
+			Name:  vanguardPeerFlag,
+			Usage: `provide coma separated peer enr address, default: ""`,
+			Value: "",
 		},
 		&cli.StringFlag{
 			Name:  vanguardWeb3ProviderFlag,
@@ -235,8 +254,8 @@ var (
 		},
 		&cli.StringFlag{
 			Name:  vanguardP2pHostFlag,
-			Usage: "provide p2p host for vanguard, default 127.0.0.1",
-			Value: "127.0.0.1",
+			Usage: "provide p2p host for vanguard, default empty",
+			Value: "",
 		},
 		&cli.StringFlag{
 			Name:  vanguardOrcProviderFlag,
@@ -287,6 +306,14 @@ func prepareVanguardFlags(ctx *cli.Context) (vanguardArguments []string) {
 		"--bootstrap-node=%s",
 		ctx.String(vanguardBootnodesFlag),
 	))
+
+	if "" != ctx.String(vanguardPeerFlag) {
+		vanguardArguments = append(vanguardArguments, fmt.Sprintf(
+			"--peer=%s",
+			ctx.String(vanguardPeerFlag),
+		))
+	}
+
 	vanguardArguments = append(vanguardArguments, fmt.Sprintf(
 		"--http-web3provider=%s",
 		ctx.String(vanguardWeb3ProviderFlag),
@@ -313,10 +340,14 @@ func prepareVanguardFlags(ctx *cli.Context) (vanguardArguments []string) {
 		"--p2p-max-peers=%s",
 		ctx.String(vanguardMaxSyncPeersFlag),
 	))
-	vanguardArguments = append(vanguardArguments, fmt.Sprintf(
-		"--p2p-host-ip=%s",
-		ctx.String(vanguardP2pHostFlag),
-	))
+
+	if "" != ctx.String(vanguardP2pHostFlag) {
+		vanguardArguments = append(vanguardArguments, fmt.Sprintf(
+			"--p2p-host-ip=%s",
+			ctx.String(vanguardP2pHostFlag),
+		))
+	}
+
 	vanguardArguments = append(vanguardArguments, fmt.Sprintf(
 		"--log-file=%s",
 		"./vanguard/vanguard.log",
@@ -325,6 +356,10 @@ func prepareVanguardFlags(ctx *cli.Context) (vanguardArguments []string) {
 	vanguardArguments = append(vanguardArguments, fmt.Sprintf(
 		"--orc-http-provider=%s",
 		ctx.String(vanguardOrcProviderFlag),
+	))
+	vanguardArguments = append(vanguardArguments, fmt.Sprintf(
+		"--genesis-state=%s",
+		ctx.String(vanguardGenesisStateFlag),
 	))
 
 	return

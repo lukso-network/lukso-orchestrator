@@ -256,7 +256,7 @@ func startPandora(ctx *cli.Context) (err error) {
 		pandoraTag,
 		pandoraDataDir,
 		pandoraGenesisArguments,
-		true,
+		ctx.Bool(pandoraOutputFlag),
 	)
 
 	if nil != err {
@@ -270,7 +270,7 @@ func startPandora(ctx *cli.Context) (err error) {
 		pandoraTag,
 		pandoraDataDir,
 		pandoraRuntimeFlags,
-		true,
+		ctx.Bool(pandoraOutputFlag),
 	)
 
 	waitGroup := &sync.WaitGroup{}
@@ -309,7 +309,7 @@ func startVanguard(ctx *cli.Context) (err error) {
 		vanguardTag,
 		vanguardDataDir,
 		vanguardRuntimeFlags,
-		false,
+		ctx.Bool(vanguardOutputFlag),
 	)
 
 	if nil != err {
