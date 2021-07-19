@@ -80,11 +80,16 @@ func (dependency *ClientDependency) Run(
 	tagName string,
 	destination string,
 	arguments []string,
+	attachStdInAndErr bool,
 ) (err error) {
 	binaryPath := dependency.ResolveBinaryPath(tagName, destination)
 	command := exec.Command(binaryPath, arguments...)
-	command.Stdout = os.Stdout
-	command.Stderr = os.Stderr
+
+	if attachStdInAndErr {
+		command.Stdout = os.Stdout
+		command.Stderr = os.Stderr
+	}
+
 	err = command.Start()
 
 	return

@@ -341,7 +341,7 @@ func prepareValidatorFlags(ctx *cli.Context) (validatorArguments []string) {
 	))
 	validatorArguments = append(validatorArguments, fmt.Sprintf(
 		"--datadir=%s",
-		ctx.String(validatorDatadirFlag),
+		ctx.String(vanguardDatadirFlag),
 	))
 	validatorArguments = append(validatorArguments, fmt.Sprintf(
 		"--wallet-dir=%s",

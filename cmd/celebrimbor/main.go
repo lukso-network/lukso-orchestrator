@@ -177,23 +177,13 @@ func downloadAndRunBinaries(ctx *cli.Context) (err error) {
 		return
 	}
 
-	err = startOrchestrator(ctx)
-
-	if nil != err {
-		return
-	}
-
-	time.Sleep(time.Second * 6)
-
 	err = startValidator(ctx)
 
 	if nil != err {
 		return
 	}
 
-	time.Sleep(time.Second * 3)
-
-	return
+	return startOrchestrator(ctx)
 }
 
 func downloadPandora(ctx *cli.Context) (err error) {
@@ -255,7 +245,12 @@ func startPandora(ctx *cli.Context) (err error) {
 		pandoraDataDir,
 	}
 
-	err = clientDependencies[pandoraDependencyName].Run(pandoraTag, pandoraDataDir, pandoraGenesisArguments)
+	err = clientDependencies[pandoraDependencyName].Run(
+		pandoraTag,
+		pandoraDataDir,
+		pandoraGenesisArguments,
+		true,
+	)
 
 	if nil != err {
 		return
@@ -264,7 +259,12 @@ func startPandora(ctx *cli.Context) (err error) {
 	time.Sleep(time.Second * 3)
 
 	log.WithField("dependencyTag", pandoraTag).Info("I am running execution engine")
-	err = clientDependencies[pandoraDependencyName].Run(pandoraTag, pandoraDataDir, pandoraRuntimeFlags)
+	err = clientDependencies[pandoraDependencyName].Run(
+		pandoraTag,
+		pandoraDataDir,
+		pandoraRuntimeFlags,
+		false,
+	)
 
 	waitGroup := &sync.WaitGroup{}
 	waitGroup.Add(1)
@@ -298,7 +298,12 @@ func startPandora(ctx *cli.Context) (err error) {
 func startVanguard(ctx *cli.Context) (err error) {
 	log.WithField("dependencyTag", vanguardTag).Info("I am running vanguard")
 	vanguardDataDir := ctx.String(vanguardDatadirFlag)
-	err = clientDependencies[vanguardDependencyName].Run(vanguardTag, vanguardDataDir, vanguardRuntimeFlags)
+	err = clientDependencies[vanguardDependencyName].Run(
+		vanguardTag,
+		vanguardDataDir,
+		vanguardRuntimeFlags,
+		false,
+	)
 
 	if nil != err {
 		return
@@ -331,7 +336,12 @@ func startVanguard(ctx *cli.Context) (err error) {
 func startValidator(ctx *cli.Context) (err error) {
 	log.WithField("dependencyTag", validatorTag).Info("I am running vanguard")
 	vanguardDataDir := ctx.String(vanguardDatadirFlag)
-	err = clientDependencies[validatorDependencyName].Run(validatorTag, vanguardDataDir, validatorRuntimeFlags)
+	err = clientDependencies[validatorDependencyName].Run(
+		validatorTag,
+		vanguardDataDir,
+		validatorRuntimeFlags,
+		false,
+	)
 
 	return
 }
