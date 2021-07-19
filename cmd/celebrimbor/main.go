@@ -262,7 +262,7 @@ func startPandora(ctx *cli.Context) (err error) {
 		pandoraTag,
 		pandoraDataDir,
 		pandoraRuntimeFlags,
-		false,
+		true,
 	)
 
 	waitGroup := &sync.WaitGroup{}
