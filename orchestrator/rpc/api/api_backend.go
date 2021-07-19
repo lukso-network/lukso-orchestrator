@@ -39,26 +39,21 @@ func (backend *Backend) ConsensusInfoByEpochRange(fromEpoch uint64) []*types.Min
 
 // GetSlotStatus
 func (b *Backend) GetSlotStatus(ctx context.Context, slot uint64, requestType bool) events.Status {
-	// when requested slot is greater than latest verified slot
+
+	headerInfo, _ := b.PandoraPendingHeaderCache.Get(ctx, slot)
+	shardInfo, _ := b.VanguardPendingShardingCache.Get(ctx, slot)
+
+	if (headerInfo == nil && shardInfo != nil) || (headerInfo != nil && shardInfo == nil) {
+		log.WithField("slot", slot).Debug("Requested slot is pending")
+		return events.Pending
+	}
+
+	//when requested slot is greater than latest verified slot
 	latestVerifiedSlot := b.VerifiedSlotInfoDB.InMemoryLatestVerifiedSlot()
 	if slot > latestVerifiedSlot {
 		log.WithField("slot", slot).WithField(
 			"latestVerifiedSlot", latestVerifiedSlot).Debug("Requested slot is unknown")
 		return events.Unknown
-	}
-
-	if requestType {
-		if headerInfo, _ := b.PandoraPendingHeaderCache.Get(ctx, slot); headerInfo != nil {
-			log.WithField("slot", slot).WithField(
-				"api", "ConfirmPanBlockHashes").Debug("Requested slot is pending")
-			return events.Pending
-		}
-	} else {
-		if shardInfo, _ := b.VanguardPendingShardingCache.Get(ctx, slot); shardInfo != nil {
-			log.WithField("slot", slot).WithField(
-				"api", "ConfirmVanBlockHashes").Debug("Requested slot is pending")
-			return events.Pending
-		}
 	}
 
 	if slotInfo, _ := b.VerifiedSlotInfoDB.VerifiedSlotInfo(slot); slotInfo != nil {

@@ -76,6 +76,8 @@ func (api *PublicFilterAPI) ConfirmPanBlockHashes(
 	res := make([]*BlockStatus, 0)
 	for _, req := range requests {
 		status := api.backend.GetSlotStatus(ctx, req.Slot, true)
+		log.WithField("slot", req.Slot).WithField("status", status).WithField(
+			"api", "ConfirmPanBlockHashes").Debug("status of the requested slot")
 		hash := req.Hash
 		res = append(res, &BlockStatus{
 			BlockHash: BlockHash{
@@ -85,10 +87,6 @@ func (api *PublicFilterAPI) ConfirmPanBlockHashes(
 			Status: status,
 		})
 	}
-
-	log.WithField("method", "ConfirmPanBlockHashes").WithField(
-		"request", requests).WithField("response", res).Debug(
-		"Sending back ConfirmPanBlockHashes response")
 	return res, nil
 }
 
@@ -104,6 +102,8 @@ func (api *PublicFilterAPI) ConfirmVanBlockHashes(
 	res := make([]*BlockStatus, 0)
 	for _, req := range requests {
 		status := api.backend.GetSlotStatus(ctx, req.Slot, false)
+		log.WithField("slot", req.Slot).WithField("status", status).WithField(
+			"api", "ConfirmVanBlockHashes").Debug("status of the requested slot")
 		hash := req.Hash
 		res = append(res, &BlockStatus{
 			BlockHash: BlockHash{
@@ -113,10 +113,6 @@ func (api *PublicFilterAPI) ConfirmVanBlockHashes(
 			Status: status,
 		})
 	}
-
-	log.WithField("method", "ConfirmVanBlockHashes").WithField(
-		"request", requests).WithField("response", res).Debug(
-		"Sending back ConfirmVanBlockHashes response")
 	return res, nil
 }
 
