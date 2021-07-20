@@ -54,6 +54,7 @@ const (
 	vanguardMaxSyncPeersFlag            = "vanguard-max-sync-peers"
 	vanguardP2pHostFlag                 = "vanguard-p2p-host"
 	vanguardOrcProviderFlag             = "vanguard-orc-provider"
+	vanguardDisableSyncFlag             = "vanguard-disable-sync"
 
 	// Orchestrator related flag names are already present
 )
@@ -262,6 +263,11 @@ var (
 			Usage: "provide orchestrator provider, default http://127.0.0.1:7878",
 			Value: "http://127.0.0.1:7878",
 		},
+		&cli.BoolFlag{
+			Name:  vanguardDisableSyncFlag,
+			Usage: "disable initial sync phase",
+			Value: false,
+		},
 	}
 )
 
@@ -312,6 +318,10 @@ func prepareVanguardFlags(ctx *cli.Context) (vanguardArguments []string) {
 			"--peer=%s",
 			ctx.String(vanguardPeerFlag),
 		))
+	}
+
+	if ctx.Bool(vanguardDisableSyncFlag) {
+		vanguardArguments = append(vanguardArguments, "--disable-sync")
 	}
 
 	vanguardArguments = append(vanguardArguments, fmt.Sprintf(
