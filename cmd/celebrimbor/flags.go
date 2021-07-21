@@ -27,6 +27,9 @@ const (
 	pandoraVerbosityFlag   = "pandora-verbosity"
 	pandoraHttpPortFlag    = "pandora-http-port"
 	pandoraOutputFlag      = "pandora-output"
+	pandoraWsOriginFlag    = "pandora-ws-origin"
+	pandoraHttpOriginFlag  = "pandora-http-origin"
+	pandoraNatFlag         = "pandora-nat"
 
 	// Common for prysm client
 	vanguardChainConfigFlag = "vanguard-chain-config"
@@ -149,7 +152,22 @@ var (
 		&cli.StringFlag{
 			Name:  pandoraVerbosityFlag,
 			Usage: "this flag sets up verobosity for pandora",
-			Value: "5",
+			Value: "3",
+		},
+		&cli.StringFlag{
+			Name:  pandoraWsOriginFlag,
+			Usage: "this flag sets up websocket accepted origins, default not set",
+			Value: "",
+		},
+		&cli.StringFlag{
+			Name:  pandoraHttpOriginFlag,
+			Usage: "this flag sets up http accepted origins, default not set",
+			Value: "",
+		},
+		&cli.StringFlag{
+			Name:  pandoraNatFlag,
+			Usage: "this flag sets up http nat to assign static ip for geth, default not set. Example `extip:172.16.254.4`",
+			Value: "",
 		},
 	}
 	validatorFlags = []cli.Flag{
@@ -448,9 +466,17 @@ func preparePandoraFlags(ctx *cli.Context) (pandoraArguments []string) {
 	pandoraArguments = append(pandoraArguments, ctx.String(pandoraHttpApiFlag))
 	pandoraArguments = append(pandoraArguments, "--rpcport")
 	pandoraArguments = append(pandoraArguments, ctx.String(pandoraHttpPortFlag))
-	// TODO: remove this for security reason
-	pandoraArguments = append(pandoraArguments, "--http.corsdomain")
-	pandoraArguments = append(pandoraArguments, "*")
+
+	if "" != ctx.String(pandoraHttpOriginFlag) {
+		pandoraArguments = append(pandoraArguments, "--http.corsdomain")
+		pandoraArguments = append(pandoraArguments, ctx.String(pandoraHttpOriginFlag))
+	}
+
+	// Nat extIP
+	if "" != ctx.String(pandoraNatFlag) {
+		pandoraArguments = append(pandoraArguments, "--nat")
+		pandoraArguments = append(pandoraArguments, ctx.String(pandoraNatFlag))
+	}
 
 	// Websocket
 	pandoraArguments = append(pandoraArguments, "--ws")
@@ -460,9 +486,11 @@ func preparePandoraFlags(ctx *cli.Context) (pandoraArguments []string) {
 	pandoraArguments = append(pandoraArguments, ctx.String(pandoraWSApiFlag))
 	pandoraArguments = append(pandoraArguments, "--ws.port")
 	pandoraArguments = append(pandoraArguments, ctx.String(pandoraWSPortFlag))
-	// TODO: remove this for security reason
-	pandoraArguments = append(pandoraArguments, "--ws.origins")
-	pandoraArguments = append(pandoraArguments, "'*'")
+
+	if "" != ctx.String(pandoraWsOriginFlag) {
+		pandoraArguments = append(pandoraArguments, "--ws.origins")
+		pandoraArguments = append(pandoraArguments, ctx.String(pandoraWsOriginFlag))
+	}
 
 	// Miner
 	pandoraArguments = append(pandoraArguments, "--miner.etherbase")
