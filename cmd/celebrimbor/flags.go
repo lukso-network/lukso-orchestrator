@@ -448,6 +448,9 @@ func preparePandoraFlags(ctx *cli.Context) (pandoraArguments []string) {
 	pandoraArguments = append(pandoraArguments, ctx.String(pandoraHttpApiFlag))
 	pandoraArguments = append(pandoraArguments, "--rpcport")
 	pandoraArguments = append(pandoraArguments, ctx.String(pandoraHttpPortFlag))
+	// TODO: remove this for security reason
+	pandoraArguments = append(pandoraArguments, "--http.corsdomain")
+	pandoraArguments = append(pandoraArguments, "*")
 
 	// Websocket
 	pandoraArguments = append(pandoraArguments, "--ws")
@@ -457,6 +460,7 @@ func preparePandoraFlags(ctx *cli.Context) (pandoraArguments []string) {
 	pandoraArguments = append(pandoraArguments, ctx.String(pandoraWSApiFlag))
 	pandoraArguments = append(pandoraArguments, "--ws.port")
 	pandoraArguments = append(pandoraArguments, ctx.String(pandoraWSPortFlag))
+	// TODO: remove this for security reason
 	pandoraArguments = append(pandoraArguments, "--ws.origins")
 	pandoraArguments = append(pandoraArguments, "'*'")
 
