@@ -177,13 +177,15 @@ func downloadAndRunBinaries(ctx *cli.Context) (err error) {
 		return
 	}
 
-	time.Sleep(time.Second * 3)
+	time.Sleep(time.Second * 6)
 
 	err = startVanguard(ctx)
 
 	if nil != err {
 		return
 	}
+
+	time.Sleep(time.Second * 3)
 
 	err = startValidator(ctx)
 

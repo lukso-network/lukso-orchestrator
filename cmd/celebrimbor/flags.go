@@ -338,10 +338,8 @@ func prepareVanguardFlags(ctx *cli.Context) (vanguardArguments []string) {
 	))
 	vanguardArguments = append(vanguardArguments, "--rpc-host=0.0.0.0")
 	vanguardArguments = append(vanguardArguments, "--monitoring-host=0.0.0.0")
-	vanguardArguments = append(vanguardArguments, fmt.Sprintf(
-		"--verbosity=%s",
-		ctx.String(vanguardVerbosityFlag),
-	))
+	vanguardArguments = append(vanguardArguments, "--verbosity")
+	vanguardArguments = append(vanguardArguments, ctx.String(vanguardVerbosityFlag))
 	vanguardArguments = append(vanguardArguments, fmt.Sprintf(
 		"--min-sync-peers=%s",
 		ctx.String(vanguardMinSyncPeersFlag),
@@ -393,10 +391,8 @@ func prepareValidatorFlags(ctx *cli.Context) (validatorArguments []string) {
 		"--chain-config-file=%s",
 		ctx.String(vanguardChainConfigFlag),
 	))
-	validatorArguments = append(validatorArguments, fmt.Sprintf(
-		"--verbosity=%s",
-		ctx.String(validatorVerbosityFlag),
-	))
+	validatorArguments = append(validatorArguments, "--verbosity")
+	validatorArguments = append(validatorArguments, ctx.String(validatorVerbosityFlag))
 	validatorArguments = append(validatorArguments, fmt.Sprintf(
 		"--pandora-http-provider=%s",
 		ctx.String(validatorTrustedPandoraFlag),
