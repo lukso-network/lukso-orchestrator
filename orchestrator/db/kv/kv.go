@@ -158,6 +158,9 @@ func (s *Store) initLatestDataFromDB() {
 	s.latestEpoch = s.LatestSavedEpoch()
 	s.latestVerifiedSlot = s.LatestSavedVerifiedSlot()
 	s.latestHeaderHash = s.LatestVerifiedHeaderHash()
+	log.WithField("latestSavedEpoch", s.latestEpoch).WithField(
+		"latestVerifiedSlot", s.latestVerifiedSlot).WithField(
+		"latestHeaderHash", s.latestHeaderHash).Debug("latest saved info from db")
 }
 
 // createBuckets
