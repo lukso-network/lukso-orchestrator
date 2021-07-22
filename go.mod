@@ -8,7 +8,6 @@ require (
 	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf // indirect
 	github.com/d4l3k/messagediff v1.2.1
 	github.com/dgraph-io/ristretto v0.0.3
-	github.com/docker/docker v1.4.2-0.20180625184442-8e610b2b55bf
 	github.com/ethereum/go-ethereum v1.10.2
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/mock v1.5.0

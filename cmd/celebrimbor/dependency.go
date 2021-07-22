@@ -61,7 +61,7 @@ type ClientDependency struct {
 }
 
 func (dependency *ClientDependency) ParseUrl(tagName string) (url string) {
-	// do not parse when no occurencies
+	// do not parse when no occurrences
 	sprintOccurrences := strings.Count(dependency.baseUnixUrl, "%s")
 	currentOs := systemOs
 
@@ -69,11 +69,11 @@ func (dependency *ClientDependency) ParseUrl(tagName string) (url string) {
 		return dependency.baseUnixUrl
 	}
 
-	if sprintOccurrences < 1 && systemOs == macos {
+	if sprintOccurrences < 1 && currentOs == macos {
 		return dependency.baseDarwinUrl
 	}
 
-	if systemOs == macos {
+	if currentOs == macos {
 		return fmt.Sprintf(dependency.baseDarwinUrl, tagName)
 	}
 

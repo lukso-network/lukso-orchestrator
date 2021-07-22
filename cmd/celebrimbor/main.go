@@ -34,9 +34,9 @@ import (
 // Join our lukso discord https://discord.gg/E2rJPP4 to ask some questions
 
 const (
-	ubuntu = iota
-	macos
-	windows // Not supported yet
+	ubuntu  = "linux"
+	macos   = "darwin"
+	windows = "windows"
 )
 
 var (
@@ -46,7 +46,7 @@ var (
 	vanguardTag           string
 	orchestratorTag       string
 	log                   = logrus.WithField("prefix", appName)
-	systemOs              int
+	systemOs              string
 	pandoraRuntimeFlags   []string
 	validatorRuntimeFlags []string
 	vanguardRuntimeFlags  []string
@@ -58,7 +58,6 @@ func init() {
 	allFlags = append(allFlags, validatorFlags...)
 	allFlags = append(allFlags, vanguardFlags...)
 	allFlags = append(allFlags, appFlags...)
-	allFlags = append(allFlags, commonFlags...)
 
 	appFlags = cmd.WrapFlags(allFlags)
 }
@@ -106,7 +105,7 @@ func main() {
 
 		runtime.GOMAXPROCS(runtime.NumCPU())
 
-		setupOperatingSystem(ctx)
+		setupOperatingSystem()
 
 		// Pandora related parsing
 		pandoraTag = ctx.String(pandoraTagFlag)
