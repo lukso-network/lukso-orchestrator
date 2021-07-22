@@ -1,32 +1,25 @@
 package consensus
 
-import (
-	"math/rand"
-
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/lukso-network/lukso-orchestrator/shared/types"
-)
-
-func generateHeaderHash() (*types.HeaderHash, error) {
-	headerHash := new(types.HeaderHash)
-	randomBytes := make([]byte, 32)
-	if _, err := rand.Read(randomBytes); err != nil {
-		return headerHash, err
-	}
-	headerHash.HeaderHash = common.BytesToHash(randomBytes)
-
-	if _, err := rand.Read(randomBytes); err != nil {
-		return headerHash, err
-	}
-	headerHash.PandoraShardHash = common.BytesToHash(randomBytes)
-
-	if _, err := rand.Read(randomBytes); err != nil {
-		return headerHash, err
-	}
-	headerHash.Signature = randomBytes
-
-	return headerHash, nil
-}
+//func generateHeaderHash() (*types.HeaderHash, error) {
+//	headerHash := new(types.HeaderHash)
+//	randomBytes := make([]byte, 32)
+//	if _, err := rand.Read(randomBytes); err != nil {
+//		return headerHash, err
+//	}
+//	headerHash.HeaderHash = common.BytesToHash(randomBytes)
+//
+//	if _, err := rand.Read(randomBytes); err != nil {
+//		return headerHash, err
+//	}
+//	headerHash.PandoraShardHash = common.BytesToHash(randomBytes)
+//
+//	if _, err := rand.Read(randomBytes); err != nil {
+//		return headerHash, err
+//	}
+//	headerHash.Signature = randomBytes
+//
+//	return headerHash, nil
+//}
 
 //func TestCompareShardingInfo(t *testing.T) {
 //	var pandoraHeaderHash, vanguardHeaderHash *types.HeaderHash

@@ -1,19 +1,21 @@
 package types
 
 import (
+	eth2Types "github.com/prysmaticlabs/ethereumapis/eth/v1alpha1"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
 )
 
-type Status int
+type Status string
 
 const (
-	Pending Status = iota
-	Verified
-	Invalid
-	Skipped
+	Pending  Status = "Pending"
+	Verified Status = "Verified"
+	Invalid  Status = "Invalid"
+	Skipped  Status = "Skipped"
+	Unknown  Status = "Unknown"
 )
 
 // ExtraData
@@ -23,18 +25,18 @@ type ExtraData struct {
 	ProposerIndex uint64
 }
 
-// generic header hash
-type HeaderHash struct {
-	HeaderHash common.Hash `json:"headerHash"`
-	Status     Status      `json:"status"`
-	// TODO: For temporary purpose we are using it. We need to change it while refactoring
-	Signature        []byte      `json:"signature,omitempty"`
-	PandoraShardHash common.Hash `json:"pandoraShardHash,omitempty"`
-}
-
+// SlotInfo
 type SlotInfo struct {
 	VanguardBlockHash common.Hash
 	PandoraHeaderHash common.Hash
+}
+
+// CurrentSlotInfo
+type CurrentSlotInfo struct {
+	Slot      uint64
+	Header    *eth1Types.Header
+	ShardInfo *eth2Types.PandoraShard
+	Status    Status
 }
 
 // CopyHeader creates a deep copy of a block header to prevent side effects from

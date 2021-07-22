@@ -37,8 +37,7 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 // verifyShardingInfo
 func (s *Service) verifyShardingInfo(slot uint64, vanShardInfo *types.VanguardShardInfo, header *eth1Types.Header) error {
 	slotInfo := new(types.SlotInfo)
-	// TODO- compare shard info and header
-	status := CompareShardingInfo(nil, nil)
+	status := CompareShardingInfo(header, vanShardInfo.ShardInfo)
 	if status {
 		log.WithField("slot", slot).Debug("Consensus is established between pandora header and shard info")
 

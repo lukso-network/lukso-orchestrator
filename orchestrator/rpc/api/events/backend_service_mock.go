@@ -31,6 +31,6 @@ func (b *MockBackend) SubscribeNewEpochEvent(ch chan<- *eventTypes.MinimalEpochC
 	return b.ConsensusInfoFeed.Subscribe(ch)
 }
 
-func (mb *MockBackend) GetSlotStatus(ctx context.Context, slot uint64, requestType bool) Status {
-	return Pending
+func (mb *MockBackend) GetSlotStatus(ctx context.Context, slot uint64, requestType bool) eventTypes.Status {
+	return eventTypes.Pending
 }

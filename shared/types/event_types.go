@@ -21,23 +21,26 @@ type PandoraPendingHeaderFilter struct {
 	FromBlockHash common.Hash `json:"fromBlockHash"`
 }
 
-type BlsSignatureBytes [BLSSignatureSize]byte
-
-// Bytes gets the byte representation of the underlying hash.
-func (h BlsSignatureBytes) Bytes() []byte { return h[:] }
-
+// PanExtraDataWithBLSSig
 type PanExtraDataWithBLSSig struct {
 	ExtraData
 	BlsSignatureBytes *BlsSignatureBytes
 }
 
+// PandoraHeaderInfo
 type PandoraHeaderInfo struct {
 	Slot   uint64
 	Header *eth1Types.Header
 }
 
+// VanguardShardInfo
 type VanguardShardInfo struct {
 	Slot      uint64
 	ShardInfo *eth2Types.PandoraShard
 	BlockHash []byte
 }
+
+type BlsSignatureBytes [BLSSignatureSize]byte
+
+// Bytes gets the byte representation of the underlying hash.
+func (h BlsSignatureBytes) Bytes() []byte { return h[:] }

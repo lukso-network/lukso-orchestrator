@@ -13,18 +13,8 @@ import (
 type Backend interface {
 	ConsensusInfoByEpochRange(fromEpoch uint64) []*generalTypes.MinimalEpochConsensusInfo
 	SubscribeNewEpochEvent(chan<- *generalTypes.MinimalEpochConsensusInfo) event.Subscription
-	GetSlotStatus(ctx context.Context, slot uint64, requestType bool) Status
+	GetSlotStatus(ctx context.Context, slot uint64, requestType bool) generalTypes.Status
 }
-
-type Status string
-
-const (
-	Pending  Status = "Pending"
-	Verified Status = "Verified"
-	Invalid  Status = "Invalid"
-	Skipped  Status = "Skipped"
-	Unknown  Status = "Unknown"
-)
 
 // PublicFilterAPI offers support to create and manage filters. This will allow external clients to retrieve various
 // information related to the Ethereum protocol such als blocks, transactions and logs.
@@ -41,7 +31,7 @@ type BlockHash struct {
 
 type BlockStatus struct {
 	BlockHash
-	Status Status
+	Status generalTypes.Status
 }
 
 // NewPublicFilterAPI returns a new PublicFilterAPI instance.
@@ -53,15 +43,6 @@ func NewPublicFilterAPI(backend Backend, timeout time.Duration) *PublicFilterAPI
 	}
 
 	return api
-}
-
-// This is for debug purpose only
-type PendingHashesResponse struct {
-	VanguardHashes    []*generalTypes.HeaderHash
-	PandoraHashes     []*generalTypes.HeaderHash
-	VanguardHashesLen int64
-	PandoraHashesLen  int64
-	UnixTime          int64
 }
 
 // ConfirmPanBlockHashes should be used to get the confirmation about known state of Pandora block hashes

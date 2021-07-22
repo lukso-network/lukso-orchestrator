@@ -31,14 +31,6 @@ func NewMinimalConsensusInfo(epoch uint64) *types.MinimalEpochConsensusInfo {
 	}
 }
 
-// NewPandoraHeaderHash
-func NewPandoraHeaderHash(slot uint64, status types.Status) *types.HeaderHash {
-	return &types.HeaderHash{
-		HeaderHash: NewEth1Header(slot).Hash(),
-		Status:     status,
-	}
-}
-
 // NewEth1Header
 func NewEth1Header(slot uint64) *eth1Types.Header {
 	epoch := slot / 32

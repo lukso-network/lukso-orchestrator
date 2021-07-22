@@ -5,7 +5,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/iface"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	log "github.com/sirupsen/logrus"
@@ -38,14 +37,14 @@ func (backend *Backend) ConsensusInfoByEpochRange(fromEpoch uint64) []*types.Min
 }
 
 // GetSlotStatus
-func (b *Backend) GetSlotStatus(ctx context.Context, slot uint64, requestType bool) events.Status {
+func (b *Backend) GetSlotStatus(ctx context.Context, slot uint64, requestType bool) types.Status {
 
 	headerInfo, _ := b.PandoraPendingHeaderCache.Get(ctx, slot)
 	shardInfo, _ := b.VanguardPendingShardingCache.Get(ctx, slot)
 
 	if (headerInfo == nil && shardInfo != nil) || (headerInfo != nil && shardInfo == nil) {
 		log.WithField("slot", slot).Debug("Requested slot is pending")
-		return events.Pending
+		return types.Pending
 	}
 
 	//when requested slot is greater than latest verified slot
@@ -53,20 +52,20 @@ func (b *Backend) GetSlotStatus(ctx context.Context, slot uint64, requestType bo
 	if slot > latestVerifiedSlot {
 		log.WithField("slot", slot).WithField(
 			"latestVerifiedSlot", latestVerifiedSlot).Debug("Requested slot is unknown")
-		return events.Unknown
+		return types.Unknown
 	}
 
 	if slotInfo, _ := b.VerifiedSlotInfoDB.VerifiedSlotInfo(slot); slotInfo != nil {
 		log.WithField("slot", slot).WithField(
 			"api", "ConfirmPanBlockHashes").Debug("Requested slot is verified")
-		return events.Verified
+		return types.Verified
 	}
 
 	if slotInfo, _ := b.InvalidSlotInfoDB.InvalidSlotInfo(slot); slotInfo != nil {
 		log.WithField("slot", slot).WithField(
 			"api", "ConfirmPanBlockHashes").Debug("Requested slot is invalid")
-		return events.Invalid
+		return types.Invalid
 	}
 
-	return events.Skipped
+	return types.Skipped
 }
