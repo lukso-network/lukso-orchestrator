@@ -43,6 +43,12 @@ func (s *Service) verifyShardingInfo(slot uint64, vanShardInfo *types.VanguardSh
 	}
 	status := CompareShardingInfo(header, vanShardInfo.ShardInfo)
 
+	//removing previous cached slots which dont verified yet. By convention, they are skipped
+	defer func() {
+		s.pandoraPendingHeaderCache.Remove(s.ctx, slot)
+		s.vanguardPendingShardingCache.Remove(s.ctx, slot)
+	}()
+
 	log.WithField("slot", slot).Debug("Consensus is established between pandora header and shard info")
 	if status {
 		// store verified slot info into verified slot info bucket
@@ -65,9 +71,5 @@ func (s *Service) verifyShardingInfo(slot uint64, vanShardInfo *types.VanguardSh
 		log.WithField("slot", slot).WithField(
 			"slotInfo", fmt.Sprintf("%+v", slotInfo)).Info("Invalid sharding info")
 	}
-
-	//removing previous cached slots which dont verified yet. By convention, they are skipped
-	s.pandoraPendingHeaderCache.Remove(s.ctx, slot)
-	s.vanguardPendingShardingCache.Remove(s.ctx, slot)
 	return nil
 }
