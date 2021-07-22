@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"fmt"
+
 	"github.com/ethereum/go-ethereum/common"
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
@@ -36,14 +37,14 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 
 // verifyShardingInfo
 func (s *Service) verifyShardingInfo(slot uint64, vanShardInfo *types.VanguardShardInfo, header *eth1Types.Header) error {
-	slotInfo := new(types.SlotInfo)
+	slotInfo := &types.SlotInfo{
+		PandoraHeaderHash: header.Hash(),
+		VanguardBlockHash: common.BytesToHash(vanShardInfo.BlockHash[:]),
+	}
 	status := CompareShardingInfo(header, vanShardInfo.ShardInfo)
+
+	log.WithField("slot", slot).Debug("Consensus is established between pandora header and shard info")
 	if status {
-		log.WithField("slot", slot).Debug("Consensus is established between pandora header and shard info")
-
-		slotInfo.PandoraHeaderHash = header.Hash()
-		slotInfo.VanguardBlockHash = common.BytesToHash(vanShardInfo.BlockHash[:])
-
 		// store verified slot info into verified slot info bucket
 		if err := s.verifiedSlotInfoDB.SaveVerifiedSlotInfo(slot, slotInfo); err != nil {
 			log.WithField("slot", slot).WithField(
@@ -51,24 +52,22 @@ func (s *Service) verifyShardingInfo(slot uint64, vanShardInfo *types.VanguardSh
 				"Failed to store verified slot info")
 			return err
 		}
-
-		//removing previous cached slots which dont verified yet. By convention, they are skipped
-		s.pandoraPendingHeaderCache.Remove(s.ctx, slot)
-		s.vanguardPendingShardingCache.Remove(s.ctx, slot)
-
 		log.WithField("slot", slot).WithField(
 			"slotInfo", fmt.Sprintf("%+v", slotInfo)).Info("Successfully verified sharding info")
-		return nil
+	} else {
+		// store invalid slot info into invalid slot info bucket
+		if err := s.invalidSlotInfoDB.SaveInvalidSlotInfo(slot, slotInfo); err != nil {
+			log.WithField("slot", slot).WithField(
+				"slotInfo", fmt.Sprintf("%+v", slotInfo)).WithError(err).Error(
+				"Failed to store invalid slot info")
+			return err
+		}
+		log.WithField("slot", slot).WithField(
+			"slotInfo", fmt.Sprintf("%+v", slotInfo)).Info("Invalid sharding info")
 	}
 
-	// store invalid slot info into invalid slot info bucket
-	if err := s.invalidSlotInfoDB.SaveInvalidSlotInfo(slot, slotInfo); err != nil {
-		log.WithField("slot", slot).WithField(
-			"slotInfo", fmt.Sprintf("%+v", slotInfo)).WithError(err).Error(
-			"Failed to store invalid slot info")
-		return err
-	}
-	log.WithField("slot", slot).WithField(
-		"slotInfo", fmt.Sprintf("%+v", slotInfo)).Info("Invalid sharding info")
+	//removing previous cached slots which dont verified yet. By convention, they are skipped
+	s.pandoraPendingHeaderCache.Remove(s.ctx, slot)
+	s.vanguardPendingShardingCache.Remove(s.ctx, slot)
 	return nil
 }

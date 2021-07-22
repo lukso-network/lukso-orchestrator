@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
@@ -37,35 +38,42 @@ func (backend *Backend) ConsensusInfoByEpochRange(fromEpoch uint64) []*types.Min
 }
 
 // GetSlotStatus
-func (b *Backend) GetSlotStatus(ctx context.Context, slot uint64, requestType bool) types.Status {
+func (backend *Backend) GetSlotStatus(ctx context.Context, slot uint64, requestType bool) types.Status {
 
-	headerInfo, _ := b.PandoraPendingHeaderCache.Get(ctx, slot)
-	shardInfo, _ := b.VanguardPendingShardingCache.Get(ctx, slot)
+	headerInfo, _ := backend.PandoraPendingHeaderCache.Get(ctx, slot)
+	shardInfo, _ := backend.VanguardPendingShardingCache.Get(ctx, slot)
 
-	if (headerInfo == nil && shardInfo != nil) || (headerInfo != nil && shardInfo == nil) {
-		log.WithField("slot", slot).Debug("Requested slot is pending")
-		return types.Pending
+	// by default if nothing is found then return skipped
+	status := types.Skipped
+
+	// if it is found in the cache then it is pending
+	// maybe already verifying is going on but not settled in the database
+	if shardInfo != nil || headerInfo != nil {
+		status = types.Pending
 	}
 
 	//when requested slot is greater than latest verified slot
-	latestVerifiedSlot := b.VerifiedSlotInfoDB.InMemoryLatestVerifiedSlot()
+	latestVerifiedSlot := backend.VerifiedSlotInfoDB.InMemoryLatestVerifiedSlot()
 	if slot > latestVerifiedSlot {
-		log.WithField("slot", slot).WithField(
-			"latestVerifiedSlot", latestVerifiedSlot).Debug("Requested slot is unknown")
-		return types.Unknown
+		status = types.Unknown
 	}
 
-	if slotInfo, _ := b.VerifiedSlotInfoDB.VerifiedSlotInfo(slot); slotInfo != nil {
-		log.WithField("slot", slot).WithField(
-			"api", "ConfirmPanBlockHashes").Debug("Requested slot is verified")
-		return types.Verified
+	// finally found in the database so return immediately so that no other db call happens
+	if slotInfo, _ := backend.VerifiedSlotInfoDB.VerifiedSlotInfo(slot); slotInfo != nil {
+		status = types.Verified
+		return status
 	}
 
-	if slotInfo, _ := b.InvalidSlotInfoDB.InvalidSlotInfo(slot); slotInfo != nil {
-		log.WithField("slot", slot).WithField(
-			"api", "ConfirmPanBlockHashes").Debug("Requested slot is invalid")
-		return types.Invalid
+	// finally found in the database so return immediately so that no other db call happens
+	if slotInfo, _ := backend.InvalidSlotInfoDB.InvalidSlotInfo(slot); slotInfo != nil {
+		status = types.Invalid
+		return status
 	}
 
-	return types.Skipped
+	defer log.WithField("slot", slot).
+		WithField("api", "ConfirmPanBlockHashes").
+		WithField("status", status).
+		Debug("Requested slot is invalid")
+
+	return status
 }

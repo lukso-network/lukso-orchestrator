@@ -1,7 +1,6 @@
 package types
 
 import (
-	eth2Types "github.com/prysmaticlabs/ethereumapis/eth/v1alpha1"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -29,14 +28,6 @@ type ExtraData struct {
 type SlotInfo struct {
 	VanguardBlockHash common.Hash
 	PandoraHeaderHash common.Hash
-}
-
-// CurrentSlotInfo
-type CurrentSlotInfo struct {
-	Slot      uint64
-	Header    *eth1Types.Header
-	ShardInfo *eth2Types.PandoraShard
-	Status    Status
 }
 
 // CopyHeader creates a deep copy of a block header to prevent side effects from
