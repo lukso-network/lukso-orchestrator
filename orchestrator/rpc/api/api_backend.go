@@ -71,9 +71,10 @@ func (backend *Backend) GetSlotStatus(ctx context.Context, slot uint64, requestT
 	}
 
 	defer log.WithField("slot", slot).
+		WithField("last verified slot", latestVerifiedSlot).
 		WithField("api", "ConfirmPanBlockHashes").
 		WithField("status", status).
-		Debug("Requested slot is invalid")
+		Debug("GotSlotStatus")
 
 	return status
 }
