@@ -61,12 +61,12 @@ const (
 )
 
 var (
-	appFlags    = cmd.CommonFlagSet
+	appFlags     = cmd.CommonFlagSet
 	pandoraFlags = []cli.Flag{
 		&cli.StringFlag{
 			Name:  pandoraTagFlag,
 			Usage: "provide a tag of pandora you would like to run",
-			Value: "v0.0.10-stable-without-mix-digest",
+			Value: "v0.0.15-debug-fork_9",
 		},
 		&cli.StringFlag{
 			Name:  pandoraDatadirFlag,
@@ -165,7 +165,7 @@ var (
 		&cli.StringFlag{
 			Name:  validatorTagFlag,
 			Usage: "provide tag for validator binary. Release must be present in lukso namespace on github",
-			Value: "v0.0.16-alpha",
+			Value: "v0.0.17-alpha",
 		},
 		&cli.StringFlag{
 			Name:  validatorVanguardRpcProviderFlag,
@@ -209,7 +209,7 @@ var (
 		&cli.StringFlag{
 			Name:  vanguardTagFlag,
 			Usage: "provide tag for vanguard",
-			Value: "v0.0.16-alpha",
+			Value: "v0.0.17-alpha",
 		},
 		&cli.StringFlag{
 			Name: vanguardGenesisStateFlag,
