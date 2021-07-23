@@ -24,7 +24,7 @@ type PandoraPendingHeaderFilter struct {
 // PanExtraDataWithBLSSig
 type PanExtraDataWithBLSSig struct {
 	ExtraData
-	BlsSignatureBytes *BlsSignatureBytes
+	BlsSignatureBytes BlsSignatureBytes
 }
 
 // PandoraHeaderInfo
@@ -44,3 +44,17 @@ type BlsSignatureBytes [BLSSignatureSize]byte
 
 // Bytes gets the byte representation of the underlying hash.
 func (h BlsSignatureBytes) Bytes() []byte { return h[:] }
+
+func BytesToSig(b []byte) BlsSignatureBytes {
+	var bls BlsSignatureBytes
+	bls.SetBytes(b)
+	return bls
+}
+
+func (bls *BlsSignatureBytes) SetBytes(b []byte) {
+	if len(b) > len(bls) {
+		b = b[len(b)-BLSSignatureSize:]
+	}
+
+	copy(bls[BLSSignatureSize-len(b):], b)
+}

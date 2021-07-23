@@ -42,7 +42,7 @@ func NewEth1Header(slot uint64) *eth1Types.Header {
 	}
 
 	signatureBytes := []byte("df7284286281db4c0bea60b338a62ddfde0d34736ad2657f2bea159fc8c6675cd5bbb68373e9f3d4bba017a82ed0d9b9")
-	blsSignatureBytes := new(types.BlsSignatureBytes)
+	var blsSignatureBytes types.BlsSignatureBytes
 	copy(blsSignatureBytes[:], signatureBytes[:])
 	extraDataWithSig := types.PanExtraDataWithBLSSig{
 		extraData,

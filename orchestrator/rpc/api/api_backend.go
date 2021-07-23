@@ -54,9 +54,9 @@ func (backend *Backend) GetSlotStatus(ctx context.Context, slot uint64, requestT
 
 	//when requested slot is greater than latest verified slot
 	latestVerifiedSlot := backend.VerifiedSlotInfoDB.InMemoryLatestVerifiedSlot()
-	if latestVerifiedSlot != 0 && slot > latestVerifiedSlot {
-		status = types.Unknown
-	}
+	//if latestVerifiedSlot != 0 && slot > latestVerifiedSlot {
+	//	status = types.Unknown
+	//}
 
 	// finally found in the database so return immediately so that no other db call happens
 	if slotInfo, _ := backend.VerifiedSlotInfoDB.VerifiedSlotInfo(slot); slotInfo != nil {

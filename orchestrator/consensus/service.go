@@ -29,7 +29,7 @@ type Service struct {
 	cancel         context.CancelFunc
 	runError       error
 
-	latestVerifiedSlot uint64
+	curSlot uint64
 
 	verifiedSlotInfoDB           db.VerifiedSlotInfoDB
 	invalidSlotInfoDB            db.InvalidSlotInfoDB
@@ -51,7 +51,7 @@ func New(ctx context.Context, cfg *Config) (service *Service) {
 	return &Service{
 		ctx:                          ctx,
 		cancel:                       cancel,
-		latestVerifiedSlot:           latestVerifiedSlot,
+		curSlot:                      latestVerifiedSlot,
 		verifiedSlotInfoDB:           cfg.VerifiedSlotInfoDB,
 		invalidSlotInfoDB:            cfg.InvalidSlotInfoDB,
 		vanguardPendingShardingCache: cfg.VanguardPendingShardingCache,
@@ -79,7 +79,7 @@ func (s *Service) Start() {
 			select {
 			case newPanHeaderInfo := <-panHeaderInfoCh:
 				log.WithField("slot", newPanHeaderInfo.Slot).Debug("New pandora header is validating")
-
+				s.curSlot = newPanHeaderInfo.Slot
 				err := s.processPandoraHeader(newPanHeaderInfo)
 				if err != nil {
 					log.WithField("error", err).Error("error found while processing pandora header")
@@ -87,7 +87,7 @@ func (s *Service) Start() {
 				}
 			case newVanShardInfo := <-vanShardInfoCh:
 				log.WithField("slot", newVanShardInfo.Slot).Debug("New vanguard shard info is validating")
-
+				s.curSlot = newVanShardInfo.Slot
 				err := s.processVanguardShardInfo(newVanShardInfo)
 				if err != nil {
 					log.WithField("error", err).Error("error found while processing vanguard sharding info")
