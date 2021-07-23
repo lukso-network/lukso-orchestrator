@@ -37,6 +37,6 @@ func Test_VanguardChainStartStop_Initialized(t *testing.T) {
 	}()
 
 	time.Sleep(1 * time.Second)
-	assert.LogsContain(t, hook, "consensus info passed sanitization")
+	assert.LogsContain(t, hook, "Received new consensus info for next epoch")
 	hook.Reset()
 }

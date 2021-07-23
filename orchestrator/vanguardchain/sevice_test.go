@@ -39,7 +39,6 @@ func Test_VanguardSvc_StartStop(t *testing.T) {
 
 	time.Sleep(1 * time.Second)
 	assert.LogsContain(t, hook, "Connected vanguard chain")
-	assert.LogsContain(t, hook, "subscribed to vanguard chain for consensus info")
 	hook.Reset()
 }
 
@@ -122,8 +121,6 @@ func Test_VanguardSvc_RetryToConnServer(t *testing.T) {
 
 	time.Sleep(time.Second)
 	assert.LogsContain(t, hook, "Connected vanguard chain")
-	assert.LogsContain(t, hook, "subscribed to vanguard chain for consensus info")
-
 	hook.Reset()
 }
 

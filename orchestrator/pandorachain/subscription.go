@@ -2,6 +2,7 @@ package pandorachain
 
 import (
 	"context"
+	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 )
@@ -13,7 +14,7 @@ func (s *Service) SubscribePendingHeaders(
 	namespace string,
 	client *rpc.Client,
 ) (*rpc.ClientSubscription, error) {
-	ch := s.pendingHeadersChan
+	ch := make(chan *eth1Types.Header)
 	sub, err := client.Subscribe(ctx, namespace, ch, "newPendingBlockHeaders", crit)
 	if nil != err {
 		return nil, err
@@ -25,16 +26,11 @@ func (s *Service) SubscribePendingHeaders(
 		for {
 			select {
 			case newPendingHeader := <-ch:
-				log.WithField("header", newPendingHeader).WithField(
-					"generatedHeaderHash", newPendingHeader.Hash()).WithField(
-					"extraData", newPendingHeader.Extra).Debug("Got header info from pandora")
+				log.WithField("headerHash", newPendingHeader.Hash()).Debug("Got header info from pandora")
 				// dispatch newPendingHeader to handler
 				err = s.OnNewPendingHeader(ctx, newPendingHeader)
-
 				if nil != err {
-					log.WithField("cause", "SubscribePendingHeaders").
-						WithField("scope", "pandoraPendingHeader").
-						Error(err)
+					log.WithError(err).Error("Failed to process the pending pandora header")
 				}
 			case err := <-sub.Err():
 				if err != nil {

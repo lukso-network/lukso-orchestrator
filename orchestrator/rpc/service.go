@@ -3,6 +3,7 @@ package rpc
 import (
 	"context"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
@@ -13,8 +14,10 @@ import (
 
 // Config
 type Config struct {
-	ConsensusInfoFeed iface.ConsensusInfoFeed
-	Db                db.Database
+	ConsensusInfoFeed            iface.ConsensusInfoFeed
+	Db                           db.Database
+	VanguardPendingShardingCache cache.VanguardShardCache
+	PandoraPendingHeaderCache    cache.PandoraHeaderCache
 	// ipc config
 	IPCPath string
 	// http config
@@ -64,11 +67,12 @@ func NewService(ctx context.Context, cfg *Config) (*Service, error) {
 		config:        cfg,
 		inprocHandler: rpc.NewServer(),
 		backend: &api.Backend{
-			ConsensusInfoFeed:    cfg.ConsensusInfoFeed,
-			ConsensusInfoDB:      cfg.Db,
-			VanguardHeaderHashDB: cfg.Db,
-			PandoraHeaderHashDB:  cfg.Db,
-			RealmDB:              cfg.Db,
+			ConsensusInfoFeed:            cfg.ConsensusInfoFeed,
+			ConsensusInfoDB:              cfg.Db,
+			VerifiedSlotInfoDB:           cfg.Db,
+			InvalidSlotInfoDB:            cfg.Db,
+			PandoraPendingHeaderCache:    cfg.PandoraPendingHeaderCache,
+			VanguardPendingShardingCache: cfg.VanguardPendingShardingCache,
 		},
 	}
 	// Configure RPC servers.

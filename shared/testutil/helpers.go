@@ -6,7 +6,7 @@ import (
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
-	"github.com/pkg/errors"
+	ethpb "github.com/prysmaticlabs/ethereumapis/eth/v1alpha1"
 	"golang.org/x/crypto/sha3"
 	"math/big"
 	"time"
@@ -30,16 +30,9 @@ func NewMinimalConsensusInfo(epoch uint64) *types.MinimalEpochConsensusInfo {
 	}
 }
 
-// NewPandoraHeaderHash
-func NewPandoraHeaderHash(slot uint64, status types.Status) *types.HeaderHash {
-	return &types.HeaderHash{
-		HeaderHash: NewEth1Header(slot).Hash(),
-		Status:     status,
-	}
-}
-
 // NewEth1Header
 func NewEth1Header(slot uint64) *eth1Types.Header {
+	blockNumber := int64(slot)
 	epoch := slot / 32
 	extraData := types.ExtraData{
 		Slot:  slot,
@@ -47,7 +40,15 @@ func NewEth1Header(slot uint64) *eth1Types.Header {
 		// TODO: remove this, we do not have this information
 		ProposerIndex: 786,
 	}
-	extraDataByte, _ := rlp.EncodeToBytes(extraData)
+
+	signatureBytes := []byte("df7284286281db4c0bea60b338a62ddfde0d34736ad2657f2bea159fc8c6675cd5bbb68373e9f3d4bba017a82ed0d9b9")
+	var blsSignatureBytes types.BlsSignatureBytes
+	copy(blsSignatureBytes[:], signatureBytes[:])
+	extraDataWithSig := types.PanExtraDataWithBLSSig{
+		extraData,
+		blsSignatureBytes,
+	}
+	extraDataByte, _ := rlp.EncodeToBytes(extraDataWithSig)
 	header := &eth1Types.Header{
 		ParentHash:  eth1Types.EmptyRootHash,
 		UncleHash:   eth1Types.EmptyUncleHash,
@@ -56,7 +57,7 @@ func NewEth1Header(slot uint64) *eth1Types.Header {
 		TxHash:      eth1Types.EmptyRootHash,
 		ReceiptHash: eth1Types.EmptyRootHash,
 		Difficulty:  big.NewInt(131072),
-		Number:      big.NewInt(314),
+		Number:      big.NewInt(blockNumber),
 		GasLimit:    uint64(3141592),
 		GasUsed:     uint64(21000),
 		Time:        uint64(1426516743),
@@ -92,17 +93,23 @@ func SealHash(header *eth1Types.Header) (hash common.Hash) {
 	return hash
 }
 
-// GenerateExtraDataWithBLSSig generates pandora extra data with header hash signature
-func GenerateExtraDataWithBLSSig(header *eth1Types.Header) (*types.PanExtraDataWithBLSSig, error) {
-	extraData := new(types.ExtraData)
-	if err := rlp.DecodeBytes(header.Extra, extraData); err != nil {
-		return nil, errors.Wrap(err, "Failed to decode extra data fields")
+// NewBeaconBlock
+func NewVanguardShardInfo(slot uint64, header *eth1Types.Header) *types.VanguardShardInfo {
+	return &types.VanguardShardInfo{
+		Slot:      slot,
+		ShardInfo: NewPandoraShard(header),
+		BlockHash: []byte("0xd2302fac5c5f370575a70bcbab9fdaeb8f7e892f381d648ce1f2ad07ad17f20e"),
 	}
-	var blsSignatureBytes types.BlsSignatureBytes
-	signatureBytes := make([]byte, types.BLSSignatureSize)
-	copy(blsSignatureBytes[:], signatureBytes[:])
-	extraDataWithBlsSig := new(types.PanExtraDataWithBLSSig)
-	extraDataWithBlsSig.ExtraData = *extraData
-	extraDataWithBlsSig.BlsSignatureBytes = &blsSignatureBytes
-	return extraDataWithBlsSig, nil
+}
+
+func NewPandoraShard(panHeader *eth1Types.Header) *ethpb.PandoraShard {
+	return &ethpb.PandoraShard{
+		BlockNumber: panHeader.Number.Uint64(),
+		Hash:        panHeader.Hash().Bytes(),
+		ParentHash:  panHeader.ParentHash.Bytes(),
+		StateRoot:   panHeader.Root.Bytes(),
+		TxHash:      panHeader.TxHash.Bytes(),
+		ReceiptHash: panHeader.ReceiptHash.Bytes(),
+		Signature:   []byte("df7284286281db4c0bea60b338a62ddfde0d34736ad2657f2bea159fc8c6675cd5bbb68373e9f3d4bba017a82ed0d9b9"),
+	}
 }
