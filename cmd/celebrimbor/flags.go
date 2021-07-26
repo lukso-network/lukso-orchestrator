@@ -209,13 +209,13 @@ var (
 		&cli.StringFlag{
 			Name:  vanguardTagFlag,
 			Usage: "provide tag for vanguard",
-			Value: "v0.0.17-alpha-alpha",
+			Value: "v0.0.17-alpha",
 		},
 		&cli.StringFlag{
 			Name: vanguardGenesisStateFlag,
 			// TODO: see if it is possible to do this via url
 			Usage: "provide genesis.ssz file",
-			Value: "./vanguard/v0.0.17-alpha-alpha/vanguard_private_testnet_genesis.ssz",
+			Value: "./vanguard/v0.0.17-alpha/vanguard_private_testnet_genesis.ssz",
 		},
 		&cli.StringFlag{
 			Name:  vanguardDatadirFlag,
