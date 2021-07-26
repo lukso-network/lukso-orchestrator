@@ -176,7 +176,7 @@ var (
 			Name:  vanguardChainConfigFlag,
 			Usage: "path to chain config of vanguard and validator",
 			// TODO: Parse it automatically
-			Value: "./vanguard/v0.0.16-alpha/config.yml",
+			Value: "./vanguard/v0.0.17-alpha/config.yml",
 		},
 		&cli.BoolFlag{
 			Name:  vanguardOutputFlag,
@@ -209,13 +209,13 @@ var (
 		&cli.StringFlag{
 			Name:  vanguardTagFlag,
 			Usage: "provide tag for vanguard",
-			Value: "v0.0.17-alpha",
+			Value: "v0.0.17-alpha-alpha",
 		},
 		&cli.StringFlag{
 			Name: vanguardGenesisStateFlag,
 			// TODO: see if it is possible to do this via url
 			Usage: "provide genesis.ssz file",
-			Value: "./vanguard/v0.0.16-alpha/vanguard_private_testnet_genesis.ssz",
+			Value: "./vanguard/v0.0.17-alpha-alpha/vanguard_private_testnet_genesis.ssz",
 		},
 		&cli.StringFlag{
 			Name:  vanguardDatadirFlag,
@@ -419,6 +419,8 @@ func prepareValidatorFlags(ctx *cli.Context) (validatorArguments []string) {
 			ctx.String(validatorDatadirFlag),
 		))
 	}
+
+	validatorArguments = append(validatorArguments, "--lukso-network")
 
 	return
 }
