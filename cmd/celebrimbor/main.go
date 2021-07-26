@@ -364,8 +364,8 @@ func startOrchestrator(ctx *cli.Context) (err error) {
 	logrus.SetLevel(level)
 
 	log.WithField("pandoraFlags", pandoraRuntimeFlags).
-		WithField("vanguardFlags", vanguardFlags).
-		WithField("validatorFlags", validatorFlags).Info("\n I will try to run setup with this additional flags \n")
+		WithField("vanguardFlags", vanguardRuntimeFlags).
+		WithField("validatorFlags", validatorRuntimeFlags).Info("\n I will try to run setup with this additional flags \n")
 
 	orchestrator, err := node.New(ctx)
 	if err != nil {
