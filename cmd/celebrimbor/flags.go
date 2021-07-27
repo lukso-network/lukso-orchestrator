@@ -165,7 +165,7 @@ var (
 		&cli.StringFlag{
 			Name:  validatorTagFlag,
 			Usage: "provide tag for validator binary. Release must be present in lukso namespace on github",
-			Value: "v0.0.18-alpha",
+			Value: "v0.0.18-delta",
 		},
 		&cli.StringFlag{
 			Name:  validatorVanguardRpcProviderFlag,
@@ -176,7 +176,7 @@ var (
 			Name:  vanguardChainConfigFlag,
 			Usage: "path to chain config of vanguard and validator",
 			// TODO: Parse it automatically
-			Value: "./vanguard/v0.0.18-alpha/config.yml",
+			Value: "./vanguard/v0.0.18-delta/config.yml",
 		},
 		&cli.BoolFlag{
 			Name:  vanguardOutputFlag,
@@ -209,13 +209,13 @@ var (
 		&cli.StringFlag{
 			Name:  vanguardTagFlag,
 			Usage: "provide tag for vanguard",
-			Value: "v0.0.18-alpha",
+			Value: "v0.0.18-delta",
 		},
 		&cli.StringFlag{
 			Name: vanguardGenesisStateFlag,
 			// TODO: see if it is possible to do this via url
 			Usage: "provide genesis.ssz file",
-			Value: "./vanguard/v0.0.18-alpha/vanguard_private_testnet_genesis.ssz",
+			Value: "./vanguard/v0.0.18-delta/vanguard_private_testnet_genesis.ssz",
 		},
 		&cli.StringFlag{
 			Name:  vanguardDatadirFlag,
