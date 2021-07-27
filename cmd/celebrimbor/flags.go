@@ -270,7 +270,7 @@ var (
 		&cli.StringFlag{
 			Name:  vanguardOrcProviderFlag,
 			Usage: "provide orchestrator provider, default http://127.0.0.1:7878",
-			Value: "http://127.0.0.1:7878",
+			Value: "http://127.0.0.1:7877",
 		},
 		&cli.BoolFlag{
 			Name:  vanguardDisableSyncFlag,
