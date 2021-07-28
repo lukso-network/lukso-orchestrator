@@ -2,9 +2,12 @@
 
 # Default values if not provided by user
 IS_VALIDATOR=false;
-ETHERBASE=0x616e6f6e796d6f75730000000000000000000000
+# "anonymous" in ASCII hex
+ETHERBASE=0x616e6f6e796d6f75730000000000000000000000;
 EXTERNAL_IP=$(curl -s v4.ident.me);
-NODE_NAME=random_$(tr -dc A-Za-z0-9 </dev/urandom | head -c 10 ; echo '')
+NODE_NAME=random_$(tr -dc A-Za-z0-9 </dev/urandom | head -c 10 ; echo '');
+PANDORA_BOOTNODE="enode://9adad8b1cc7b9f49e898179497e324900fa86befad2f2f4cfad975e1d074e2c58474bfbbc9d380c8c4e4d39c0c3254fa0b8b3231bd11007044d5fcba8d10f0d3@35.198.116.152:30405";
+VANGUARD_BOOTNODE="enr:-Ku4QLjFvoOKPJNP6u4h5Lf3RzB-voVdpeg0ibv0qZN4ZbU8QXnCzEnTguQLAjJ3kpuZx07nDVcBLcK3U0Ukr1EGsXoBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpD1pf1CAAAAAP__________gmlkgnY0gmlwhCPGdJiJc2VjcDI1NmsxoQKWfbT1atCho149MGMvpgBWUymiOv9QyXYhgYEBZvPBW4N1ZHCCJw8";
 
 optspec=":hv-:"
 while getopts "$optspec" optchar; do
@@ -68,6 +71,16 @@ while getopts "$optspec" optchar; do
                     EXTERNAL_IP=$val;
                     #echo "Parsing option: '--${OPTARG}', value: '${val}'" >&2;
                     ;;
+                pandora-bootnode)
+                    val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ));
+                    PANDORA_BOOTNODE=$val;
+                    #echo "Parsing option: '--${OPTARG}', value: '${val}'" >&2;
+                    ;;
+                vanguard-bootnode)
+                    val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ));
+                    VANGUARD_BOOTNODE=$val;
+                    #echo "Parsing option: '--${OPTARG}', value: '${val}'" >&2;
+                    ;;
                 *)
                     if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
                         echo "Unknown option --${OPTARG}" >&2
@@ -103,7 +116,7 @@ echo "External IP" $EXTERNAL_IP;
 #  -stdout
 #)
 
-$(dirname "$0")/celebrimbor \
+$(dirname "$0")/lukso \
 --force-clear-db \
 --vanguard-grpc-endpoint=127.0.0.1:4000 \
 --http \
@@ -117,8 +130,8 @@ $(dirname "$0")/celebrimbor \
 --accept-terms-of-use \
 --pandora-verbosity 4  \
 --pandora-etherbase $ETHERBASE \
---vanguard-bootnode=enr:-Ku4QLjFvoOKPJNP6u4h5Lf3RzB-voVdpeg0ibv0qZN4ZbU8QXnCzEnTguQLAjJ3kpuZx07nDVcBLcK3U0Ukr1EGsXoBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpD1pf1CAAAAAP__________gmlkgnY0gmlwhCPGdJiJc2VjcDI1NmsxoQKWfbT1atCho149MGMvpgBWUymiOv9QyXYhgYEBZvPBW4N1ZHCCJw8 \
---pandora-bootnodes="enode://9adad8b1cc7b9f49e898179497e324900fa86befad2f2f4cfad975e1d074e2c58474bfbbc9d380c8c4e4d39c0c3254fa0b8b3231bd11007044d5fcba8d10f0d3@35.198.116.152:30405" \
+--vanguard-bootnode=$VANGUARD_BOOTNODE \
+--pandora-bootnodes=$PANDORA_BOOTNODE \
 --pandora-ethstats $NODE_NAME:VIyf7EjWlR49@catalyst.silesiacoin.com \
 --vanguard-verbosity=trace \
 --validator-verbosity=trace \
