@@ -19,13 +19,6 @@ import (
 	"time"
 )
 
-// ANYBODY HAS THE BETTER NAME JUST GIVE PROPOSAL!
-
-// This library is responsible to spin your lukso infrastructure (Pandora, Vanguard, Validator, Orchestrator)
-// In Tolkien's stories, Celebrimbor is an elven-smith who was manipulated into forging the Rings of Power
-// by the disguised villain Sauron. While Celebrimbor created a set of Three on his own,
-// Sauron left for Mordor and forged the One Ring, a master ring to control all the others, in the fires of Mount Doom.
-// https://en.wikipedia.org/wiki/Celebrimbor
 // We want to spin also 3 libraries at once, and secretly rule them by orchestrator. It matches for me somehow
 
 // This binary will also support only some of the possible networks.
@@ -40,11 +33,10 @@ const (
 )
 
 var (
-	appName               = "celebrimbor"
+	appName               = "lukso"
 	pandoraTag            string
 	validatorTag          string
 	vanguardTag           string
-	orchestratorTag       string
 	log                   = logrus.WithField("prefix", appName)
 	systemOs              string
 	pandoraRuntimeFlags   []string
