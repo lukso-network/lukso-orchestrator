@@ -35,7 +35,7 @@ jobs:
         with:
           version: latest
           workdir: ./cmd/lukso
-          args: release --rm-dist --config ../../.github/.goreleaser.yml
+          args: release --rm-dist --config ../../.github/.goreleaser-lukso.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
 
@@ -49,4 +49,4 @@ jobs:
           -d '{"event_type":"upgrade dev", "client_payload": {"repository": "ORCHESTRATOR", "tag": "'$GH_TAG'"}}' \
           -u "$GITHUB_TOKEN" \
           https://api.github.com/repos/lukso-network/l16-multinet/dispatches
-     
+
