@@ -39,7 +39,7 @@ while getopts "$optspec" optchar; do
                     ;;
                 validate)
                     if [[ ! -f ./password.txt ]]; then
-                      echo "No password.txt found, do you want to start validator?";
+                      echo "No password.txt found, create it if you want to start validator.";
                       exit
                     fi
                     IS_VALIDATOR=true;
