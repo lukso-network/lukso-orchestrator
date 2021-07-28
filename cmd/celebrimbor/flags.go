@@ -39,6 +39,7 @@ const (
 	validatorTrustedPandoraFlag      = "validator-trusted-pandora"
 	validatorWalletPasswordFileFlag  = "validator-wallet-password-file"
 	validatorDatadirFlag             = "validator-datadir"
+	validatorOutputFileFlag          = "validator-output-file"
 
 	// Vanguard related flag names
 	vanguardTagFlag                     = "vanguard-tag"
@@ -54,8 +55,10 @@ const (
 	vanguardMinSyncPeersFlag            = "vanguard-min-sync-peers"
 	vanguardMaxSyncPeersFlag            = "vanguard-max-sync-peers"
 	vanguardP2pHostFlag                 = "vanguard-p2p-host"
+	vanguardP2pLocalFlag                = "vanguard-p2p-local"
 	vanguardOrcProviderFlag             = "vanguard-orc-provider"
 	vanguardDisableSyncFlag             = "vanguard-disable-sync"
+	vanguardOutputFileFlag              = "vanguard-output-file"
 
 	// Orchestrator related flag names are already present
 )
@@ -204,6 +207,11 @@ var (
 			Usage: "location of keys from deposit-cli",
 			Value: "",
 		},
+		&cli.StringFlag{
+			Name:  validatorOutputFileFlag,
+			Usage: "provide output destination of vanguard",
+			Value: "./validator.log",
+		},
 	}
 	vanguardFlags = []cli.Flag{
 		&cli.StringFlag{
@@ -266,6 +274,10 @@ var (
 			Name:  vanguardP2pHostFlag,
 			Usage: "provide p2p host for vanguard, default empty",
 			Value: "",
+		}, &cli.StringFlag{
+			Name:  vanguardP2pLocalFlag,
+			Usage: "provide p2p local ip for vanguard, default empty",
+			Value: "",
 		},
 		&cli.StringFlag{
 			Name:  vanguardOrcProviderFlag,
@@ -276,6 +288,11 @@ var (
 			Name:  vanguardDisableSyncFlag,
 			Usage: "disable initial sync phase",
 			Value: false,
+		},
+		&cli.StringFlag{
+			Name:  vanguardOutputFileFlag,
+			Usage: "provide output destination of vanguard",
+			Value: "./vanguard.log",
 		},
 	}
 )
@@ -359,9 +376,16 @@ func prepareVanguardFlags(ctx *cli.Context) (vanguardArguments []string) {
 		))
 	}
 
+	if "" != ctx.String(vanguardP2pLocalFlag) {
+		vanguardArguments = append(vanguardArguments, fmt.Sprintf(
+			"--p2p-local-ip=%s",
+			ctx.String(vanguardP2pLocalFlag),
+		))
+	}
+
 	vanguardArguments = append(vanguardArguments, fmt.Sprintf(
 		"--log-file=%s",
-		"./vanguard/vanguard.log",
+		ctx.String(vanguardOutputFileFlag),
 	))
 	vanguardArguments = append(vanguardArguments, "--lukso-network")
 	vanguardArguments = append(vanguardArguments, fmt.Sprintf(
@@ -402,7 +426,7 @@ func prepareValidatorFlags(ctx *cli.Context) (validatorArguments []string) {
 	))
 	validatorArguments = append(validatorArguments, fmt.Sprintf(
 		"--log-file=%s",
-		"./vanguard/validator.log",
+		ctx.String(validatorOutputFileFlag),
 	))
 	validatorArguments = append(validatorArguments, fmt.Sprintf(
 		"--wallet-password-file=%s",
