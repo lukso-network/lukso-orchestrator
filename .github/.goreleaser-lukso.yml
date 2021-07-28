@@ -23,9 +23,9 @@ archives:
     format: binary
     name_template: "lukso_{{ .Tag }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}"
 checksum:
-  name_template: 'checksums.txt'
+  name_template: 'lukso-checksums.txt'
 snapshot:
-  name_template: "{{ .Tag }}-next"
+  name_template: "lukso-{{ .Tag }}-next"
 changelog:
   sort: asc
   filters:
