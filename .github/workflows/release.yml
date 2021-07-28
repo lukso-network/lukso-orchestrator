@@ -30,6 +30,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
 
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@master
+        with:
+          version: latest
+          workdir: ./cmd/lukso
+          args: release --rm-dist --config ../../.github/.goreleaser.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+
       - name: Request Multinet Upgrade
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
