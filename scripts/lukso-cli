@@ -109,7 +109,7 @@ echo "Is Validator" $IS_VALIDATOR;
 echo "External IP" $EXTERNAL_IP;
 
 
-//TODO: flag customization
+#TODO: flag customization
 #necessary_args=(
 #  -m "$MONGO_HOST"
 #  -t "$NEO_URI"
