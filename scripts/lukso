@@ -1,0 +1,131 @@
+#!/bin/bash
+
+# Default values if not provided by user
+IS_VALIDATOR=false;
+ETHERBASE=0x616e6f6e796d6f75730000000000000000000000
+EXTERNAL_IP=$(curl -s v4.ident.me);
+NODE_NAME=random_$(tr -dc A-Za-z0-9 </dev/urandom | head -c 10 ; echo '')
+
+optspec=":hv-:"
+while getopts "$optspec" optchar; do
+    case "${optchar}" in
+        -)
+            case "${OPTARG}" in
+                reset)
+                    rm -rf -v ./vanguard/va* \
+                    ./vanguard/network-keys \
+                    ./vanguard/beaconchaindata/ \
+                    ./vanguard/metaData \
+                    ./pandora/geth \
+                    ./pandora/geth.ipc \
+                    ./pandora/keystore;
+                    exit;
+
+                    #val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+                    #echo "Parsing option: '--${OPTARG}', value: '${val}'" >&2;
+                    ;;
+                full-reset)
+                    read -p "Are you sure? Binaries will have to be downloaded again (Y/N)" -n 1 -r
+                    echo    # (optional) move to a new line
+                    if [[ $REPLY =~ ^[Yy]$ ]]
+                    then
+                     rm -rf -v ./pandora \
+                     ./vanguard
+                    fi
+                    exit
+
+                    #val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+                    #echo "Parsing option: '--${OPTARG}', value: '${val}'" >&2;
+                    ;;
+                validate)
+                    if [[ ! -f ./password.txt ]]; then
+                      echo "No password.txt found, do you want to start validator?";
+                      exit
+                    fi
+                    IS_VALIDATOR=true;
+
+                    #val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+                    #echo "Parsing option: '--${OPTARG}', value: '${val}'" >&2;
+                    ;;
+                etherbase)
+                    val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ));
+                    ETHERBASE=$val;
+                    #echo "Parsing option: '--${OPTARG}', value: '${val}'" >&2;
+                    ;;
+                etherbase=*)
+                    val=${OPTARG#*=}
+                    ETHERBASE=$val;
+                    opt=${OPTARG%=$val}
+                    #echo "Parsing option: '--${opt}', value: '${val}'" >&2
+                    ;;
+                name)
+                    val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ));
+                    NODE_NAME=$val;
+                    #echo "Parsing option: '--${OPTARG}', value: '${val}'" >&2;
+                    ;;
+                external-ip)
+                    val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ));
+                    EXTERNAL_IP=$val;
+                    #echo "Parsing option: '--${OPTARG}', value: '${val}'" >&2;
+                    ;;
+                *)
+                    if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+                        echo "Unknown option --${OPTARG}" >&2
+                    fi
+                    ;;
+            esac;;
+        h)
+            echo "usage: $0 [-v] [--loglevel[=]<value>]" >&2
+            exit 2
+            ;;
+        v)
+            echo "Parsing option: '-${optchar}'" >&2
+            ;;
+        *)
+            if [ "$OPTERR" != 1 ] || [ "${optspec:0:1}" = ":" ]; then
+                echo "Non-option argument: '-${OPTARG}'" >&2
+            fi
+            ;;
+    esac
+done
+
+echo
+echo "Node Name" $NODE_NAME;
+echo "Etherbase" $ETHERBASE;
+echo "Is Validator" $IS_VALIDATOR;
+echo "External IP" $EXTERNAL_IP;
+
+
+//TODO: flag customization
+#necessary_args=(
+#  -m "$MONGO_HOST"
+#  -t "$NEO_URI"
+#  -stdout
+#)
+
+$(dirname "$0")/celebrimbor \
+--force-clear-db \
+--vanguard-grpc-endpoint=127.0.0.1:4000 \
+--http \
+--http.addr=0.0.0.0 \
+--http.port=7877 \
+--ws \
+--ws.addr=0.0.0.0 \
+--ws.port=7878 \
+--pandora-rpc-endpoint=$PWD/pandora/geth.ipc \
+--verbosity=trace \
+--accept-terms-of-use \
+--pandora-verbosity 4  \
+--pandora-etherbase $ETHERBASE \
+--vanguard-bootnode=enr:-Ku4QLjFvoOKPJNP6u4h5Lf3RzB-voVdpeg0ibv0qZN4ZbU8QXnCzEnTguQLAjJ3kpuZx07nDVcBLcK3U0Ukr1EGsXoBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpD1pf1CAAAAAP__________gmlkgnY0gmlwhCPGdJiJc2VjcDI1NmsxoQKWfbT1atCho149MGMvpgBWUymiOv9QyXYhgYEBZvPBW4N1ZHCCJw8 \
+--pandora-bootnodes="enode://9adad8b1cc7b9f49e898179497e324900fa86befad2f2f4cfad975e1d074e2c58474bfbbc9d380c8c4e4d39c0c3254fa0b8b3231bd11007044d5fcba8d10f0d3@35.198.116.152:30405" \
+--pandora-ethstats $NODE_NAME:VIyf7EjWlR49@catalyst.silesiacoin.com \
+--vanguard-verbosity=trace \
+--validator-verbosity=trace \
+--vanguard-disable-sync \
+--pandora-output \
+--pandora-ws-apis=admin,net,eth,debug,ethash,miner,personal,txpool,web3 \
+--pandora-nat=extip:$EXTERNAL_IP \
+--pandora-ws-origin="*" \
+--pandora-http-origin="*" \
+--vanguard-p2p-host=$EXTERNAL_IP
