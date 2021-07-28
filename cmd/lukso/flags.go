@@ -471,6 +471,10 @@ func prepareValidatorFlags(ctx *cli.Context) (validatorArguments []string) {
 
 	validatorArguments = append(validatorArguments, "--lukso-network")
 
+	// Added web interface for vanguard, default address is http://localhost:7500
+	// Some explanation: https://docs.prylabs.network/docs/prysm-usage/web-interface/
+	validatorArguments = append(validatorArguments, "--web")
+
 	return
 }
 
