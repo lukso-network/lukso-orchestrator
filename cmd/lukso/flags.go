@@ -56,6 +56,8 @@ const (
 	vanguardMaxSyncPeersFlag            = "vanguard-max-sync-peers"
 	vanguardP2pHostFlag                 = "vanguard-p2p-host"
 	vanguardP2pLocalFlag                = "vanguard-p2p-local"
+	vanguardP2pUdpPortFlag              = "vanguard-p2p-udp-port"
+	vanguardP2pTcpPortFlag              = "vanguard-p2p-tcp-port"
 	vanguardOrcProviderFlag             = "vanguard-orc-provider"
 	vanguardDisableSyncFlag             = "vanguard-disable-sync"
 	vanguardOutputFileFlag              = "vanguard-output-file"
@@ -280,6 +282,15 @@ var (
 			Value: "",
 		},
 		&cli.StringFlag{
+			Name:  vanguardP2pUdpPortFlag,
+			Usage: "provide p2p udp port for vanguard, default is 12000",
+			Value: "12000",
+		}, &cli.StringFlag{
+			Name:  vanguardP2pTcpPortFlag,
+			Usage: "provide p2p tcp udp port for vanguard, default is 13000",
+			Value: "13000",
+		},
+		&cli.StringFlag{
 			Name:  vanguardOrcProviderFlag,
 			Usage: "provide orchestrator provider, default http://127.0.0.1:7878",
 			Value: "http://127.0.0.1:7877",
@@ -380,6 +391,20 @@ func prepareVanguardFlags(ctx *cli.Context) (vanguardArguments []string) {
 		vanguardArguments = append(vanguardArguments, fmt.Sprintf(
 			"--p2p-local-ip=%s",
 			ctx.String(vanguardP2pLocalFlag),
+		))
+	}
+
+	if "" != ctx.String(vanguardP2pUdpPortFlag) {
+		vanguardArguments = append(vanguardArguments, fmt.Sprintf(
+			"--p2p-udp-port=%s",
+			ctx.String(vanguardP2pUdpPortFlag),
+		))
+	}
+
+	if "" != ctx.String(vanguardP2pTcpPortFlag) {
+		vanguardArguments = append(vanguardArguments, fmt.Sprintf(
+			"--p2p-tcp-port=%s",
+			ctx.String(vanguardP2pTcpPortFlag),
 		))
 	}
 
