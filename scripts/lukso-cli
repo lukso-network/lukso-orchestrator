@@ -83,7 +83,7 @@ while getopts "$optspec" optchar; do
                     echo "--vanguard-nodekey: This is unsafe!!! Use only for development purposes, vanguard stores it's key in ./vanguard/network-keys";
                     val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ));
                     mkdir ./vanguard;
-                    echo $val > vanguard/network-keys;
+                    echo -n $val > vanguard/network-keys;
 
                     #echo "Parsing option: '--${OPTARG}', value: '${val}'" >&2;
                     ;;
