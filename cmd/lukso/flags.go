@@ -5,6 +5,7 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/shared/cmd"
 	"github.com/urfave/cli/v2"
 	"runtime"
+	"strings"
 )
 
 const (
@@ -66,7 +67,27 @@ const (
 )
 
 var (
-	appFlags     = cmd.CommonFlagSet
+	appFlags                 = cmd.CommonFlagSet
+	vanguardDefaultBootnodes = []string{
+		// Bootnode library on A
+		"enr:-Ku4QLjFvoOKPJNP6u4h5Lf3RzB-voVdpeg0ibv0qZN4ZbU8QXnCzEnTguQLAjJ3kpuZx07nDVcBLcK3U0Ukr1EGsXoBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpD1pf1CAAAAAP__________gmlkgnY0gmlwhCPGdJiJc2VjcDI1NmsxoQKWfbT1atCho149MGMvpgBWUymiOv9QyXYhgYEBZvPBW4N1ZHCCJw8",
+		// A
+		"enr:-LK4QHaSy__vW9HcjoyR2rRk7T08aVvAedYxOsFIBbL-MHu_Nhqd3SUaMuWMFH9Q1nmee_LCLbH2D7wHS-OFcbKIarsBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpDm-OYdAAAAAP__________gmlkgnY0gmlwhCPGdJiJc2VjcDI1NmsxoQPs4NO21PxfNDDb-SG-NnhmAADUPjtTC99O1Es5UgP8yIN0Y3CCMsiDdWRwgi7g",
+		// B
+		"enr:-LK4QKn9XaGJpOve4_ETG0jAwvBrF6vaGa2A-HYXer1dGkEQRrhWe9qjD02mhaXhTLIZ4asQOEzJbVO5RyvsMXw1BLUBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpDm-OYdAAAAAP__________gmlkgnY0gmlwhCKNbAqJc2VjcDI1NmsxoQL9nxlySi__9Ipf4bXcPjVwAf4KZqUYU8nJqQGV5PLsvoN0Y3CCMsiDdWRwgi7g",
+		// D
+		"enr:-LK4QEE9_HpA56uLowwVoAFpwxxiSGMSgjEHH89Mwz8Xd6kZbA5saleoK45Fm2rgygEDmCMrrlTH91l2Kaflr23lJDUBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpDm-OYdAAAAAP__________gmlkgnY0gmlwhCKNAdiJc2VjcDI1NmsxoQORvoKE1Og5TlKk0iVi0NQWX9PRlPcYsFOKaSab6kD034N0Y3CCMsiDdWRwgi7g",
+		// E
+		"enr:-LK4QJDu03pU3nj4qsmvCHJuf6_Kxu2OcV0aOqS0izGuHdr7acwsbzg_eW-pd-0weQLf9GdFaYgDnYXtg5RLRLO3kHcBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpDm-OYdAAAAAP__________gmlkgnY0gmlwhCKNIISJc2VjcDI1NmsxoQJAD14sMWd0_WBkdINr0SHXGK3qX8GXVSZckOQoKShS44N0Y3CCMsiDdWRwgi7g",
+		// F
+		"enr:-LK4QH91NzPKSYFOEFFPMU-CXiFAjedCLmOi8TBD2Pg_UzrEDSOwNJ76aWy7aC0cZONHFcUBZy8nwOS6nSYgABz1JeYBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpDm-OYdAAAAAP__________gmlkgnY0gmlwhCPGV3-Jc2VjcDI1NmsxoQM_oHLeIM30aLciVxxeGNqOYCZu70U7ZC-P3QvpxZGjKIN0Y3CCMsiDdWRwgi7g",
+		// G
+		"enr:-LK4QHGHsXNg7YDWCWKRSlKV1OtDSSQBRcmxeXpKc4c2dBWHUO5QEpkfxx8_zEQGM-yAYDZtJ6B3rYZnEyblCygIOBQBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpDm-OYdAAAAAP__________gmlkgnY0gmlwhCKNbE2Jc2VjcDI1NmsxoQNjoSakWCL5ZrJIloWZE-pPQiGiQwILcNDdvnRSiI0oeIN0Y3CCMsiDdWRwgi7g",
+		// H
+		"enr:-LK4QKY0K5-L8XRv8HN04-00ZkGQF02PJazCDCfPu9TwSqXKDDWkaMEZjfdey1Oml0BVnFsVQyFD-ltD049Ki3YOo1sBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpDm-OYdAAAAAP__________gmlkgnY0gmlwhCJrAOKJc2VjcDI1NmsxoQLBHrb00e59JlSUHEb2KjhzpmTe3osZE268gVrGV5oipIN0Y3CCMsiDdWRwgi7g",
+		// Reto
+		"enr:-LK4QD-eEheGEyUCTLAVTNeX2M81zDVM6GRlR3rNt3Owlb5PLLSThpDnLpD2Tvjo7KsF6RS-dHuvL7fh1npYxy5H1x8Ch2F0dG5ldHOIQOIggAAgAACEZXRoMpDm-OYdAAAAAP__________gmlkgnY0gmlwhC5_GlKJc2VjcDI1NmsxoQOeotdaC38C_YGSuL14IMD1bd2e6fbjgu-wV_RMg96e3YN0Y3CCMsiDdWRwgi7g",
+	}
 	pandoraFlags = []cli.Flag{
 		&cli.StringFlag{
 			Name:  pandoraTagFlag,
@@ -234,8 +255,8 @@ var (
 		},
 		&cli.StringFlag{
 			Name:  vanguardBootnodesFlag,
-			Usage: `provide coma separated bootnode enr, default: "enr:-Ku4QANldTRLCRUrY9K4OAmk_ATOAyS_sxdTAaGeSh54AuDJXxOYij1fbgh4KOjD4tb2g3T-oJmMjuJyzonLYW9OmRQBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpD1pf1CAAAAAP__________gmlkgnY0gmlwhAoABweJc2VjcDI1NmsxoQKWfbT1atCho149MGMvpgBWUymiOv9QyXYhgYEBZvPBW4N1ZHCCD6A"`,
-			Value: "",
+			Usage: fmt.Sprintf(`provide coma separated bootNode enr, default 8 with first record: "%s"`, strings.Join(vanguardDefaultBootnodes, ",")),
+			Value: strings.Join(vanguardDefaultBootnodes, ","),
 		},
 		&cli.StringFlag{
 			Name:  vanguardPeerFlag,
@@ -339,10 +360,7 @@ func prepareVanguardFlags(ctx *cli.Context) (vanguardArguments []string) {
 		"--chain-config-file=%s",
 		ctx.String(vanguardChainConfigFlag),
 	))
-	vanguardArguments = append(vanguardArguments, fmt.Sprintf(
-		"--bootstrap-node=%s",
-		ctx.String(vanguardBootnodesFlag),
-	))
+	vanguardArguments = splitCommaSeparatedBootNodes(ctx)
 
 	if "" != ctx.String(vanguardPeerFlag) {
 		vanguardArguments = append(vanguardArguments, fmt.Sprintf(
@@ -541,6 +559,27 @@ func preparePandoraFlags(ctx *cli.Context) (pandoraArguments []string) {
 	// Verbosity
 	pandoraArguments = append(pandoraArguments, "--verbosity")
 	pandoraArguments = append(pandoraArguments, ctx.String(pandoraVerbosityFlag))
+
+	return
+}
+
+func splitCommaSeparatedBootNodes(ctx *cli.Context) (vanguardArguments []string) {
+	bootNodesFlag := ctx.String(vanguardBootnodesFlag)
+
+	if !strings.Contains(bootNodesFlag, ",") {
+		vanguardArguments = append(vanguardArguments, fmt.Sprintf(
+			"--bootstrap-node=%s",
+			bootNodesFlag,
+		))
+
+		return
+	}
+
+	enrs := strings.Split(bootNodesFlag, ",")
+
+	for _, enr := range enrs {
+		vanguardArguments = append(vanguardArguments, fmt.Sprintf("--bootstrap-node=%s", enr))
+	}
 
 	return
 }
