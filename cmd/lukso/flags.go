@@ -360,7 +360,8 @@ func prepareVanguardFlags(ctx *cli.Context) (vanguardArguments []string) {
 		"--chain-config-file=%s",
 		ctx.String(vanguardChainConfigFlag),
 	))
-	vanguardArguments = splitCommaSeparatedBootNodes(ctx)
+
+	vanguardArguments = append(vanguardArguments, splitCommaSeparatedBootNodes(ctx)...)
 
 	if "" != ctx.String(vanguardPeerFlag) {
 		vanguardArguments = append(vanguardArguments, fmt.Sprintf(
@@ -438,6 +439,7 @@ func prepareVanguardFlags(ctx *cli.Context) (vanguardArguments []string) {
 		"--genesis-state=%s",
 		ctx.String(vanguardGenesisStateFlag),
 	))
+	//vanguardArguments = append(vanguardArguments, "--lukso-network")
 
 	return
 }
