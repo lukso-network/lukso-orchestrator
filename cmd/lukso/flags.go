@@ -71,7 +71,7 @@ var (
 		&cli.StringFlag{
 			Name:  pandoraTagFlag,
 			Usage: "provide a tag of pandora you would like to run",
-			Value: "v0.0.16-alpha",
+			Value: "v0.0.16-gamma",
 		},
 		&cli.StringFlag{
 			Name:  pandoraDatadirFlag,
@@ -170,7 +170,7 @@ var (
 		&cli.StringFlag{
 			Name:  validatorTagFlag,
 			Usage: "provide tag for validator binary. Release must be present in lukso namespace on github",
-			Value: "v0.0.18-delta",
+			Value: "v0.0.18-beta",
 		},
 		&cli.StringFlag{
 			Name:  validatorVanguardRpcProviderFlag,
@@ -181,7 +181,7 @@ var (
 			Name:  vanguardChainConfigFlag,
 			Usage: "path to chain config of vanguard and validator",
 			// TODO: Parse it automatically
-			Value: "./vanguard/v0.0.18-delta/config.yml",
+			Value: "./vanguard/v0.0.18-beta/config.yml",
 		},
 		&cli.BoolFlag{
 			Name:  vanguardOutputFlag,
@@ -219,13 +219,13 @@ var (
 		&cli.StringFlag{
 			Name:  vanguardTagFlag,
 			Usage: "provide tag for vanguard",
-			Value: "v0.0.18-delta",
+			Value: "v0.0.18-beta",
 		},
 		&cli.StringFlag{
 			Name: vanguardGenesisStateFlag,
 			// TODO: see if it is possible to do this via url
 			Usage: "provide genesis.ssz file",
-			Value: "./vanguard/v0.0.18-delta/vanguard_private_testnet_genesis.ssz",
+			Value: "./vanguard/v0.0.18-beta/vanguard_private_testnet_genesis.ssz",
 		},
 		&cli.StringFlag{
 			Name:  vanguardDatadirFlag,
@@ -412,7 +412,6 @@ func prepareVanguardFlags(ctx *cli.Context) (vanguardArguments []string) {
 		"--log-file=%s",
 		ctx.String(vanguardOutputFileFlag),
 	))
-	vanguardArguments = append(vanguardArguments, "--lukso-network")
 	vanguardArguments = append(vanguardArguments, fmt.Sprintf(
 		"--orc-http-provider=%s",
 		ctx.String(vanguardOrcProviderFlag),
