@@ -14,7 +14,7 @@ import (
 )
 
 // time to wait before trying to reconnect.
-var reConPeriod = 15 * time.Second
+var reConPeriod = 2 * time.Second
 
 // DialRPCFn dials to the given endpoint
 type DialRPCFn func(endpoint string) (*rpc.Client, error)

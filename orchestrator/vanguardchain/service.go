@@ -14,7 +14,7 @@ import (
 )
 
 // time to wait before trying to reconnect with the vanguard node.
-var reConPeriod = 15 * time.Second
+var reConPeriod = 2 * time.Second
 
 type DIALGRPCFn func(endpoint string) (client.VanguardClient, error)
 
