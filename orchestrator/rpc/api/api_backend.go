@@ -2,13 +2,13 @@ package api
 
 import (
 	"context"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/iface"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
-	log "github.com/sirupsen/logrus"
 )
 
 type Backend struct {
@@ -40,22 +40,22 @@ func (backend *Backend) ConsensusInfoByEpochRange(fromEpoch uint64) []*types.Min
 // GetSlotStatus
 func (backend *Backend) GetSlotStatus(ctx context.Context, slot uint64, requestType bool) types.Status {
 
-	headerInfo, _ := backend.PandoraPendingHeaderCache.Get(ctx, slot)
-	shardInfo, _ := backend.VanguardPendingShardingCache.Get(ctx, slot)
+	//headerInfo, _ := backend.PandoraPendingHeaderCache.Get(ctx, slot)
+	//shardInfo, _ := backend.VanguardPendingShardingCache.Get(ctx, slot)
 
 	// by default if nothing is found then return skipped
-	status := types.Skipped
-
-	// if it is found in the cache then it is pending
-	// maybe already verifying is going on but not settled in the database
-	if shardInfo != nil || headerInfo != nil {
-		status = types.Pending
-	}
+	status := types.Pending
 
 	//when requested slot is greater than latest verified slot
 	latestVerifiedSlot := backend.VerifiedSlotInfoDB.InMemoryLatestVerifiedSlot()
-	//if latestVerifiedSlot != 0 && slot > latestVerifiedSlot {
-	//	status = types.Unknown
+	//if shardInfo.ShardInfo.BlockNumber > latestVerifiedSlot || headerInfo.Number.Uint64() > latestVerifiedSlot {
+	//	status = types.Pending
+	//}
+
+	// if it is found in the cache then it is pending
+	// maybe already verifying is going on but not settled in the database
+	//if shardInfo != nil || headerInfo != nil {
+	//	status = types.Pending
 	//}
 
 	// finally found in the database so return immediately so that no other db call happens
@@ -71,10 +71,9 @@ func (backend *Backend) GetSlotStatus(ctx context.Context, slot uint64, requestT
 	}
 
 	defer log.WithField("slot", slot).
-		WithField("last verified slot", latestVerifiedSlot).
-		WithField("api", "ConfirmPanBlockHashes").
+		WithField("latestVerifiedSlot", latestVerifiedSlot).
 		WithField("status", status).
-		Debug("GotSlotStatus")
+		Debug("Verification status")
 
 	return status
 }
