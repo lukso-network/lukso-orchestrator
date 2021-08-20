@@ -172,7 +172,7 @@ function run_pandora {
 	 --rpc \
 	 --rpcaddr=0.0.0.0 \
 	 --rpcapi=admin,net,eth,debug,ethash,miner,personal,txpool,web3 \
-	 --bootnodes="enode://4a6ab64c08eca2fd3a96d285b5a2db918f26220eb6b18842ce40b49354198f24eb0961b16c4d552c7318050ce2c7bcd30ef5ca2f9826811fb24b37e3bb07121f@35.234.122.88:45451", "enode://4a6ab64c08eca2fd3a96d285b5a2db918f26220eb6b18842ce40b49354198f24eb0961b16c4d552c7318050ce2c7bcd30ef5ca2f9826811fb24b37e3bb07121f@34.141.112.243:45451", "enode://4a6ab64c08eca2fd3a96d285b5a2db918f26220eb6b18842ce40b49354198f24eb0961b16c4d552c7318050ce2c7bcd30ef5ca2f9826811fb24b37e3bb07121f@35.198.170.46:45451", "enode://4a6ab64c08eca2fd3a96d285b5a2db918f26220eb6b18842ce40b49354198f24eb0961b16c4d552c7318050ce2c7bcd30ef5ca2f9826811fb24b37e3bb07121f@34.141.46.202:45451" \
+	 --bootnodes=enode://4a6ab64c08eca2fd3a96d285b5a2db918f26220eb6b18842ce40b49354198f24eb0961b16c4d552c7318050ce2c7bcd30ef5ca2f9826811fb24b37e3bb07121f@35.234.122.88:45451,enode://4a6ab64c08eca2fd3a96d285b5a2db918f26220eb6b18842ce40b49354198f24eb0961b16c4d552c7318050ce2c7bcd30ef5ca2f9826811fb24b37e3bb07121f@34.141.112.243:45451,enode://4a6ab64c08eca2fd3a96d285b5a2db918f26220eb6b18842ce40b49354198f24eb0961b16c4d552c7318050ce2c7bcd30ef5ca2f9826811fb24b37e3bb07121f@35.198.170.46:45451,enode://4a6ab64c08eca2fd3a96d285b5a2db918f26220eb6b18842ce40b49354198f24eb0961b16c4d552c7318050ce2c7bcd30ef5ca2f9826811fb24b37e3bb07121f@34.141.46.202:45451 \
 	 --rpcport=8545 \
 	 --http.corsdomain="*" \
 	 --ws \
@@ -282,7 +282,7 @@ function run_vanguard {
 	      --grpc-gateway-port=3500 \
 	      --update-head-timely \
 	      --log-file=./vanguard/vanguard.log \
-	      --lukso-network &
+	      --lukso-network > ./vanguard/vanguard.txt  2>&1 &
 	    disown
 }
 
@@ -361,7 +361,7 @@ function run_validator {
 	  --wallet-password-file=./validator/password.txt \
 	  --rpc \
 	  --log-file=./validator/validator.log \
-	  --lukso-network &
+	  --lukso-network > ./validator/validator.txt  2>&1 &
 	disown
 
 }
