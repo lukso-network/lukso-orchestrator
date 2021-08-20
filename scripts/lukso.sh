@@ -282,7 +282,7 @@ function run_vanguard {
 	      --grpc-gateway-port=3500 \
 	      --update-head-timely \
 	      --log-file=./vanguard/vanguard.log \
-	      --lukso-network > ./vanguard/vanguard.txt  2>&1 &
+	      --lukso-network > ./vanguard/vanguard.log  2>&1 &
 	    disown
 }
 
@@ -361,7 +361,7 @@ function run_validator {
 	  --wallet-password-file=./validator/password.txt \
 	  --rpc \
 	  --log-file=./validator/validator.log \
-	  --lukso-network > ./validator/validator.txt  2>&1 &
+	  --lukso-network > ./validator/validator.log  2>&1 &
 	disown
 
 }
