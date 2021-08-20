@@ -59,24 +59,22 @@ func (backend *Backend) GetSlotStatus(ctx context.Context, slot uint64, requestT
 	//	status = types.Pending
 	//}
 
-	var slotInfo *types.SlotInfo
 	// finally found in the database so return immediately so that no other db call happens
-	if slotInfo, _ = backend.VerifiedSlotInfoDB.VerifiedSlotInfo(slot); slotInfo != nil {
+	if slotInfo, _ := backend.VerifiedSlotInfoDB.VerifiedSlotInfo(slot); slotInfo != nil {
 		status = types.Verified
+		log.WithField("slot", slot).
+			WithField("latestVerifiedSlot", latestVerifiedSlot).
+			WithField("slotInfo", fmt.Sprintf("%+v", slotInfo)).
+			WithField("status", status).
+			Debug("Verification status")
 		return status
 	}
 
 	// finally found in the database so return immediately so that no other db call happens
-	if slotInfo, _ = backend.InvalidSlotInfoDB.InvalidSlotInfo(slot); slotInfo != nil {
+	if slotInfo, _ := backend.InvalidSlotInfoDB.InvalidSlotInfo(slot); slotInfo != nil {
 		status = types.Invalid
 		return status
 	}
-
-	log.WithField("slot", slot).
-		WithField("latestVerifiedSlot", latestVerifiedSlot).
-		WithField("slotInfo", fmt.Sprintf("%+v", slotInfo)).
-		WithField("status", status).
-		Debug("Verification status")
 
 	return status
 }
