@@ -104,7 +104,7 @@ function run_orchestrator {
 		--ws.addr=0.0.0.0 \
 		--ws.port=7878 \
 		--pandora-rpc-endpoint=ws://127.0.0.1:8546 \
-		--verbosity=trace > ./orchestrator/orchestrator.txt  2>&1 &
+		--verbosity=trace > ./orchestrator/orchestrator.log  2>&1 &
 	disown
 }
 
@@ -187,7 +187,7 @@ function run_pandora {
 	 --syncmode="full" \
    --allow-insecure-unlock \
    -nat=extip:$EXTERNAL_IP \
-	 --verbosity=4 > ./pandora/pandora.txt  2>&1 & 
+	 --verbosity=4 > ./pandora/pandora.log  2>&1 &
 	 disown
 }
 
@@ -281,7 +281,8 @@ function run_vanguard {
 	      --p2p-tcp-port=13000 \
 	      --grpc-gateway-port=3500 \
 	      --update-head-timely \
-	      --lukso-network > ./vanguard/vanguard.txt  2>&1 & 
+	      --log-file=./vanguard/vanguard.log \
+	      --lukso-network &
 	    disown
 }
 
@@ -359,7 +360,8 @@ function run_validator {
 	  --wallet-dir=./validator/wallet \
 	  --wallet-password-file=./validator/password.txt \
 	  --rpc \
-	  --lukso-network > ./validator/validator.txt  2>&1 & 
+	  --log-file=./validator/validator.log \
+	  --lukso-network &
 	disown
 
 }
@@ -411,6 +413,7 @@ function import_account {
 	echo "### Importing accounts"
 	./bin/validator accounts import --keys-dir=./validator/keys \
 	--wallet-dir=./validator/wallet \
+	--log-file=./validator/validator.log \
 	--wallet-password-file=./validator/password.txt
 }
 
