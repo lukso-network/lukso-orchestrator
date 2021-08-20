@@ -413,7 +413,6 @@ function import_account {
 	echo "### Importing accounts"
 	./bin/validator accounts import --keys-dir=./validator/keys \
 	--wallet-dir=./validator/wallet \
-	--log-file=./validator/validator.log \
 	--wallet-password-file=./validator/password.txt
 }
 
