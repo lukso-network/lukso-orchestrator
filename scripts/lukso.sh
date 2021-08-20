@@ -172,7 +172,7 @@ function run_pandora {
 	 --rpc \
 	 --rpcaddr=0.0.0.0 \
 	 --rpcapi=admin,net,eth,debug,ethash,miner,personal,txpool,web3 \
-	 --bootnodes="enode://4a6ab64c08eca2fd3a96d285b5a2db918f26220eb6b18842ce40b49354198f24eb0961b16c4d552c7318050ce2c7bcd30ef5ca2f9826811fb24b37e3bb07121f@34.141.25.249:40501" \
+	 --bootnodes="enode://4a6ab64c08eca2fd3a96d285b5a2db918f26220eb6b18842ce40b49354198f24eb0961b16c4d552c7318050ce2c7bcd30ef5ca2f9826811fb24b37e3bb07121f@35.234.122.88:45451", "enode://4a6ab64c08eca2fd3a96d285b5a2db918f26220eb6b18842ce40b49354198f24eb0961b16c4d552c7318050ce2c7bcd30ef5ca2f9826811fb24b37e3bb07121f@34.141.112.243:45451", "enode://4a6ab64c08eca2fd3a96d285b5a2db918f26220eb6b18842ce40b49354198f24eb0961b16c4d552c7318050ce2c7bcd30ef5ca2f9826811fb24b37e3bb07121f@35.198.170.46:45451", "enode://4a6ab64c08eca2fd3a96d285b5a2db918f26220eb6b18842ce40b49354198f24eb0961b16c4d552c7318050ce2c7bcd30ef5ca2f9826811fb24b37e3bb07121f@34.141.46.202:45451" \
 	 --rpcport=8545 \
 	 --http.corsdomain="*" \
 	 --ws \
@@ -185,7 +185,8 @@ function run_pandora {
 	 --miner.etherbase=91b382af07767Bdab2569665AC30125E978a0688 \
 	 --nat=extip:$EXTERNAL_IP \
 	 --syncmode="full" \
-   	 --allow-insecure-unlock \
+   --allow-insecure-unlock \
+   -nat=extip:$EXTERNAL_IP \
 	 --verbosity=4 > ./pandora/pandora.txt  2>&1 & 
 	 disown
 }
@@ -261,8 +262,10 @@ function run_vanguard {
 	      --genesis-state=./config/vanguard_genesis.ssz \
 	      --datadir=./vanguard/datadir \
 	      --chain-config-file=./config/vanguard-config.yml \
-	      --bootstrap-node="enr:-Ku4QF1ohJKPkG7Sf-t1wlvsRLd_JB2wK1c5f_w1Twfsu6gJeE9gxbcADoaVzyQy2EHMkiCuTA0vULM_MnmETWrEElwBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpCvIkw2g6VTF___________gmlkgnY0gmlwhCP2-YKJc2VjcDI1NmsxoQLt36VpP56n0SlTYWcSBwL7aGK_AFwNLGxOGQt91nchMYN1ZHCCD6E" \
-	      --bootstrap-node="enr:-Ku4QI0qWB5cSSkVjjd9aIqtK7vjlVpkZIW2Vv5ZHpHWbKb7UaTcw4trPw1EePYoqfjk1PtehoNp9c_yN_7Lsllze34Bh2F0dG5ldHOIAAAAAAAAAACEZXRoMpCvIkw2g6VTF___________gmlkgnY0gmlwhCP2sAGJc2VjcDI1NmsxoQLt36VpP56n0SlTYWcSBwL7aGK_AFwNLGxOGQt91nchMYN1ZHCCD6E" \
+	      --bootstrap-node="enr:-Ku4QEL0I7H3EawRwc2ZUevmj-_T0R6JZGMhfp_2KHBlwAt5bwA19c8LSYZzy63EvpsYbifKye6qnE-_vsNimWOz8scBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpCvIkw2g6VTF___________gmlkgnY0gmlwhCPqeliJc2VjcDI1NmsxoQLt36VpP56n0SlTYWcSBwL7aGK_AFwNLGxOGQt91nchMYN1ZHCCEuk" \
+	      --bootstrap-node="enr:-Ku4QAmYtwrQBZ-WJwTPL4xMpTO6BlZcU6IuXljtd_SgC51nGRs98WvxCX0-ZJBs0G9m9tcFPsktbdSr7EliMhrZnfEBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpCvIkw2g6VTF___________gmlkgnY0gmlwhCKNcPOJc2VjcDI1NmsxoQLt36VpP56n0SlTYWcSBwL7aGK_AFwNLGxOGQt91nchMYN1ZHCCEuk" \
+	      --bootstrap-node="enr:-Ku4QEXRrSXB7od-xNeoLuq6GicTHpuuCNRPPR9tM48Iai0-FoHL4JsntmpnwUrC-di-lT6gkbxV7Jikg9s6ImsAT1oBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpCvIkw2g6VTF___________gmlkgnY0gmlwhCPGqi6Jc2VjcDI1NmsxoQLt36VpP56n0SlTYWcSBwL7aGK_AFwNLGxOGQt91nchMYN1ZHCCEuk" \
+	      --bootstrap-node="enr:-Ku4QBuS5wqvF6SHaPpuu4r4ZlRRVC1Ojp1zDOAVC1X0PB3gRujAhWZdk2m0kn3FwoPuHft_Sku0tWHSfBVlHoER160Bh2F0dG5ldHOIAAAAAAAAAACEZXRoMpCvIkw2g6VTF___________gmlkgnY0gmlwhCKNLsqJc2VjcDI1NmsxoQLt36VpP56n0SlTYWcSBwL7aGK_AFwNLGxOGQt91nchMYN1ZHCCEuk" \
 	      --http-web3provider=http://127.0.0.1:8545 \
 	      --deposit-contract=0x000000000000000000000000000000000000cafe \
 	      --contract-deployment-block=0 \
