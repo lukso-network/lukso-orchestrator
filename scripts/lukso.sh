@@ -26,7 +26,7 @@ function download_and_run_pandora_bootnode {
 	#run bootnode
 	echo "####  Strating pandora bootnode ####"
     nohup ./bin/bootnode \
-    -addr=":40501" \
+    -addr=":45451" \
     -nodekeyhex=d1b8543a818563d1ecec4ef6e25268fe4bf210777807e63235160ee0ffc3ca78 \
     -nat=extip:$EXTERNAL_IP \
     -verbosity=4 > ./bootnode_pandora/bootnode.txt 2>&1 &
@@ -43,7 +43,7 @@ function download_and_run_vanguard_bootnode {
 
 	echo "####  Strating vanguard bootnode ####"
     nohup ./bin/vbootnode \
-    --discv5-port=4001 \
+    --discv5-port=4841 \
     --private=1083c5f7f50aefc0c2ff0d7020316d243639ecc266ef3c03b75fcf126abb811e \
     --external-ip=$EXTERNAL_IP \
     --fork-version=83a55317 \
