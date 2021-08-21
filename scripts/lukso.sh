@@ -386,6 +386,7 @@ function find_and_kill {
 	do
 		kill -SIGTERM $process
 	done
+	
 }
 
 function download_validator_keys {
