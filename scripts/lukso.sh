@@ -384,7 +384,7 @@ function find_and_kill {
 	process_id=` /bin/ps -fu $USER| grep "$1" | grep -v "grep" | awk '{print $2}' `
 	for process in $process_id
 	do
-		kill -9 $process
+		kill -SIGTERM $process
 	done
 }
 
