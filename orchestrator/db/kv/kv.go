@@ -143,7 +143,7 @@ func (s *Store) Close() error {
 	if err != nil {
 		return err
 	}
-
+	log.Info("Received cancelled context, closing db")
 	return s.db.Close()
 }
 
