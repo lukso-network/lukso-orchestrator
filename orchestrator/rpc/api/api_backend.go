@@ -51,12 +51,13 @@ func (backend *Backend) GetSlotStatus(ctx context.Context, slot uint64, hash com
 	latestVerifiedSlot := backend.VerifiedSlotInfoDB.InMemoryLatestVerifiedSlot()
 	var slotInfo *types.SlotInfo
 
-	defer log.WithField("slot", slot).
-		WithField("latestVerifiedSlot", latestVerifiedSlot).
-		WithField("slotInfo", fmt.Sprintf("%+v", slotInfo)).
-		WithField("status", status).
-		Debug("Verification status")
-
+	logPrinter := func(stat types.Status) {
+		log.WithField("slot", slot).
+			WithField("latestVerifiedSlot", latestVerifiedSlot).
+			WithField("slotInfo", fmt.Sprintf("%+v", slotInfo)).
+			WithField("status", stat).
+			Debug("Verification status")
+	}
 	// finally found in the database so return immediately so that no other db call happens
 	if slotInfo, _ = backend.VerifiedSlotInfoDB.VerifiedSlotInfo(slot); slotInfo != nil {
 		panHeaderHash := slotInfo.PandoraHeaderHash
@@ -65,24 +66,28 @@ func (backend *Backend) GetSlotStatus(ctx context.Context, slot uint64, hash com
 		if requestFrom && panHeaderHash != hash {
 			log.WithError(ErrHeaderHashMisMatch).
 				Warn("Failed to match header hash with requested header hash from pandora node")
+			logPrinter(types.Invalid)
 			return types.Invalid
 		}
 
 		if !requestFrom && vanHeaderHash != hash {
 			log.WithError(ErrHeaderHashMisMatch).
 				Warn("Failed to match header hash with requested header hash from vanguard node")
+			logPrinter(types.Invalid)
 			return types.Invalid
 		}
 
 		status = types.Verified
+		logPrinter(types.Verified)
 		return status
 	}
 
 	// finally found in the database so return immediately so that no other db call happens
 	if slotInfo, _ = backend.InvalidSlotInfoDB.InvalidSlotInfo(slot); slotInfo != nil {
 		status = types.Invalid
+		logPrinter(types.Invalid)
 		return status
 	}
-
+	logPrinter(status)
 	return status
 }
