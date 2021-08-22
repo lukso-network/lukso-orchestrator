@@ -1,3 +1,5 @@
+#### Lukso Deployment script for linux and mac ####
+
 export GIT_PANDORA="v0.0.0-alpha.0"
 export GIT_VANGUARD="v0.0.0-alpha.0"
 export GIT_ORCH="v0.0.0-alpha.0"
@@ -386,7 +388,7 @@ function find_and_kill {
 	do
 		kill -SIGTERM $process
 	done
-	
+
 }
 
 function download_validator_keys {
