@@ -276,7 +276,7 @@ function run_vanguard {
 	      --monitoring-host=0.0.0.0 \
 	      --verbosity=debug \
 	      --min-sync-peers=2 \
-	      --p2p-max-peers=500 \
+	      --p2p-max-peers=50 \
 	      --orc-http-provider=http://127.0.0.1:7877 \
 	      --p2p-host-ip=$EXTERNAL_IP \
 	      --rpc-port=4000 \
