@@ -26,7 +26,6 @@ func (s *Service) SubscribePendingHeaders(
 		for {
 			select {
 			case newPendingHeader := <-ch:
-				log.WithField("headerHash", newPendingHeader.Hash()).Debug("Got header info from pandora")
 				// dispatch newPendingHeader to handler
 				err = s.OnNewPendingHeader(ctx, newPendingHeader)
 				if nil != err {

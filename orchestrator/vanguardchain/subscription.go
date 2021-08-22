@@ -24,8 +24,10 @@ func (s *Service) subscribeVanNewPendingBlockHash(
 				log.WithError(currentErr).Error("Failed to receive new pending vanguard block")
 				return
 			}
-			log.WithField("slot", vanBlock.Slot).Debug("Got new van block")
-			s.OnNewPendingVanguardBlock(s.ctx, vanBlock)
+
+			if err := s.OnNewPendingVanguardBlock(s.ctx, vanBlock); err != nil {
+				log.WithError(err).Error("Failed to process the pending vanguard shardInfo")
+			}
 		}
 	}()
 	return

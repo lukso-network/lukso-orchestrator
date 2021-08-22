@@ -2,6 +2,7 @@ package events
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
 	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
 	"time"
@@ -31,6 +32,6 @@ func (b *MockBackend) SubscribeNewEpochEvent(ch chan<- *eventTypes.MinimalEpochC
 	return b.ConsensusInfoFeed.Subscribe(ch)
 }
 
-func (mb *MockBackend) GetSlotStatus(ctx context.Context, slot uint64, requestType bool) eventTypes.Status {
+func (mb *MockBackend) GetSlotStatus(ctx context.Context, slot uint64, hash common.Hash, requestType bool) eventTypes.Status {
 	return eventTypes.Pending
 }

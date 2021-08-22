@@ -13,7 +13,7 @@ import (
 type Backend interface {
 	ConsensusInfoByEpochRange(fromEpoch uint64) []*generalTypes.MinimalEpochConsensusInfo
 	SubscribeNewEpochEvent(chan<- *generalTypes.MinimalEpochConsensusInfo) event.Subscription
-	GetSlotStatus(ctx context.Context, slot uint64, requestType bool) generalTypes.Status
+	GetSlotStatus(ctx context.Context, slot uint64, hash common.Hash, requestFrom bool) generalTypes.Status
 }
 
 // PublicFilterAPI offers support to create and manage filters. This will allow external clients to retrieve various
@@ -56,7 +56,7 @@ func (api *PublicFilterAPI) ConfirmPanBlockHashes(
 	}
 	res := make([]*BlockStatus, 0)
 	for _, req := range requests {
-		status := api.backend.GetSlotStatus(ctx, req.Slot, true)
+		status := api.backend.GetSlotStatus(ctx, req.Slot, req.Hash, true)
 		log.WithField("slot", req.Slot).WithField("status", status).WithField(
 			"api", "ConfirmPanBlockHashes").Debug("status of the requested slot")
 		hash := req.Hash
@@ -82,7 +82,7 @@ func (api *PublicFilterAPI) ConfirmVanBlockHashes(
 	}
 	res := make([]*BlockStatus, 0)
 	for _, req := range requests {
-		status := api.backend.GetSlotStatus(ctx, req.Slot, false)
+		status := api.backend.GetSlotStatus(ctx, req.Slot, req.Hash, false)
 		log.WithField("slot", req.Slot).WithField("status", status).WithField(
 			"api", "ConfirmVanBlockHashes").Debug("status of the requested slot")
 		hash := req.Hash
