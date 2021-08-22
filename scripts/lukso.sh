@@ -433,6 +433,7 @@ function stop_all {
 	find_and_kill "validator"
 	find_and_kill "beacon-chain"
 	find_and_kill "orchestrator"
+	rm -f ./vanguard/datadir/network-keys
 }
 
 function reset_all {
