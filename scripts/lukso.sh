@@ -1,8 +1,9 @@
 #### Lukso Deployment script for linux and mac ####
+# PLEASE change the git tag acording to the latest release #
 
-export GIT_PANDORA="v0.0.0-alpha.0"
+export GIT_PANDORA="0.0.44-l15-fix"
 export GIT_VANGUARD="v0.0.0-alpha.0"
-export GIT_ORCH="v0.0.0-alpha.0"
+export GIT_ORCH="0.0.45-l15-fix"
 
 export OS_NAME=$(uname -s)
 
@@ -275,7 +276,7 @@ function run_vanguard {
 	      --monitoring-host=0.0.0.0 \
 	      --verbosity=debug \
 	      --min-sync-peers=2 \
-	      --p2p-max-peers=10 \
+	      --p2p-max-peers=500 \
 	      --orc-http-provider=http://127.0.0.1:7877 \
 	      --p2p-host-ip=$EXTERNAL_IP \
 	      --rpc-port=4000 \
@@ -386,7 +387,7 @@ function find_and_kill {
 	process_id=` /bin/ps -fu $USER| grep "$1" | grep -v "grep" | awk '{print $2}' `
 	for process in $process_id
 	do
-		kill -SIGTERM $process
+		kill -INT $process
 	done
 
 }
@@ -478,10 +479,10 @@ function reset_wallet {
 function log_accumulator {
 	rm -f all_logs.tar.gz
 	mkdir -p ./all_logs
-	cp ./pandora/pandora.txt ./all_logs
-	cp ./orchestrator/orchestrator.txt ./all_logs
-	cp ./vanguard/vanguard.txt ./all_logs
-	cp ./validator/validator.txt ./all_logs
+	cp ./pandora/pandora.log ./all_logs
+	cp ./orchestrator/orchestrator.log ./all_logs
+	cp ./vanguard/vanguard.log ./all_logs
+	cp ./validator/validator.log ./all_logs
 
 	tar -czvf all_logs.tar.gz ./all_logs
 	rm -rf ./all_logs
