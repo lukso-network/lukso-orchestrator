@@ -65,13 +65,13 @@ func (backend *Backend) GetSlotStatus(ctx context.Context, slot uint64, hash com
 		if requestFrom && panHeaderHash != hash {
 			log.WithError(ErrHeaderHashMisMatch).
 				Warn("Failed to match header hash with requested header hash from pandora node")
-			return status
+			return types.Invalid
 		}
 
 		if !requestFrom && vanHeaderHash != hash {
 			log.WithError(ErrHeaderHashMisMatch).
 				Warn("Failed to match header hash with requested header hash from vanguard node")
-			return status
+			return types.Invalid
 		}
 
 		status = types.Verified
