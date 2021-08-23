@@ -167,6 +167,10 @@ function run_pandora {
 	  download_pandora_binary $1
   	fi
 
+  	if [[ ! -f ./pandora/datadir/geth/static-nodes.json ]]; then
+	  download_static_node_info
+  	fi
+
 	./bin/pandora --datadir ./pandora/datadir init ./config/pandora-genesis.json &> /dev/null
 	nohup ./bin/pandora --datadir=./pandora/datadir \
 	 --networkid=808080 \
