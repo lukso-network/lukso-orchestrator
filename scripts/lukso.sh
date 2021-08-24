@@ -1,8 +1,8 @@
 #### Lukso Deployment script for linux and mac ####
 # PLEASE change the git tag acording to the latest release #
 
-export GIT_PANDORA="v0.0.0-alpha.1"
-export GIT_VANGUARD="v0.0.0-alpha.1"
+export GIT_PANDORA="v0.0.0-alpha.fix"
+export GIT_VANGUARD="v0.0.0-alpha.fix"
 export GIT_ORCH="v0.0.0-alpha.1"
 
 export OS_NAME=$(uname -s)
