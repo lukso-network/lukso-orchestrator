@@ -104,6 +104,7 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, epoch uint
 		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported
 	}
 	rpcSub := notifier.CreateSubscription()
+	log.WithField("epochFromRequest", epoch).Warn("Received stream connection for MinimalConsensusInfo")
 	// Fill already known epochs
 	alreadyKnownEpochs := api.backend.ConsensusInfoByEpochRange(epoch)
 

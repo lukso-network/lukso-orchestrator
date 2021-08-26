@@ -5,6 +5,7 @@ import (
 	"github.com/boltdb/bolt"
 	"github.com/dgraph-io/ristretto"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/lukso-network/lukso-orchestrator/shared/fileutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/params"
 	"github.com/pkg/errors"
@@ -16,13 +17,16 @@ import (
 
 const (
 	// ConsensusInfosCacheSize with 1024 consensus infos will be 1.5MB.
-	ConsensusInfosCacheSize = 1 << 10
 	// OrchestratorNodeDbDirName is the name of the directory containing the orchestrator node database.
 	OrchestratorNodeDbDirName = "orchestrator"
 	// DatabaseFileName is the name of the orchestrator node database.
 	DatabaseFileName = "orchestrator.db"
 
 	boltAllocSize = 8 * 1024 * 1024
+)
+
+var (
+	ConsensusInfosCacheSize = int64(1 << 10)
 )
 
 // Config for the bolt db kv store.
@@ -74,6 +78,17 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 		}
 		return nil, err
 	}
+
+	// Calculate max int based on system
+	maxInt := math.MaxInt32 - 1
+	is64Bit := uint64(^uintptr(0)) == ^uint64(0)
+
+	if is64Bit {
+		maxInt = math.MaxInt64 - 1
+	}
+
+	ConsensusInfosCacheSize = int64(maxInt)
+
 	boltDB.AllocSize = boltAllocSize
 	consensusInfoCache, err := ristretto.NewCache(&ristretto.Config{
 		NumCounters: 1000,                    // number of keys to track frequency of (1000).
