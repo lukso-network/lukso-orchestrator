@@ -79,14 +79,7 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 		return nil, err
 	}
 
-	// Calculate max int based on system
 	maxInt := math.MaxInt32 - 1
-	is64Bit := uint64(^uintptr(0)) == ^uint64(0)
-
-	if is64Bit {
-		maxInt = math.MaxInt64 - 1
-	}
-
 	ConsensusInfosCacheSize = int64(maxInt)
 
 	boltDB.AllocSize = boltAllocSize
