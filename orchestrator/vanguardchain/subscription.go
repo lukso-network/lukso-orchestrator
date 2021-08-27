@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// TODO(Atif): Need to subscribe from latest block hash
 // subscribeVanNewPendingBlockHash
 func (s *Service) subscribeVanNewPendingBlockHash(
 	client client.VanguardClient,

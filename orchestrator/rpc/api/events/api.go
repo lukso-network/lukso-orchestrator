@@ -98,22 +98,22 @@ func (api *PublicFilterAPI) ConfirmVanBlockHashes(
 }
 
 // MinimalConsensusInfo
-func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, epoch uint64) (*rpc.Subscription, error) {
+func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, requestedEpoch uint64) (*rpc.Subscription, error) {
 	notifier, supported := rpc.NotifierFromContext(ctx)
 	if !supported {
 		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported
 	}
 	rpcSub := notifier.CreateSubscription()
 	// Fill already known epochs
-	alreadyKnownEpochs := api.backend.ConsensusInfoByEpochRange(epoch)
+	alreadyKnownEpochs := api.backend.ConsensusInfoByEpochRange(requestedEpoch)
 
 	go func() {
 		consensusInfo := make(chan *generalTypes.MinimalEpochConsensusInfo)
-		consensusInfoSub := api.events.SubscribeConsensusInfo(consensusInfo, epoch)
+		consensusInfoSub := api.events.SubscribeConsensusInfo(consensusInfo, requestedEpoch)
 
-		log.WithField("fromEpoch", epoch).Info("registered new subscriber for consensus info")
+		log.WithField("fromEpoch", requestedEpoch).Info("registered new subscriber for consensus info")
 		if len(alreadyKnownEpochs) < 1 {
-			log.WithField("fromEpoch", epoch).Info("there are no already known epochs, try to fetch lowest")
+			log.WithField("fromEpoch", requestedEpoch).Info("there are no already known epochs, try to fetch lowest")
 		}
 
 		for index, currentEpoch := range alreadyKnownEpochs {
@@ -132,18 +132,24 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, epoch uint
 
 		for {
 			select {
-			case currentEpoch := <-consensusInfo:
-				log.WithField("epoch", currentEpoch.Epoch).WithField(
-					"epochStartTime", currentEpoch.EpochStartTime).Info(
+			case currentEpochInfo := <-consensusInfo:
+				log.WithField("epoch", currentEpochInfo.Epoch).WithField(
+					"epochStartTime", currentEpochInfo.EpochStartTime).Info(
 					"sending consensus info to subscriber")
+
+				if currentEpochInfo.Epoch < requestedEpoch {
+					log.Debug("Current epoch is old enough for pandora. So not sending the epoch info")
+					continue
+				}
+
 				err := notifier.Notify(rpcSub.ID, &generalTypes.MinimalEpochConsensusInfo{
-					Epoch:            currentEpoch.Epoch,
-					ValidatorList:    currentEpoch.ValidatorList,
-					EpochStartTime:   currentEpoch.EpochStartTime,
-					SlotTimeDuration: currentEpoch.SlotTimeDuration,
+					Epoch:            currentEpochInfo.Epoch,
+					ValidatorList:    currentEpochInfo.ValidatorList,
+					EpochStartTime:   currentEpochInfo.EpochStartTime,
+					SlotTimeDuration: currentEpochInfo.SlotTimeDuration,
 				})
 				if nil != err {
-					log.WithField("epoch", currentEpoch.Epoch).WithError(err).Error(
+					log.WithField("epoch", currentEpochInfo.Epoch).WithError(err).Error(
 						"Failed to notify consensus info")
 				}
 			case <-rpcSub.Err():

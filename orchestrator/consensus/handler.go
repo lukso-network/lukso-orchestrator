@@ -58,6 +58,15 @@ func (s *Service) verifyShardingInfo(slot uint64, vanShardInfo *types.VanguardSh
 				"Failed to store verified slot info")
 			return err
 		}
+
+		if err := s.verifiedSlotInfoDB.SaveLatestVerifiedSlot(s.ctx); err != nil {
+			log.WithError(err).Error("Failed to store latest verified slot")
+		}
+
+		if err := s.verifiedSlotInfoDB.SaveLatestVerifiedHeaderHash(); err != nil {
+			log.WithError(err).Error("Failed to store latest verified slot")
+		}
+
 		log.WithField("slot", slot).WithField(
 			"slotInfo", fmt.Sprintf("%+v", slotInfo)).Info("Successfully verified sharding info")
 	} else {

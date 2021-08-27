@@ -42,6 +42,7 @@ type Store struct {
 	latestEpoch        uint64
 	latestVerifiedSlot uint64
 	latestHeaderHash   common.Hash
+	latestVanBlockHash []byte
 	// There should be mutex in store
 	sync.Mutex
 }
