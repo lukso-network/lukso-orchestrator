@@ -54,7 +54,7 @@ func (backend *Backend) GetSlotStatus(ctx context.Context, slot uint64, hash com
 	logPrinter := func(stat types.Status) {
 		log.WithField("slot", slot).
 			WithField("latestVerifiedSlot", latestVerifiedSlot).
-			WithField("slotInfo", fmt.Sprintf("%+v", slotInfo)).
+			WithField("slotInfo", fmt.Sprintf("%s %s", slotInfo.PandoraHeaderHash.Hex(), slotInfo.VanguardBlockHash.Hex())).
 			WithField("status", stat).
 			Debug("Verification status")
 	}

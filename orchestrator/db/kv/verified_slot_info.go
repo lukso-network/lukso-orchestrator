@@ -2,6 +2,7 @@ package kv
 
 import (
 	"context"
+
 	"github.com/boltdb/bolt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/lukso-network/lukso-orchestrator/shared/bytesutil"
@@ -51,7 +52,17 @@ func (s *Store) SaveVerifiedSlotInfo(slot uint64, slotInfo *types.SlotInfo) erro
 		}
 		// store latest verified slot and latest header hash in in-memory
 		s.latestVerifiedSlot = slot
+		err = s.SaveLatestVerifiedSlot(s.ctx)
+		if err != nil {
+			log.WithField("error", err).Error("Error while saving latest verified slot")
+			return err
+		}
 		s.latestHeaderHash = slotInfo.PandoraHeaderHash
+		err = s.SaveLatestVerifiedHeaderHash()
+		if err != nil {
+			log.WithField("error", err).Error("Error while saving latest verified header hash")
+			return err
+		}
 
 		return nil
 	})
