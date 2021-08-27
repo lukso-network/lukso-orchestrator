@@ -37,6 +37,9 @@ func (s *Service) SubscribePendingHeaders(
 					s.conInfoSubErrCh <- err
 				}
 				return
+			case <- ctx.Done():
+				log.Debug("closing SubscribePendingHeaders...")
+				return
 			}
 		}
 	}()

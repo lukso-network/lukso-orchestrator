@@ -19,14 +19,20 @@ func (s *Service) subscribeVanNewPendingBlockHash(
 	log.Debug("Subscribed to new pending vanguard block")
 	go func() {
 		for {
-			vanBlock, currentErr := stream.Recv()
-			if nil != currentErr {
-				log.WithError(currentErr).Error("Failed to receive new pending vanguard block")
-				continue
-			}
+			select {
+			case <-s.ctx.Done():
+				log.Debug("closing subscribeVanNewPendingBlockHash")
+				return
+			default:
+				vanBlock, currentErr := stream.Recv()
+				if nil != currentErr {
+					log.WithError(currentErr).Error("Failed to receive new pending vanguard block")
+					continue
+				}
 
-			if err := s.OnNewPendingVanguardBlock(s.ctx, vanBlock); err != nil {
-				log.WithError(err).Error("Failed to process the pending vanguard shardInfo")
+				if err := s.OnNewPendingVanguardBlock(s.ctx, vanBlock); err != nil {
+					log.WithError(err).Error("Failed to process the pending vanguard shardInfo")
+				}
 			}
 		}
 	}()
@@ -43,32 +49,38 @@ func (s *Service) subscribeNewConsensusInfoGRPC(client client.VanguardClient) (e
 	log.Debug("Subscribed to minimal consensus info")
 	go func() {
 		for {
-			vanMinimalConsensusInfo, currentErr := stream.Recv()
-			if nil != currentErr {
-				log.WithError(currentErr).Error("Failed to receive minimalConsensusInfo")
-				continue
+			select {
+			case <-s.ctx.Done():
+				log.Debug("closing subscribeNewConsensusInfoGRPC")
+				return
+			default:
+				vanMinimalConsensusInfo, currentErr := stream.Recv()
+				if nil != currentErr {
+					log.WithError(currentErr).Error("Failed to receive minimalConsensusInfo")
+					continue
+				}
+				if nil == vanMinimalConsensusInfo {
+					log.Error("Received nil consensus info")
+					continue
+				}
+				consensusInfo := &types.MinimalEpochConsensusInfo{
+					Epoch:            uint64(vanMinimalConsensusInfo.Epoch),
+					ValidatorList:    vanMinimalConsensusInfo.ValidatorList,
+					EpochStartTime:   vanMinimalConsensusInfo.EpochTimeStart,
+					SlotTimeDuration: time.Duration(vanMinimalConsensusInfo.SlotTimeDuration.Seconds),
+				}
+				// Only non empty check for now
+				if len(consensusInfo.ValidatorList) < 1 {
+					log.WithField("consensusInfo", consensusInfo).WithField("err", err).Error(
+						"empty validator list")
+					continue
+				}
+				log.WithField("epoch", vanMinimalConsensusInfo.Epoch).Debug(
+					"Received new consensus info for next epoch")
+				log.WithField("consensusInfo", fmt.Sprintf("%+v", consensusInfo)).Trace(
+					"Received consensus info")
+				s.OnNewConsensusInfo(s.ctx, consensusInfo)
 			}
-			if nil == vanMinimalConsensusInfo {
-				log.Error("Received nil consensus info")
-				continue
-			}
-			consensusInfo := &types.MinimalEpochConsensusInfo{
-				Epoch:            uint64(vanMinimalConsensusInfo.Epoch),
-				ValidatorList:    vanMinimalConsensusInfo.ValidatorList,
-				EpochStartTime:   vanMinimalConsensusInfo.EpochTimeStart,
-				SlotTimeDuration: time.Duration(vanMinimalConsensusInfo.SlotTimeDuration.Seconds),
-			}
-			// Only non empty check for now
-			if len(consensusInfo.ValidatorList) < 1 {
-				log.WithField("consensusInfo", consensusInfo).WithField("err", err).Error(
-					"empty validator list")
-				continue
-			}
-			log.WithField("epoch", vanMinimalConsensusInfo.Epoch).Debug(
-				"Received new consensus info for next epoch")
-			log.WithField("consensusInfo", fmt.Sprintf("%+v", consensusInfo)).Trace(
-				"Received consensus info")
-			s.OnNewConsensusInfo(s.ctx, consensusInfo)
 		}
 	}()
 	return
