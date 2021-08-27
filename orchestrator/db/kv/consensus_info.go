@@ -93,11 +93,6 @@ func (s *Store) SaveConsensusInfo(
 		}
 		// update latest epoch
 		s.latestEpoch = consensusInfo.Epoch
-		err = s.SaveLatestEpoch(s.ctx)
-		if err != nil {
-			log.WithField("error", err).WithField("latestEpoch", s.latestEpoch).Error("error while latest epoch")
-			return err
-		}
 		return nil
 	})
 }
