@@ -22,7 +22,7 @@ func (s *Service) subscribeVanNewPendingBlockHash(
 			vanBlock, currentErr := stream.Recv()
 			if nil != currentErr {
 				log.WithError(currentErr).Error("Failed to receive new pending vanguard block")
-				return
+				continue
 			}
 
 			if err := s.OnNewPendingVanguardBlock(s.ctx, vanBlock); err != nil {
@@ -46,7 +46,7 @@ func (s *Service) subscribeNewConsensusInfoGRPC(client client.VanguardClient) (e
 			vanMinimalConsensusInfo, currentErr := stream.Recv()
 			if nil != currentErr {
 				log.WithError(currentErr).Error("Failed to receive minimalConsensusInfo")
-				return
+				continue
 			}
 			if nil == vanMinimalConsensusInfo {
 				log.Error("Received nil consensus info")
