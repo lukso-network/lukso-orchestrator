@@ -24,7 +24,6 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prysmaticlabs/eth2-types v0.0.0-20210303084904-c9735a06829d
 	github.com/prysmaticlabs/ethereumapis v0.0.0-20210323030846-26f696aa0cbc
-	github.com/prysmaticlabs/go-bitfield v0.0.0-20210202205921-7fcea7c45dc8 // indirect
 	github.com/rs/cors v1.7.0
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
@@ -40,4 +39,4 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
-replace github.com/prysmaticlabs/ethereumapis => github.com/lukso-network/vanguard-apis v0.0.1-alpha.0.20210706064022-e42dc815d43b
+replace github.com/prysmaticlabs/ethereumapis => github.com/lukso-network/vanguard-apis v0.0.1-alpha.0.20210828053509-18da5043454c

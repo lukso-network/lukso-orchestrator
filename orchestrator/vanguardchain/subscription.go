@@ -2,22 +2,41 @@ package vanguardchain
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/client"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
+	eth2Types "github.com/prysmaticlabs/eth2-types"
 	"time"
 )
 
-// TODO(Atif): Need to subscribe from latest block hash
 // subscribeVanNewPendingBlockHash
 func (s *Service) subscribeVanNewPendingBlockHash(
 	client client.VanguardClient,
 ) (err error) {
-	stream, err := client.StreamNewPendingBlocks()
+
+	latestVerifiedSlot := s.orchestratorDB.LatestSavedVerifiedSlot()
+	latestVerifiedSlotInfo, err := s.orchestratorDB.VerifiedSlotInfo(latestVerifiedSlot)
+	var blockRoot []byte
+	if err != nil {
+		log.WithField("latestVerifiedSlot", latestVerifiedSlot).
+			WithError(err).
+			Warn("Failed to retrieve latest verified slot info for pending block subscription")
+	}
+	if latestVerifiedSlotInfo != nil {
+		blockRoot = latestVerifiedSlotInfo.VanguardBlockHash.Bytes()
+	}
+	if latestVerifiedSlot == 0 {
+		latestVerifiedSlot = latestVerifiedSlot + 1
+	}
+	stream, err := client.StreamNewPendingBlocks(blockRoot, eth2Types.Slot(latestVerifiedSlot))
 	if nil != err {
 		log.WithError(err).Error("Failed to subscribe to stream of new pending blocks")
 		return
 	}
-	log.Debug("Subscribed to new pending vanguard block")
+	log.WithField("fromSlot", latestVerifiedSlot).
+		WithField("blockRoot", hexutil.Encode(blockRoot)).
+		Debug("Subscribed to vanguard blocks")
+
 	go func() {
 		for {
 			select {

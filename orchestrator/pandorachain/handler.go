@@ -30,7 +30,7 @@ func (s *Service) OnNewPendingHeader(ctx context.Context, header *eth1Types.Head
 
 	log.WithField("slot", panExtraDataWithSig.Slot).
 		WithField("headerHash", header.Hash()).
-		Debug("New pandora header info has arrived")
+		Info("New pandora header info has arrived")
 
 	if err := s.cache.Put(ctx, panExtraDataWithSig.Slot, header); err != nil {
 		log.WithError(err).Error("Failed to cache header")
