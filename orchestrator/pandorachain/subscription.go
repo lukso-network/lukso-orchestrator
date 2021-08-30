@@ -19,14 +19,13 @@ func (s *Service) SubscribePendingHeaders(
 	if nil != err {
 		return nil, err
 	}
-	log.WithField("filterCriteria", crit).Debug("subscribed to pandora chain for pending block headers")
+	log.WithField("filterCriteria", crit).Info("subscribed to pandora chain for pending block headers")
 
 	// Start up a dispatcher to feed into the callback
 	go func() {
 		for {
 			select {
 			case newPendingHeader := <-ch:
-				log.WithField("headerHash", newPendingHeader.Hash()).Debug("Got header info from pandora")
 				// dispatch newPendingHeader to handler
 				err = s.OnNewPendingHeader(ctx, newPendingHeader)
 				if nil != err {
@@ -37,6 +36,9 @@ func (s *Service) SubscribePendingHeaders(
 					log.WithError(err).Debug("Got subscription error")
 					s.conInfoSubErrCh <- err
 				}
+				return
+			case <-ctx.Done():
+				log.Info("Received cancelled context, closing existing pending pandora headers subscription")
 				return
 			}
 		}

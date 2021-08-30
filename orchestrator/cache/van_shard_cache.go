@@ -26,9 +26,7 @@ func NewVanShardInfoCache(cacheSize int) *VanShardingInfoCache {
 
 // Put puts sharding info into a lru cache. return error if fails.
 func (vc *VanShardingInfoCache) Put(ctx context.Context, slot uint64, shardInfo *types.VanguardShardInfo) error {
-	if vc.cache.Add(slot, shardInfo) {
-		return errAddingCache
-	}
+	vc.cache.Add(slot, shardInfo)
 	return nil
 }
 

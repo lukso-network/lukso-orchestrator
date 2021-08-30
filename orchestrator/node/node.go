@@ -285,6 +285,9 @@ func (b *OrchestratorNode) Close() {
 
 	log.Info("Stopping orchestrator node")
 	b.services.StopAll()
+	if err := b.db.Close(); err != nil {
+		log.Errorf("Failed to close database: %v", err)
+	}
 	b.cancel()
 	close(b.stop)
 }

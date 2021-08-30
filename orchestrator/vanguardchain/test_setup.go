@@ -93,7 +93,7 @@ func (v vanClientMock) StreamMinimalConsensusInfo(epoch uint64) (stream eth.Beac
 	return v.consensusInfoClient, nil
 }
 
-func (v vanClientMock) StreamNewPendingBlocks() (eth.BeaconChain_StreamNewPendingBlocksClient, error) {
+func (v vanClientMock) StreamNewPendingBlocks(blockRoot []byte, fromSlot types.Slot) (eth.BeaconChain_StreamNewPendingBlocksClient, error) {
 	return v.pendingBlocksClient, nil
 }
 

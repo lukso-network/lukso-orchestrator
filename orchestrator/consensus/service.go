@@ -63,7 +63,7 @@ func New(ctx context.Context, cfg *Config) (service *Service) {
 
 func (s *Service) Start() {
 	if s.isRunning {
-		log.Error("Attempted to start rpc server when it was already started")
+		log.Error("Attempted to start consensus service when it was already started")
 		return
 	}
 	s.isRunning = true
@@ -78,7 +78,6 @@ func (s *Service) Start() {
 		for {
 			select {
 			case newPanHeaderInfo := <-panHeaderInfoCh:
-				log.WithField("slot", newPanHeaderInfo.Slot).Debug("New pandora header is validating")
 				s.curSlot = newPanHeaderInfo.Slot
 				err := s.processPandoraHeader(newPanHeaderInfo)
 				if err != nil {
@@ -86,7 +85,6 @@ func (s *Service) Start() {
 					return
 				}
 			case newVanShardInfo := <-vanShardInfoCh:
-				log.WithField("slot", newVanShardInfo.Slot).Debug("New vanguard shard info is validating")
 				s.curSlot = newVanShardInfo.Slot
 				err := s.processVanguardShardInfo(newVanShardInfo)
 				if err != nil {
@@ -96,7 +94,7 @@ func (s *Service) Start() {
 			case <-s.ctx.Done():
 				vanShardInfoSub.Unsubscribe()
 				panHeaderInfoSub.Unsubscribe()
-				log.Debug("Received cancelled context,closing existing consensus service")
+				log.Info("Received cancelled context,closing existing consensus service")
 				return
 			}
 		}

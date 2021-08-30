@@ -58,6 +58,7 @@ func TestStore_ConsensusInfos_RetrieveByEpoch(t *testing.T) {
 	ctx := context.Background()
 	db := setupDB(t, true)
 	db.latestEpoch = 199
+	db.SaveLatestEpoch(ctx)
 	totalConsensusInfos := make([]*eventTypes.MinimalEpochConsensusInfo, 200)
 
 	for i := 0; i < 200; i++ {

@@ -3,6 +3,7 @@ package vanguardchain
 import (
 	"context"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
+	"github.com/lukso-network/lukso-orchestrator/shared/testutil/require"
 	types "github.com/prysmaticlabs/eth2-types"
 	eth "github.com/prysmaticlabs/ethereumapis/eth/v1alpha1"
 	logTest "github.com/sirupsen/logrus/hooks/test"
@@ -44,12 +45,12 @@ func TestService_OnNewPendingVanguardBlock(t *testing.T) {
 			}},
 		},
 	}
-	vanSvc.OnNewPendingVanguardBlock(ctx, beaconBlock)
+	require.NoError(t, vanSvc.OnNewPendingVanguardBlock(ctx, beaconBlock))
 	time.Sleep(100 * time.Millisecond)
-	assert.LogsContain(t, hook, "Sharding info pushed to consensus service")
+	assert.LogsContain(t, hook, "New vanguard shard info has arrived")
 
-	vanSvc.OnNewPendingVanguardBlock(ctx, beaconBlock)
+	require.NoError(t, vanSvc.OnNewPendingVanguardBlock(ctx, beaconBlock))
 
 	time.Sleep(100 * time.Millisecond)
-	assert.LogsContain(t, hook, "Sharding info pushed to consensus service")
+	assert.LogsContain(t, hook, "New vanguard shard info has arrived")
 }

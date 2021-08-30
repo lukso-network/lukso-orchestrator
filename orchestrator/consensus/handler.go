@@ -16,8 +16,6 @@ func (s *Service) processPandoraHeader(headerInfo *types.PandoraHeaderInfo) erro
 	if vanShardInfo != nil {
 		return s.verifyShardingInfo(slot, vanShardInfo, headerInfo.Header)
 	}
-
-	log.WithField("slot", slot).Info("Waiting for pandora shard info")
 	return nil
 }
 
@@ -30,8 +28,6 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 		// TODO- compare shard info and header
 		return s.verifyShardingInfo(slot, vanShardInfo, headerInfo)
 	}
-
-	log.WithField("slot", slot).Info("Waiting for pandora header")
 	return nil
 }
 
@@ -49,7 +45,6 @@ func (s *Service) verifyShardingInfo(slot uint64, vanShardInfo *types.VanguardSh
 		s.vanguardPendingShardingCache.Remove(s.ctx, slot)
 	}()
 
-	log.WithField("slot", slot).Debug("Consensus is established between pandora header and shard info")
 	if status {
 		// store verified slot info into verified slot info bucket
 		if err := s.verifiedSlotInfoDB.SaveVerifiedSlotInfo(slot, slotInfo); err != nil {
@@ -58,8 +53,16 @@ func (s *Service) verifyShardingInfo(slot uint64, vanShardInfo *types.VanguardSh
 				"Failed to store verified slot info")
 			return err
 		}
-		log.WithField("slot", slot).WithField(
-			"slotInfo", fmt.Sprintf("%+v", slotInfo)).Info("Successfully verified sharding info")
+
+		if err := s.verifiedSlotInfoDB.SaveLatestVerifiedSlot(s.ctx); err != nil {
+			log.WithError(err).Error("Failed to store latest verified slot")
+		}
+
+		if err := s.verifiedSlotInfoDB.SaveLatestVerifiedHeaderHash(); err != nil {
+			log.WithError(err).Error("Failed to store latest verified slot")
+		}
+
+		log.WithField("slot", slot).Info("Successfully verified sharding info")
 	} else {
 		// store invalid slot info into invalid slot info bucket
 		if err := s.invalidSlotInfoDB.SaveInvalidSlotInfo(slot, slotInfo); err != nil {
@@ -68,8 +71,7 @@ func (s *Service) verifyShardingInfo(slot uint64, vanShardInfo *types.VanguardSh
 				"Failed to store invalid slot info")
 			return err
 		}
-		log.WithField("slot", slot).WithField(
-			"slotInfo", fmt.Sprintf("%+v", slotInfo)).Info("Invalid sharding info")
+		log.WithField("slot", slot).Info("Invalid sharding info")
 	}
 	return nil
 }

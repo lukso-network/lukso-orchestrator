@@ -2,6 +2,8 @@ package api
 
 import (
 	"context"
+	"errors"
+	"github.com/ethereum/go-ethereum/common"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/ethereum/go-ethereum/event"
@@ -10,6 +12,8 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/iface"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 )
+
+var ErrHeaderHashMisMatch = errors.New("Header hash mis-matched")
 
 type Backend struct {
 	// feed
@@ -37,43 +41,55 @@ func (backend *Backend) ConsensusInfoByEpochRange(fromEpoch uint64) []*types.Min
 	return consensusInfos
 }
 
+func (backend *Backend) LatestEpoch() uint64 {
+	return backend.ConsensusInfoDB.LatestSavedEpoch()
+}
+
 // GetSlotStatus
-func (backend *Backend) GetSlotStatus(ctx context.Context, slot uint64, requestType bool) types.Status {
-
-	//headerInfo, _ := backend.PandoraPendingHeaderCache.Get(ctx, slot)
-	//shardInfo, _ := backend.VanguardPendingShardingCache.Get(ctx, slot)
-
+func (backend *Backend) GetSlotStatus(ctx context.Context, slot uint64, hash common.Hash, requestFrom bool) types.Status {
 	// by default if nothing is found then return skipped
 	status := types.Pending
 
 	//when requested slot is greater than latest verified slot
 	latestVerifiedSlot := backend.VerifiedSlotInfoDB.InMemoryLatestVerifiedSlot()
-	//if shardInfo.ShardInfo.BlockNumber > latestVerifiedSlot || headerInfo.Number.Uint64() > latestVerifiedSlot {
-	//	status = types.Pending
-	//}
+	var slotInfo *types.SlotInfo
 
-	// if it is found in the cache then it is pending
-	// maybe already verifying is going on but not settled in the database
-	//if shardInfo != nil || headerInfo != nil {
-	//	status = types.Pending
-	//}
-
+	logPrinter := func(stat types.Status) {
+		log.WithField("slot", slot).
+			WithField("latestVerifiedSlot", latestVerifiedSlot).
+			WithField("status", stat).
+			Debug("Verification status")
+	}
 	// finally found in the database so return immediately so that no other db call happens
-	if slotInfo, _ := backend.VerifiedSlotInfoDB.VerifiedSlotInfo(slot); slotInfo != nil {
+	if slotInfo, _ = backend.VerifiedSlotInfoDB.VerifiedSlotInfo(slot); slotInfo != nil {
+		panHeaderHash := slotInfo.PandoraHeaderHash
+		vanHeaderHash := slotInfo.VanguardBlockHash
+
+		if requestFrom && panHeaderHash != hash {
+			log.WithError(ErrHeaderHashMisMatch).
+				Warn("Failed to match header hash with requested header hash from pandora node")
+			logPrinter(types.Invalid)
+			return types.Invalid
+		}
+
+		if !requestFrom && vanHeaderHash != hash {
+			log.WithError(ErrHeaderHashMisMatch).
+				Warn("Failed to match header hash with requested header hash from vanguard node")
+			logPrinter(types.Invalid)
+			return types.Invalid
+		}
+
 		status = types.Verified
+		logPrinter(types.Verified)
 		return status
 	}
 
 	// finally found in the database so return immediately so that no other db call happens
-	if slotInfo, _ := backend.InvalidSlotInfoDB.InvalidSlotInfo(slot); slotInfo != nil {
+	if slotInfo, _ = backend.InvalidSlotInfoDB.InvalidSlotInfo(slot); slotInfo != nil {
 		status = types.Invalid
+		logPrinter(types.Invalid)
 		return status
 	}
-
-	defer log.WithField("slot", slot).
-		WithField("latestVerifiedSlot", latestVerifiedSlot).
-		WithField("status", status).
-		Debug("Verification status")
-
+	logPrinter(status)
 	return status
 }

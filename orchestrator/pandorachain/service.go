@@ -148,7 +148,7 @@ func (s *Service) waitForConnection() {
 			log.WithField("endpoint", s.endpoint).Info("Connected and subscribed to pandora chain")
 			return
 		case <-s.ctx.Done():
-			log.Debug("Received cancelled context,closing existing pandora client service")
+			log.Info("Received cancelled context, closing existing pandora client connection service")
 			return
 		}
 	}
@@ -166,7 +166,7 @@ func (s *Service) run(done <-chan struct{}) {
 		case <-done:
 			s.isRunning = false
 			s.runError = nil
-			log.Debug("Context closed, exiting goroutine")
+			log.Info("Context closed, exiting pandora chain service goroutine")
 			return
 		case err := <-s.conInfoSubErrCh:
 			log.WithError(err).Debug("Got subscription error")

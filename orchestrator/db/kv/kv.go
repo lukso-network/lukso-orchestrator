@@ -42,6 +42,7 @@ type Store struct {
 	latestEpoch        uint64
 	latestVerifiedSlot uint64
 	latestHeaderHash   common.Hash
+	latestVanBlockHash []byte
 	// There should be mutex in store
 	sync.Mutex
 }
@@ -143,7 +144,7 @@ func (s *Store) Close() error {
 	if err != nil {
 		return err
 	}
-
+	log.Info("Received cancelled context, closing db")
 	return s.db.Close()
 }
 

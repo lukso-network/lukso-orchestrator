@@ -2,6 +2,7 @@ package kv
 
 import (
 	"context"
+
 	"github.com/boltdb/bolt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/lukso-network/lukso-orchestrator/shared/bytesutil"
@@ -96,6 +97,9 @@ func (s *Store) LatestSavedVerifiedSlot() uint64 {
 }
 
 func (s *Store) InMemoryLatestVerifiedSlot() uint64 {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
+
 	return s.latestVerifiedSlot
 }
 
@@ -138,5 +142,8 @@ func (s *Store) LatestVerifiedHeaderHash() common.Hash {
 }
 
 func (s *Store) InMemoryLatestVerifiedHeaderHash() common.Hash {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
+
 	return s.latestHeaderHash
 }
