@@ -32,16 +32,10 @@ func (s *Service) OnNewPendingHeader(ctx context.Context, header *eth1Types.Head
 		WithField("headerHash", header.Hash()).
 		Info("New pandora header info has arrived")
 
-	if err := s.cache.Put(ctx, panExtraDataWithSig.Slot, header); err != nil {
-		log.WithError(err).Error("Failed to cache header")
-		return err
-	}
-
-	nSent := s.pandoraHeaderInfoFeed.Send(&types.PandoraHeaderInfo{
+	s.cache.Put(ctx, panExtraDataWithSig.Slot, header)
+	s.pandoraHeaderInfoFeed.Send(&types.PandoraHeaderInfo{
 		Header: header,
 		Slot:   panExtraDataWithSig.Slot,
 	})
-
-	log.WithField("nSent", nSent).Trace("Header info pushed to consensus service")
 	return nil
 }

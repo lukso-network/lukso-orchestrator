@@ -47,10 +47,10 @@ func TestService_OnNewPendingVanguardBlock(t *testing.T) {
 	}
 	require.NoError(t, vanSvc.OnNewPendingVanguardBlock(ctx, beaconBlock))
 	time.Sleep(100 * time.Millisecond)
-	assert.LogsContain(t, hook, "Sharding info pushed to consensus service")
+	assert.LogsContain(t, hook, "New vanguard shard info has arrived")
 
 	require.NoError(t, vanSvc.OnNewPendingVanguardBlock(ctx, beaconBlock))
 
 	time.Sleep(100 * time.Millisecond)
-	assert.LogsContain(t, hook, "Sharding info pushed to consensus service")
+	assert.LogsContain(t, hook, "New vanguard shard info has arrived")
 }

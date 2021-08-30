@@ -61,16 +61,10 @@ func (s *Service) OnNewPendingVanguardBlock(ctx context.Context, block *eth.Beac
 
 	log.WithField("slot", block.Slot).
 		WithField("headerHash", common.BytesToHash(cachedShardInfo.BlockHash[:])).
-		Debug("New vanguard shard info has arrived")
+		Info("New vanguard shard info has arrived")
 
 	// caching the shard info into sharding cache
-	err = s.shardingInfoCache.Put(ctx, uint64(block.Slot), cachedShardInfo)
-	if err != nil {
-		log.WithField("slot number", block.Slot).
-			WithField("err", err).Error("error while inserting sharding info into vanguard cache")
-	}
-
-	nSent := s.vanguardShardingInfoFeed.Send(cachedShardInfo)
-	log.WithField("nSent", nSent).Trace("Sharding info pushed to consensus service")
+	s.shardingInfoCache.Put(ctx, uint64(block.Slot), cachedShardInfo)
+	s.vanguardShardingInfoFeed.Send(cachedShardInfo)
 	return nil
 }

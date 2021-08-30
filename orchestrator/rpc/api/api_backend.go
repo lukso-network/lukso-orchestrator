@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	log "github.com/sirupsen/logrus"
 
@@ -42,6 +41,10 @@ func (backend *Backend) ConsensusInfoByEpochRange(fromEpoch uint64) []*types.Min
 	return consensusInfos
 }
 
+func (backend *Backend) LatestEpoch() uint64 {
+	return backend.ConsensusInfoDB.LatestSavedEpoch()
+}
+
 // GetSlotStatus
 func (backend *Backend) GetSlotStatus(ctx context.Context, slot uint64, hash common.Hash, requestFrom bool) types.Status {
 	// by default if nothing is found then return skipped
@@ -54,7 +57,6 @@ func (backend *Backend) GetSlotStatus(ctx context.Context, slot uint64, hash com
 	logPrinter := func(stat types.Status) {
 		log.WithField("slot", slot).
 			WithField("latestVerifiedSlot", latestVerifiedSlot).
-			WithField("slotInfo", fmt.Sprintf("%s %s", slotInfo.PandoraHeaderHash.Hex(), slotInfo.VanguardBlockHash.Hex())).
 			WithField("status", stat).
 			Debug("Verification status")
 	}

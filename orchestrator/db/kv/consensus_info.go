@@ -35,15 +35,16 @@ func (s *Store) ConsensusInfo(ctx context.Context, epoch uint64) (*eventTypes.Mi
 func (s *Store) ConsensusInfos(fromEpoch uint64) (
 	[]*eventTypes.MinimalEpochConsensusInfo, error,
 ) {
+	latestEpoch := s.LatestSavedEpoch()
 	// when requested epoch is greater than stored latest epoch
-	if fromEpoch > s.latestEpoch {
+	if fromEpoch > latestEpoch {
 		return nil, errors.Wrap(errInvalidEpoch, fmt.Sprintf("fromEpoch: %d", fromEpoch))
 	}
 
 	consensusInfos := make([]*eventTypes.MinimalEpochConsensusInfo, 0)
 	err := s.db.View(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(consensusInfosBucket)
-		for epoch := fromEpoch; epoch <= s.latestEpoch; epoch++ {
+		for epoch := fromEpoch; epoch <= latestEpoch; epoch++ {
 			// fast finding into cache, if the value does not exist in cache, it starts finding into db
 			if v, _ := s.consensusInfoCache.Get(epoch); v != nil {
 				consensusInfos = append(consensusInfos, v.(*eventTypes.MinimalEpochConsensusInfo))

@@ -33,9 +33,10 @@ func (s *Service) subscribeVanNewPendingBlockHash(
 		log.WithError(err).Error("Failed to subscribe to stream of new pending blocks")
 		return
 	}
+
 	log.WithField("fromSlot", latestVerifiedSlot).
 		WithField("blockRoot", hexutil.Encode(blockRoot)).
-		Debug("Subscribed to vanguard blocks")
+		Info("Successfully subscribed to vanguard blocks")
 
 	go func() {
 		for {
@@ -61,18 +62,23 @@ func (s *Service) subscribeVanNewPendingBlockHash(
 
 // subscribeNewConsensusInfoGRPC
 func (s *Service) subscribeNewConsensusInfoGRPC(client client.VanguardClient) (err error) {
-	stream, err := client.StreamMinimalConsensusInfo(s.orchestratorDB.LatestSavedEpoch())
+	fromEpoch := s.orchestratorDB.LatestSavedEpoch()
+	stream, err := client.StreamMinimalConsensusInfo(fromEpoch)
 	if nil != err {
 		log.WithError(err).Error("Failed to subscribe to stream of new pending blocks")
 		return
 	}
-	log.Debug("Subscribed to minimal consensus info")
+
+	log.WithField("fromEpoch", fromEpoch).
+		Info("Successfully subscribed to minimal consensus info to vanguard client")
+
 	go func() {
 		for {
 			select {
 			case <-s.ctx.Done():
-				log.Debug("closing subscribeNewConsensusInfoGRPC")
+				log.Info("Received cancelled context, closing existing consensus info subscription")
 				return
+
 			default:
 				vanMinimalConsensusInfo, currentErr := stream.Recv()
 				if nil != currentErr {
@@ -95,10 +101,13 @@ func (s *Service) subscribeNewConsensusInfoGRPC(client client.VanguardClient) (e
 						"empty validator list")
 					continue
 				}
-				log.WithField("epoch", vanMinimalConsensusInfo.Epoch).Debug(
-					"Received new consensus info for next epoch")
-				log.WithField("consensusInfo", fmt.Sprintf("%+v", consensusInfo)).Trace(
-					"Received consensus info")
+
+				log.WithField("epoch", vanMinimalConsensusInfo.Epoch).
+					Debug("Received new consensus info for next epoch")
+
+				log.WithField("consensusInfo", fmt.Sprintf("%+v", consensusInfo)).
+					Trace("Received consensus info")
+
 				s.OnNewConsensusInfo(s.ctx, consensusInfo)
 			}
 		}
