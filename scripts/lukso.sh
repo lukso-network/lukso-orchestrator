@@ -1,9 +1,9 @@
 #### Lukso Deployment script for linux and mac ####
 # PLEASE change the git tag acording to the latest release #
 
-export GIT_PANDORA="v0.0.0-alpha.fix"
-export GIT_VANGUARD="v0.0.0-alpha.fix"
-export GIT_ORCH="v0.0.0-alpha.1"
+export GIT_PANDORA="v0.0.0-beta"
+export GIT_VANGUARD="v0.0.0-beta"
+export GIT_ORCH="v0.0.0-beta"
 
 export OS_NAME=$(uname -s)
 
@@ -32,7 +32,7 @@ function download_and_run_pandora_bootnode {
     -addr=":45451" \
     -nodekeyhex=d1b8543a818563d1ecec4ef6e25268fe4bf210777807e63235160ee0ffc3ca78 \
     -nat=extip:$EXTERNAL_IP \
-    -verbosity=4 > ./bootnode_pandora/bootnode.txt 2>&1 &
+    -verbosity=3 > ./bootnode_pandora/bootnode.txt 2>&1 &
     disown
 }
 
@@ -50,8 +50,7 @@ function download_and_run_vanguard_bootnode {
     --private=1083c5f7f50aefc0c2ff0d7020316d243639ecc266ef3c03b75fcf126abb811e \
     --external-ip=$EXTERNAL_IP \
     --fork-version=83a55317 \
-    --log-file=./bootnode_vanguard/bootnode.txt \
-    --debug > ./bootnode_vanguard/bootnode.txt 2>&1 &
+    --log-file=./bootnode_vanguard/bootnode.txt > ./bootnode_vanguard/bootnode.txt 2>&1 &
     disown
 }
 
@@ -194,7 +193,7 @@ function run_pandora {
 	 --syncmode="full" \
    --allow-insecure-unlock \
    -nat=extip:$EXTERNAL_IP \
-	 --verbosity=4 > ./pandora/pandora.log  2>&1 &
+	 --verbosity=3 > ./pandora/pandora.log  2>&1 &
 	 disown
 }
 
@@ -278,7 +277,7 @@ function run_vanguard {
 	      --contract-deployment-block=0 \
 	      --rpc-host=0.0.0.0 \
 	      --monitoring-host=0.0.0.0 \
-	      --verbosity=debug \
+	      --verbosity=info \
 	      --min-sync-peers=2 \
 	      --p2p-max-peers=50 \
 	      --orc-http-provider=http://127.0.0.1:7877 \
@@ -296,11 +295,11 @@ function run_vanguard {
 function stop_vanguard {
 	echo "###### Stopping vanguard #######"
 
-	sudo kill $(sudo lsof -t -i:4000) &> /dev/null
+	sudo kill -INT $(sudo lsof -t -i:4000) &> /dev/null
 	sleep 1
-	sudo kill $(sudo lsof -t -i:12000) &> /dev/null
+	sudo kill -INT $(sudo lsof -t -i:12000) &> /dev/null
 	sleep 1
-	sudo kill $(sudo lsof -t -i:13000) &> /dev/null
+	sudo kill -INT $(sudo lsof -t -i:13000) &> /dev/null
 	sleep 1
 }
 
@@ -362,7 +361,7 @@ function run_validator {
 	  --accept-terms-of-use \
 	  --beacon-rpc-provider=localhost:4000 \
 	  --chain-config-file=./config/vanguard-config.yml \
-	  --verbosity=debug \
+	  --verbosity=info \
 	  --pandora-http-provider=http://127.0.0.1:8545 \
 	  --wallet-dir=./validator/wallet \
 	  --wallet-password-file=./validator/password.txt \
@@ -375,7 +374,7 @@ function run_validator {
 
 function stop_validator {
 	echo "###### Stopping validator client ######"
-	sudo kill $(sudo lsof -t -i:7000) &> /dev/null
+	sudo kill -INT $(sudo lsof -t -i:7000) &> /dev/null
 	sleep 1
 }
 
