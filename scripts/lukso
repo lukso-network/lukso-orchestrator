@@ -246,7 +246,7 @@ start_all() {
 	fi
 
 	echo "################# Starting eth2stats_client #######################"
-	start_eth2stats_sclient
+	start_eth2stats_client
 	sleep 2
 }
 
@@ -524,7 +524,7 @@ if [ "$USE_CONFIG_FILE" = true ]; then
   parse_config "$CONFIG_FILE_PATH";
 fi
 
-parse_config 'scripts/network-config.yaml';
+parse_config "/opt/lukso/networks/$NETWORK/config/network-config.yaml";
 case $COMMAND in
 start)
   start $COMMAND_ARG
