@@ -1,0 +1,553 @@
+#!/usr/bin/env bash
+
+##### getopt
+OPTIONS=h;
+LONGOPTS=help,l15,network:,debug,config:,node-name:,force,coinbase:;
+PARSED="";
+#####
+
+##### binary behavior
+COMMAND=$1;
+COMMAND_ARG=$2;
+USE_CONFIG_FILE=false;
+FORCE=false;
+#####
+
+##### client info
+NETWORK="l15";
+IS_VALIDATOR=false;
+COINBASE=0x;
+DATADIR="$HOME/lukso_datadir";
+LOGSDIR="$HOME/lukso_datadir/logs";
+NODE_NAME="";
+EXTERNAL_IP=127.0.0.1;
+WALLET_DIR="$HOME"/.lukso/l15/vanguard_wallet;
+######
+
+flags_parsing () {
+  #Getopt stuff
+  set -o errexit -o pipefail -o noclobber -o nounset
+
+  ! getopt --test > /dev/null
+  if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
+      echo 'I’m sorry, `getopt --test` failed in this environment.'
+      exit 1
+  fi
+
+  ! PARSED=$(getopt --options=$OPTIONS --longoptions=$LONGOPTS -- "$@")
+
+  if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
+      exit 2
+  fi
+}
+
+function parse_yaml {
+   local prefix=""
+   local s='[[:space:]]*' w='[a-zA-Z0-9_]*' fs=$(echo @|tr @ '\034')
+   sed -ne "s|^\($s\):|\1|" \
+        -e "s|^\($s\)\($w\)$s:$s[\"']\(.*\)[\"']$s\$|\1$fs\2$fs\3|p" \
+        -e "s|^\($s\)\($w\)$s:$s\(.*\)$s\$|\1$fs\2$fs\3|p"  $1 |
+   awk -F$fs '{
+      indent = length($1)/2;
+      vname[indent] = $2;
+      for (i in vname) {if (i > indent) {delete vname[i]}}
+      if (length($3) > 0) {
+         vn=""; for (i=0; i<indent; i++) {vn=(vn)(vname[i])("_")}
+         printf("%s%s%s=\"%s\"\n", "'$prefix'",vn, $2, $3);
+      }
+   }'
+}
+
+parse_config() {
+  eval $(parse_yaml $1)
+}
+
+generate_keys() {
+  read -p "Where to store deposit keys? " KEYS_DIR;
+  eval KEYS_DIR=$KEYS_DIR;
+  mkdir -p $KEYS_DIR;
+  read -p "How many validators? " VALIDATORS_NUMBER;
+  /opt/lukso/networks/$NETWORK/bin/lukso-deposit-cli new-mnemonic \
+  --chain l15 \
+  --mnemonic_language english \
+  --folder $KEYS_DIR \
+  --num_validators $VALIDATORS_NUMBER
+}
+
+import_accounts() {
+  read -p "Where do you have deposit keys? " KEYS_DIR
+  /opt/lukso/networks/"$NETWORK"/bin/validator accounts import \
+  --keys-dir $KEYS_DIR \
+  --wallet-dir $HOME/.lukso/$NETWORK/validator_wallet;
+}
+
+setup_config() {
+    read -p "Enter your coinbase [ETH1 address like: 0x]: " COINBASE;
+    read -p "Type wallet location [default: $HOME/.lukso/$NETWORK/vanguard-wallet ]: " WALLET_DIR;
+    read -p "Type datadir location [default: $HOME/.lukso/$NETWORK/datadirs ]: " DATADIR;
+    read -p "Type logs location [default: $HOME/.lukso/$NETWORK/logs ]: " LOGSDIR;
+    read -p "Type name of the node [default: l15-<random_string>] : " NODE_NAME;
+    read -p "" ;
+}
+
+pick_network() {
+  NETWORK=$1;
+}
+
+check_validator_requirements() {
+  CAN_VALIDATE=true;
+  if [ ! -d $WALLET_DIR ]; then
+    echo "Cannot validate, wallet not found";
+    CAN_VALIDATE=false;
+  fi
+
+  if [ ! -f $WALLET_DIR/password.txt ]; then
+    echo "Cannot validate, password not provided";
+    CAN_VALIDATE=false;
+  fi
+
+  if [ "$CAN_VALIDATE" == "false" ]; then
+    exit 1;
+  fi
+
+}
+
+start_orchestrator() {
+  if [ ! -d "$DATADIR/orchestrator" ]; then
+    mkdir $DATADIR/orchestrator;
+  fi
+  nohup /opt/lukso/networks/"$NETWORK"/bin/orchestrator --datadir=$DATADIR/orchestrator \
+		--vanguard-grpc-endpoint=127.0.0.1:4000 \
+		--http \
+		--http.addr=0.0.0.0 \
+		--http.port=7877 \
+		--ws \
+		--ws.addr=0.0.0.0 \
+		--ws.port=7878 \
+		--pandora-rpc-endpoint=ws://127.0.0.1:8546 \
+		--verbosity=trace >| $LOGSDIR/orchestrator.log  2>&1 &
+	disown
+}
+
+start_pandora() {
+  /opt/lukso/networks/$NETWORK/bin/pandora --datadir $DATADIR/pandora init /opt/lukso/networks/$NETWORK/config/pandora-genesis.json &> /dev/null
+	nohup /opt/lukso/networks/$NETWORK/bin/pandora --datadir=$DATADIR/pandora \
+	 --networkid=808080 \
+	 --ethstats=l15-$NODE_NAME:$PANDORA_STATS_PASSWORD@stats.pandora.l15.lukso.network \
+	 --port=30405 \
+	 --rpc \
+	 --rpcaddr=0.0.0.0 \
+	 --rpcapi=admin,net,eth,debug,ethash,miner,personal,txpool,web3 \
+	 --bootnodes=enode://4a6ab64c08eca2fd3a96d285b5a2db918f26220eb6b18842ce40b49354198f24eb0961b16c4d552c7318050ce2c7bcd30ef5ca2f9826811fb24b37e3bb07121f@35.234.122.88:45451,enode://4a6ab64c08eca2fd3a96d285b5a2db918f26220eb6b18842ce40b49354198f24eb0961b16c4d552c7318050ce2c7bcd30ef5ca2f9826811fb24b37e3bb07121f@34.141.112.243:45451,enode://4a6ab64c08eca2fd3a96d285b5a2db918f26220eb6b18842ce40b49354198f24eb0961b16c4d552c7318050ce2c7bcd30ef5ca2f9826811fb24b37e3bb07121f@35.198.170.46:45451,enode://4a6ab64c08eca2fd3a96d285b5a2db918f26220eb6b18842ce40b49354198f24eb0961b16c4d552c7318050ce2c7bcd30ef5ca2f9826811fb24b37e3bb07121f@34.141.46.202:45451 \
+	 --rpcport=8545 \
+	 --http.corsdomain="*" \
+	 --ws \
+	 --ws.addr=0.0.0.0 \
+	 --ws.api=admin,net,eth,debug,ethash,miner,personal,txpool,web3 \
+	 --ws.port=8546 \
+	 --ws.origins="*" \
+	 --mine \
+	 --miner.notify=ws://127.0.0.1:7878,http://127.0.0.1:7877 \
+	 --miner.etherbase=$COINBASE \
+	 --nat=extip:$EXTERNAL_IP \
+	 --syncmode="full" \
+   --allow-insecure-unlock \
+   --nat=extip:$EXTERNAL_IP \
+	 --verbosity=4 >| $LOGSDIR/pandora.log  2>&1 &
+	 disown
+}
+
+start_vanguard() {
+	nohup /opt/lukso/networks/$NETWORK/bin/beacon-chain \
+	      --accept-terms-of-use \
+	      --chain-id=808080 \
+	      --network-id=808080 \
+	      --genesis-state=/opt/lukso/networks/$NETWORK/config/vanguard_genesis.ssz \
+	      --datadir=$DATADIR/vanguard/ \
+	      --chain-config-file=/opt/lukso/networks/$NETWORK/config/vanguard-config.yml \
+	      --bootstrap-node="enr:-Ku4QEL0I7H3EawRwc2ZUevmj-_T0R6JZGMhfp_2KHBlwAt5bwA19c8LSYZzy63EvpsYbifKye6qnE-_vsNimWOz8scBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpCvIkw2g6VTF___________gmlkgnY0gmlwhCPqeliJc2VjcDI1NmsxoQLt36VpP56n0SlTYWcSBwL7aGK_AFwNLGxOGQt91nchMYN1ZHCCEuk" \
+	      --bootstrap-node="enr:-Ku4QAmYtwrQBZ-WJwTPL4xMpTO6BlZcU6IuXljtd_SgC51nGRs98WvxCX0-ZJBs0G9m9tcFPsktbdSr7EliMhrZnfEBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpCvIkw2g6VTF___________gmlkgnY0gmlwhCKNcPOJc2VjcDI1NmsxoQLt36VpP56n0SlTYWcSBwL7aGK_AFwNLGxOGQt91nchMYN1ZHCCEuk" \
+	      --bootstrap-node="enr:-Ku4QEXRrSXB7od-xNeoLuq6GicTHpuuCNRPPR9tM48Iai0-FoHL4JsntmpnwUrC-di-lT6gkbxV7Jikg9s6ImsAT1oBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpCvIkw2g6VTF___________gmlkgnY0gmlwhCPGqi6Jc2VjcDI1NmsxoQLt36VpP56n0SlTYWcSBwL7aGK_AFwNLGxOGQt91nchMYN1ZHCCEuk" \
+	      --bootstrap-node="enr:-Ku4QBuS5wqvF6SHaPpuu4r4ZlRRVC1Ojp1zDOAVC1X0PB3gRujAhWZdk2m0kn3FwoPuHft_Sku0tWHSfBVlHoER160Bh2F0dG5ldHOIAAAAAAAAAACEZXRoMpCvIkw2g6VTF___________gmlkgnY0gmlwhCKNLsqJc2VjcDI1NmsxoQLt36VpP56n0SlTYWcSBwL7aGK_AFwNLGxOGQt91nchMYN1ZHCCEuk" \
+	      --http-web3provider=http://127.0.0.1:8545 \
+	      --deposit-contract=0x000000000000000000000000000000000000cafe \
+	      --contract-deployment-block=0 \
+	      --rpc-host=0.0.0.0 \
+	      --monitoring-host=0.0.0.0 \
+	      --verbosity=debug \
+	      --min-sync-peers=2 \
+	      --p2p-max-peers=50 \
+	      --orc-http-provider=http://127.0.0.1:7877 \
+	      --p2p-host-ip="$EXTERNAL_IP" \
+	      --rpc-port=4000 \
+	      --p2p-udp-port=12000 \
+	      --p2p-tcp-port=13000 \
+	      --grpc-gateway-port=3500 \
+	      --update-head-timely \
+	      --lukso-network >| $LOGSDIR/vanguard.log  2>&1 &
+	    disown
+}
+
+start_validator() {
+  nohup /opt/lukso/networks/"$NETWORK"/bin/validator \
+	  --datadir="$DATADIR"/validator/ \
+	  --accept-terms-of-use \
+	  --beacon-rpc-provider=localhost:4000 \
+	  --chain-config-file=/opt/lukso/networks/config/vanguard-config.yml \
+	  --verbosity=debug \
+	  --pandora-http-provider=http://127.0.0.1:8545 \
+	  --wallet-dir=$WALLET_DIR \
+	  --wallet-password-file=./validator/password.txt \
+	  --rpc \
+	  --log-file=$LOGSDIR/validator.log \
+	  --lukso-network >| $LOGSDIR/validator.log  2>&1 &
+	disown
+}
+
+start_eth2stats_client() {
+  nohup /opt/lukso/networks/"$NETWORK"/bin/eth2stats-client run \
+    --beacon.type="prysm" \
+    --beacon.addr="127.0.0.1:4000" \
+    --beacon.metrics-addr="http://127.0.0.1:8080/metrics" \
+    --data.folder=$DATADIR/eth2stats-client \
+    --eth2stats.node-name="$NODE_NAME" \
+    --eth2stats.addr="34.141.173.210:9090" \
+    --eth2stats.tls="false" >| $LOGSDIR/eth2stats.log  2>&1 &
+  disown
+}
+
+start_all() {
+  if [ "$IS_VALIDATOR" == true ]; then
+    check_validator_requirements
+  fi
+
+  echo "################# Starting orchestrator #################"
+	start_orchestrator
+	sleep 2
+
+	echo "################# Starting pandora #######################"
+	start_pandora
+	sleep 2
+
+	echo "################# Starting vanguard #######################"
+	start_vanguard
+	sleep 2
+
+	if [ "$IS_VALIDATOR" == true ]; then
+	 	echo "################# Starting validator #######################"
+	  start_validator
+	  sleep 2
+	fi
+
+	echo "################# Starting eth2stats_client #######################"
+	start_eth2stats_sclient
+	sleep 2
+}
+
+start() {
+  echo -n "Starting: ";
+  case $1 in
+  orchestrator)
+    echo "orchestrator client";
+    start_orchestrator
+  ;;
+  pandora)
+    echo "pandora client";
+    start_pandora
+  ;;
+  vanguard)
+    echo "vanguard client";
+    start_vanguard
+  ;;
+  validator)
+    echo "validator client";
+    start_validator
+  ;;
+  eth2stats)
+    echo "eth2stats client"
+    start_eth2stats_client
+  ;;
+  *)
+    echo "ALL clients";
+    start_all
+  ;;
+  esac
+}
+
+stop_orchestrator() {
+  echo -n "Stopping orchestrator client "
+  if [ "$FORCE" == true ]; then
+	  echo "[FORCE]"
+	  sudo kill -9 $(sudo lsof -t -i:7877) &> /dev/null
+	  sleep 1
+	else
+		echo
+	  sudo kill $(sudo lsof -t -i:7877) &> /dev/null
+	  sleep 1
+	fi
+}
+
+stop_pandora() {
+	echo -n "Stopping pandora node... "
+	if [ "$FORCE" == true ]; then
+	  echo "[FORCE]"
+	  sudo kill -9 $(sudo lsof -t -i:30405) &> /dev/null
+	  sleep 1
+	else
+    echo
+	  sudo kill $(sudo lsof -t -i:30405) &> /dev/null
+	  sleep 1
+	fi
+}
+
+stop_vanguard() {
+	echo -n "Stopping vanguard node... ";
+
+	if [ "$FORCE" == true ]; then
+	  echo "[FORCE]";
+	  sudo kill -9 $(sudo lsof -t -i:4000) &> /dev/null
+    sleep 1
+    sudo kill -9 $(sudo lsof -t -i:12000) &> /dev/null
+    sleep 1
+    sudo kill -9 $(sudo lsof -t -i:13000) &> /dev/null
+    sleep 1
+  else
+    echo
+    sudo kill $(sudo lsof -t -i:4000) &> /dev/null
+    sleep 1
+    sudo kill $(sudo lsof -t -i:12000) &> /dev/null
+    sleep 1
+    sudo kill $(sudo lsof -t -i:13000) &> /dev/null
+    sleep 1
+	fi
+}
+
+stop_validator() {
+  echo -n "Stopping validator client... "
+  if [ "$FORCE" == true ]; then
+	  echo "[FORCE]";
+  	sudo kill -9 $(sudo lsof -t -i:7000) &> /dev/null
+  	sleep 1
+  else
+    echo
+    sudo kill $(sudo lsof -t -i:7000) &> /dev/null
+    sleep 1
+	fi
+}
+
+stop_eth2stats_client() {
+  echo -n "Stopping eth2stats client... "
+  if [ "$FORCE" == true ]; then
+	  echo "[FORCE]";
+  	sudo pkill -9 "eth2stats-client"
+  	sleep 1
+  else
+    echo
+    sudo pkill "eth2stats-client"
+    sleep 1
+	fi
+}
+
+stop_all() {
+  stop_validator &
+  stop_vanguard &
+  stop_pandora &
+  stop_orchestrator &
+  stop_eth2stats_client
+}
+
+stop() {
+  if [ "$FORCE" == true ]; then
+    read -p "This may result in node data corruption. Continue? (Y/n) " var;
+    if [ "$var" != "Y" ]; then
+      echo "Exiting...";
+      exit 0;
+    fi
+  fi
+  case "$1" in
+  orchestrator)
+    stop_orchestrator
+  ;;
+  pandora)
+    stop_pandora
+  ;;
+  vanguard)
+    stop_vanguard
+  ;;
+  validator)
+    stop_validator
+  ;;
+  eth2stats)
+    stop_eth2stats_client
+  ;;
+  *)
+    stop_all
+  ;;
+  esac
+}
+
+reset_orchestrator() {
+  rm -rf $DATADIR/orchestrator;
+}
+
+reset_pandora() {
+  rm -rf $DATADIR/pandora;
+}
+
+reset_vanguard() {
+  rm -rf $DATADIR/vanguard
+}
+
+reset_validator() {
+  rm -rf $DATADIR/validator;
+}
+
+reset_eth2stats_client() {
+  rm -rf $DATADIR/eth2stats-client
+}
+
+reset_all() {
+  reset_orchestrator;
+  reset_pandora;
+  reset_vanguard;
+  reset_validator;
+  reset_eth2stats_client;
+}
+
+reset() {
+    case "$1" in
+  orchestrator)
+    reset_orchestrator
+  ;;
+  pandora)
+    reset_pandora
+  ;;
+  vanguard)
+    reset_vanguard
+  ;;
+  validator)
+    reset_validator
+  ;;
+  eth2stats)
+    reset_eth2stats_client
+  ;;
+  all)
+    reset_all
+  ;;
+  *)
+    echo "Choose a client: [orchestrator, pandora, vanguard, validator, all] "
+  ;;
+  esac
+}
+
+help() {
+  echo "USAGE:";
+  echo "lukso-cli <command> [argument] [--flags]"
+  exit;
+}
+
+logs() {
+  case "$1" in
+  orchestrator)
+    tail -f $LOGSDIR/orchestrator.log
+    ;;
+  pandora)
+    tail -f $LOGSDIR/pandora.log
+    ;;
+  vanguard)
+    tail -f $LOGSDIR/vanguard.log
+    ;;
+  validator)
+    tail -f $LOGSDIR/validator.log
+    ;;
+  *)
+    echo "SELECT one of the clients ex. pandora";
+    ;;
+  esac
+}
+
+flags_parsing "${@:2}"
+eval set -- "$PARSED"
+
+while true; do
+  case "$1" in
+    -h|--help)
+      help
+      shift
+      ;;
+    --network)
+      pick_network "$2";
+      shift 2
+      ;;
+    --l15)
+      pick_network l15;
+      shift
+      ;;
+    --config)
+      USE_CONFIG_FILE=true;
+      CONFIG_FILE_PATH="$2";
+      shift 2
+      ;;
+    --coinbase)
+      COINBASE="$2";
+      shift 2
+      ;;
+    --node-name)
+      NODE_NAME="$2";
+      shift 2
+      ;;
+    --validate)
+      IS_VALIDATOR=true;
+      shift
+      ;;
+    --force)
+      FORCE=true;
+      shift
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+
+if [ "$USE_CONFIG_FILE" = true ]; then
+  parse_config "$CONFIG_FILE_PATH";
+fi
+
+
+case $COMMAND in
+start)
+  start $COMMAND_ARG
+  ;;
+stop)
+  stop $COMMAND_ARG
+  ;;
+reset)
+  reset $COMMAND_ARG
+  ;;
+config)
+  setup_config
+  ;;
+keygen)
+  generate_keys
+  ;;
+wallet)
+  import_accounts
+  ;;
+logs)
+  logs $COMMAND_ARG
+  ;;
+attach)
+  /opt/lukso/networks/"$NETWORK"/bin/pandora attach $2;
+  ;;
+bind-binaries)
+  ;;
+*)
+  echo "Add a command like start"
+  exit 1
+  ;;
+esac
+
+
+
