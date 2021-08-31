@@ -16,12 +16,13 @@ FORCE=false;
 ##### client info
 NETWORK="l15";
 IS_VALIDATOR=false;
-COINBASE=0x;
-DATADIR="$HOME/lukso_datadir";
-LOGSDIR="$HOME/lukso_datadir/logs";
-NODE_NAME="";
+COINBASE="0x616e6f6e796d6f75730000000000000000000000";
+DATADIR="$HOME/.lukso/$NETWORK/datadirs";
+LOGSDIR="$HOME/.lukso/$NETWORK/logs";
+NODE_NAME="$NETWORK-"$(tr -dc A-F0-9 </dev/urandom | head -c 8);
 EXTERNAL_IP=127.0.0.1;
-WALLET_DIR="$HOME"/.lukso/l15/vanguard_wallet;
+KEYS_DIR="$HOME/.lukso/$NETWORK";
+WALLET_DIR="$HOME/.lukso/$NETWORK/vanguard_wallet";
 ######
 
 flags_parsing () {
@@ -63,12 +64,16 @@ parse_config() {
 }
 
 generate_keys() {
-  read -p "Where to store deposit keys? " KEYS_DIR;
+  read -p "Where to store deposit keys? Default: [$KEYS_DIR] " INPUT;
+  if [ -n "$INPUT" ]; then
+    KEYS_DIR=$INPUT
+  fi
   eval KEYS_DIR=$KEYS_DIR;
   mkdir -p $KEYS_DIR;
   read -p "How many validators? " VALIDATORS_NUMBER;
+  echo "Running lukso-deposit-cli..."
   /opt/lukso/networks/$NETWORK/bin/lukso-deposit-cli new-mnemonic \
-  --chain l15 \
+  --chain $NETWORK \
   --mnemonic_language english \
   --folder $KEYS_DIR \
   --num_validators $VALIDATORS_NUMBER
@@ -76,17 +81,18 @@ generate_keys() {
 
 import_accounts() {
   read -p "Where do you have deposit keys? " KEYS_DIR
-  /opt/lukso/networks/"$NETWORK"/bin/validator accounts import \
+  /opt/lukso/networks/"$NETWORK"/bin/lukso-validator accounts import \
   --keys-dir $KEYS_DIR \
   --wallet-dir $HOME/.lukso/$NETWORK/validator_wallet;
 }
 
 setup_config() {
-    read -p "Enter your coinbase [ETH1 address like: 0x]: " COINBASE;
+    read -p "Creating config file, where do you want to store it? [default: $HOME/.lukso/$NETWORK/config.yaml] " CONFIG_LOCATION;
+    read -p "Enter your coinbase [ETH1 address like: 0xCEdBEB55F9F439ad482a90076B59c2823696f925]: " COINBASE;
     read -p "Type wallet location [default: $HOME/.lukso/$NETWORK/vanguard-wallet ]: " WALLET_DIR;
     read -p "Type datadir location [default: $HOME/.lukso/$NETWORK/datadirs ]: " DATADIR;
     read -p "Type logs location [default: $HOME/.lukso/$NETWORK/logs ]: " LOGSDIR;
-    read -p "Type name of the node [default: l15-<random_string>] : " NODE_NAME;
+    read -p "Type name of the node [default: $NETWORK-<random_string>] : " NODE_NAME;
     read -p "" ;
 }
 
@@ -116,7 +122,7 @@ start_orchestrator() {
   if [ ! -d "$DATADIR/orchestrator" ]; then
     mkdir $DATADIR/orchestrator;
   fi
-  nohup /opt/lukso/networks/"$NETWORK"/bin/orchestrator --datadir=$DATADIR/orchestrator \
+  nohup /opt/lukso/networks/"$NETWORK"/bin/lukso-orchestrator --datadir=$DATADIR/orchestrator \
 		--vanguard-grpc-endpoint=127.0.0.1:4000 \
 		--http \
 		--http.addr=0.0.0.0 \
@@ -133,7 +139,7 @@ start_pandora() {
   /opt/lukso/networks/$NETWORK/bin/pandora --datadir $DATADIR/pandora init /opt/lukso/networks/$NETWORK/config/pandora-genesis.json &> /dev/null
 	nohup /opt/lukso/networks/$NETWORK/bin/pandora --datadir=$DATADIR/pandora \
 	 --networkid=808080 \
-	 --ethstats=l15-$NODE_NAME:$PANDORA_STATS_PASSWORD@stats.pandora.l15.lukso.network \
+	 --ethstats=$NETWORK-$NODE_NAME:$PANDORA_STATS_PASSWORD@stats.pandora.l15.lukso.network \
 	 --port=30405 \
 	 --rpc \
 	 --rpcaddr=0.0.0.0 \
@@ -158,7 +164,7 @@ start_pandora() {
 }
 
 start_vanguard() {
-	nohup /opt/lukso/networks/$NETWORK/bin/beacon-chain \
+	nohup /opt/lukso/networks/$NETWORK/bin/vanguard \
 	      --accept-terms-of-use \
 	      --chain-id=808080 \
 	      --network-id=808080 \
@@ -189,7 +195,7 @@ start_vanguard() {
 }
 
 start_validator() {
-  nohup /opt/lukso/networks/"$NETWORK"/bin/validator \
+  nohup /opt/lukso/networks/"$NETWORK"/bin/lukso-validator \
 	  --datadir="$DATADIR"/validator/ \
 	  --accept-terms-of-use \
 	  --beacon-rpc-provider=localhost:4000 \
@@ -211,7 +217,7 @@ start_eth2stats_client() {
     --beacon.metrics-addr="http://127.0.0.1:8080/metrics" \
     --data.folder=$DATADIR/eth2stats-client \
     --eth2stats.node-name="$NODE_NAME" \
-    --eth2stats.addr="34.141.173.210:9090" \
+    --eth2stats.addr="$VANGUARD_STATS_HOST" \
     --eth2stats.tls="false" >| $LOGSDIR/eth2stats.log  2>&1 &
   disown
 }
@@ -339,11 +345,11 @@ stop_eth2stats_client() {
   echo -n "Stopping eth2stats client... "
   if [ "$FORCE" == true ]; then
 	  echo "[FORCE]";
-  	sudo pkill -9 "eth2stats-client"
+  	sudo pkill -9 "eth2stats-client*"
   	sleep 1
   else
     echo
-    sudo pkill "eth2stats-client"
+    sudo pkill "eth2stats-client*"
     sleep 1
 	fi
 }
@@ -460,6 +466,9 @@ logs() {
   validator)
     tail -f $LOGSDIR/validator.log
     ;;
+  eth2stats)
+    tail -f $LOGSDIR/eth2stats.log
+    ;;
   *)
     echo "SELECT one of the clients ex. pandora";
     ;;
@@ -515,7 +524,7 @@ if [ "$USE_CONFIG_FILE" = true ]; then
   parse_config "$CONFIG_FILE_PATH";
 fi
 
-
+parse_config 'scripts/network-config.yaml';
 case $COMMAND in
 start)
   start $COMMAND_ARG
@@ -544,7 +553,7 @@ attach)
 bind-binaries)
   ;;
 *)
-  echo "Add a command like start"
+  echo "Add a command like start, stop, reset,"
   exit 1
   ;;
 esac
