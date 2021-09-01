@@ -1,10 +1,16 @@
 package cache
 
-import "github.com/pkg/errors"
+import (
+	"github.com/pkg/errors"
+	"math"
+)
 
 var (
 	// maxCacheSize with 1024 consensus infos will be 1024 * 1.5kb.
 	maxCacheSize = 1 << 10
+
+	// need to define maximum size. It will take maximum latest 100 epochs
+	maxInt = math.MaxInt32 - 1
 
 	// errInvalidSlot
 	errInvalidSlot = errors.New("Invalid slot")

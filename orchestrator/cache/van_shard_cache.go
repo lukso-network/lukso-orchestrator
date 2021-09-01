@@ -4,6 +4,7 @@ import (
 	"context"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
+	"math"
 	"sync"
 )
 
@@ -15,7 +16,11 @@ type VanShardingInfoCache struct {
 
 // NewVanShardInfoCache initializes the map and underlying cache.
 func NewVanShardInfoCache(cacheSize int) *VanShardingInfoCache {
-	cache, err := lru.New(cacheSize)
+	is64Bit := uint64(^uintptr(0)) == ^uint64(0)
+	if is64Bit {
+		maxInt = math.MaxInt64 - 1
+	}
+	cache, err := lru.New(maxInt)
 	if err != nil {
 		panic(err)
 	}
