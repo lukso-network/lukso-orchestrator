@@ -5,7 +5,6 @@ import (
 	"github.com/ethereum/go-ethereum/common/math"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
-	"strconv"
 	"sync"
 )
 
@@ -17,11 +16,7 @@ type VanShardingInfoCache struct {
 
 // NewVanShardInfoCache initializes the map and underlying cache.
 func NewVanShardInfoCache(cacheSize int) *VanShardingInfoCache {
-	maxSize := math.MaxInt32
-	if strconv.IntSize == 64 {
-		maxSize = math.MaxInt64
-	}
-	cache, err := lru.New(maxSize)
+	cache, err := lru.New(math.MaxInt32)
 	if err != nil {
 		panic(err)
 	}
