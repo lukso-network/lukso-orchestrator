@@ -11,19 +11,20 @@ import (
 // OnNewConsensusInfo :
 //	- sends the new consensus info to all subscribed pandora clients
 //  - store consensus info into cache as well as into kv consensusInfoDB
-func (s *Service) OnNewConsensusInfo(ctx context.Context, consensusInfo *types.MinimalEpochConsensusInfo) {
+func (s *Service) OnNewConsensusInfo(ctx context.Context, consensusInfo *types.MinimalEpochConsensusInfo) error {
 	nsent := s.consensusInfoFeed.Send(consensusInfo)
 	log.WithField("nsent", nsent).Trace("Send consensus info to subscribers")
 
 	if err := s.orchestratorDB.SaveConsensusInfo(ctx, consensusInfo); err != nil {
 		log.WithError(err).Warn("failed to save consensus info into consensusInfoDB!")
-		return
+		return err
 	}
 
 	if err := s.orchestratorDB.SaveLatestEpoch(ctx); err != nil {
 		log.WithError(err).Warn("failed to save latest epoch into consensusInfoDB!")
-		return
+		return err
 	}
+	return nil
 }
 
 // OnNewPendingVanguardBlock

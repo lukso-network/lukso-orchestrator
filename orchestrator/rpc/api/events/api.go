@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 	generalTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
+	"github.com/pkg/errors"
 	"time"
 )
 
@@ -17,6 +18,9 @@ type Backend interface {
 	SubscribeNewEpochEvent(chan<- *generalTypes.MinimalEpochConsensusInfo) event.Subscription
 	GetSlotStatus(ctx context.Context, slot uint64, hash common.Hash, requestFrom bool) generalTypes.Status
 	LatestEpoch() uint64
+	SubscribeNewVerifiedSlotInfoEvent(chan<- *generalTypes.SlotInfo) event.Subscription
+	VerifiedSlotInfos(fromSlot uint64) map[uint64]*generalTypes.SlotInfo
+	LatestVerifiedSlot() uint64
 }
 
 // PublicFilterAPI offers support to create and manage filters. This will allow external clients to retrieve various
@@ -107,18 +111,40 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, requestedE
 		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported
 	}
 	rpcSub := notifier.CreateSubscription()
-	lastSendEpoch = requestedEpoch
 
 	go func() {
-		consensusInfo := make(chan *generalTypes.MinimalEpochConsensusInfo)
-		consensusInfoSub := api.events.SubscribeConsensusInfo(consensusInfo, requestedEpoch)
 
-		toEpoch := api.backend.LatestEpoch()
-		if err := sendPreviousEpochInfos(api, lastSendEpoch, toEpoch, notifier, rpcSub); err != nil {
-			return
+		batchSender := func(start, end uint64) error {
+			epochInfos := api.backend.ConsensusInfoByEpochRange(start)
+			for _, ei := range epochInfos {
+				if err := notifier.Notify(rpcSub.ID, &generalTypes.MinimalEpochConsensusInfo{
+					Epoch:            ei.Epoch,
+					ValidatorList:    ei.ValidatorList,
+					EpochStartTime:   ei.EpochStartTime,
+					SlotTimeDuration: ei.SlotTimeDuration,
+				}); err != nil {
+					log.WithField("start", start).
+						WithField("end", end).
+						WithError(err).
+						Error("Failed to send epoch info. Could not send over stream.")
+					return errors.Wrap(err, "Failed to send epoch info. Could not send over stream.")
+				}
+			}
+			return nil
 		}
 
-		var flag bool
+		startEpoch := requestedEpoch
+		endEpoch := api.backend.LatestEpoch()
+		if startEpoch <= endEpoch {
+			if err := batchSender(startEpoch, endEpoch); err != nil {
+				return
+			}
+		}
+
+		consensusInfo := make(chan *generalTypes.MinimalEpochConsensusInfo)
+		consensusInfoSub := api.events.SubscribeConsensusInfo(consensusInfo, requestedEpoch)
+		firstTime := true
+
 		for {
 			select {
 			case currentEpochInfo := <-consensusInfo:
@@ -131,13 +157,15 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, requestedE
 					continue
 				}
 
-				if !flag {
-					toEpoch := api.backend.LatestEpoch()
-					if lastSendEpoch < toEpoch {
-						if err := sendPreviousEpochInfos(api, lastSendEpoch, toEpoch, notifier, rpcSub); err != nil {
+				if firstTime {
+					firstTime = false
+					startEpoch = endEpoch
+					endEpoch = api.backend.LatestEpoch()
+
+					if startEpoch+1 < endEpoch {
+						if err := batchSender(startEpoch, endEpoch); err != nil {
 							return
 						}
-						flag = true
 					}
 				}
 
@@ -150,6 +178,7 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, requestedE
 				if nil != err {
 					log.WithField("epoch", currentEpochInfo.Epoch).WithError(err).Error(
 						"Failed to notify consensus info")
+					return
 				}
 			case <-rpcSub.Err():
 				log.Info("Unsubscribing registered pandora client")
@@ -164,42 +193,4 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, requestedE
 	}()
 
 	return rpcSub, nil
-}
-
-func sendPreviousEpochInfos(
-	api *PublicFilterAPI,
-	fromEpoch uint64,
-	toEpoch uint64,
-	notifier *rpc.Notifier,
-	subscription *rpc.Subscription,
-) error {
-	// Fill already known epochs
-	alreadyKnownEpochs := api.backend.ConsensusInfoByEpochRange(fromEpoch)
-
-	log.WithField("fromEpoch", fromEpoch).
-		WithField("latestEpoch", toEpoch).
-		WithField("lastSendEpoch", lastSendEpoch).
-		Debug("Sending epoch infos to pandora client")
-
-	for _, currentEpoch := range alreadyKnownEpochs {
-		err := notifier.Notify(subscription.ID, &generalTypes.MinimalEpochConsensusInfo{
-			Epoch:            currentEpoch.Epoch,
-			ValidatorList:    currentEpoch.ValidatorList,
-			EpochStartTime:   currentEpoch.EpochStartTime,
-			SlotTimeDuration: currentEpoch.SlotTimeDuration,
-		})
-
-		if nil != err {
-			log.WithError(err).Error("Failed to notify already known consensus infos")
-			return err
-		}
-		lastSendEpoch = currentEpoch.Epoch
-	}
-
-	log.WithField("fromEpoch", fromEpoch).
-		WithField("toEpoch", toEpoch).
-		WithField("lastSendEpoch", lastSendEpoch).
-		Debug("Successfully send epoch infos")
-
-	return nil
 }

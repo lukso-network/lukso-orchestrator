@@ -2,15 +2,18 @@ package kv
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/boltdb/bolt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/lukso-network/lukso-orchestrator/shared/bytesutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
+	"github.com/pkg/errors"
 )
 
 var (
-	EmptyHash = common.HexToHash("0000000000000000000000000000000000000000000000000000000000000000")
+	EmptyHash      = common.HexToHash("0000000000000000000000000000000000000000000000000000000000000000")
+	errInvalidSlot = errors.New("invalid slot and not found any verified slot info for the given slot")
 )
 
 // VerifiedSlotInfo
@@ -29,6 +32,43 @@ func (s *Store) VerifiedSlotInfo(slot uint64) (*types.SlotInfo, error) {
 		return decode(value, &slotInfo)
 	})
 	return slotInfo, err
+}
+
+// ConsensusInfos
+func (s *Store) VerifiedSlotInfos(fromSlot uint64) (map[uint64]*types.SlotInfo, error) {
+	latestVerifiedSlot := s.LatestSavedVerifiedSlot()
+	// when requested epoch is greater than stored latest epoch
+	if fromSlot > latestVerifiedSlot {
+		return nil, errors.Wrap(errInvalidSlot, fmt.Sprintf("fromSlot: %d", fromSlot))
+	}
+
+	slotInfos := make(map[uint64]*types.SlotInfo, latestVerifiedSlot-fromSlot)
+	err := s.db.View(func(tx *bolt.Tx) error {
+		bkt := tx.Bucket(verifiedSlotInfosBucket)
+		for slot := fromSlot; slot <= latestVerifiedSlot; slot++ {
+			// fast finding into cache, if the value does not exist in cache, it starts finding into db
+			if v, _ := s.verifiedSlotInfoCache.Get(slot); v != nil {
+				slotInfos[slot] = v.(*types.SlotInfo)
+				continue
+			}
+			// preparing key bytes for searching into db
+			key := bytesutil.Uint64ToBytesBigEndian(slot)
+			enc := bkt.Get(key[:])
+			if enc == nil {
+				return errors.Wrap(errInvalidSlot, fmt.Sprintf("slot: %d", slot))
+			}
+			var slotInfo *types.SlotInfo
+			decode(enc, &slotInfo)
+			slotInfos[slot] = slotInfo
+		}
+		return nil
+	})
+	// the query not successful
+	if err != nil {
+		return nil, err
+	}
+
+	return slotInfos, nil
 }
 
 // SaveVerifiedSlotInfo

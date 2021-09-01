@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum/event"
 	"sync"
 
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
@@ -29,15 +30,16 @@ type Service struct {
 	cancel         context.CancelFunc
 	runError       error
 
-	curSlot uint64
-
+	curSlot                      uint64
+	scope                        event.SubscriptionScope
 	verifiedSlotInfoDB           db.VerifiedSlotInfoDB
 	invalidSlotInfoDB            db.InvalidSlotInfoDB
 	vanguardPendingShardingCache cache.VanguardShardCache
 	pandoraPendingHeaderCache    cache.PandoraHeaderCache
 
-	vanguardShardFeed iface.VanguardShardInfoFeed
-	pandoraHeaderFeed iface2.PandoraHeaderFeed
+	vanguardShardFeed    iface.VanguardShardInfoFeed
+	pandoraHeaderFeed    iface2.PandoraHeaderFeed
+	verifiedSlotInfoFeed event.Feed
 }
 
 //
@@ -118,4 +120,8 @@ func (s *Service) Status() error {
 		return s.runError
 	}
 	return nil
+}
+
+func (s *Service) SubscribeVerifiedSlotInfoEvent(ch chan<- *types.SlotInfo) event.Subscription {
+	return s.scope.Track(s.verifiedSlotInfoFeed.Subscribe(ch))
 }
