@@ -204,6 +204,11 @@ func (o *OrchestratorNode) registerRPCService(cliCtx *cli.Context) error {
 		return err
 	}
 
+	var verifiedSlotInfoFeed *consensus.Service
+	if err := o.services.FetchService(&verifiedSlotInfoFeed); err != nil {
+		return err
+	}
+
 	var ipcapiURL string
 	if cliCtx.String(cmd.IPCPathFlag.Name) != "" {
 		ipcFilePath := cliCtx.String(cmd.IPCPathFlag.Name)
@@ -237,6 +242,7 @@ func (o *OrchestratorNode) registerRPCService(cliCtx *cli.Context) error {
 
 		VanguardPendingShardingCache: o.vanShardInfoCache,
 		PandoraPendingHeaderCache:    o.pandoraInfoCache,
+		VerifiedSlotInfoFeed:         verifiedSlotInfoFeed,
 	})
 	if err != nil {
 		return nil
