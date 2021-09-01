@@ -52,6 +52,15 @@ type OrchestratorNode struct {
 func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 	registry := shared.NewServiceRegistry()
 	ctx, cancel := context.WithCancel(cliCtx.Context)
+
+	// need to define maximum size. It will take maximum latest 100 epochs
+	maxInt := math.MaxInt32 - 1
+	is64Bit := uint64(^uintptr(0)) == ^uint64(0)
+
+	if is64Bit {
+		maxInt = math.MaxInt64 - 1
+	}
+
 	orchestrator := &OrchestratorNode{
 		cliCtx:            cliCtx,
 		ctx:               ctx,
@@ -59,7 +68,7 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 		services:          registry,
 		stop:              make(chan struct{}),
 		pandoraInfoCache:  cache.NewPanHeaderCache(),
-		vanShardInfoCache: cache.NewVanShardInfoCache(1 << 10),
+		vanShardInfoCache: cache.NewVanShardInfoCache(maxInt),
 	}
 
 	if err := orchestrator.startDB(orchestrator.cliCtx); err != nil {

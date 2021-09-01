@@ -82,7 +82,6 @@ func (s *Service) subscribeNewConsensusInfoGRPC(client client.VanguardClient) (e
 			default:
 				vanMinimalConsensusInfo, currentErr := stream.Recv()
 				if nil != currentErr {
-					log.WithError(currentErr).Error("Failed to receive minimalConsensusInfo")
 					continue
 				}
 				if nil == vanMinimalConsensusInfo {
