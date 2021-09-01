@@ -62,6 +62,9 @@ func (s *Service) verifyShardingInfo(slot uint64, vanShardInfo *types.VanguardSh
 			log.WithError(err).Error("Failed to store latest verified slot")
 		}
 
+		// sending verified slot info to rpc service
+		s.verifiedSlotInfoFeed.Send(slotInfo)
+
 		log.WithField("slot", slot).Info("Successfully verified sharding info")
 	} else {
 		// store invalid slot info into invalid slot info bucket

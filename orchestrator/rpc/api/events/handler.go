@@ -149,7 +149,7 @@ func (es *EventSystem) SubscribeConsensusInfo(consensusInfo chan *types.MinimalE
 func (es *EventSystem) SubscribeVerifiedSlotInfo(slotInfo chan *types.SlotInfo) *Subscription {
 	sub := &subscription{
 		id:        rpc.NewID(),
-		typ:       MinConsensusInfoSubscription,
+		typ:       VerifiedSlotInfoSubscription,
 		created:   time.Now(),
 		installed: make(chan struct{}),
 		err:       make(chan error),
