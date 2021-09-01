@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 NETWORK="l15"
-REPOSITORY="http://localhost:8000/l15-cdn";
+REPOSITORY="https://storage.googleapis.com/l16-common/l15-cdn";
 PLATFORM="unknown";
 
 if [ "$OSTYPE" = "linux-gnu" ]; then
@@ -47,7 +47,7 @@ sudo unzip /opt/lukso/tmp/bin.zip -d /opt/lukso/networks/"$NETWORK"/bin;
 
 sudo chmod -R +x /opt/lukso/networks/"$NETWORK"/bin;
 
-sudo ln -s /opt/lukso/networks/"$NETWORK"/bin/lukso-cli /usr/local/bin/lukso-cli;
+sudo ln -s /opt/lukso/networks/"$NETWORK"/bin/lukso /usr/local/bin/lukso;
 
 sudo rm -rf /opt/lukso/tmp;
 

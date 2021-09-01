@@ -136,7 +136,10 @@ start_orchestrator() {
 }
 
 start_pandora() {
-  /opt/lukso/networks/$NETWORK/bin/pandora --datadir $DATADIR/pandora init /opt/lukso/networks/$NETWORK/config/pandora-genesis.json &> /dev/null
+  if [ ! -d "$DATADIR/pandora" ]; then
+    /opt/lukso/networks/$NETWORK/bin/pandora --datadir $DATADIR/pandora init /opt/lukso/networks/$NETWORK/config/pandora-genesis.json &> /dev/null
+    cp /opt/lukso/networks/"$NETWORK"/config/static-nodes.json $DATADIR/pandora/geth;
+  fi
 	nohup /opt/lukso/networks/$NETWORK/bin/pandora --datadir=$DATADIR/pandora \
 	 --networkid=808080 \
 	 --ethstats=$NETWORK-$NODE_NAME:$PANDORA_STATS_PASSWORD@stats.pandora.l15.lukso.network \
@@ -168,9 +171,9 @@ start_vanguard() {
 	      --accept-terms-of-use \
 	      --chain-id=808080 \
 	      --network-id=808080 \
-	      --genesis-state=/opt/lukso/networks/$NETWORK/config/vanguard_genesis.ssz \
+	      --genesis-state=/opt/lukso/networks/$NETWORK/config/vanguard-genesis.ssz \
 	      --datadir=$DATADIR/vanguard/ \
-	      --chain-config-file=/opt/lukso/networks/$NETWORK/config/vanguard-config.yml \
+	      --chain-config-file=/opt/lukso/networks/$NETWORK/config/vanguard-config.yaml \
 	      --bootstrap-node="enr:-Ku4QEL0I7H3EawRwc2ZUevmj-_T0R6JZGMhfp_2KHBlwAt5bwA19c8LSYZzy63EvpsYbifKye6qnE-_vsNimWOz8scBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpCvIkw2g6VTF___________gmlkgnY0gmlwhCPqeliJc2VjcDI1NmsxoQLt36VpP56n0SlTYWcSBwL7aGK_AFwNLGxOGQt91nchMYN1ZHCCEuk" \
 	      --bootstrap-node="enr:-Ku4QAmYtwrQBZ-WJwTPL4xMpTO6BlZcU6IuXljtd_SgC51nGRs98WvxCX0-ZJBs0G9m9tcFPsktbdSr7EliMhrZnfEBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpCvIkw2g6VTF___________gmlkgnY0gmlwhCKNcPOJc2VjcDI1NmsxoQLt36VpP56n0SlTYWcSBwL7aGK_AFwNLGxOGQt91nchMYN1ZHCCEuk" \
 	      --bootstrap-node="enr:-Ku4QEXRrSXB7od-xNeoLuq6GicTHpuuCNRPPR9tM48Iai0-FoHL4JsntmpnwUrC-di-lT6gkbxV7Jikg9s6ImsAT1oBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpCvIkw2g6VTF___________gmlkgnY0gmlwhCPGqi6Jc2VjcDI1NmsxoQLt36VpP56n0SlTYWcSBwL7aGK_AFwNLGxOGQt91nchMYN1ZHCCEuk" \
@@ -366,7 +369,7 @@ stop() {
   if [ "$FORCE" == true ]; then
     read -p "This may result in node data corruption. Continue? (Y/n) " var;
     if [ "$var" != "Y" ]; then
-      echo "Exiting...";
+      echo "Exiting without effect...";
       exit 0;
     fi
   fi
