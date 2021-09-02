@@ -34,13 +34,15 @@ sudo mkdir \
 
 if [ "$PLATFORM" = "linux" ]; then
   sudo wget -O /opt/lukso/tmp/bin.zip "$REPOSITORY"/linux-binaries.zip;
+  sudo wget -O /opt/lukso/tmp/config.zip "$REPOSITORY"/config.zip;
 fi
 
 if [ "$PLATFORM" = "darwin" ]; then
-  sudo wget -O /opt/lukso/tmp/bin.zip "$REPOSITORY"/darwin-binaries.zip;
+  sudo curl --output /opt/lukso/tmp/bin.zip "$REPOSITORY"/darwin-binaries.zip;
+  sudo curl --output /opt/lukso/tmp/config.zip "$REPOSITORY"/config.zip;
+
 fi
 
-sudo wget -O /opt/lukso/tmp/config.zip "$REPOSITORY"/config.zip;
 
 sudo unzip /opt/lukso/tmp/config.zip -d /opt/lukso/networks/"$NETWORK"/config;
 sudo unzip /opt/lukso/tmp/bin.zip -d /opt/lukso/networks/"$NETWORK"/bin;

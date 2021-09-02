@@ -35,7 +35,7 @@ KEYS_DIR="$HOME/.lukso/$NETWORK";
 WALLET_DIR="$HOME/.lukso/$NETWORK/vanguard_wallet";
 ######
 
-######
+###### for config tool
 CONFIG_DATA=();
 ######
 
