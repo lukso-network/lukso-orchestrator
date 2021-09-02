@@ -157,7 +157,7 @@ start_pandora() {
 	 --rpc \
 	 --rpcaddr=0.0.0.0 \
 	 --rpcapi=admin,net,eth,debug,ethash,miner,personal,txpool,web3 \
-	 --bootnodes=enode://4a6ab64c08eca2fd3a96d285b5a2db918f26220eb6b18842ce40b49354198f24eb0961b16c4d552c7318050ce2c7bcd30ef5ca2f9826811fb24b37e3bb07121f@35.234.122.88:45451,enode://4a6ab64c08eca2fd3a96d285b5a2db918f26220eb6b18842ce40b49354198f24eb0961b16c4d552c7318050ce2c7bcd30ef5ca2f9826811fb24b37e3bb07121f@34.141.112.243:45451,enode://4a6ab64c08eca2fd3a96d285b5a2db918f26220eb6b18842ce40b49354198f24eb0961b16c4d552c7318050ce2c7bcd30ef5ca2f9826811fb24b37e3bb07121f@35.198.170.46:45451,enode://4a6ab64c08eca2fd3a96d285b5a2db918f26220eb6b18842ce40b49354198f24eb0961b16c4d552c7318050ce2c7bcd30ef5ca2f9826811fb24b37e3bb07121f@34.141.46.202:45451 \
+	 --bootnodes="$PANDORA_BOOTNODES" \
 	 --rpcport=8545 \
 	 --http.corsdomain="*" \
 	 --ws \
@@ -412,6 +412,15 @@ stop_all() {
 }
 
 stop() {
+
+  if [ $# -eq 0 ]; then
+    ARGUMENT="all";
+  else
+    ARGUMENT=$1;
+  fi
+
+  echo $ARGUMENT;
+
   if [ "$FORCE" == true ]; then
     read -p "This may result in node data corruption. Continue? (Y/n) " var;
     if [ "$var" != "Y" ]; then
@@ -419,7 +428,7 @@ stop() {
       exit 0;
     fi
   fi
-  case "$1" in
+  case "$ARGUMENT" in
   orchestrator)
     stop_orchestrator
   ;;
@@ -470,7 +479,14 @@ reset_all() {
 }
 
 reset() {
-    case "$1" in
+
+  if [ $# -eq 0 ]; then
+    ARGUMENT="none";
+  else
+    ARGUMENT=$1;
+  fi
+
+    case "$ARGUMENT" in
   orchestrator)
     reset_orchestrator
   ;;
@@ -574,7 +590,7 @@ if [ "$USE_CONFIG_FILE" = true ]; then
 fi
 
 parse_config "/opt/lukso/networks/$NETWORK/config/network-config.yaml";
-echo $VANGUARD_BOOTNODES;
+
 case $COMMAND in
 start)
   start $COMMAND_ARG
@@ -595,7 +611,7 @@ wallet)
   import_accounts
   ;;
 logs)
-  logs $COMMAND_ARG
+  logs "$COMMAND_ARG"
   ;;
 attach)
   /opt/lukso/networks/"$NETWORK"/bin/pandora attach $2;
