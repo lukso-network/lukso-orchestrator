@@ -13,7 +13,17 @@ USE_CONFIG_FILE=false;
 FORCE=false;
 #####
 
+##### network info
+CHAIN_ID="808080";
+NETWORK_ID="808080";
+PANDORA_BOOTNODES="";
+VANGUARD_BOOTNODES="";
+PANDORA_STATS_HOST="";
+VANGUARD_STATS_HOST="";
+#####
+
 ##### client info
+RUN_DATE=$(date '+%Y-%m-%d__%H-%M-%S');
 NETWORK="l15";
 IS_VALIDATOR=false;
 COINBASE="0x616e6f6e796d6f75730000000000000000000000";
@@ -131,7 +141,7 @@ start_orchestrator() {
 		--ws.addr=0.0.0.0 \
 		--ws.port=7878 \
 		--pandora-rpc-endpoint=ws://127.0.0.1:8546 \
-		--verbosity=trace >| $LOGSDIR/orchestrator.log  2>&1 &
+		--verbosity=trace >| $LOGSDIR/orchestrator_"$RUN_DATE".log  2>&1 &
 	disown
 }
 
@@ -162,39 +172,75 @@ start_pandora() {
 	 --syncmode="full" \
    --allow-insecure-unlock \
    --nat=extip:$EXTERNAL_IP \
-	 --verbosity=4 >| $LOGSDIR/pandora.log  2>&1 &
+	 --verbosity=4 >| $LOGSDIR/pandora_"$RUN_DATE".log  2>&1 &
 	 disown
 }
 
 start_vanguard() {
-	nohup /opt/lukso/networks/$NETWORK/bin/vanguard \
-	      --accept-terms-of-use \
-	      --chain-id=808080 \
-	      --network-id=808080 \
-	      --genesis-state=/opt/lukso/networks/$NETWORK/config/vanguard-genesis.ssz \
-	      --datadir=$DATADIR/vanguard/ \
-	      --chain-config-file=/opt/lukso/networks/$NETWORK/config/vanguard-config.yaml \
-	      --bootstrap-node="enr:-Ku4QEL0I7H3EawRwc2ZUevmj-_T0R6JZGMhfp_2KHBlwAt5bwA19c8LSYZzy63EvpsYbifKye6qnE-_vsNimWOz8scBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpCvIkw2g6VTF___________gmlkgnY0gmlwhCPqeliJc2VjcDI1NmsxoQLt36VpP56n0SlTYWcSBwL7aGK_AFwNLGxOGQt91nchMYN1ZHCCEuk" \
-	      --bootstrap-node="enr:-Ku4QAmYtwrQBZ-WJwTPL4xMpTO6BlZcU6IuXljtd_SgC51nGRs98WvxCX0-ZJBs0G9m9tcFPsktbdSr7EliMhrZnfEBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpCvIkw2g6VTF___________gmlkgnY0gmlwhCKNcPOJc2VjcDI1NmsxoQLt36VpP56n0SlTYWcSBwL7aGK_AFwNLGxOGQt91nchMYN1ZHCCEuk" \
-	      --bootstrap-node="enr:-Ku4QEXRrSXB7od-xNeoLuq6GicTHpuuCNRPPR9tM48Iai0-FoHL4JsntmpnwUrC-di-lT6gkbxV7Jikg9s6ImsAT1oBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpCvIkw2g6VTF___________gmlkgnY0gmlwhCPGqi6Jc2VjcDI1NmsxoQLt36VpP56n0SlTYWcSBwL7aGK_AFwNLGxOGQt91nchMYN1ZHCCEuk" \
-	      --bootstrap-node="enr:-Ku4QBuS5wqvF6SHaPpuu4r4ZlRRVC1Ojp1zDOAVC1X0PB3gRujAhWZdk2m0kn3FwoPuHft_Sku0tWHSfBVlHoER160Bh2F0dG5ldHOIAAAAAAAAAACEZXRoMpCvIkw2g6VTF___________gmlkgnY0gmlwhCKNLsqJc2VjcDI1NmsxoQLt36VpP56n0SlTYWcSBwL7aGK_AFwNLGxOGQt91nchMYN1ZHCCEuk" \
-	      --http-web3provider=http://127.0.0.1:8545 \
-	      --deposit-contract=0x000000000000000000000000000000000000cafe \
-	      --contract-deployment-block=0 \
-	      --rpc-host=0.0.0.0 \
-	      --monitoring-host=0.0.0.0 \
-	      --verbosity=debug \
-	      --min-sync-peers=2 \
-	      --p2p-max-peers=50 \
-	      --orc-http-provider=http://127.0.0.1:7877 \
-	      --p2p-host-ip="$EXTERNAL_IP" \
-	      --rpc-port=4000 \
-	      --p2p-udp-port=12000 \
-	      --p2p-tcp-port=13000 \
-	      --grpc-gateway-port=3500 \
-	      --update-head-timely \
-	      --lukso-network >| $LOGSDIR/vanguard.log  2>&1 &
-	    disown
+  VANGUARD_BOOTNODES=(${VANGUARD_BOOTNODES//,/ })
+  BOOTNODES_ARGS=()
+  for n in "${VANGUARD_BOOTNODES[@]}"
+  do
+    BOOTNODES_ARGS+=("--bootstrap-node=\"$n\"")
+  done
+  ARGUMENTS=(
+    "--accept-terms-of-use"
+    "--chain-id=808080"
+    "--network-id=808080"
+    "--genesis-state=/opt/lukso/networks/$NETWORK/config/vanguard-genesis.ssz"
+    "--datadir=$DATADIR/vanguard/"
+    "--chain-config-file=/opt/lukso/networks/$NETWORK/config/vanguard-config.yaml"
+    "${BOOTNODES_ARGS[@]}"
+    "--http-web3provider=http://127.0.0.1:8545"
+    "--deposit-contract=0x000000000000000000000000000000000000cafe"
+    "--contract-deployment-block=0"
+    "--rpc-host=0.0.0.0"
+    "--monitoring-host=0.0.0.0"
+    "--verbosity=debug"
+	  "--min-sync-peers=2"
+	  "--p2p-max-peers=50"
+	  "--orc-http-provider=http://127.0.0.1:7877"
+	  "--p2p-host-ip=$EXTERNAL_IP"
+	  "--rpc-port=4000"
+	  "--p2p-udp-port=12000"
+	  "--p2p-tcp-port=13000"
+	  "--grpc-gateway-port=3500"
+	  "--update-head-timely"
+	  "--lukso-network"
+  );
+
+#	nohup /opt/lukso/networks/$NETWORK/bin/vanguard \
+#	      --accept-terms-of-use \
+#	      --chain-id=808080 \
+#	      --network-id=808080 \
+#	      --genesis-state=/opt/lukso/networks/$NETWORK/config/vanguard-genesis.ssz \
+#	      --datadir=$DATADIR/vanguard/ \
+#	      --chain-config-file=/opt/lukso/networks/$NETWORK/config/vanguard-config.yaml \
+#	      --bootstrap-node="enr:-Ku4QEL0I7H3EawRwc2ZUevmj-_T0R6JZGMhfp_2KHBlwAt5bwA19c8LSYZzy63EvpsYbifKye6qnE-_vsNimWOz8scBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpCvIkw2g6VTF___________gmlkgnY0gmlwhCPqeliJc2VjcDI1NmsxoQLt36VpP56n0SlTYWcSBwL7aGK_AFwNLGxOGQt91nchMYN1ZHCCEuk" \
+#	      --bootstrap-node="enr:-Ku4QAmYtwrQBZ-WJwTPL4xMpTO6BlZcU6IuXljtd_SgC51nGRs98WvxCX0-ZJBs0G9m9tcFPsktbdSr7EliMhrZnfEBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpCvIkw2g6VTF___________gmlkgnY0gmlwhCKNcPOJc2VjcDI1NmsxoQLt36VpP56n0SlTYWcSBwL7aGK_AFwNLGxOGQt91nchMYN1ZHCCEuk" \
+#	      --bootstrap-node="enr:-Ku4QEXRrSXB7od-xNeoLuq6GicTHpuuCNRPPR9tM48Iai0-FoHL4JsntmpnwUrC-di-lT6gkbxV7Jikg9s6ImsAT1oBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpCvIkw2g6VTF___________gmlkgnY0gmlwhCPGqi6Jc2VjcDI1NmsxoQLt36VpP56n0SlTYWcSBwL7aGK_AFwNLGxOGQt91nchMYN1ZHCCEuk" \
+#	      --bootstrap-node="enr:-Ku4QBuS5wqvF6SHaPpuu4r4ZlRRVC1Ojp1zDOAVC1X0PB3gRujAhWZdk2m0kn3FwoPuHft_Sku0tWHSfBVlHoER160Bh2F0dG5ldHOIAAAAAAAAAACEZXRoMpCvIkw2g6VTF___________gmlkgnY0gmlwhCKNLsqJc2VjcDI1NmsxoQLt36VpP56n0SlTYWcSBwL7aGK_AFwNLGxOGQt91nchMYN1ZHCCEuk" \
+#	      --http-web3provider=http://127.0.0.1:8545 \
+#	      --deposit-contract=0x000000000000000000000000000000000000cafe \
+#	      --contract-deployment-block=0 \
+#	      --rpc-host=0.0.0.0 \
+#	      --monitoring-host=0.0.0.0 \
+#	      --verbosity=debug \
+#	      --min-sync-peers=2 \
+#	      --p2p-max-peers=50 \
+#	      --orc-http-provider=http://127.0.0.1:7877 \
+#	      --p2p-host-ip="$EXTERNAL_IP" \
+#	      --rpc-port=4000 \
+#	      --p2p-udp-port=12000 \
+#	      --p2p-tcp-port=13000 \
+#	      --grpc-gateway-port=3500 \
+#	      --update-head-timely \
+#	      --lukso-network >| $LOGSDIR/vanguard.log  2>&1 &
+#	    disown
+  nohup /opt/lukso/networks/$NETWORK/bin/vanguard \
+	  "${ARGUMENTS[@]}" \
+	  >| $LOGSDIR/vanguard_"$RUN_DATE".log  2>&1 &
+	disown
 }
 
 start_validator() {
@@ -209,7 +255,7 @@ start_validator() {
 	  --wallet-password-file=./validator/password.txt \
 	  --rpc \
 	  --log-file=$LOGSDIR/validator.log \
-	  --lukso-network >| $LOGSDIR/validator.log  2>&1 &
+	  --lukso-network >| $LOGSDIR/validator_"$RUN_DATE".log  2>&1 &
 	disown
 }
 
@@ -221,7 +267,7 @@ start_eth2stats_client() {
     --data.folder=$DATADIR/eth2stats-client \
     --eth2stats.node-name="$NODE_NAME" \
     --eth2stats.addr="$VANGUARD_STATS_HOST" \
-    --eth2stats.tls="false" >| $LOGSDIR/eth2stats.log  2>&1 &
+    --eth2stats.tls="false" >| $LOGSDIR/eth2stats_"$RUN_DATE".log  2>&1 &
   disown
 }
 
@@ -528,6 +574,7 @@ if [ "$USE_CONFIG_FILE" = true ]; then
 fi
 
 parse_config "/opt/lukso/networks/$NETWORK/config/network-config.yaml";
+echo $VANGUARD_BOOTNODES;
 case $COMMAND in
 start)
   start $COMMAND_ARG
