@@ -22,7 +22,7 @@ PANDORA_STATS_HOST="";
 VANGUARD_STATS_HOST="";
 #####
 
-##### client info
+##### default client values
 RUN_DATE=$(date '+%Y-%m-%d__%H-%M-%S');
 NETWORK="l15";
 IS_VALIDATOR=false;
@@ -97,13 +97,46 @@ import_accounts() {
 }
 
 setup_config() {
-    read -p "Creating config file, where do you want to store it? [default: $HOME/.lukso/$NETWORK/config.yaml] " CONFIG_LOCATION;
-    read -p "Enter your coinbase [ETH1 address like: 0xCEdBEB55F9F439ad482a90076B59c2823696f925]: " COINBASE;
-    read -p "Type wallet location [default: $HOME/.lukso/$NETWORK/vanguard-wallet ]: " WALLET_DIR;
-    read -p "Type datadir location [default: $HOME/.lukso/$NETWORK/datadirs ]: " DATADIR;
+    CONFIG_DATA=();
+    clear;
+    echo "This tool will create config file to be used with node.";
+    echo "Enter desired value or leave it empty to use default.";
+    echo "For paths you can use ";
+    echo;
+
+    DEFAULT="$HOME/.lukso/$NETWORK/config.yaml";
+    LABEL="Config file location [default: $DEFAULT]: "
+    read -p "$LABEL" CONFIG_LOCATION;
+    if [ -z "$CONFIG_LOCATION" ];then
+      echo -e "\033[1A\033[2K$LABEL<Using default>";
+      CONFIG_LOCATION="$DEFAULT";
+    fi
+
+    DEFAULT="0x616e6f6e796d6f75730000000000000000000000";
+    LABEL="Enter your coinbase [default: $DEFAULT]: ";
+    read -p "$LABEL" COINBASE;
+    if [ -z "$COINBASE" ];then
+      echo -e "\033[1A\033[2K$LABEL<Using default>";
+      CONFIG_DATA+=("COINBASE: \"$COINBASE\"");
+    else
+      CONFIG_DATA+=("COINBASE: \"$COINBASE\"");
+    fi
+
+    DEFAULT="$HOME/.lukso/$NETWORK/vanguard-wallet";
+    LABEL="Type wallet location [default: $DEFAULT ]: ";
+    read -p "$LABEL" WALLET_DIR;
+    if [ -z "$WALLET_DIR" ];then
+      echo -e "\033[1A\033[2K$LABEL<Using default>";
+    else
+      CONFIG_DATA+=("WALLET_DIR: \"$WALLET_DIR\"");
+    fi
+
+    read -p "Type data directory (chain will be stored there) location [default: $HOME/.lukso/$NETWORK/datadirs ]: " DATADIR;
     read -p "Type logs location [default: $HOME/.lukso/$NETWORK/logs ]: " LOGSDIR;
     read -p "Type name of the node [default: $NETWORK-<random_string>] : " NODE_NAME;
-    read -p "" ;
+
+    printf '%s\n' "${CONFIG_DATA[@]}" >| "$CONFIG_LOCATION"
+#    echo -e "${CONFIG_DATA[@]}" >| config.yaml
 }
 
 pick_network() {
@@ -215,34 +248,7 @@ start_vanguard() {
 	  "--lukso-network"
   );
 
-#	nohup /opt/lukso/networks/$NETWORK/bin/vanguard \
-#	      --accept-terms-of-use \
-#	      --chain-id=808080 \
-#	      --network-id=808080 \
-#	      --genesis-state=/opt/lukso/networks/$NETWORK/config/vanguard-genesis.ssz \
-#	      --datadir=$DATADIR/vanguard/ \
-#	      --chain-config-file=/opt/lukso/networks/$NETWORK/config/vanguard-config.yaml \
-#	      --bootstrap-node="enr:-Ku4QEL0I7H3EawRwc2ZUevmj-_T0R6JZGMhfp_2KHBlwAt5bwA19c8LSYZzy63EvpsYbifKye6qnE-_vsNimWOz8scBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpCvIkw2g6VTF___________gmlkgnY0gmlwhCPqeliJc2VjcDI1NmsxoQLt36VpP56n0SlTYWcSBwL7aGK_AFwNLGxOGQt91nchMYN1ZHCCEuk" \
-#	      --bootstrap-node="enr:-Ku4QAmYtwrQBZ-WJwTPL4xMpTO6BlZcU6IuXljtd_SgC51nGRs98WvxCX0-ZJBs0G9m9tcFPsktbdSr7EliMhrZnfEBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpCvIkw2g6VTF___________gmlkgnY0gmlwhCKNcPOJc2VjcDI1NmsxoQLt36VpP56n0SlTYWcSBwL7aGK_AFwNLGxOGQt91nchMYN1ZHCCEuk" \
-#	      --bootstrap-node="enr:-Ku4QEXRrSXB7od-xNeoLuq6GicTHpuuCNRPPR9tM48Iai0-FoHL4JsntmpnwUrC-di-lT6gkbxV7Jikg9s6ImsAT1oBh2F0dG5ldHOIAAAAAAAAAACEZXRoMpCvIkw2g6VTF___________gmlkgnY0gmlwhCPGqi6Jc2VjcDI1NmsxoQLt36VpP56n0SlTYWcSBwL7aGK_AFwNLGxOGQt91nchMYN1ZHCCEuk" \
-#	      --bootstrap-node="enr:-Ku4QBuS5wqvF6SHaPpuu4r4ZlRRVC1Ojp1zDOAVC1X0PB3gRujAhWZdk2m0kn3FwoPuHft_Sku0tWHSfBVlHoER160Bh2F0dG5ldHOIAAAAAAAAAACEZXRoMpCvIkw2g6VTF___________gmlkgnY0gmlwhCKNLsqJc2VjcDI1NmsxoQLt36VpP56n0SlTYWcSBwL7aGK_AFwNLGxOGQt91nchMYN1ZHCCEuk" \
-#	      --http-web3provider=http://127.0.0.1:8545 \
-#	      --deposit-contract=0x000000000000000000000000000000000000cafe \
-#	      --contract-deployment-block=0 \
-#	      --rpc-host=0.0.0.0 \
-#	      --monitoring-host=0.0.0.0 \
-#	      --verbosity=debug \
-#	      --min-sync-peers=2 \
-#	      --p2p-max-peers=50 \
-#	      --orc-http-provider=http://127.0.0.1:7877 \
-#	      --p2p-host-ip="$EXTERNAL_IP" \
-#	      --rpc-port=4000 \
-#	      --p2p-udp-port=12000 \
-#	      --p2p-tcp-port=13000 \
-#	      --grpc-gateway-port=3500 \
-#	      --update-head-timely \
-#	      --lukso-network >| $LOGSDIR/vanguard.log  2>&1 &
-#	    disown
+
   nohup /opt/lukso/networks/$NETWORK/bin/vanguard \
 	  "${ARGUMENTS[@]}" \
 	  >| $LOGSDIR/vanguard/vanguard_"$RUN_DATE".log  2>&1 &
@@ -310,8 +316,15 @@ start_all() {
 }
 
 start() {
+
+  if [ $# -eq 0 ]; then
+    ARGUMENT="all";
+  else
+    ARGUMENT=$1;
+  fi
+
   echo -n "Starting: ";
-  case $1 in
+  case $ARGUMENT in
   orchestrator)
     echo "orchestrator client";
     start_orchestrator
@@ -429,7 +442,6 @@ stop() {
     ARGUMENT=$1;
   fi
 
-  echo $ARGUMENT;
 
   if [ "$FORCE" == true ]; then
     read -p "This may result in node data corruption. Continue? (Y/n) " var;
@@ -523,7 +535,7 @@ reset() {
 
 help() {
   echo "USAGE:";
-  echo "lukso-cli <command> [argument] [--flags]"
+  echo "lukso <command> [argument] [--flags]"
   exit;
 }
 
@@ -635,7 +647,7 @@ attach)
 bind-binaries)
   ;;
 *)
-  echo "Add a command like start, stop, reset,"
+  help
   exit 1
   ;;
 esac
