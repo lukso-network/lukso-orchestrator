@@ -35,6 +35,10 @@ KEYS_DIR="$HOME/.lukso/$NETWORK";
 WALLET_DIR="$HOME/.lukso/$NETWORK/vanguard_wallet";
 ######
 
+######
+CONFIG_DATA=();
+######
+
 flags_parsing () {
   #Getopt stuff
   set -o errexit -o pipefail -o noclobber -o nounset
@@ -96,8 +100,20 @@ import_accounts() {
   --wallet-dir $HOME/.lukso/$NETWORK/validator_wallet;
 }
 
+parse_config_field() {
+   VALUE="$1";
+   DEFAULT="$3";
+   LABEL="$2 [default: $DEFAULT]: ";
+    read -p "$LABEL" INPUT;
+    if [ -z "$INPUT" ];then
+      echo -e "\033[1A\033[2K$LABEL<Using default>";
+      CONFIG_DATA+=("$VALUE: \"$DEFAULT\"");
+    else
+      CONFIG_DATA+=("$VALUE: \"$COINBASE\"");
+    fi
+}
+
 setup_config() {
-    CONFIG_DATA=();
     clear;
     echo "This tool will create config file to be used with node.";
     echo "Enter desired value or leave it empty to use default.";
@@ -112,31 +128,13 @@ setup_config() {
       CONFIG_LOCATION="$DEFAULT";
     fi
 
-    DEFAULT="0x616e6f6e796d6f75730000000000000000000000";
-    LABEL="Enter your coinbase [default: $DEFAULT]: ";
-    read -p "$LABEL" COINBASE;
-    if [ -z "$COINBASE" ];then
-      echo -e "\033[1A\033[2K$LABEL<Using default>";
-      CONFIG_DATA+=("COINBASE: \"$COINBASE\"");
-    else
-      CONFIG_DATA+=("COINBASE: \"$COINBASE\"");
-    fi
-
-    DEFAULT="$HOME/.lukso/$NETWORK/vanguard-wallet";
-    LABEL="Type wallet location [default: $DEFAULT ]: ";
-    read -p "$LABEL" WALLET_DIR;
-    if [ -z "$WALLET_DIR" ];then
-      echo -e "\033[1A\033[2K$LABEL<Using default>";
-    else
-      CONFIG_DATA+=("WALLET_DIR: \"$WALLET_DIR\"");
-    fi
-
-    read -p "Type data directory (chain will be stored there) location [default: $HOME/.lukso/$NETWORK/datadirs ]: " DATADIR;
-    read -p "Type logs location [default: $HOME/.lukso/$NETWORK/logs ]: " LOGSDIR;
-    read -p "Type name of the node [default: $NETWORK-<random_string>] : " NODE_NAME;
+    parse_config_field "COINBASE" "Enter your coinbase:" "0x616e6f6e796d6f75730000000000000000000000";
+    parse_config_field "WALLET_DIR" "Type wallet location:" "$HOME/.lukso/$NETWORK/vanguard-wallet";
+    parse_config_field "DATADIR" "Type data directory (chain will be stored there) location:" "$HOME/.lukso/$NETWORK/datadirs";
+    parse_config_field "LOGSDIR" "Type logs location:" "$HOME/.lukso/$NETWORK/logs";
+    parse_config_field "NODE_NAME" "Type name of the node:" "$NETWORK-<random_string>";
 
     printf '%s\n' "${CONFIG_DATA[@]}" >| "$CONFIG_LOCATION"
-#    echo -e "${CONFIG_DATA[@]}" >| config.yaml
 }
 
 pick_network() {
