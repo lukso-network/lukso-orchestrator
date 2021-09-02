@@ -94,7 +94,7 @@ generate_keys() {
 }
 
 import_accounts() {
-  read -p "Where do you have deposit keys? " KEYS_DIR
+  read -p "Where do you have deposit keys? Default: [$KEYS_DIR] " KEYS_DIR
   /opt/lukso/networks/"$NETWORK"/bin/lukso-validator accounts import \
   --keys-dir $KEYS_DIR \
   --wallet-dir $HOME/.lukso/$NETWORK/validator_wallet;
@@ -105,11 +105,12 @@ parse_config_field() {
    DEFAULT="$3";
    LABEL="$2 [default: $DEFAULT]: ";
     read -p "$LABEL" INPUT;
+    eval INPUT="$INPUT";
     if [ -z "$INPUT" ];then
       echo -e "\033[1A\033[2K$LABEL<Using default>";
       CONFIG_DATA+=("$VALUE: \"$DEFAULT\"");
     else
-      CONFIG_DATA+=("$VALUE: \"$COINBASE\"");
+      CONFIG_DATA+=("$VALUE: \"$INPUT\"");
     fi
 }
 
@@ -117,12 +118,13 @@ setup_config() {
     clear;
     echo "This tool will create config file to be used with node.";
     echo "Enter desired value or leave it empty to use default.";
-    echo "For paths you can use ";
+    echo "For paths you can use variables like \$PWD or \".\" as they will be resolved";
     echo;
 
     DEFAULT="$HOME/.lukso/$NETWORK/config.yaml";
     LABEL="Config file location [default: $DEFAULT]: "
     read -p "$LABEL" CONFIG_LOCATION;
+    eval CONFIG_LOCATION="$CONFIG_LOCATION";
     if [ -z "$CONFIG_LOCATION" ];then
       echo -e "\033[1A\033[2K$LABEL<Using default>";
       CONFIG_LOCATION="$DEFAULT";
@@ -134,7 +136,8 @@ setup_config() {
     parse_config_field "LOGSDIR" "Type logs location:" "$HOME/.lukso/$NETWORK/logs";
     parse_config_field "NODE_NAME" "Type name of the node:" "$NETWORK-<random_string>";
 
-    printf '%s\n' "${CONFIG_DATA[@]}" >| "$CONFIG_LOCATION"
+    echo "Saving config to $CONFIG_LOCATION";
+    printf '%s\n' "${CONFIG_DATA[@]}" >| "$CONFIG_LOCATION";
 }
 
 pick_network() {
