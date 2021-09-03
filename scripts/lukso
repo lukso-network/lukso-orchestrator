@@ -166,7 +166,7 @@ start_orchestrator() {
   mkdir -p "$LOGSDIR"/orchestrator;
   echo -n $RUN_DATE >| "$LOGSDIR"/orchestrator/current.tmp;
   if [ ! -d "$DATADIR/orchestrator" ]; then
-    mkdir $DATADIR/orchestrator;
+    mkdir -p $DATADIR/orchestrator;
   fi
   nohup /opt/lukso/networks/"$NETWORK"/bin/lukso-orchestrator --datadir=$DATADIR/orchestrator \
 		--vanguard-grpc-endpoint=127.0.0.1:4000 \
@@ -185,6 +185,7 @@ start_pandora() {
   mkdir -p "$LOGSDIR"/pandora;
   echo -n $RUN_DATE >| "$LOGSDIR"/pandora/current.tmp;
   if [ ! -d "$DATADIR/pandora" ]; then
+    mkdir -p "$DATADIR/pandora";
     /opt/lukso/networks/$NETWORK/bin/pandora --datadir $DATADIR/pandora init /opt/lukso/networks/$NETWORK/config/pandora-genesis.json &> /dev/null
     cp /opt/lukso/networks/"$NETWORK"/config/static-nodes.json $DATADIR/pandora/geth;
   fi
