@@ -42,7 +42,7 @@ func (s *Store) VerifiedSlotInfos(fromSlot uint64) (map[uint64]*types.SlotInfo, 
 		return nil, errors.Wrap(errInvalidSlot, fmt.Sprintf("fromSlot: %d", fromSlot))
 	}
 
-	slotInfos := make(map[uint64]*types.SlotInfo, latestVerifiedSlot-fromSlot)
+	slotInfos := make(map[uint64]*types.SlotInfo)
 	err := s.db.View(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(verifiedSlotInfosBucket)
 		for slot := fromSlot; slot <= latestVerifiedSlot; slot++ {
@@ -55,7 +55,8 @@ func (s *Store) VerifiedSlotInfos(fromSlot uint64) (map[uint64]*types.SlotInfo, 
 			key := bytesutil.Uint64ToBytesBigEndian(slot)
 			enc := bkt.Get(key[:])
 			if enc == nil {
-				return errors.Wrap(errInvalidSlot, fmt.Sprintf("slot: %d", slot))
+				// no data found for the associated slot. So just find for other slot
+				continue
 			}
 			var slotInfo *types.SlotInfo
 			decode(enc, &slotInfo)

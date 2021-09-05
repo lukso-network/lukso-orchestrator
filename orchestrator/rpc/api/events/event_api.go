@@ -2,12 +2,11 @@ package events
 
 import (
 	"context"
+
 	"github.com/ethereum/go-ethereum/rpc"
 	generalTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
 	"github.com/pkg/errors"
 )
-
-var lastSendSlot uint64
 
 // SteamConfirmedPanBlockHashes
 func (api *PublicFilterAPI) SteamConfirmedPanBlockHashes(
@@ -27,10 +26,18 @@ func (api *PublicFilterAPI) SteamConfirmedPanBlockHashes(
 			slotInfos := api.backend.VerifiedSlotInfos(start)
 
 			for i := start; i <= end; i++ {
-				if err := notifier.Notify(rpcSub.ID, &generalTypes.BlockStatus{
+				log.WithField("slot", i).WithField("slotInfo", slotInfos[i]).Debug("sending verifiedInfo to pandora batchsender")
+				if slotInfos[i] == nil {
+					// invalid slot requested. maybe slot 0.
+					continue
+				}
+				log.WithField("hash", slotInfos[i].PandoraHeaderHash).Debug("sending verifiedInfo to pandora batchsender")
+				sendingInfo := &generalTypes.BlockStatus{
 					Hash:   slotInfos[i].PandoraHeaderHash,
 					Status: generalTypes.Verified,
-				}); err != nil {
+				}
+				log.WithField("info", *sendingInfo).Debug("Sending pendingness status to pandora")
+				if err := notifier.Notify(rpcSub.ID, sendingInfo); err != nil {
 					log.WithField("start", start).
 						WithField("end", end).
 						WithError(err).
@@ -43,6 +50,8 @@ func (api *PublicFilterAPI) SteamConfirmedPanBlockHashes(
 
 		startSlot := request.Slot
 		endSlot := api.backend.LatestVerifiedSlot()
+		log.WithField("startSlot", startSlot).WithField("endSlot", endSlot).
+			Debug("received information from pandora")
 
 		if startSlot < endSlot {
 			if err := batchSender(startSlot, endSlot); err != nil {
@@ -57,10 +66,12 @@ func (api *PublicFilterAPI) SteamConfirmedPanBlockHashes(
 		for {
 			select {
 			case verifiedSlotInfo := <-slotInfoCh:
+				log.WithField("hash", verifiedSlotInfo.PandoraHeaderHash).Debug("sending verifiedInfo to pandora")
 				if firstTime {
 					firstTime = false
 					startSlot = endSlot
 					endSlot = api.backend.LatestVerifiedSlot()
+					log.WithField("startSlot", startSlot).WithField("endSlot", endSlot).Debug("for the first time")
 					if startSlot+1 < endSlot {
 						if err := batchSender(startSlot, endSlot); err != nil {
 							return
