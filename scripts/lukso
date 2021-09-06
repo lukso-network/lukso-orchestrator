@@ -556,8 +556,6 @@ logs() {
     CLIENT="validator";
     ;;
   eth2stats)
-#    CURRENT_RUN=$(<"$LOGSDIR"/eth2stats/current.tmp);
-#    tail -f "$LOGSDIR"/eth2stats/eth2stats_"$CURRENT_RUN".log
     CLIENT="eth2stats";
     ;;
   *)
@@ -570,49 +568,117 @@ logs() {
 
 }
 
-flags_parsing "${@:2}"
-eval set -- "$PARSED"
 
-while true; do
-  case "$1" in
-    -h|--help)
-      help
-      shift
-      ;;
-    --network)
-      pick_network "$2";
-      shift 2
-      ;;
-    --l15)
-      pick_network l15;
-      shift
-      ;;
-    --config)
-      USE_CONFIG_FILE=true;
-      CONFIG_FILE_PATH="$2";
-      shift 2
-      ;;
-    --coinbase)
-      COINBASE="$2";
-      shift 2
-      ;;
-    --node-name)
-      NODE_NAME="$2";
-      shift 2
-      ;;
-    --validate)
-      IS_VALIDATOR=true;
-      shift
-      ;;
-    --force)
-      FORCE=true;
-      shift
-      ;;
-    *)
-      break
-      ;;
-  esac
+if [[ "$1" != -* ]]; then
+  COMMAND=$1;
+  shift;
+fi
+
+if [[ "$1" != -* ]]; then
+  COMMAND_ARG=$1;
+  shift;
+fi
+
+optspec=":hv-:"
+while getopts "$optspec" optchar; do
+    case "${optchar}" in
+        h)
+          echo "usage: $0 [-v] [--loglevel[=]<value>]" >&2
+          exit 2
+        ;;
+        -)
+            case "${OPTARG}" in
+                network)
+                  val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+                  pick_network $val;
+                ;;
+
+                l15)
+                  pick_network l15
+                ;;
+
+                config)
+                  USE_CONFIG_FILE=true;
+                  CONFIG_FILE_PATH="$2";
+                ;;
+
+                coinbase)
+                  COINBASE="$2";
+                ;;
+
+                node-name)
+                  NODE_NAME="$2"
+                ;;
+
+                validate)
+                  IS_VALIDATOR=true;
+                ;;
+
+                force)
+                  FORCE=true
+                ;;
+
+                *)
+                    if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+                        echo "Unknown option --${OPTARG}" >&2
+                    fi
+                    ;;
+            esac;;
+
+        *)
+            if [ "$OPTERR" != 1 ] || [ "${optspec:0:1}" = ":" ]; then
+                echo "Non-option argument: '-${OPTARG}'" >&2
+            fi
+            ;;
+    esac
 done
+
+########### remove
+#flags_parsing "${@:2}"
+#eval set -- "$PARSED"
+#
+#
+#
+#while true; do
+#  case "$1" in
+#    -h|--help)
+#      help
+#      shift
+#      ;;
+#    --network)
+#      pick_network "$2";
+#      shift 2
+#      ;;
+#    --l15)
+#      pick_network l15;
+#      shift
+#      ;;
+#    --config)
+#      USE_CONFIG_FILE=true;
+#      CONFIG_FILE_PATH="$2";
+#      shift 2
+#      ;;
+#    --coinbase)
+#      COINBASE="$2";
+#      shift 2
+#      ;;
+#    --node-name)
+#      NODE_NAME="$2";
+#      shift 2
+#      ;;
+#    --validate)
+#      IS_VALIDATOR=true;
+#      shift
+#      ;;
+#    --force)
+#      FORCE=true;
+#      shift
+#      ;;
+#    *)
+#      break
+#      ;;
+#  esac
+#done
 
 
 if [ "$USE_CONFIG_FILE" = true ]; then
