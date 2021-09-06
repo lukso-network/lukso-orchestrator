@@ -29,6 +29,7 @@ func (s *Service) OnNewPendingHeader(ctx context.Context, header *eth1Types.Head
 	}
 
 	log.WithField("slot", panExtraDataWithSig.Slot).
+		WithField("blockNumber", header.Number.Uint64()).
 		WithField("headerHash", header.Hash()).
 		Info("New pandora header info has arrived")
 

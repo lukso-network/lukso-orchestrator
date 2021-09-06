@@ -61,6 +61,7 @@ func (s *Service) OnNewPendingVanguardBlock(ctx context.Context, block *eth.Beac
 	}
 
 	log.WithField("slot", block.Slot).
+		WithField("blockNumber", shardInfo.BlockNumber).
 		WithField("headerHash", common.BytesToHash(cachedShardInfo.BlockHash[:])).
 		Info("New vanguard shard info has arrived")
 
