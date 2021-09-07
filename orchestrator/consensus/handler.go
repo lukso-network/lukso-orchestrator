@@ -38,7 +38,10 @@ func (s *Service) verifyShardingInfo(slot uint64, vanShardInfo *types.VanguardSh
 		VanguardBlockHash: common.BytesToHash(vanShardInfo.BlockHash[:]),
 	}
 	status := CompareShardingInfo(header, vanShardInfo.ShardInfo)
-
+	slotInfoWithStatus := &types.SlotInfoWithStatus{
+		PandoraHeaderHash: header.Hash(),
+		VanguardBlockHash: common.BytesToHash(vanShardInfo.BlockHash[:]),
+	}
 	//removing previous cached slots which dont verified yet. By convention, they are skipped
 	defer func() {
 		s.pandoraPendingHeaderCache.Remove(s.ctx, slot)
@@ -61,10 +64,7 @@ func (s *Service) verifyShardingInfo(slot uint64, vanShardInfo *types.VanguardSh
 		if err := s.verifiedSlotInfoDB.SaveLatestVerifiedHeaderHash(); err != nil {
 			log.WithError(err).Error("Failed to store latest verified slot")
 		}
-
-		// sending verified slot info to rpc service
-		s.verifiedSlotInfoFeed.Send(slotInfo)
-
+		slotInfoWithStatus.Status = types.Verified
 		log.WithField("slot", slot).Info("Successfully verified sharding info")
 	} else {
 		// store invalid slot info into invalid slot info bucket
@@ -74,7 +74,11 @@ func (s *Service) verifyShardingInfo(slot uint64, vanShardInfo *types.VanguardSh
 				"Failed to store invalid slot info")
 			return err
 		}
+		slotInfoWithStatus.Status = types.Invalid
 		log.WithField("slot", slot).Info("Invalid sharding info")
 	}
+
+	// sending verified slot info to rpc service
+	s.verifiedSlotInfoFeed.Send(slotInfoWithStatus)
 	return nil
 }

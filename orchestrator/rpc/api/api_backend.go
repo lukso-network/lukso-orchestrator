@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/ethereum/go-ethereum/common"
+	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/ethereum/go-ethereum/event"
@@ -35,7 +36,7 @@ func (backend *Backend) SubscribeNewEpochEvent(ch chan<- *types.MinimalEpochCons
 	return backend.ConsensusInfoFeed.SubscribeMinConsensusInfoEvent(ch)
 }
 
-func (backend *Backend) SubscribeNewVerifiedSlotInfoEvent(ch chan<- *types.SlotInfo) event.Subscription {
+func (backend *Backend) SubscribeNewVerifiedSlotInfoEvent(ch chan<- *types.SlotInfoWithStatus) event.Subscription {
 	return backend.VerifiedSlotInfoFeed.SubscribeVerifiedSlotInfoEvent(ch)
 }
 
@@ -61,6 +62,14 @@ func (backend *Backend) LatestEpoch() uint64 {
 
 func (backend *Backend) LatestVerifiedSlot() uint64 {
 	return backend.VerifiedSlotInfoDB.LatestSavedVerifiedSlot()
+}
+
+func (backed *Backend) PendingPandoraHeaders() []*eth1Types.Header {
+	headers, err := backed.PandoraPendingHeaderCache.GetAll()
+	if err != nil {
+		return nil
+	}
+	return headers
 }
 
 // GetSlotStatus

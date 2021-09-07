@@ -122,6 +122,6 @@ func (s *Service) Status() error {
 	return nil
 }
 
-func (s *Service) SubscribeVerifiedSlotInfoEvent(ch chan<- *types.SlotInfo) event.Subscription {
+func (s *Service) SubscribeVerifiedSlotInfoEvent(ch chan<- *types.SlotInfoWithStatus) event.Subscription {
 	return s.scope.Track(s.verifiedSlotInfoFeed.Subscribe(ch))
 }

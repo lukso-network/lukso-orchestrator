@@ -37,7 +37,7 @@ type subscription struct {
 
 	epoch         uint64 // last served epoch number
 	consensusInfo chan *types.MinimalEpochConsensusInfo
-	slotInfo      chan *types.SlotInfo
+	slotInfo      chan *types.SlotInfoWithStatus
 }
 
 // EventSystem creates subscriptions, processes events and broadcasts them to the
@@ -53,7 +53,7 @@ type EventSystem struct {
 	install         chan *subscription                    // install filter for event notification
 	uninstall       chan *subscription                    // remove filter for event notification
 	consensusInfoCh chan *types.MinimalEpochConsensusInfo // Channel to receive new new consensus info event
-	slotInfoCh      chan *types.SlotInfo
+	slotInfoCh      chan *types.SlotInfoWithStatus
 }
 
 // NewEventSystem creates a new manager that listens for event on the given mux,
@@ -68,7 +68,7 @@ func NewEventSystem(backend Backend) *EventSystem {
 		install:         make(chan *subscription),
 		uninstall:       make(chan *subscription),
 		consensusInfoCh: make(chan *types.MinimalEpochConsensusInfo, 1),
-		slotInfoCh:      make(chan *types.SlotInfo, 1),
+		slotInfoCh:      make(chan *types.SlotInfoWithStatus, 1),
 	}
 
 	// Subscribe events
@@ -146,7 +146,7 @@ func (es *EventSystem) SubscribeConsensusInfo(consensusInfo chan *types.MinimalE
 }
 
 // SubscribeVerifiedSlotInfo
-func (es *EventSystem) SubscribeVerifiedSlotInfo(slotInfo chan *types.SlotInfo) *Subscription {
+func (es *EventSystem) SubscribeVerifiedSlotInfo(slotInfo chan *types.SlotInfoWithStatus) *Subscription {
 	sub := &subscription{
 		id:        rpc.NewID(),
 		typ:       VerifiedSlotInfoSubscription,
@@ -168,7 +168,7 @@ func (es *EventSystem) handleConsensusInfoEvent(filters filterIndex, ev *types.M
 }
 
 // handleVerifiedSlotInfoEvent
-func (es *EventSystem) handleVerifiedSlotInfoEvent(filters filterIndex, si *types.SlotInfo) {
+func (es *EventSystem) handleVerifiedSlotInfoEvent(filters filterIndex, si *types.SlotInfoWithStatus) {
 	for _, f := range filters[VerifiedSlotInfoSubscription] {
 		f.slotInfo <- si
 	}

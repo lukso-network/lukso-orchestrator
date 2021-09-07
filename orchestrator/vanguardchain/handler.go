@@ -52,7 +52,7 @@ func (s *Service) OnNewPendingVanguardBlock(ctx context.Context, block *eth.Beac
 		blockHashHex := common.BytesToHash(cachedShardInfo.BlockHash[:])
 		if slotInfo.VanguardBlockHash == blockHashHex {
 			log.WithField("slot", block.Slot).
-				WithField("headerHash", blockHash).
+				WithField("shardInfoHash", shardInfo.Hash).
 				Info("Vanguard shard info is already in verified slot info db")
 			return nil
 		}
@@ -62,7 +62,7 @@ func (s *Service) OnNewPendingVanguardBlock(ctx context.Context, block *eth.Beac
 
 	log.WithField("slot", block.Slot).
 		WithField("blockNumber", shardInfo.BlockNumber).
-		WithField("headerHash", common.BytesToHash(cachedShardInfo.BlockHash[:])).
+		WithField("shardInfoHash", shardInfo.Hash).
 		Info("New vanguard shard info has arrived")
 
 	// caching the shard info into sharding cache
