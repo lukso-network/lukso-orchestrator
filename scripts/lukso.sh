@@ -106,7 +106,7 @@ function run_orchestrator {
 		--ws.addr=0.0.0.0 \
 		--ws.port=7878 \
 		--pandora-rpc-endpoint=./pandora/datadir/geth.ipc \
-		--ipcpath=./orchestrator/datadir
+		--ipcpath=./orchestrator/datadir \
 		--verbosity=trace > ./orchestrator/orchestrator.log  2>&1 &
 	disown
 }
