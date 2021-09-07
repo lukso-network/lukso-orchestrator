@@ -2,14 +2,11 @@ package events
 
 import (
 	"context"
-	"time"
 
 	"github.com/ethereum/go-ethereum/rpc"
 	generalTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
 	"github.com/pkg/errors"
 )
-
-var pendingHashesNotifierTickInterval = 5 * time.Second
 
 // SteamConfirmedPanBlockHashes
 func (api *PublicFilterAPI) SteamConfirmedPanBlockHashes(
@@ -65,8 +62,6 @@ func (api *PublicFilterAPI) SteamConfirmedPanBlockHashes(
 		slotInfoCh := make(chan *generalTypes.SlotInfoWithStatus)
 		verifiedSlotInfoSub := api.events.SubscribeVerifiedSlotInfo(slotInfoCh)
 		firstTime := true
-		ticker := time.NewTicker(pendingHashesNotifierTickInterval)
-		defer ticker.Stop()
 
 		for {
 			select {
@@ -91,19 +86,6 @@ func (api *PublicFilterAPI) SteamConfirmedPanBlockHashes(
 					log.WithField("hash", slotInfoWithStatus.PandoraHeaderHash).
 						Error("Failed to notify slot info status. Could not send over stream.")
 					return
-				}
-			case <-ticker.C:
-				pendingHeaders := api.backend.PendingPandoraHeaders()
-				log.WithField("size", len(pendingHeaders)).Debug("Sending pending pandora header hashes to pandora")
-				for _, header := range pendingHeaders {
-					if err := notifier.Notify(rpcSub.ID, &generalTypes.BlockStatus{
-						Hash:   header.Hash(),
-						Status: generalTypes.Pending,
-					}); err != nil {
-						log.WithField("hash", header.Hash()).
-							Error("Failed to notify pending pandora header hash. Could not send over stream.")
-						return
-					}
 				}
 			case <-rpcSub.Err():
 				log.Info("Unsubscribing registered subscriber from SteamConfirmedPanBlockHashes")
