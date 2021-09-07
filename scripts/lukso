@@ -117,7 +117,7 @@ setup_config() {
     parse_config_field "WALLET_DIR" "Type wallet location:" "$HOME/.lukso/$NETWORK/vanguard-wallet";
     parse_config_field "DATADIR" "Type data directory (chain will be stored there) location:" "$HOME/.lukso/$NETWORK/datadirs";
     parse_config_field "LOGSDIR" "Type logs location:" "$HOME/.lukso/$NETWORK/logs";
-    parse_config_field "NODE_NAME" "Type name of the node:" "$NETWORK-<random_string>";
+    parse_config_field "NODE_NAME" "Type name of the node:" "$NETWORK-$NODE_NAME";
 
     echo "Saving config to $CONFIG_LOCATION";
     printf '%s\n' "${CONFIG_DATA[@]}" >| "$CONFIG_LOCATION";
