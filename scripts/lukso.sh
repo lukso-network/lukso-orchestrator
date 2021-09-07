@@ -1,9 +1,9 @@
 #### Lukso Deployment script for linux and mac ####
 # PLEASE change the git tag acording to the latest release #
 
-export GIT_PANDORA="v0.0.0-beta.2"
-export GIT_VANGUARD="v0.0.0-beta.2"
-export GIT_ORCH="v0.0.0-beta"
+export GIT_PANDORA="v0.0.0-theta.test1"
+export GIT_VANGUARD="v0.0.0-beta.5"
+export GIT_ORCH="v0.0.0-beta.7"
 
 export OS_NAME=$(uname -s)
 
@@ -105,7 +105,8 @@ function run_orchestrator {
 		--ws \
 		--ws.addr=0.0.0.0 \
 		--ws.port=7878 \
-		--pandora-rpc-endpoint=ws://127.0.0.1:8546 \
+		--pandora-rpc-endpoint=./pandora/datadir/geth.ipc \
+		--ipcpath=./orchestrator/datadir
 		--verbosity=trace > ./orchestrator/orchestrator.log  2>&1 &
 	disown
 }
@@ -187,7 +188,7 @@ function run_pandora {
 	 --ws.port=8546 \
 	 --ws.origins="*" \
 	 --mine \
-	 --miner.notify=ws://127.0.0.1:7878,http://127.0.0.1:7877 \
+	 --miner.notify=./orchestrator/datadir/orchestrator.ipc \
 	 --miner.etherbase=91b382af07767Bdab2569665AC30125E978a0688 \
 	 --nat=extip:$EXTERNAL_IP \
 	 --syncmode="full" \
@@ -280,7 +281,7 @@ function run_vanguard {
 	      --verbosity=info \
 	      --min-sync-peers=2 \
 	      --p2p-max-peers=50 \
-	      --orc-http-provider=http://127.0.0.1:7877 \
+	      --orc-http-provider=./orchestrator/datadir/orchestrator.ipc \
 	      --p2p-host-ip=$EXTERNAL_IP \
 	      --rpc-port=4000 \
 	      --p2p-udp-port=12000 \
@@ -361,8 +362,8 @@ function run_validator {
 	  --accept-terms-of-use \
 	  --beacon-rpc-provider=localhost:4000 \
 	  --chain-config-file=./config/vanguard-config.yml \
-	  --verbosity=info \
-	  --pandora-http-provider=http://127.0.0.1:8545 \
+	  --verbosity=debug \
+	  --pandora-http-provider=./pandora/datadir/geth.ipc \
 	  --wallet-dir=./validator/wallet \
 	  --wallet-password-file=./validator/password.txt \
 	  --rpc \
