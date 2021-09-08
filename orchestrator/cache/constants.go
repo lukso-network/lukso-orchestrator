@@ -12,6 +12,9 @@ var (
 	// need to define maximum size. It will take maximum latest 100 epochs
 	maxInt = math.MaxInt32 - 1
 
+	// cacheRemovalInterval is the time after which cache data should be removed
+	cacheRemovalInterval = 5
+
 	// errInvalidSlot
 	errInvalidSlot = errors.New("Invalid slot")
 
