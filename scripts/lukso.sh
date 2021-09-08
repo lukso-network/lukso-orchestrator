@@ -3,7 +3,7 @@
 
 export GIT_PANDORA="v0.0.0-theta.test1"
 export GIT_VANGUARD="v0.0.0-beta.5"
-export GIT_ORCH="v0.0.0-beta.7"
+export GIT_ORCH="v0.0.0-theta.test3"
 
 export OS_NAME=$(uname -s)
 
@@ -105,8 +105,7 @@ function run_orchestrator {
 		--ws \
 		--ws.addr=0.0.0.0 \
 		--ws.port=7878 \
-		--pandora-rpc-endpoint=./pandora/datadir/geth.ipc \
-		--ipcpath=./orchestrator/datadir \
+		--pandora-rpc-endpoint=ws://127.0.0.1:8546 \
 		--verbosity=trace > ./orchestrator/orchestrator.log  2>&1 &
 	disown
 }
@@ -167,9 +166,6 @@ function run_pandora {
 	  download_pandora_binary $1
   	fi
 
-  	if [[ ! -f ./pandora/datadir/geth/static-nodes.json ]]; then
-	  download_static_node_info
-  	fi
 
 	./bin/pandora --datadir ./pandora/datadir init ./config/pandora-genesis.json &> /dev/null
 	nohup ./bin/pandora --datadir=./pandora/datadir \
@@ -188,13 +184,13 @@ function run_pandora {
 	 --ws.port=8546 \
 	 --ws.origins="*" \
 	 --mine \
-	 --miner.notify=./orchestrator/datadir/orchestrator.ipc \
+	 --miner.notify=ws://127.0.0.1:7878 \
 	 --miner.etherbase=91b382af07767Bdab2569665AC30125E978a0688 \
 	 --nat=extip:$EXTERNAL_IP \
 	 --syncmode="full" \
    --allow-insecure-unlock \
    -nat=extip:$EXTERNAL_IP \
-	 --verbosity=3 > ./pandora/pandora.log  2>&1 &
+	 --verbosity=4 > ./pandora/pandora.log  2>&1 &
 	 disown
 }
 
@@ -257,7 +253,7 @@ function run_vanguard {
   	if [[ ! -f ./config/vanguard-config.yml ]]; then
   		download_vanguard_config
   	fi
-	
+
 	if [[ ! -f ./bin/beacon-chain ]]; then
 		download_vanguard_binary $1
   	fi
@@ -278,10 +274,10 @@ function run_vanguard {
 	      --contract-deployment-block=0 \
 	      --rpc-host=0.0.0.0 \
 	      --monitoring-host=0.0.0.0 \
-	      --verbosity=info \
+	      --verbosity=debug \
 	      --min-sync-peers=2 \
 	      --p2p-max-peers=50 \
-	      --orc-http-provider=./orchestrator/datadir/orchestrator.ipc \
+	      --orc-http-provider=http://127.0.0.1:7877 \
 	      --p2p-host-ip=$EXTERNAL_IP \
 	      --rpc-port=4000 \
 	      --p2p-udp-port=12000 \
@@ -331,19 +327,19 @@ function download_validator_binary {
 function download_validator_password {
 	echo "downloading default validator password ..."
 	mkdir -p ./validator
-	wget https://storage.googleapis.com/lukso-assets/config/password.txt -O ./validator/password.txt	
+	wget https://storage.googleapis.com/lukso-assets/config/password.txt -O ./validator/password.txt
 }
 
 function create_validator_password {
 	echo "importing validator password ..."
 	mkdir -p ./validator
-	echo "$1" > ./validator/password.txt	
+	echo "$1" > ./validator/password.txt
 }
 
 function run_validator {
 
 	mkdir -p ./validator
-	
+
 	if [[ ! -f ./bin/validator ]]; then
 		download_validator_binary $1
 	fi
@@ -354,7 +350,7 @@ function run_validator {
 
 	if [[ ! -f ./config/vanguard-config.yml ]]; then
 		download_vanguard_config
-	fi	
+	fi
 
 	echo "##### Starting validator node #####"
 	nohup ./bin/validator \
@@ -363,7 +359,7 @@ function run_validator {
 	  --beacon-rpc-provider=localhost:4000 \
 	  --chain-config-file=./config/vanguard-config.yml \
 	  --verbosity=debug \
-	  --pandora-http-provider=./pandora/datadir/geth.ipc \
+	  --pandora-http-provider=http://127.0.0.1:8545 \
 	  --wallet-dir=./validator/wallet \
 	  --wallet-password-file=./validator/password.txt \
 	  --rpc \
