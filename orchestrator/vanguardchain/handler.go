@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	eth "github.com/prysmaticlabs/ethereumapis/eth/v1alpha1"
 )
@@ -38,7 +39,7 @@ func (s *Service) OnNewPendingVanguardBlock(ctx context.Context, block *eth.Beac
 	if len(pandoraShards) < 1 {
 		// The first value is the sharding info. If not present throw error
 		log.WithField("pandoraShard length", len(pandoraShards)).Error("pandora sharding info not present")
-		return errors.New("Invalid shard info length in vanguard block body")
+		return errors.New("invalid shard info length in vanguard block body")
 	}
 
 	shardInfo := pandoraShards[0]
@@ -52,7 +53,7 @@ func (s *Service) OnNewPendingVanguardBlock(ctx context.Context, block *eth.Beac
 		blockHashHex := common.BytesToHash(cachedShardInfo.BlockHash[:])
 		if slotInfo.VanguardBlockHash == blockHashHex {
 			log.WithField("slot", block.Slot).
-				WithField("shardInfoHash", shardInfo.Hash).
+				WithField("shardInfoHash", hexutil.Encode(shardInfo.Hash)).
 				Info("Vanguard shard info is already in verified slot info db")
 			return nil
 		}
@@ -62,7 +63,7 @@ func (s *Service) OnNewPendingVanguardBlock(ctx context.Context, block *eth.Beac
 
 	log.WithField("slot", block.Slot).
 		WithField("blockNumber", shardInfo.BlockNumber).
-		WithField("shardInfoHash", shardInfo.Hash).
+		WithField("shardInfoHash", hexutil.Encode(shardInfo.Hash)).
 		Info("New vanguard shard info has arrived")
 
 	// caching the shard info into sharding cache
