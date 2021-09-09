@@ -16,6 +16,7 @@ func (s *Service) processPandoraHeader(headerInfo *types.PandoraHeaderInfo) erro
 	if vanShardInfo != nil {
 		return s.verifyShardingInfo(slot, vanShardInfo, headerInfo.Header)
 	}
+	s.pandoraPendingHeaderCache.Put(s.ctx, headerInfo.Slot, headerInfo.Header)
 	return nil
 }
 
@@ -25,9 +26,9 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 
 	headerInfo, _ := s.pandoraPendingHeaderCache.Get(s.ctx, slot)
 	if headerInfo != nil {
-		// TODO- compare shard info and header
 		return s.verifyShardingInfo(slot, vanShardInfo, headerInfo)
 	}
+	s.vanguardPendingShardingCache.Put(s.ctx, vanShardInfo.Slot, vanShardInfo)
 	return nil
 }
 
