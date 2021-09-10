@@ -86,7 +86,7 @@ func (s *Service) Start() {
 							WithField("headerHash", newPanHeaderInfo.Header.Hash()).
 							Info("Pandora header is already in verified slot info db")
 
-						s.verifiedSlotInfoFeed.Send(types.SlotInfoWithStatus{
+						s.verifiedSlotInfoFeed.Send(&types.SlotInfoWithStatus{
 							VanguardBlockHash: slotInfo.VanguardBlockHash,
 							PandoraHeaderHash: slotInfo.PandoraHeaderHash,
 							Status:            types.Verified,
