@@ -1,9 +1,9 @@
 #### Lukso Deployment script for linux and mac ####
 # PLEASE change the git tag acording to the latest release #
 
-export GIT_PANDORA="v0.0.0-theta.test1"
-export GIT_VANGUARD="v0.0.0-beta.5"
-export GIT_ORCH="v0.0.0-theta.test3"
+export GIT_PANDORA="v0.1.0-beta.1"
+export GIT_VANGUARD="v0.1.0-beta.1"
+export GIT_ORCH="v0.1.0-beta.1"
 
 export OS_NAME=$(uname -s)
 
@@ -164,6 +164,10 @@ function run_pandora {
 
   	if [[ ! -f ./bin/pandora ]]; then
 	  download_pandora_binary $1
+  	fi
+
+  	if [[ ! -f ./pandora/datadir/geth/static-nodes.json ]]; then
+	  download_static_node_info
   	fi
 
 
