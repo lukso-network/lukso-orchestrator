@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
@@ -23,40 +24,40 @@ func CompareShardingInfo(ph *eth1Types.Header, vs *eth2Types.PandoraShard) bool 
 
 	// match header hash
 	if ph.Hash() != common.BytesToHash(vs.GetHash()) {
-		log.WithField("pandora header hash", ph.Hash().Bytes()).
-			WithField("vanguard header hash", vs.GetHash()).
+		log.WithField("pandora header hash", ph.Hash()).
+			WithField("vanguard header hash", hexutil.Encode(vs.GetHash())).
 			Error("header hash mismatched")
 		return false
 	}
 
 	// match parent hash
 	if ph.ParentHash != common.BytesToHash(vs.GetParentHash()) {
-		log.WithField("pandora data parent hash", ph.ParentHash.Bytes()).
-			WithField("vanguard parent hash", vs.ParentHash).
+		log.WithField("pandora data parent hash", ph.ParentHash).
+			WithField("vanguard parent hash", hexutil.Encode(vs.ParentHash)).
 			Error("parent hash mismatched")
 		return false
 	}
 
 	// match state root hash
 	if ph.Root != common.BytesToHash(vs.GetStateRoot()) {
-		log.WithField("pandora data root hash", ph.Root.Bytes()).
-			WithField("vanguard state root hash", vs.StateRoot).
+		log.WithField("pandora data root hash", ph.Root).
+			WithField("vanguard state root hash", hexutil.Encode(vs.StateRoot)).
 			Error("state root hash mismatched")
 		return false
 	}
 
 	// match TxHash
 	if ph.TxHash != common.BytesToHash(vs.GetTxHash()) {
-		log.WithField("pandora data tx hash", ph.TxHash.Bytes()).
-			WithField("vanguard tx hash", vs.TxHash).
+		log.WithField("pandora data tx hash", ph.TxHash).
+			WithField("vanguard tx hash", hexutil.Encode(vs.TxHash)).
 			Error("tx hash mismatched")
 		return false
 	}
 
 	// match receiptHash
 	if ph.ReceiptHash != common.BytesToHash(vs.GetReceiptHash()) {
-		log.WithField("pandora data receipt hash", ph.ReceiptHash.Bytes()).
-			WithField("vanguard receipt hash", vs.ReceiptHash).
+		log.WithField("pandora data receipt hash", ph.ReceiptHash).
+			WithField("vanguard receipt hash", hexutil.Encode(vs.ReceiptHash)).
 			Error("receipt hash mismatched")
 		return false
 	}
@@ -72,8 +73,8 @@ func CompareShardingInfo(ph *eth1Types.Header, vs *eth2Types.PandoraShard) bool 
 
 	// match signature
 	if pandoraExtraDataWithSig.BlsSignatureBytes != types.BytesToSig(vs.GetSignature()) {
-		log.WithField("pandora data signature", pandoraExtraDataWithSig.BlsSignatureBytes.Bytes()).
-			WithField("vanguard signature", vs.GetSignature()).
+		log.WithField("pandora data signature", hexutil.Encode(pandoraExtraDataWithSig.BlsSignatureBytes.Bytes())).
+			WithField("vanguard signature", hexutil.Encode(vs.GetSignature())).
 			Error("signature mismatched")
 		return false
 	}
