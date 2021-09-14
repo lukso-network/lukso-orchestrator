@@ -203,7 +203,7 @@ start_orchestrator() {
   if [ ! -d "$DATADIR/orchestrator" ]; then
     mkdir -p $DATADIR/orchestrator;
   fi
-  nohup /opt/lukso/networks/"$NETWORK"/bin/lukso-orchestrator --datadir=$DATADIR/orchestrator \
+  nohup lukso-orchestrator --datadir=$DATADIR/orchestrator \
 		--vanguard-grpc-endpoint=127.0.0.1:4000 \
 		--http \
 		--http.addr=0.0.0.0 \
@@ -287,7 +287,7 @@ start_vanguard() {
   );
 
 
-  nohup /opt/lukso/networks/$NETWORK/bin/vanguard \
+  nohup vanguard \
 	  "${ARGUMENTS[@]}" \
 	  >| $LOGSDIR/vanguard/vanguard_"$RUN_DATE".log  2>&1 &
 	disown
@@ -296,7 +296,8 @@ start_vanguard() {
 start_validator() {
   mkdir -p "$LOGSDIR"/validator;
   echo -n $RUN_DATE >| "$LOGSDIR"/validator/current.tmp;
-  nohup /opt/lukso/networks/"$NETWORK"/bin/lukso-validator \
+
+  nohup lukso-validator \
 	  --datadir="$DATADIR"/validator/ \
 	  --accept-terms-of-use \
 	  --beacon-rpc-provider=localhost:4000 \
@@ -314,7 +315,8 @@ start_validator() {
 start_eth2stats_client() {
   mkdir -p "$LOGSDIR"/eth2stats;
   echo -n $RUN_DATE >| "$LOGSDIR"/eth2stats/current.tmp;
-  nohup /opt/lukso/networks/"$NETWORK"/bin/eth2stats-client run \
+
+  nohup eth2stats-client run \
     --beacon.type="prysm" \
     --beacon.addr="127.0.0.1:4000" \
     --beacon.metrics-addr="http://127.0.0.1:8080/metrics" \
