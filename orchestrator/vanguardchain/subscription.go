@@ -1,6 +1,7 @@
 package vanguardchain
 
 import (
+	"fmt"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/client"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
@@ -131,6 +132,7 @@ func (s *Service) subscribeNewConsensusInfoGRPC(client client.VanguardClient) er
 				}
 
 				log.WithField("epoch", vanMinimalConsensusInfo.Epoch).
+					WithField("epochInfo", fmt.Sprintf("%+v", vanMinimalConsensusInfo))
 					Debug("Received new consensus info for next epoch")
 				if err := s.OnNewConsensusInfo(s.ctx, consensusInfo); err != nil {
 					s.conInfoSubErrCh <- errConsensusInfoProcess
