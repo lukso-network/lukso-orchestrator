@@ -23,6 +23,16 @@ VANGUARD_STATS_HOST="";
 #####
 
 ##### default client values
+if [[ "$OSTYPE" = "linux-gnu" ]]; then
+  PLATFORM="Linux";
+fi
+
+if [[ "$PLATFORM" = "darwin"* ]]; then
+  PLATFORM="Darwin";
+fi
+
+ARCHITECTURE=$(uname -m);
+
 RUN_DATE=$(date '+%Y-%m-%d__%H-%M-%S');
 NETWORK="l15";
 IS_VALIDATOR=false;
@@ -58,6 +68,48 @@ function parse_yaml {
 
 parse_config() {
   eval $(parse_yaml $1)
+}
+
+download_binary() {
+  CLIENT="$1";
+  TAG="$2";
+
+  case $CLIENT in
+  orchestrator)
+    REPO="lukso-orchestrator"
+  ;;
+
+  pandora)
+    REPO="pandora-execution-engine";
+  ;;
+
+  vanguard)
+    REPO="vanguard-consensus-engine";
+  ;;
+
+  validator)
+    REPO="vanguard-consensus-engine";
+  ;;
+
+  esac
+
+  mkdir -p /opt/lukso/binaries/$CLIENT/$TAG;
+  wget --directory-prefix /opt/lukso/binaries/$CLIENT/$TAG https://github.com/lukso-network/"$REPO"/releases/download/$TAG/$CLIENT-$PLATFORM-$ARCHITECTURE;
+  sudo chmod +x /opt/lukso/binaries/$CLIENT/$TAG/$CLIENT-$PLATFORM-$ARCHITECTURE;
+}
+
+bind_binary() {
+  CLIENT="$1";
+  TAG="$2";
+  if [ ! -f /opt/lukso/binaries/$CLIENT/$TAG/$CLIENT-$PLATFORM-$ARCHITECTURE ]; then
+    download_binary $CLIENT $TAG;
+  fi
+
+  ln -sf "/opt/lukso/binaries/$CLIENT/$TAG/$CLIENT-$PLATFORM-$ARCHITECTURE" /usr/local/bin/pandora;
+}
+
+bind_binaries() {
+ echo;
 }
 
 generate_keys() {
@@ -172,7 +224,8 @@ start_pandora() {
     /opt/lukso/networks/$NETWORK/bin/pandora --datadir $DATADIR/pandora init /opt/lukso/networks/$NETWORK/config/pandora-genesis.json &> /dev/null
     cp /opt/lukso/networks/"$NETWORK"/config/static-nodes.json $DATADIR/pandora/geth;
   fi
-	nohup /opt/lukso/networks/$NETWORK/bin/pandora --datadir=$DATADIR/pandora \
+
+	nohup pandora --datadir=$DATADIR/pandora \
 	 --networkid=$NETWORK_ID \
 	 --ethstats=$NETWORK-$NODE_NAME:$PANDORA_STATS_PASSWORD@stats.pandora.l15.lukso.network \
 	 --port=30405 \
@@ -571,6 +624,35 @@ while getopts "$optspec" optchar; do
         ;;
         -)
             case "${OPTARG}" in
+
+                orchestrator)
+                  val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ));
+                  REBIND=true;
+                  REBIND_CLIENT=orchestrator;
+                  REBIND_TAG=$val;
+                ;;
+
+                pandora)
+                  val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ));
+                  REBIND=true;
+                  REBIND_CLIENT=pandora;
+                  REBIND_TAG=$val;
+                ;;
+
+                vanguard)
+                  val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ));
+                  REBIND=true;
+                  REBIND_CLIENT=vanguard;
+                  REBIND_TAG=$val;
+                ;;
+
+                validator)
+                  val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ));
+                  REBIND=true;
+                  REBIND_CLIENT=validator;
+                  REBIND_TAG=$val;
+                ;;
+
                 network)
                   val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
                   pick_network $val;
@@ -619,6 +701,14 @@ done
 if [ "$USE_CONFIG_FILE" = true ]; then
   parse_config "$CONFIG_FILE_PATH";
 fi
+
+if [ "$REBIND" = true ]; then
+  bind_binary $REBIND_CLIENT $REBIND_TAG;
+fi
+
+#if [ "$REBIND" = true]; then
+#  bind_binaries
+#fi
 
 parse_config "/opt/lukso/networks/$NETWORK/config/network-config.yaml";
 
