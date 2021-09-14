@@ -6,7 +6,7 @@ PLATFORM="unknown";
 
 if [ "$OSTYPE" = "linux-gnu" ]; then
   PLATFORM="linux";
-elif [ "$OSTYPE" = "darwin" ]; then
+elif [ "$OSTYPE" = "darwin20" ]; then
   PLATFORM="darwin"
 elif [ "$OSTYPE" = "cygwin" ]; then
   PLATFORM="linux"
@@ -49,7 +49,7 @@ sudo unzip /opt/lukso/tmp/bin.zip -d /opt/lukso/networks/"$NETWORK"/bin;
 
 sudo chmod -R +x /opt/lukso/networks/"$NETWORK"/bin;
 
-sudo ln -s /opt/lukso/networks/"$NETWORK"/bin/lukso /usr/local/bin/lukso;
+sudo ln -sfn /opt/lukso/networks/"$NETWORK"/bin/lukso /usr/local/bin/lukso;
 
 sudo rm -rf /opt/lukso/tmp;
 
