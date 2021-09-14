@@ -70,6 +70,18 @@ parse_config() {
   eval $(parse_yaml $1)
 }
 
+download() {
+  URL="$1";
+  LOCATION="$2";
+  if [ $PLATFORM == "Linux" ]; then
+    sudo wget -O $LOCATION $URL;
+  fi
+
+  if [ $PLATFORM == "Darwin" ]; then
+    sudo curl --output $LOCATION $URL;
+  fi
+}
+
 download_binary() {
   CLIENT="$1";
   TAG="$2";
@@ -94,7 +106,7 @@ download_binary() {
   esac
 
   mkdir -p /opt/lukso/binaries/$CLIENT/$TAG;
-  wget --directory-prefix /opt/lukso/binaries/$CLIENT/$TAG https://github.com/lukso-network/"$REPO"/releases/download/$TAG/$CLIENT-$PLATFORM-$ARCHITECTURE;
+  download https://github.com/lukso-network/"$REPO"/releases/download/$TAG/$CLIENT-$PLATFORM-$ARCHITECTURE /opt/lukso/binaries/$CLIENT/$TAG/$CLIENT-$PLATFORM-$ARCHITECTURE;
   sudo chmod +x /opt/lukso/binaries/$CLIENT/$TAG/$CLIENT-$PLATFORM-$ARCHITECTURE;
 }
 
