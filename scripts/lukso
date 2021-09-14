@@ -14,8 +14,8 @@ FORCE=false;
 #####
 
 ##### network info
-CHAIN_ID="808080";
-NETWORK_ID="808080";
+CHAIN_ID="808081";
+NETWORK_ID="808081";
 PANDORA_BOOTNODES="";
 VANGUARD_BOOTNODES="";
 PANDORA_STATS_HOST="";
@@ -173,7 +173,7 @@ start_pandora() {
     cp /opt/lukso/networks/"$NETWORK"/config/static-nodes.json $DATADIR/pandora/geth;
   fi
 	nohup /opt/lukso/networks/$NETWORK/bin/pandora --datadir=$DATADIR/pandora \
-	 --networkid=808080 \
+	 --networkid=$NETWORK_ID \
 	 --ethstats=$NETWORK-$NODE_NAME:$PANDORA_STATS_PASSWORD@stats.pandora.l15.lukso.network \
 	 --port=30405 \
 	 --rpc \
@@ -209,8 +209,8 @@ start_vanguard() {
   done
   ARGUMENTS=(
     "--accept-terms-of-use"
-    "--chain-id=808080"
-    "--network-id=808080"
+    "--chain-id=$CHAIN_ID"
+    "--network-id=$NETWORK_ID"
     "--genesis-state=/opt/lukso/networks/$NETWORK/config/vanguard-genesis.ssz"
     "--datadir=$DATADIR/vanguard/"
     "--chain-config-file=/opt/lukso/networks/$NETWORK/config/vanguard-config.yaml"
