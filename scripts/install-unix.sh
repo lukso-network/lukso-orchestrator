@@ -6,14 +6,10 @@ PLATFORM="unknown";
 
 if [ "$OSTYPE" = "linux-gnu" ]; then
   PLATFORM="linux";
-elif [ "$OSTYPE" = "darwin20" ]; then
+elif [[ "$OSTYPE" = "darwin"* ]]; then
   PLATFORM="darwin"
 elif [ "$OSTYPE" = "cygwin" ]; then
   PLATFORM="linux"
-elif [ "$OSTYPE" = "msys" ]; then
-  PLATFORM="windows"
-elif [ "$OSTYPE" = "win32" ]; then
-  PLATFORM="windows"
 elif [ "$OSTYPE" = "freebsd" ]; then
   PLATFORM="linux"
 fi
@@ -26,30 +22,26 @@ fi
 sudo mkdir \
 /opt/lukso \
 /opt/lukso/tmp \
+/opt/lukso/binaries \
 /opt/lukso/networks \
 /opt/lukso/networks/"$NETWORK" \
-/opt/lukso/networks/"$NETWORK"/bin \
 /opt/lukso/networks/"$NETWORK"/config;
 
 
 if [ "$PLATFORM" = "linux" ]; then
-  sudo wget -O /opt/lukso/tmp/bin.zip "$REPOSITORY"/linux-binaries.zip;
+  sudo wget -O /opt/lukso/lukso https://raw.githubusercontent.com/lukso-network/lukso-orchestrator/feature/l15-setup/scripts/lukso;
   sudo wget -O /opt/lukso/tmp/config.zip "$REPOSITORY"/config.zip;
 fi
 
-if [[ "$PLATFORM" = "darwin"* ]]; then
-  sudo curl --output /opt/lukso/tmp/bin.zip "$REPOSITORY"/darwin-binaries.zip;
+if [ "$PLATFORM" = "darwin" ]; then
+  sudo curl --output /opt/lukso/lukso https://raw.githubusercontent.com/lukso-network/lukso-orchestrator/feature/l15-setup/scripts/lukso;
   sudo curl --output /opt/lukso/tmp/config.zip "$REPOSITORY"/config.zip;
-
 fi
 
-
 sudo unzip /opt/lukso/tmp/config.zip -d /opt/lukso/networks/"$NETWORK"/config;
-sudo unzip /opt/lukso/tmp/bin.zip -d /opt/lukso/networks/"$NETWORK"/bin;
 
-sudo chmod -R +x /opt/lukso/networks/"$NETWORK"/bin;
-
-sudo ln -sfn /opt/lukso/networks/"$NETWORK"/bin/lukso /usr/local/bin/lukso;
+sudo chmod +x /opt/lukso/lukso;
+sudo ln -sfn /opt/lukso/lukso /usr/local/bin/lukso;
 
 sudo rm -rf /opt/lukso/tmp;
 
