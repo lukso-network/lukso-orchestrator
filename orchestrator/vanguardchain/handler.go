@@ -3,7 +3,7 @@ package vanguardchain
 import (
 	"context"
 	"errors"
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	eth "github.com/prysmaticlabs/ethereumapis/eth/v1alpha1"
 )
@@ -38,7 +38,7 @@ func (s *Service) OnNewPendingVanguardBlock(ctx context.Context, block *eth.Beac
 	if len(pandoraShards) < 1 {
 		// The first value is the sharding info. If not present throw error
 		log.WithField("pandoraShard length", len(pandoraShards)).Error("pandora sharding info not present")
-		return errors.New("Invalid shard info length in vanguard block body")
+		return errors.New("invalid shard info length in vanguard block body")
 	}
 
 	shardInfo := pandoraShards[0]
@@ -48,24 +48,11 @@ func (s *Service) OnNewPendingVanguardBlock(ctx context.Context, block *eth.Beac
 		ShardInfo: shardInfo,
 	}
 
-	if slotInfo, _ := s.orchestratorDB.VerifiedSlotInfo(uint64(block.Slot)); slotInfo != nil {
-		blockHashHex := common.BytesToHash(cachedShardInfo.BlockHash[:])
-		if slotInfo.VanguardBlockHash == blockHashHex {
-			log.WithField("slot", block.Slot).
-				WithField("headerHash", blockHash).
-				Info("Vanguard shard info is already in verified slot info db")
-			return nil
-		}
-		// TODO- When vanguard pushes new shard info for old slot, then we should take take a rational decision for the header
-		// TODO: We also need to have a fork choice mechanism in orchestrator client as well as pandora client
-	}
-
 	log.WithField("slot", block.Slot).
-		WithField("headerHash", common.BytesToHash(cachedShardInfo.BlockHash[:])).
+		WithField("blockNumber", shardInfo.BlockNumber).
+		WithField("shardInfoHash", hexutil.Encode(shardInfo.Hash)).
 		Info("New vanguard shard info has arrived")
 
-	// caching the shard info into sharding cache
-	s.shardingInfoCache.Put(ctx, uint64(block.Slot), cachedShardInfo)
 	s.vanguardShardingInfoFeed.Send(cachedShardInfo)
 	return nil
 }

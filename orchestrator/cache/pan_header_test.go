@@ -83,3 +83,19 @@ func Test_PandoraHeaderRemoveCache(t *testing.T) {
 		assert.DeepEqual(t, expectedPanHeaders[uint64(i)], actualHeader)
 	}
 }
+
+func Test_PandoraHeaderGetAll(t *testing.T) {
+	maxCacheSize = 1 << 10
+	pc := NewPanHeaderCache()
+	ctx := context.Background()
+	setup(100)
+
+	for slot := 0; slot < 100; slot++ {
+		slotUint64 := uint64(slot)
+		pc.Put(ctx, slotUint64, expectedPanHeaders[slotUint64])
+	}
+
+	actualPanHeaders, err := pc.GetAll()
+	require.NoError(t, err)
+	assert.Equal(t, len(expectedPanHeaders), len(actualPanHeaders))
+}

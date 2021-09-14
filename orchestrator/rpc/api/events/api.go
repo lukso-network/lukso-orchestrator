@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
+	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 	generalTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
@@ -18,9 +19,10 @@ type Backend interface {
 	SubscribeNewEpochEvent(chan<- *generalTypes.MinimalEpochConsensusInfo) event.Subscription
 	GetSlotStatus(ctx context.Context, slot uint64, hash common.Hash, requestFrom bool) generalTypes.Status
 	LatestEpoch() uint64
-	SubscribeNewVerifiedSlotInfoEvent(chan<- *generalTypes.SlotInfo) event.Subscription
+	SubscribeNewVerifiedSlotInfoEvent(chan<- *generalTypes.SlotInfoWithStatus) event.Subscription
 	VerifiedSlotInfos(fromSlot uint64) map[uint64]*generalTypes.SlotInfo
 	LatestVerifiedSlot() uint64
+	PendingPandoraHeaders() []*eth1Types.Header
 }
 
 // PublicFilterAPI offers support to create and manage filters. This will allow external clients to retrieve various

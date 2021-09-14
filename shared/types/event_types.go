@@ -47,6 +47,13 @@ type VanguardShardInfo struct {
 
 type BlsSignatureBytes [BLSSignatureSize]byte
 
+// SlotInfo
+type SlotInfoWithStatus struct {
+	VanguardBlockHash common.Hash
+	PandoraHeaderHash common.Hash
+	Status
+}
+
 // Bytes gets the byte representation of the underlying hash.
 func (h BlsSignatureBytes) Bytes() []byte { return h[:] }
 

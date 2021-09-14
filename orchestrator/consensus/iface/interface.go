@@ -6,5 +6,5 @@ import (
 )
 
 type VerifiedSlotInfoFeed interface {
-	SubscribeVerifiedSlotInfoEvent(chan<- *types.SlotInfo) event.Subscription
+	SubscribeVerifiedSlotInfoEvent(chan<- *types.SlotInfoWithStatus) event.Subscription
 }
