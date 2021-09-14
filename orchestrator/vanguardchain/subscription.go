@@ -132,7 +132,7 @@ func (s *Service) subscribeNewConsensusInfoGRPC(client client.VanguardClient) er
 				}
 
 				log.WithField("epoch", vanMinimalConsensusInfo.Epoch).
-					WithField("epochInfo", fmt.Sprintf("%+v", vanMinimalConsensusInfo))
+					WithField("epochInfo", fmt.Sprintf("%+v", vanMinimalConsensusInfo)).
 					Debug("Received new consensus info for next epoch")
 				if err := s.OnNewConsensusInfo(s.ctx, consensusInfo); err != nil {
 					s.conInfoSubErrCh <- errConsensusInfoProcess
