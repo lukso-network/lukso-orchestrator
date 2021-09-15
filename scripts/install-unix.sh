@@ -4,6 +4,10 @@ NETWORK="l15"
 REPOSITORY="https://storage.googleapis.com/l16-common/l15-cdn";
 PLATFORM="unknown";
 
+ORCHESTRATOR_TAG="";
+PANDORA_TAG="";
+VANGUARD_TAG="";
+
 if [ "$OSTYPE" = "linux-gnu" ]; then
   PLATFORM="linux";
 elif [[ "$OSTYPE" = "darwin"* ]]; then
@@ -19,6 +23,20 @@ if [ "$PLATFORM" = "unknown" ]; then
   exit;
 fi
 
+download() {
+  URL="$1";
+  LOCATION="$2";
+  if [ $PLATFORM == "Linux" ]; then
+    sudo wget -O $LOCATION $URL;
+  fi
+
+  if [ $PLATFORM == "Darwin" ]; then
+    sudo curl --output $LOCATION $URL;
+  fi
+}
+
+
+
 sudo mkdir \
 /opt/lukso \
 /opt/lukso/tmp \
@@ -27,16 +45,8 @@ sudo mkdir \
 /opt/lukso/networks/"$NETWORK" \
 /opt/lukso/networks/"$NETWORK"/config;
 
-
-if [ "$PLATFORM" = "linux" ]; then
-  sudo wget -O /opt/lukso/lukso https://raw.githubusercontent.com/lukso-network/lukso-orchestrator/feature/l15-setup/scripts/lukso;
-  sudo wget -O /opt/lukso/tmp/config.zip "$REPOSITORY"/config.zip;
-fi
-
-if [ "$PLATFORM" = "darwin" ]; then
-  sudo curl --output /opt/lukso/lukso https://raw.githubusercontent.com/lukso-network/lukso-orchestrator/feature/l15-setup/scripts/lukso;
-  sudo curl --output /opt/lukso/tmp/config.zip "$REPOSITORY"/config.zip;
-fi
+download /home/pk/projects/lukso/lukso-orchestrator/scripts/install-unix.sh /opt/lukso/lukso;
+download "$REPOSITORY"/config.zip /opt/lukso/tmp/config.zip;
 
 sudo unzip /opt/lukso/tmp/config.zip -d /opt/lukso/networks/"$NETWORK"/config;
 

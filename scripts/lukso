@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 ##### getopt
-OPTIONS=h;
-LONGOPTS=help,l15,network:,debug,config:,node-name:,force,coinbase:;
-PARSED="";
+#OPTIONS=h;
+#LONGOPTS=help,l15,network:,debug,config:,node-name:,force,coinbase:;
+#PARSED="";
 #####
 
 ##### binary behavior
@@ -87,7 +87,7 @@ download_binary() {
   TAG="$2";
 
   case $CLIENT in
-  orchestrator)
+  lukso-orchestrator)
     REPO="lukso-orchestrator"
   ;;
 
@@ -99,7 +99,7 @@ download_binary() {
     REPO="vanguard-consensus-engine";
   ;;
 
-  validator)
+  lukso-validator)
     REPO="vanguard-consensus-engine";
   ;;
 
@@ -117,7 +117,7 @@ bind_binary() {
     download_binary $CLIENT $TAG;
   fi
 
-  ln -sf "/opt/lukso/binaries/$CLIENT/$TAG/$CLIENT-$PLATFORM-$ARCHITECTURE" /usr/local/bin/pandora;
+  ln -sf "/opt/lukso/binaries/$CLIENT/$TAG/$CLIENT-$PLATFORM-$ARCHITECTURE" /usr/local/bin/$CLIENT;
 }
 
 bind_binaries() {
@@ -133,7 +133,7 @@ generate_keys() {
   mkdir -p $KEYS_DIR;
   read -p "How many validators? " VALIDATORS_NUMBER;
   echo "Running lukso-deposit-cli..."
-  /opt/lukso/networks/$NETWORK/bin/lukso-deposit-cli new-mnemonic \
+  lukso-deposit-cli new-mnemonic \
   --chain $NETWORK \
   --mnemonic_language english \
   --folder $KEYS_DIR \
@@ -142,7 +142,7 @@ generate_keys() {
 
 import_accounts() {
   read -p "Where do you have deposit keys? Default: [$KEYS_DIR] " KEYS_DIR
-  /opt/lukso/networks/"$NETWORK"/bin/lukso-validator accounts import \
+  lukso-validator accounts import \
   --keys-dir $KEYS_DIR \
   --wallet-dir $HOME/.lukso/$NETWORK/validator_wallet;
 }
@@ -233,7 +233,7 @@ start_pandora() {
   echo -n $RUN_DATE >| "$LOGSDIR"/pandora/current.tmp;
   if [ ! -d "$DATADIR/pandora" ]; then
     mkdir -p "$DATADIR/pandora";
-    /opt/lukso/networks/$NETWORK/bin/pandora --datadir $DATADIR/pandora init /opt/lukso/networks/$NETWORK/config/pandora-genesis.json &> /dev/null
+    pandora --datadir $DATADIR/pandora init /opt/lukso/networks/$NETWORK/config/pandora-genesis.json &> /dev/null
     cp /opt/lukso/networks/"$NETWORK"/config/static-nodes.json $DATADIR/pandora/geth;
   fi
 
@@ -641,30 +641,22 @@ while getopts "$optspec" optchar; do
 
                 orchestrator)
                   val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ));
-                  REBIND=true;
-                  REBIND_CLIENT=orchestrator;
-                  REBIND_TAG=$val;
+                  bind_binary lukso-orchestrator $val;
                 ;;
 
                 pandora)
                   val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ));
-                  REBIND=true;
-                  REBIND_CLIENT=pandora;
-                  REBIND_TAG=$val;
+                  bind_binary pandora $val
                 ;;
 
                 vanguard)
                   val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ));
-                  REBIND=true;
-                  REBIND_CLIENT=vanguard;
-                  REBIND_TAG=$val;
+                  bind_binary vanguard $val
                 ;;
 
                 validator)
                   val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ));
-                  REBIND=true;
-                  REBIND_CLIENT=validator;
-                  REBIND_TAG=$val;
+                  bind_binary lukso-validator $val
                 ;;
 
                 network)
@@ -716,9 +708,9 @@ if [ "$USE_CONFIG_FILE" = true ]; then
   parse_config "$CONFIG_FILE_PATH";
 fi
 
-if [ "$REBIND" = true ]; then
-  bind_binary $REBIND_CLIENT $REBIND_TAG;
-fi
+#if [ "$REBIND" = true ]; then
+#  bind_binary $REBIND_CLIENT $REBIND_TAG;
+#fi
 
 #if [ "$REBIND" = true]; then
 #  bind_binaries
@@ -749,7 +741,7 @@ logs)
   logs "$COMMAND_ARG"
   ;;
 attach)
-  /opt/lukso/networks/"$NETWORK"/bin/pandora attach $2;
+  pandora attach $2;
   ;;
 bind-binaries)
   ;;
