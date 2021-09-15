@@ -273,7 +273,7 @@ start_vanguard() {
     "--network-id=$NETWORK_ID"
     "--genesis-state=/opt/lukso/networks/$NETWORK/config/vanguard-genesis.ssz"
     "--datadir=$DATADIR/vanguard/"
-    "--chain-config-file=/opt/lukso/networks/$NETWORK/config/vanguard-config.yaml"
+    "--chain-config-file=/opt/lukso/networks/$NETWORK/config/chain-config.yaml"
     "${BOOTNODES_ARGS[@]}"
     "--http-web3provider=http://127.0.0.1:8545"
     "--deposit-contract=0x000000000000000000000000000000000000cafe"
