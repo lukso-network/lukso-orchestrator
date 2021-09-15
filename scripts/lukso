@@ -73,7 +73,7 @@ download() {
   fi
 
   if [[ $PLATFORM == "Darwin" ]]; then
-    sudo curl --output $LOCATION $URL;
+    sudo curl -o $LOCATION -Lk $URL
   fi
 }
 
