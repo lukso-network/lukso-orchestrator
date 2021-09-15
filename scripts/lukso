@@ -663,17 +663,28 @@ while getopts "$optspec" optchar; do
                   pick_network l15
                 ;;
 
+                l15-staging)
+                  pick_network l15-staging
+                ;;
+
+                l15-dev)
+                  pick_network l15-dev
+                ;;
+
                 config)
+                  val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
                   USE_CONFIG_FILE=true;
-                  CONFIG_FILE_PATH="$2";
+                  CONFIG_FILE_PATH="$val";
                 ;;
 
                 coinbase)
-                  COINBASE="$2";
+                  val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+                  COINBASE="$val";
                 ;;
 
                 node-name)
-                  NODE_NAME="$2"
+                  val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+                  NODE_NAME="$val"
                 ;;
 
                 validate)
@@ -702,14 +713,6 @@ done
 if [ "$USE_CONFIG_FILE" = true ]; then
   parse_config "$CONFIG_FILE_PATH";
 fi
-
-#if [ "$REBIND" = true ]; then
-#  bind_binary $REBIND_CLIENT $REBIND_TAG;
-#fi
-
-#if [ "$REBIND" = true]; then
-#  bind_binaries
-#fi
 
 parse_config "/opt/lukso/networks/$NETWORK/config/network-config.yaml";
 
