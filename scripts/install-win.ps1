@@ -13,5 +13,6 @@ $InstallDir/networks/"$NETWORK"/config;
 
 
 $url = $Repository+"/config.zip";
+$path = $InstallDir+"/tmp/config.zip";
 $client.DownloadFile($url, $path)
 
