@@ -9,17 +9,17 @@ ORCHESTRATOR_TAG="";
 PANDORA_TAG="";
 VANGUARD_TAG="";
 
-if [ "$OSTYPE" = "linux-gnu" ]; then
+if [[ "$OSTYPE" = "linux-gnu" ]]; then
   PLATFORM="Linux";
 elif [[ "$OSTYPE" = "darwin"* ]]; then
   PLATFORM="Darwin"
-elif [ "$OSTYPE" = "cygwin" ]; then
+elif [[ "$OSTYPE" = "cygwin" ]]; then
   PLATFORM="Linux"
-elif [ "$OSTYPE" = "freebsd" ]; then
+elif [[ "$OSTYPE" = "freebsd" ]]; then
   PLATFORM="Linux"
 fi
 
-if [ "$PLATFORM" = "unknown" ]; then
+if [[ "$PLATFORM" = "unknown" ]]; then
   echo "Platform not supported.";
   exit;
 fi
@@ -27,11 +27,11 @@ fi
 download() {
   URL="$1";
   LOCATION="$2";
-  if [ $PLATFORM == "Linux" ]; then
+  if [[ $PLATFORM == "Linux" ]]; then
     sudo wget -O $LOCATION $URL;
   fi
 
-  if [ $PLATFORM == "Darwin" ]; then
+  if [[ $PLATFORM == "Darwin" ]]; then
     sudo curl --output $LOCATION $URL;
   fi
 }
@@ -46,7 +46,7 @@ sudo mkdir \
 
 download https://raw.githubusercontent.com/lukso-network/lukso-orchestrator/feature/l15-setup-script/scripts/lukso /opt/lukso/lukso;
 
-download "$REPOSITORY"/config.zip /opt/lukso/tmp/config.zip;
+download "$REPOSITORY"/config.zip?ignorecache=1 /opt/lukso/tmp/config.zip;
 
 sudo unzip /opt/lukso/tmp/config.zip -d /opt/lukso/networks/"$NETWORK"/config;
 

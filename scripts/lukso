@@ -68,11 +68,11 @@ parse_config() {
 download() {
   URL="$1";
   LOCATION="$2";
-  if [ $PLATFORM == "Linux" ]; then
+  if [[ $PLATFORM == "Linux" ]]; then
     sudo wget -O $LOCATION $URL;
   fi
 
-  if [ $PLATFORM == "Darwin" ]; then
+  if [[ $PLATFORM == "Darwin" ]]; then
     sudo curl --output $LOCATION $URL;
   fi
 }
@@ -108,7 +108,7 @@ download_binary() {
 bind_binary() {
   CLIENT="$1";
   TAG="$2";
-  if [ ! -f /opt/lukso/binaries/$CLIENT/$TAG/$CLIENT-$PLATFORM-$ARCHITECTURE ]; then
+  if [[ ! -f /opt/lukso/binaries/$CLIENT/$TAG/$CLIENT-$PLATFORM-$ARCHITECTURE ]]; then
     download_binary $CLIENT $TAG;
   fi
 
@@ -121,7 +121,7 @@ bind_binaries() {
 
 generate_keys() {
   read -p "Where to store deposit keys? Default: [$KEYS_DIR] " INPUT;
-  if [ -n "$INPUT" ]; then
+  if [[ -n "$INPUT" ]]; then
     KEYS_DIR=$INPUT
   fi
   eval KEYS_DIR=$KEYS_DIR;
@@ -148,7 +148,7 @@ parse_config_field() {
    LABEL="$2 [default: $DEFAULT]: ";
     read -p "$LABEL" INPUT;
     eval INPUT="$INPUT";
-    if [ -z "$INPUT" ];then
+    if [[ -z "$INPUT" ]];then
       echo -e "\033[1A\033[2K$LABEL<Using default>";
       CONFIG_DATA+=("$VALUE: \"$DEFAULT\"");
     else
@@ -167,7 +167,7 @@ setup_config() {
     LABEL="Config file location [default: $DEFAULT]: "
     read -p "$LABEL" CONFIG_LOCATION;
     eval CONFIG_LOCATION="$CONFIG_LOCATION";
-    if [ -z "$CONFIG_LOCATION" ];then
+    if [[ -z "$CONFIG_LOCATION" ]];then
       echo -e "\033[1A\033[2K$LABEL<Using default>";
       CONFIG_LOCATION="$DEFAULT";
     fi
@@ -188,17 +188,17 @@ pick_network() {
 
 check_validator_requirements() {
   CAN_VALIDATE=true;
-  if [ ! -d $WALLET_DIR ]; then
+  if [[ ! -d $WALLET_DIR ]]; then
     echo "Cannot validate, wallet not found";
     CAN_VALIDATE=false;
   fi
 
-  if [ ! -f $WALLET_DIR/password.txt ]; then
+  if [[ ! -f $WALLET_DIR/password.txt ]]; then
     echo "Cannot validate, password not provided";
     CAN_VALIDATE=false;
   fi
 
-  if [ "$CAN_VALIDATE" == "false" ]; then
+  if [[ "$CAN_VALIDATE" == "false" ]]; then
     exit 1;
   fi
 
@@ -207,7 +207,7 @@ check_validator_requirements() {
 start_orchestrator() {
   mkdir -p "$LOGSDIR"/orchestrator;
   echo -n $RUN_DATE >| "$LOGSDIR"/orchestrator/current.tmp;
-  if [ ! -d "$DATADIR/orchestrator" ]; then
+  if [[ ! -d "$DATADIR/orchestrator" ]]; then
     mkdir -p $DATADIR/orchestrator;
   fi
   nohup lukso-orchestrator --datadir=$DATADIR/orchestrator \
@@ -226,7 +226,7 @@ start_orchestrator() {
 start_pandora() {
   mkdir -p "$LOGSDIR"/pandora;
   echo -n $RUN_DATE >| "$LOGSDIR"/pandora/current.tmp;
-  if [ ! -d "$DATADIR/pandora" ]; then
+  if [[ ! -d "$DATADIR/pandora" ]]; then
     mkdir -p "$DATADIR/pandora";
     pandora --datadir $DATADIR/pandora init /opt/lukso/networks/$NETWORK/config/pandora-genesis.json &> /dev/null
     cp /opt/lukso/networks/"$NETWORK"/config/static-nodes.json $DATADIR/pandora/geth;
@@ -335,7 +335,7 @@ start_eth2stats_client() {
 }
 
 start_all() {
-  if [ "$IS_VALIDATOR" == true ]; then
+  if [[ "$IS_VALIDATOR" == true ]]; then
     check_validator_requirements
   fi
 
@@ -351,7 +351,7 @@ start_all() {
 	start_vanguard
 	sleep 2
 
-	if [ "$IS_VALIDATOR" == true ]; then
+	if [[ "$IS_VALIDATOR" == true ]]; then
 	 	echo "################# Starting validator #######################"
 	  start_validator
 	  sleep 2
@@ -364,7 +364,7 @@ start_all() {
 
 start() {
 
-  if [ $# -eq 0 ]; then
+  if [[ $# -eq 0 ]]; then
     ARGUMENT="all";
   else
     ARGUMENT=$1;
@@ -401,7 +401,7 @@ start() {
 
 stop_orchestrator() {
   echo -n "Stopping orchestrator client "
-  if [ "$FORCE" == true ]; then
+  if [[ "$FORCE" == true ]]; then
 	  echo "[FORCE]"
 	  sudo kill -9 $(sudo lsof -t -i:7877) &> /dev/null
 	  sleep 1
@@ -414,7 +414,7 @@ stop_orchestrator() {
 
 stop_pandora() {
 	echo -n "Stopping pandora client... "
-	if [ "$FORCE" == true ]; then
+	if [[ "$FORCE" == true ]]; then
 	  echo "[FORCE]"
 	  sudo kill -9 $(sudo lsof -t -i:30405) &> /dev/null
 	  sleep 1
@@ -428,7 +428,7 @@ stop_pandora() {
 stop_vanguard() {
 	echo -n "Stopping vanguard client... ";
 
-	if [ "$FORCE" == true ]; then
+	if [[ "$FORCE" == true ]]; then
 	  echo "[FORCE]";
 	  sudo kill -9 $(sudo lsof -t -i:4000) &> /dev/null
     sleep 1
@@ -449,7 +449,7 @@ stop_vanguard() {
 
 stop_validator() {
   echo -n "Stopping validator client... "
-  if [ "$FORCE" == true ]; then
+  if [[ "$FORCE" == true ]]; then
 	  echo "[FORCE]";
   	sudo kill -9 $(sudo lsof -t -i:7000) &> /dev/null
   	sleep 1
@@ -462,7 +462,7 @@ stop_validator() {
 
 stop_eth2stats_client() {
   echo -n "Stopping eth2stats client... "
-  if [ "$FORCE" == true ]; then
+  if [[ "$FORCE" == true ]]; then
 	  echo "[FORCE]";
   	sudo pkill -9 "eth2stats-client*"
   	sleep 1
@@ -483,16 +483,16 @@ stop_all() {
 
 stop() {
 
-  if [ $# -eq 0 ]; then
+  if [[ $# -eq 0 ]]; then
     ARGUMENT="all";
   else
     ARGUMENT=$1;
   fi
 
 
-  if [ "$FORCE" == true ]; then
+  if [[ "$FORCE" == true ]]; then
     read -p "This may result in node data corruption. Continue? (Y/n) " var;
-    if [ "$var" != "Y" ]; then
+    if [[ "$var" != "Y" ]]; then
       echo "Exiting without effect...";
       exit 0;
     fi
@@ -549,7 +549,7 @@ reset_all() {
 
 reset() {
 
-  if [ $# -eq 0 ]; then
+  if [[ $# -eq 0 ]]; then
     ARGUMENT="none";
   else
     ARGUMENT=$1;
@@ -710,7 +710,7 @@ while getopts "$optspec" optchar; do
     esac
 done
 
-if [ "$USE_CONFIG_FILE" = true ]; then
+if [[ "$USE_CONFIG_FILE" = true ]]; then
   parse_config "$CONFIG_FILE_PATH";
 fi
 
