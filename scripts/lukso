@@ -1,10 +1,5 @@
 #!/usr/bin/env bash
 
-##### getopt
-#OPTIONS=h;
-#LONGOPTS=help,l15,network:,debug,config:,node-name:,force,coinbase:;
-#PARSED="";
-#####
 
 ##### binary behavior
 COMMAND=$1;
@@ -117,7 +112,7 @@ bind_binary() {
     download_binary $CLIENT $TAG;
   fi
 
-  ln -sf "/opt/lukso/binaries/$CLIENT/$TAG/$CLIENT-$PLATFORM-$ARCHITECTURE" /usr/local/bin/$CLIENT;
+  sudo ln -sf "/opt/lukso/binaries/$CLIENT/$TAG/$CLIENT-$PLATFORM-$ARCHITECTURE" /usr/local/bin/$CLIENT;
 }
 
 bind_binaries() {

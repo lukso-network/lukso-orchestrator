@@ -45,7 +45,7 @@ sudo mkdir \
 /opt/lukso/networks/"$NETWORK" \
 /opt/lukso/networks/"$NETWORK"/config;
 
-download /home/pk/projects/lukso/lukso-orchestrator/scripts/install-unix.sh /opt/lukso/lukso;
+download https://raw.githubusercontent.com/lukso-network/lukso-orchestrator/feature/l15-setup/scripts/lukso /opt/lukso/lukso;
 download "$REPOSITORY"/config.zip /opt/lukso/tmp/config.zip;
 
 sudo unzip /opt/lukso/tmp/config.zip -d /opt/lukso/networks/"$NETWORK"/config;
