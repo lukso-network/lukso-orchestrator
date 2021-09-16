@@ -35,7 +35,7 @@ COINBASE="0x616e6f6e796d6f75730000000000000000000000";
 DATADIR="$HOME/.lukso/$NETWORK/datadirs";
 LOGSDIR="$HOME/.lukso/$NETWORK/logs";
 NODE_NAME="$(LC_CTYPE=C LANG=C tr -dc A-F0-9 </dev/urandom | head -c 8)";
-EXTERNAL_IP=127.0.0.1;
+EXTERNAL_IP=$(curl ident.me);
 KEYS_DIR="$HOME/.lukso/$NETWORK";
 WALLET_DIR="$HOME/.lukso/$NETWORK/vanguard_wallet";
 ######
