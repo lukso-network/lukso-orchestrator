@@ -265,7 +265,7 @@ start_vanguard() {
   BOOTNODES_ARGS=()
   for n in "${VANGUARD_BOOTNODES[@]}"
   do
-    BOOTNODES_ARGS+=("--bootstrap-node=\"$n\"")
+    BOOTNODES_ARGS+=("--bootstrap-node=$n")
   done
   ARGUMENTS=(
     "--accept-terms-of-use"
