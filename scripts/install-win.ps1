@@ -1,13 +1,18 @@
+$Network = "l15";
 $Repository = "https://storage.googleapis.com/l16-common/l15-cdn";
+$InstallDir = $Env:APPDATA;
+
 $client = New-Object System.Net.WebClient
 
-$url = $Repository+"/config.zip";
-$client.DownloadFile($url, $path)
+mkdir $InstallDir `
+$InstallDir/tmp `
+$InstallDir/binaries `
+$InstallDir/networks `
+$InstallDir/networks/"$NETWORK" `
+$InstallDir/networks/"$NETWORK"/config;
 
-mkdir /opt/lukso0 `
-/opt/lukso/tmp `
-/opt/lukso/binaries `
-/opt/lukso/networks `
-/opt/lukso/networks/"$NETWORK" `
-/opt/lukso/networks/"$NETWORK"/config;
+
+$url = $Repository+"/config.zip";
+$path = $InstallDir+"/tmp/config.zip";
+$client.DownloadFile($url, $path)
 

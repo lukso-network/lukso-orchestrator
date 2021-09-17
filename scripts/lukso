@@ -1,10 +1,5 @@
 #!/usr/bin/env bash
 
-##### getopt
-OPTIONS=h;
-LONGOPTS=help,l15,network:,debug,config:,node-name:,force,coinbase:;
-PARSED="";
-#####
 
 ##### binary behavior
 COMMAND=$1;
@@ -27,7 +22,7 @@ if [[ "$OSTYPE" = "linux-gnu" ]]; then
   PLATFORM="Linux";
 fi
 
-if [[ "$PLATFORM" = "darwin"* ]]; then
+if [[ "$OSTYPE" = "darwin"* ]]; then
   PLATFORM="Darwin";
 fi
 
@@ -40,7 +35,7 @@ COINBASE="0x616e6f6e796d6f75730000000000000000000000";
 DATADIR="$HOME/.lukso/$NETWORK/datadirs";
 LOGSDIR="$HOME/.lukso/$NETWORK/logs";
 NODE_NAME="$(LC_CTYPE=C LANG=C tr -dc A-F0-9 </dev/urandom | head -c 8)";
-EXTERNAL_IP=127.0.0.1;
+EXTERNAL_IP=$(curl ident.me);
 KEYS_DIR="$HOME/.lukso/$NETWORK";
 WALLET_DIR="$HOME/.lukso/$NETWORK/vanguard_wallet";
 ######
@@ -73,12 +68,12 @@ parse_config() {
 download() {
   URL="$1";
   LOCATION="$2";
-  if [ $PLATFORM == "Linux" ]; then
+  if [[ $PLATFORM == "Linux" ]]; then
     sudo wget -O $LOCATION $URL;
   fi
 
-  if [ $PLATFORM == "Darwin" ]; then
-    sudo curl --output $LOCATION $URL;
+  if [[ $PLATFORM == "Darwin" ]]; then
+    sudo curl -o $LOCATION -Lk $URL;
   fi
 }
 
@@ -87,7 +82,7 @@ download_binary() {
   TAG="$2";
 
   case $CLIENT in
-  orchestrator)
+  lukso-orchestrator)
     REPO="lukso-orchestrator"
   ;;
 
@@ -99,7 +94,7 @@ download_binary() {
     REPO="vanguard-consensus-engine";
   ;;
 
-  validator)
+  lukso-validator)
     REPO="vanguard-consensus-engine";
   ;;
 
@@ -113,11 +108,11 @@ download_binary() {
 bind_binary() {
   CLIENT="$1";
   TAG="$2";
-  if [ ! -f /opt/lukso/binaries/$CLIENT/$TAG/$CLIENT-$PLATFORM-$ARCHITECTURE ]; then
+  if [[ ! -f /opt/lukso/binaries/$CLIENT/$TAG/$CLIENT-$PLATFORM-$ARCHITECTURE ]]; then
     download_binary $CLIENT $TAG;
   fi
 
-  ln -sf "/opt/lukso/binaries/$CLIENT/$TAG/$CLIENT-$PLATFORM-$ARCHITECTURE" /usr/local/bin/pandora;
+  sudo ln -sf "/opt/lukso/binaries/$CLIENT/$TAG/$CLIENT-$PLATFORM-$ARCHITECTURE" /usr/local/bin/$CLIENT;
 }
 
 bind_binaries() {
@@ -126,14 +121,14 @@ bind_binaries() {
 
 generate_keys() {
   read -p "Where to store deposit keys? Default: [$KEYS_DIR] " INPUT;
-  if [ -n "$INPUT" ]; then
+  if [[ -n "$INPUT" ]]; then
     KEYS_DIR=$INPUT
   fi
   eval KEYS_DIR=$KEYS_DIR;
   mkdir -p $KEYS_DIR;
   read -p "How many validators? " VALIDATORS_NUMBER;
   echo "Running lukso-deposit-cli..."
-  /opt/lukso/networks/$NETWORK/bin/lukso-deposit-cli new-mnemonic \
+  lukso-deposit-cli new-mnemonic \
   --chain $NETWORK \
   --mnemonic_language english \
   --folder $KEYS_DIR \
@@ -142,7 +137,7 @@ generate_keys() {
 
 import_accounts() {
   read -p "Where do you have deposit keys? Default: [$KEYS_DIR] " KEYS_DIR
-  /opt/lukso/networks/"$NETWORK"/bin/lukso-validator accounts import \
+  lukso-validator accounts import \
   --keys-dir $KEYS_DIR \
   --wallet-dir $HOME/.lukso/$NETWORK/validator_wallet;
 }
@@ -153,7 +148,7 @@ parse_config_field() {
    LABEL="$2 [default: $DEFAULT]: ";
     read -p "$LABEL" INPUT;
     eval INPUT="$INPUT";
-    if [ -z "$INPUT" ];then
+    if [[ -z "$INPUT" ]];then
       echo -e "\033[1A\033[2K$LABEL<Using default>";
       CONFIG_DATA+=("$VALUE: \"$DEFAULT\"");
     else
@@ -172,7 +167,7 @@ setup_config() {
     LABEL="Config file location [default: $DEFAULT]: "
     read -p "$LABEL" CONFIG_LOCATION;
     eval CONFIG_LOCATION="$CONFIG_LOCATION";
-    if [ -z "$CONFIG_LOCATION" ];then
+    if [[ -z "$CONFIG_LOCATION" ]];then
       echo -e "\033[1A\033[2K$LABEL<Using default>";
       CONFIG_LOCATION="$DEFAULT";
     fi
@@ -193,17 +188,17 @@ pick_network() {
 
 check_validator_requirements() {
   CAN_VALIDATE=true;
-  if [ ! -d $WALLET_DIR ]; then
+  if [[ ! -d $WALLET_DIR ]]; then
     echo "Cannot validate, wallet not found";
     CAN_VALIDATE=false;
   fi
 
-  if [ ! -f $WALLET_DIR/password.txt ]; then
+  if [[ ! -f $WALLET_DIR/password.txt ]]; then
     echo "Cannot validate, password not provided";
     CAN_VALIDATE=false;
   fi
 
-  if [ "$CAN_VALIDATE" == "false" ]; then
+  if [[ "$CAN_VALIDATE" == "false" ]]; then
     exit 1;
   fi
 
@@ -212,7 +207,7 @@ check_validator_requirements() {
 start_orchestrator() {
   mkdir -p "$LOGSDIR"/orchestrator;
   echo -n $RUN_DATE >| "$LOGSDIR"/orchestrator/current.tmp;
-  if [ ! -d "$DATADIR/orchestrator" ]; then
+  if [[ ! -d "$DATADIR/orchestrator" ]]; then
     mkdir -p $DATADIR/orchestrator;
   fi
   nohup lukso-orchestrator --datadir=$DATADIR/orchestrator \
@@ -231,9 +226,9 @@ start_orchestrator() {
 start_pandora() {
   mkdir -p "$LOGSDIR"/pandora;
   echo -n $RUN_DATE >| "$LOGSDIR"/pandora/current.tmp;
-  if [ ! -d "$DATADIR/pandora" ]; then
+  if [[ ! -d "$DATADIR/pandora" ]]; then
     mkdir -p "$DATADIR/pandora";
-    /opt/lukso/networks/$NETWORK/bin/pandora --datadir $DATADIR/pandora init /opt/lukso/networks/$NETWORK/config/pandora-genesis.json &> /dev/null
+    pandora --datadir $DATADIR/pandora init /opt/lukso/networks/$NETWORK/config/pandora-genesis.json &> /dev/null
     cp /opt/lukso/networks/"$NETWORK"/config/static-nodes.json $DATADIR/pandora/geth;
   fi
 
@@ -270,7 +265,7 @@ start_vanguard() {
   BOOTNODES_ARGS=()
   for n in "${VANGUARD_BOOTNODES[@]}"
   do
-    BOOTNODES_ARGS+=("--bootstrap-node=\"$n\"")
+    BOOTNODES_ARGS+=("--bootstrap-node=$n")
   done
   ARGUMENTS=(
     "--accept-terms-of-use"
@@ -278,7 +273,7 @@ start_vanguard() {
     "--network-id=$NETWORK_ID"
     "--genesis-state=/opt/lukso/networks/$NETWORK/config/vanguard-genesis.ssz"
     "--datadir=$DATADIR/vanguard/"
-    "--chain-config-file=/opt/lukso/networks/$NETWORK/config/vanguard-config.yaml"
+    "--chain-config-file=/opt/lukso/networks/$NETWORK/config/chain-config.yaml"
     "${BOOTNODES_ARGS[@]}"
     "--http-web3provider=http://127.0.0.1:8545"
     "--deposit-contract=0x000000000000000000000000000000000000cafe"
@@ -340,7 +335,7 @@ start_eth2stats_client() {
 }
 
 start_all() {
-  if [ "$IS_VALIDATOR" == true ]; then
+  if [[ "$IS_VALIDATOR" == true ]]; then
     check_validator_requirements
   fi
 
@@ -356,7 +351,7 @@ start_all() {
 	start_vanguard
 	sleep 2
 
-	if [ "$IS_VALIDATOR" == true ]; then
+	if [[ "$IS_VALIDATOR" == true ]]; then
 	 	echo "################# Starting validator #######################"
 	  start_validator
 	  sleep 2
@@ -369,7 +364,7 @@ start_all() {
 
 start() {
 
-  if [ $# -eq 0 ]; then
+  if [[ $# -eq 0 ]]; then
     ARGUMENT="all";
   else
     ARGUMENT=$1;
@@ -406,7 +401,7 @@ start() {
 
 stop_orchestrator() {
   echo -n "Stopping orchestrator client "
-  if [ "$FORCE" == true ]; then
+  if [[ "$FORCE" == true ]]; then
 	  echo "[FORCE]"
 	  sudo kill -9 $(sudo lsof -t -i:7877) &> /dev/null
 	  sleep 1
@@ -419,7 +414,7 @@ stop_orchestrator() {
 
 stop_pandora() {
 	echo -n "Stopping pandora client... "
-	if [ "$FORCE" == true ]; then
+	if [[ "$FORCE" == true ]]; then
 	  echo "[FORCE]"
 	  sudo kill -9 $(sudo lsof -t -i:30405) &> /dev/null
 	  sleep 1
@@ -433,7 +428,7 @@ stop_pandora() {
 stop_vanguard() {
 	echo -n "Stopping vanguard client... ";
 
-	if [ "$FORCE" == true ]; then
+	if [[ "$FORCE" == true ]]; then
 	  echo "[FORCE]";
 	  sudo kill -9 $(sudo lsof -t -i:4000) &> /dev/null
     sleep 1
@@ -454,7 +449,7 @@ stop_vanguard() {
 
 stop_validator() {
   echo -n "Stopping validator client... "
-  if [ "$FORCE" == true ]; then
+  if [[ "$FORCE" == true ]]; then
 	  echo "[FORCE]";
   	sudo kill -9 $(sudo lsof -t -i:7000) &> /dev/null
   	sleep 1
@@ -467,7 +462,7 @@ stop_validator() {
 
 stop_eth2stats_client() {
   echo -n "Stopping eth2stats client... "
-  if [ "$FORCE" == true ]; then
+  if [[ "$FORCE" == true ]]; then
 	  echo "[FORCE]";
   	sudo pkill -9 "eth2stats-client*"
   	sleep 1
@@ -488,16 +483,16 @@ stop_all() {
 
 stop() {
 
-  if [ $# -eq 0 ]; then
+  if [[ $# -eq 0 ]]; then
     ARGUMENT="all";
   else
     ARGUMENT=$1;
   fi
 
 
-  if [ "$FORCE" == true ]; then
+  if [[ "$FORCE" == true ]]; then
     read -p "This may result in node data corruption. Continue? (Y/n) " var;
-    if [ "$var" != "Y" ]; then
+    if [[ "$var" != "Y" ]]; then
       echo "Exiting without effect...";
       exit 0;
     fi
@@ -554,7 +549,7 @@ reset_all() {
 
 reset() {
 
-  if [ $# -eq 0 ]; then
+  if [[ $# -eq 0 ]]; then
     ARGUMENT="none";
   else
     ARGUMENT=$1;
@@ -641,30 +636,22 @@ while getopts "$optspec" optchar; do
 
                 orchestrator)
                   val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ));
-                  REBIND=true;
-                  REBIND_CLIENT=orchestrator;
-                  REBIND_TAG=$val;
+                  bind_binary lukso-orchestrator $val;
                 ;;
 
                 pandora)
                   val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ));
-                  REBIND=true;
-                  REBIND_CLIENT=pandora;
-                  REBIND_TAG=$val;
+                  bind_binary pandora $val
                 ;;
 
                 vanguard)
                   val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ));
-                  REBIND=true;
-                  REBIND_CLIENT=vanguard;
-                  REBIND_TAG=$val;
+                  bind_binary vanguard $val
                 ;;
 
                 validator)
                   val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ));
-                  REBIND=true;
-                  REBIND_CLIENT=validator;
-                  REBIND_TAG=$val;
+                  bind_binary lukso-validator $val
                 ;;
 
                 network)
@@ -676,17 +663,28 @@ while getopts "$optspec" optchar; do
                   pick_network l15
                 ;;
 
+                l15-staging)
+                  pick_network l15-staging
+                ;;
+
+                l15-dev)
+                  pick_network l15-dev
+                ;;
+
                 config)
+                  val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
                   USE_CONFIG_FILE=true;
-                  CONFIG_FILE_PATH="$2";
+                  CONFIG_FILE_PATH="$val";
                 ;;
 
                 coinbase)
-                  COINBASE="$2";
+                  val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+                  COINBASE="$val";
                 ;;
 
                 node-name)
-                  NODE_NAME="$2"
+                  val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+                  NODE_NAME="$val"
                 ;;
 
                 validate)
@@ -712,17 +710,9 @@ while getopts "$optspec" optchar; do
     esac
 done
 
-if [ "$USE_CONFIG_FILE" = true ]; then
+if [[ "$USE_CONFIG_FILE" = true ]]; then
   parse_config "$CONFIG_FILE_PATH";
 fi
-
-if [ "$REBIND" = true ]; then
-  bind_binary $REBIND_CLIENT $REBIND_TAG;
-fi
-
-#if [ "$REBIND" = true]; then
-#  bind_binaries
-#fi
 
 parse_config "/opt/lukso/networks/$NETWORK/config/network-config.yaml";
 
@@ -749,7 +739,7 @@ logs)
   logs "$COMMAND_ARG"
   ;;
 attach)
-  /opt/lukso/networks/"$NETWORK"/bin/pandora attach $2;
+  pandora attach $2;
   ;;
 bind-binaries)
   ;;
