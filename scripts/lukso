@@ -679,16 +679,16 @@ while getopts "$optspec" optchar; do
 
                 coinbase)
                   val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
-                  OVERRIDE_COINBASE="$val";
+                  COINBASE="$val";
                 ;;
 
                 node-name)
                   val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
-                  OVERRIDE_NODE_NAME="$val"
+                  NODE_NAME="$val";
                 ;;
 
                 validate)
-                  OVERRIDE_IS_VALIDATOR=true;
+                  IS_VALIDATOR=true;
                 ;;
 
                 force)
@@ -718,17 +718,20 @@ parse_config "/opt/lukso/networks/$NETWORK/config/network-config.yaml";
 
 # Override config file
 
-if [[ -v $OVERRIDE_COINBASE ]]; then
- COINBASE=$OVERRIDE_COINBASE;
-fi
-
-if [[ -v $OVERRIDE_NODE_NAME ]]; then
- NODE_NAME=$OVERRIDE_NODE_NAME;
-fi
-
-if [[ -v $OVERRIDE_IS_VALIDATOR ]]; then
- IS_VALIDATOR=$OVERRIDE_IS_VALIDATOR;
-fi
+#if [[ -v $OVERRIDE_COINBASE ]]; then
+# COINBASE=$OVERRIDE_COINBASE;
+#fi
+#
+#if [[ -v $OVERRIDE_NODE_NAME ]]; then
+#  echo sss
+#  NODE_NAME=$OVERRIDE_NODE_NAME;
+#fi
+#  NODE_NAME=$OVERRIDE_NODE_NAME;
+#echo $NODE_NAME kaaaaaa;
+#
+#if [[ -v $OVERRIDE_IS_VALIDATOR ]]; then
+# IS_VALIDATOR=$OVERRIDE_IS_VALIDATOR;
+#fi
 
 case $COMMAND in
 ping)
