@@ -182,8 +182,22 @@ setup_config() {
     printf '%s\n' "${CONFIG_DATA[@]}" >| "$CONFIG_LOCATION";
 }
 
+download_network_config() {
+  NETWORK=$1;
+  CDN="https://storage.googleapis.com/l15-cdn/networks/$NETWORK";
+  sudo mkdir -p /opt/lukso/networks/$NETWORK;
+  download $CDN/network-config.yaml /opt/lukso/networks/$NETWORK/network-config.yaml;
+  download $CDN/pandora-genesis.json /opt/lukso/networks/$NETWORK/pandora-genesis.json;
+  download $CDN/vanguard-genesis.ssz /opt/lukso/networks/$NETWORK/vanguard-genesis.ssz;
+  download $CDN/vanguard-config.yaml /opt/lukso/networks/$NETWORK/vanguard-config.yaml;
+  download $CDN/pandora-nodes.json /opt/lukso/networks/$NETWORK/pandora-nodes.json;
+}
+
 pick_network() {
   NETWORK=$1;
+  if [[ ! -d /opt/lukso/networks/"$NETWORK" ]]; then
+    download_network_config $NETWORK;
+  fi
 }
 
 check_validator_requirements() {
