@@ -704,6 +704,16 @@ while getopts "$optspec" optchar; do
                   OVERRIDE_IS_VALIDATOR=true;
                 ;;
 
+                pandora-bootnodes)
+                  val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+                  OVERRIDE_PANDORA_BOOTNODES=$val
+                ;;
+
+                vanguard-bootnodes)
+                  val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+                  OVERRIDE_VANGUARD_BOOTNODES=$val
+                ;;
+
                 force)
                   FORCE=true
                 ;;
@@ -731,15 +741,23 @@ parse_config "/opt/lukso/networks/$NETWORK/config/network-config.yaml";
 
 # Override config file
 if [[ -n $OVERRIDE_COINBASE ]]; then
- COINBASE=$OVERRIDE_COINBASE;
+  COINBASE=$OVERRIDE_COINBASE;
 fi
 
 if [[ -n $OVERRIDE_NODE_NAME ]]; then
- NODE_NAME=$OVERRIDE_NODE_NAME;
+  NODE_NAME=$OVERRIDE_NODE_NAME;
 fi
 
 if [[ -n $OVERRIDE_IS_VALIDATOR ]]; then
- IS_VALIDATOR=$OVERRIDE_IS_VALIDATOR;
+  IS_VALIDATOR=$OVERRIDE_IS_VALIDATOR;
+fi
+
+if [[ -n $OVERRIDE_PANDORA_BOOTNODES ]]; then
+  PANDORA_BOOTNODES=$OVERRIDE_PANDORA_BOOTNODES;
+fi
+
+if [[ -n $OVERRIDE_VANGUARD_BOOTNODES ]]; then
+  VANGUARD_BOOTNODES=$OVERRIDE_VANGUARD_BOOTNODES;
 fi
 
 case $COMMAND in

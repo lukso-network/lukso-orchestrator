@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
 
-sudo apt-get update;
-sudo apt-get install curl \
-wget \
-unzip -y;
 
 NETWORK="l15"
 REPOSITORY="https://storage.googleapis.com/l16-common/l15-cdn";
@@ -27,6 +23,13 @@ fi
 if [[ "$PLATFORM" = "unknown" ]]; then
   echo "Platform not supported.";
   exit;
+fi
+
+if [[ $PLATFORM == "Linux" ]]; then
+  sudo apt-get update;
+  sudo apt-get install curl \
+  wget \
+  unzip -y;
 fi
 
 download() {
