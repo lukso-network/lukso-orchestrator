@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+sudo apt-get update;
+sudo apt-get install curl \
+wget \
+unzip -y;
+
 NETWORK="l15"
 REPOSITORY="https://storage.googleapis.com/l16-common/l15-cdn";
 PLATFORM="unknown";
