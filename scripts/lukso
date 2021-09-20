@@ -35,7 +35,7 @@ COINBASE="0x616e6f6e796d6f75730000000000000000000000";
 DATADIR="$HOME/.lukso/$NETWORK/datadirs";
 LOGSDIR="$HOME/.lukso/$NETWORK/logs";
 NODE_NAME="$(LC_CTYPE=C LANG=C tr -dc A-F0-9 </dev/urandom | head -c 8)";
-EXTERNAL_IP=$(curl ident.me);
+EXTERNAL_IP=$(curl -s ident.me);
 KEYS_DIR="$HOME/.lukso/$NETWORK";
 WALLET_DIR="$HOME/.lukso/$NETWORK/vanguard_wallet";
 ######
@@ -609,6 +609,62 @@ reset() {
 help() {
   echo "USAGE:";
   echo "lukso <command> [argument] [--flags]"
+  echo;
+  echo "Available commands with arguments:"
+  echo "start)         Starts up all or specific client(s)"
+  echo "               [orchestrator, pandora, vanguard, validator, eth2stats-client, all]"
+  echo
+  echo "stop)          Stops all or specific client(s)"
+  echo "               [orchestrator, pandora, vanguard, validator, eth2stats-client, all]"
+  echo
+  echo "reset)         Clears client(s) datadirs (this also removes chain-data) 	"
+  echo "               [orchestrator, pandora, vanguard, validator, all, none]"
+  echo
+  echo "config)        Interactive tool for creating config file"
+  echo
+  echo "keygen)        Runs lukso-deposit-cli"
+  echo
+  echo "wallet)        Imports lukso-deposit-cli keys"
+  echo
+  echo "logs)          Shows logs"
+  echo "               [orchestrator, pandora, vanguard, validator, eth2stats-client]"
+  echo
+  echo "bind-binaries) sets client(s) to desired version"
+  echo;
+  echo;
+  echo "Available flags:";
+  echo "--network              Picks config collection to be used"
+  echo "                       [l15-prod, l15-staging, l15-dev]"
+  echo
+  echo "--l15                  Alias for --network l15-prod"
+  echo
+  echo "--l15-staging          Alias for --network l15-staging"
+  echo
+  echo "--l15-dev              Alias for --network l15-dev"
+  echo
+  echo "--config               Path to config file"
+  echo "                       [config.yaml]"
+  echo
+  echo "--validate             Starts validator"
+  echo
+  echo "--coinbase             Sets pandora coinbase"
+  echo "                       [ETH1 address ex. 0x616e6f6e796d6f75730000000000000000000777]"
+  echo
+  echo "--node-name            Name of node that's shown on pandora stats and vanguard stats"
+  echo "                       [String ex. johnsmith123]"
+  echo
+  echo "--pandora-bootnodes    Sets pandora bootnodes"
+  echo "                       [Strings of bootnodes separated by commas: \"enode://72caa...,enode://b4a11a...\"]"
+  echo
+  echo "--vanguard-bootnodes   Sets vanguard bootnodes"
+  echo "                       [Strings of bootnodes separated by commas: \"enr:-Ku4QAmY...,enr:-M23QLmY...\"]"
+  echo
+  echo "--external-ip          Sets external IP for pandora and vanguard"
+  echo "                       [72.122.32.234]"
+  echo
+  echo "--force                Enables force mode for stopping"
+
+
   exit;
 }
 
