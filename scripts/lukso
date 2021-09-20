@@ -717,21 +717,17 @@ fi
 parse_config "/opt/lukso/networks/$NETWORK/config/network-config.yaml";
 
 # Override config file
+if [[ -n $OVERRIDE_COINBASE ]]; then
+ COINBASE=$OVERRIDE_COINBASE;
+fi
 
-#if [[ -v $OVERRIDE_COINBASE ]]; then
-# COINBASE=$OVERRIDE_COINBASE;
-#fi
-#
-#if [[ -v $OVERRIDE_NODE_NAME ]]; then
-#  echo sss
-#  NODE_NAME=$OVERRIDE_NODE_NAME;
-#fi
-#  NODE_NAME=$OVERRIDE_NODE_NAME;
-#echo $NODE_NAME kaaaaaa;
-#
-#if [[ -v $OVERRIDE_IS_VALIDATOR ]]; then
-# IS_VALIDATOR=$OVERRIDE_IS_VALIDATOR;
-#fi
+if [[ -n $OVERRIDE_NODE_NAME ]]; then
+ NODE_NAME=$OVERRIDE_NODE_NAME;
+fi
+
+if [[ -n $OVERRIDE_IS_VALIDATOR ]]; then
+ IS_VALIDATOR=$OVERRIDE_IS_VALIDATOR;
+fi
 
 case $COMMAND in
 ping)
