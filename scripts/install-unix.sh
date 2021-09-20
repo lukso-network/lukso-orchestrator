@@ -49,7 +49,7 @@ sudo mkdir \
 /opt/lukso/networks/"$NETWORK" \
 /opt/lukso/networks/"$NETWORK"/config;
 
-download https://raw.githubusercontent.com/lukso-network/lukso-orchestrator/feature/l15-setup-script/scripts/lukso /opt/lukso/lukso;
+download https://raw.githubusercontent.com/lukso-network/lukso-orchestrator/feature/l15-setup/scripts/lukso /opt/lukso/lukso;
 
 download "$REPOSITORY"/config.zip?ignorecache=1 /opt/lukso/tmp/config.zip;
 
