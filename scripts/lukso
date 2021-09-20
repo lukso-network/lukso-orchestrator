@@ -242,7 +242,7 @@ start_pandora() {
   ARGUMENTS=(
     "--datadir=$DATADIR/pandora"
     "--networkid=$NETWORK_ID"
-    "--ethstats=$NETWORK-$NODE_NAME:$PANDORA_STATS_PASSWORD@stats.pandora.l15.lukso.network"
+    "--ethstats=$NODE_NAME:$PANDORA_STATS_PASSWORD@stats.pandora.l15.lukso.network"
     "--port=30405"
     "--rpc"
     "--rpcaddr=0.0.0.0"
