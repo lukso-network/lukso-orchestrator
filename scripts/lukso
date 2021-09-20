@@ -232,29 +232,42 @@ start_pandora() {
     cp /opt/lukso/networks/"$NETWORK"/config/static-nodes.json $DATADIR/pandora/geth;
   fi
 
-	nohup pandora --datadir=$DATADIR/pandora \
-	 --networkid=$NETWORK_ID \
-	 --ethstats=$NETWORK-$NODE_NAME:$PANDORA_STATS_PASSWORD@stats.pandora.l15.lukso.network \
-	 --port=30405 \
-	 --rpc \
-	 --rpcaddr=0.0.0.0 \
-	 --rpcapi=admin,net,eth,debug,ethash,miner,personal,txpool,web3 \
-	 --bootnodes="$PANDORA_BOOTNODES" \
-	 --rpcport=8545 \
-	 --http.corsdomain="*" \
-	 --ws \
-	 --ws.addr=0.0.0.0 \
-	 --ws.api=admin,net,eth,debug,ethash,miner,personal,txpool,web3 \
-	 --ws.port=8546 \
-	 --ws.origins="*" \
-	 --mine \
-	 --miner.notify=ws://127.0.0.1:7878,http://127.0.0.1:7877 \
-	 --miner.etherbase=$COINBASE \
-	 --nat=extip:$EXTERNAL_IP \
-	 --syncmode="full" \
-   --allow-insecure-unlock \
-   --nat=extip:$EXTERNAL_IP \
-	 --verbosity=4 >| $LOGSDIR/pandora/pandora_"$RUN_DATE".log  2>&1 &
+#  PANDORA_BOOTNODES=(${PANDORA_BOOTNODES//,/ })
+#  BOOTNODES_ARGS=()
+#  for n in "${PANDORA_BOOTNODES[@]}"
+#  do
+#    BOOTNODES_ARGS+=("--bootnodes=$n")
+#  done
+
+  ARGUMENTS=(
+    "--datadir=$DATADIR/pandora"
+    "--networkid=$NETWORK_ID"
+    "--ethstats=$NETWORK-$NODE_NAME:$PANDORA_STATS_PASSWORD@stats.pandora.l15.lukso.network"
+    "--port=30405"
+    "--rpc"
+    "--rpcaddr=0.0.0.0"
+    "--rpcapi=admin,net,eth,debug,ethash,miner,personal,txpool,web3"
+    "--bootnodes=$PANDORA_BOOTNODES" ###
+    "--rpcport=8545"
+    "--http.corsdomain=*"
+    "--ws"
+    "--ws.addr=0.0.0.0"
+    "--ws.api=admin,net,eth,debug,ethash,miner,personal,txpool,web3"
+    "--ws.port=8546"
+    "--ws.origins=*"
+    "--mine"
+	  "--miner.notify=ws://127.0.0.1:7878,http://127.0.0.1:7877"
+	  "--miner.etherbase=$COINBASE"
+	  "--nat=extip:$EXTERNAL_IP"
+	  "--syncmode=full"
+	  "--allow-insecure-unlock"
+	  "--nat=extip:$EXTERNAL_IP"
+	  "--verbosity=4"
+  )
+
+	nohup pandora  \
+   "${ARGUMENTS[@]}" \
+	 >| $LOGSDIR/pandora/pandora_"$RUN_DATE".log  2>&1 &
 	 disown
 }
 
