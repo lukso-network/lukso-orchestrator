@@ -692,16 +692,16 @@ while getopts "$optspec" optchar; do
 
                 coinbase)
                   val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
-                  COINBASE="$val";
+                  OVERRIDE_COINBASE="$val";
                 ;;
 
                 node-name)
                   val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
-                  NODE_NAME="$val";
+                  OVERRIDE_NODE_NAME="$val";
                 ;;
 
                 validate)
-                  IS_VALIDATOR=true;
+                  OVERRIDE_IS_VALIDATOR=true;
                 ;;
 
                 force)
