@@ -2,7 +2,6 @@
 
 
 NETWORK="l15"
-REPOSITORY="https://storage.googleapis.com/l16-common/l15-cdn";
 PLATFORM="unknown";
 ARCHITECTURE=$(uname -m);
 
@@ -44,6 +43,18 @@ download() {
   fi
 }
 
+download_network_config() {
+  NETWORK=$1;
+  CDN="https://storage.googleapis.com/l15-cdn/networks/$NETWORK";
+  sudo mkdir -p /opt/lukso/networks/$NETWORK/config;
+  TARGET=/opt/lukso/networks/$NETWORK/config;
+  download $CDN/network-config.yaml $TARGET/network-config.yaml;
+  download $CDN/pandora-genesis.json $TARGET/pandora-genesis.json;
+  download $CDN/vanguard-genesis.ssz $TARGET/vanguard-genesis.ssz;
+  download $CDN/vanguard-config.yaml $TARGET/vanguard-config.yaml;
+  download $CDN/pandora-nodes.json $TARGET/pandora-nodes.json;
+}
+
 sudo mkdir \
 /opt/lukso \
 /opt/lukso/tmp \
@@ -54,12 +65,10 @@ sudo mkdir \
 
 download https://raw.githubusercontent.com/lukso-network/lukso-orchestrator/feature/l15-setup/scripts/lukso /opt/lukso/lukso;
 
-download "$REPOSITORY"/config.zip?ignorecache=1 /opt/lukso/tmp/config.zip;
-
-sudo unzip /opt/lukso/tmp/config.zip -d /opt/lukso/networks/"$NETWORK"/config;
-
 sudo chmod +x /opt/lukso/lukso;
 sudo ln -sfn /opt/lukso/lukso /usr/local/bin/lukso;
+
+download_network_config l15;
 
 sudo rm -rf /opt/lukso/tmp;
 
