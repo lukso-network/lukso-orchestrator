@@ -32,12 +32,22 @@ RUN_DATE=$(date '+%Y-%m-%d__%H-%M-%S');
 NETWORK="l15";
 IS_VALIDATOR=false;
 COINBASE="0x616e6f6e796d6f75730000000000000000000000";
-DATADIR="$HOME/.lukso/$NETWORK/datadirs";
-LOGSDIR="$HOME/.lukso/$NETWORK/logs";
+
+if [[ "$PLATFORM" = "Linux" ]]; then
+  LUKSO_HOME="$HOME/.lukso";
+fi
+
+if [[ "$PLATFORM" = "Darwin" ]]; then
+  LUKSO_HOME="$HOME/Library/LUKSO";
+fi
+
+
+DATADIR="$LUKSO_HOME/$NETWORK/datadirs";
+LOGSDIR="$LUKSO_HOME/$NETWORK/logs";
 NODE_NAME="$(LC_CTYPE=C LANG=C tr -dc A-F0-9 </dev/urandom | head -c 8)";
 EXTERNAL_IP=$(curl -s ident.me);
-KEYS_DIR="$HOME/.lukso/$NETWORK";
-WALLET_DIR="$HOME/.lukso/$NETWORK/vanguard_wallet";
+KEYS_DIR="$LUKSO_HOME/$NETWORK";
+WALLET_DIR="$LUKSO_HOME/$NETWORK/vanguard_wallet";
 ######
 
 ###### for config tool
@@ -139,7 +149,7 @@ import_accounts() {
   read -p "Where do you have deposit keys? Default: [$KEYS_DIR] " KEYS_DIR
   lukso-validator accounts import \
   --keys-dir $KEYS_DIR \
-  --wallet-dir $HOME/.lukso/$NETWORK/validator_wallet;
+  --wallet-dir $WALLET_DIR;
 }
 
 parse_config_field() {
@@ -163,7 +173,8 @@ setup_config() {
     echo "For paths you can use variables like \$PWD or \".\" as they will be resolved";
     echo;
 
-    DEFAULT="$HOME/.lukso/$NETWORK/config.yaml";
+    mkdir -p "$LUKSO_HOME/$NETWORK";
+    DEFAULT="$LUKSO_HOME/$NETWORK/config.yaml";
     LABEL="Config file location [default: $DEFAULT]: "
     read -p "$LABEL" CONFIG_LOCATION;
     eval CONFIG_LOCATION="$CONFIG_LOCATION";
@@ -173,9 +184,9 @@ setup_config() {
     fi
 
     parse_config_field "COINBASE" "Enter your coinbase:" "0x616e6f6e796d6f75730000000000000000000000";
-    parse_config_field "WALLET_DIR" "Type wallet location:" "$HOME/.lukso/$NETWORK/vanguard-wallet";
-    parse_config_field "DATADIR" "Type data directory (chain will be stored there) location:" "$HOME/.lukso/$NETWORK/datadirs";
-    parse_config_field "LOGSDIR" "Type logs location:" "$HOME/.lukso/$NETWORK/logs";
+    parse_config_field "WALLET_DIR" "Type wallet location:" "$LUKSO_HOME/$NETWORK/vanguard-wallet";
+    parse_config_field "DATADIR" "Type data directory (chain will be stored there) location:" "$LUKSO_HOME/$NETWORK/datadirs";
+    parse_config_field "LOGSDIR" "Type logs location:" "$LUKSO_HOME/$NETWORK/logs";
     parse_config_field "NODE_NAME" "Type name of the node:" "$NETWORK-$NODE_NAME";
 
     echo "Saving config to $CONFIG_LOCATION";
@@ -245,13 +256,6 @@ start_pandora() {
     pandora --datadir $DATADIR/pandora init /opt/lukso/networks/$NETWORK/config/pandora-genesis.json &> /dev/null
     cp /opt/lukso/networks/"$NETWORK"/config/static-nodes.json $DATADIR/pandora/geth;
   fi
-
-#  PANDORA_BOOTNODES=(${PANDORA_BOOTNODES//,/ })
-#  BOOTNODES_ARGS=()
-#  for n in "${PANDORA_BOOTNODES[@]}"
-#  do
-#    BOOTNODES_ARGS+=("--bootnodes=$n")
-#  done
 
   ARGUMENTS=(
     "--datadir=$DATADIR/pandora"
@@ -741,6 +745,21 @@ while getopts "$optspec" optchar; do
                   pick_network $val;
                 ;;
 
+                home)
+                  val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+                  eval OVERRIDE_LUKSO_HOME=$val;
+                ;;
+
+                datadir)
+                  val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+                  eval OVERRIDE_DATADIR=$val;
+                ;;
+
+                logsdir)
+                  val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+                  eval OVERRIDE_LOGSDIR=$val;
+                ;;
+
                 l15)
                   pick_network l15
                 ;;
@@ -838,6 +857,23 @@ if [[ -n $OVERRIDE_EXTERNAL_IP ]]; then
   EXTERNAL_IP=$OVERRIDE_EXTERNAL_IP;
 fi
 
+if [[ -n $OVERRIDE_LUKSO_HOME ]]; then
+  LUKSO_HOME=$OVERRIDE_LUKSO_HOME;
+  DATADIR=$LUKSO_HOME/$NETWORK/datadirs;
+  LOGSDIR=$LUKSO_HOME/$NETWORK/logs;
+fi
+
+if [[ -n $OVERRIDE_DATADIR ]]; then
+  DATADIR=$OVERRIDE_DATADIR;
+fi
+
+if [[ -n $OVERRIDE_LOGSDIR ]]; then
+  LOGSDIR=$LOGSDIR;
+fi
+
+echo $LUKSO_HOME;
+echo $DATADIR;
+
 case $COMMAND in
 ping)
   echo $PING_MSG
@@ -864,7 +900,7 @@ logs)
   logs "$COMMAND_ARG"
   ;;
 attach)
-  pandora attach $2;
+  pandora attach $DATADIR/pandora/geth.ipc;
   ;;
 bind-binaries)
   ;;
