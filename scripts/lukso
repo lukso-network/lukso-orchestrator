@@ -639,9 +639,9 @@ help() {
   echo;
   echo "Available flags:";
   echo "--network              Picks config collection to be used"
-  echo "                       [l15-prod, l15-staging, l15-dev]"
+  echo "                       [l15, l15-staging, l15-dev]"
   echo
-  echo "--l15                  Alias for --network l15-prod"
+  echo "--l15                  Alias for --network l15"
   echo
   echo "--l15-staging          Alias for --network l15-staging"
   echo
@@ -872,8 +872,6 @@ if [[ -n $OVERRIDE_LOGSDIR ]]; then
   LOGSDIR=$LOGSDIR;
 fi
 
-echo $LUKSO_HOME;
-echo $DATADIR;
 
 case $COMMAND in
 ping)
