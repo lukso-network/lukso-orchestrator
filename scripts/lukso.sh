@@ -387,6 +387,55 @@ function clear_validator {
 
 #######################################################################################################################################
 
+################################################## Slasher Management ###############################################################
+
+function download_slasher_binary {
+	GIT_TAG=$1
+	if [[ -z $1 ]]; then
+		#statements
+		GIT_TAG=$GIT_VANGUARD
+	fi
+
+	arch=$(uname -m)
+	mkdir -p ./bin
+
+	wget https://github.com/lukso-network/vanguard-consensus-engine/releases/download/"$GIT_TAG"/slasher-"$OS_NAME"-"$arch" -O ./bin/slasher
+	chmod +x ./bin/slasher
+}
+
+function run_slasher {
+  mkdir -p ./slasher
+
+	if [[ ! -f ./bin/slasher ]]; then
+		download_slasher_binary $1
+	fi
+
+	if [[ ! -f ./config/vanguard-config.yml ]]; then
+		download_vanguard_config
+	fi
+
+	nohup ./bin/slasher \
+    --accept-terms-of-use \
+    --config-file=./config/vanguard-config.yml \
+    --datadir=./slasher/datadir \
+    --log-file=./slasher/slasher.log \
+    --rpc-max-page-size=5 \
+    --verbosity=debug \
+    --beacon-rpc-provider=localhost:4000 \
+    --enable-historical-detection \
+    --highest-att-cache-size=2000 \
+    --rpc-host=0.0.0.0 \
+    --rpc-port=4002 > ./slasher/slasher.log 2>&1 &
+disown
+
+}
+
+function clear_slasher {
+	rm -rf ./slasher/datadir
+}
+
+#########################################################################################################################################
+
 function find_and_kill {
 	process_id=` /bin/ps -fu $USER| grep "$1" | grep -v "grep" | awk '{print $2}' `
 	for process in $process_id
@@ -437,6 +486,7 @@ function stop_all {
 	find_and_kill "validator"
 	find_and_kill "beacon-chain"
 	find_and_kill "orchestrator"
+	find_and_kill "slasher"
 	rm -f ./vanguard/datadir/network-keys
 }
 
@@ -446,6 +496,7 @@ function reset_all {
 	clear_validator
 	clear_vanguard
 	clear_orchestrator
+	clear_slasher
 }
 
 function run_full_set {
@@ -541,6 +592,14 @@ while test $# -gt 0; do
       echo "--run_pandora=GIT_TAG 	run pandora with the GIT_TAG"
       echo "--run_vanguard=GIT_TAG 	run vanguard with the GIT_TAG"
       echo "--run_validator=GIT_TAG 	run validator with the GIT_TAG"
+      echo "--run_slasher=GIT_TAG 	run slasher with the GIT_TAG"
+
+
+      echo "--run_default_orchestrator 	run orchestrator with default GIT_TAG"
+      echo "--run_default_pandora 	run pandora with default GIT_TAG"
+      echo "--run_default_vanguard 	run vanguard with default GIT_TAG"
+      echo "--run_default_validator 	run validator with default GIT_TAG"
+      echo "--run_default_slasher 	run slasher with default GIT_TAG"
 
 
       echo ""
@@ -697,6 +756,15 @@ while test $# -gt 0; do
 	  ;;
 	--run_default_validator)
 	  run_validator
+	  shift
+	  ;;
+	--run_slasher*)
+	  export GIT_TAG=`echo $1 | sed -e 's/^[^=]*=//g'`
+	  run_slasher $GIT_TAG
+	  shift
+	  ;;
+	--run_default_slasher)
+	  run_slasher
 	  shift
 	  ;;
 	--l15*)
