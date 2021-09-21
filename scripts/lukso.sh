@@ -106,7 +106,7 @@ function run_orchestrator {
 		--ws.addr=0.0.0.0 \
 		--ws.port=7878 \
 		--pandora-rpc-endpoint=ws://127.0.0.1:8546 \
-		--verbosity=trace > ./orchestrator/orchestrator.log  2>&1 &
+		--verbosity=info > ./orchestrator/orchestrator.log  2>&1 &
 	disown
 }
 
@@ -173,7 +173,7 @@ function run_pandora {
 
 	./bin/pandora --datadir ./pandora/datadir init ./config/pandora-genesis.json &> /dev/null
 	nohup ./bin/pandora --datadir=./pandora/datadir \
-	 --networkid=808080 \
+	 --networkid=808081 \
 	 --ethstats=l15-$(hostname):VIyf7EjWlR48@stats.pandora.l15.lukso.network \
 	 --port=30405 \
 	 --rpc \
@@ -194,7 +194,7 @@ function run_pandora {
 	 --syncmode="full" \
    --allow-insecure-unlock \
    -nat=extip:$EXTERNAL_IP \
-	 --verbosity=4 > ./pandora/pandora.log  2>&1 &
+	 --verbosity=3 > ./pandora/pandora.log  2>&1 &
 	 disown
 }
 
@@ -264,8 +264,8 @@ function run_vanguard {
 
 	nohup ./bin/beacon-chain \
 	      --accept-terms-of-use \
-	      --chain-id=808080 \
-	      --network-id=808080 \
+	      --chain-id=808081 \
+	      --network-id=808081 \
 	      --genesis-state=./config/vanguard_genesis.ssz \
 	      --datadir=./vanguard/datadir \
 	      --chain-config-file=./config/vanguard-config.yml \
@@ -278,7 +278,7 @@ function run_vanguard {
 	      --contract-deployment-block=0 \
 	      --rpc-host=0.0.0.0 \
 	      --monitoring-host=0.0.0.0 \
-	      --verbosity=debug \
+	      --verbosity=info \
 	      --min-sync-peers=2 \
 	      --p2p-max-peers=50 \
 	      --orc-http-provider=http://127.0.0.1:7877 \
