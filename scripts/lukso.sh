@@ -430,6 +430,13 @@ disown
 
 }
 
+function stop_slasher {
+  echo "###### Stopping slasher #######"
+
+	sudo kill -INT $(sudo lsof -t -i:4002) &> /dev/null
+	sleep 1
+}
+
 function clear_slasher {
 	rm -rf ./slasher/datadir
 }
@@ -609,6 +616,7 @@ while test $# -gt 0; do
       echo "--stop_orchestrator 	stop pandora node"
       echo "--stop_vanguard	stop pandora node"
       echo "--stop_validator	stop pandora node"
+      echo "--stop_slasher	stop slasher node"
       echo "--stop 	stop all node"
       echo "--log 	log everything"
       echo "--prep 	download depenencies"
@@ -791,6 +799,10 @@ while test $# -gt 0; do
 	  ;;
 	--stop_vanguard)
 	  stop_vanguard
+	  shift
+	  ;;
+	--stop_slasher)
+	  stop_slasher
 	  shift
 	  ;;
 	--stop_bootnode)
