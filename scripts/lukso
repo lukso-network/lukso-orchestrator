@@ -13,8 +13,8 @@ CHAIN_ID="";
 NETWORK_ID="";
 PANDORA_BOOTNODES="";
 VANGUARD_BOOTNODES="";
-PANDORA_STATS_HOST="";
-VANGUARD_STATS_HOST="";
+ETH1_STATS_URL="";
+ETH2_STATS_URL="";
 #####
 
 ##### default client values
@@ -196,12 +196,13 @@ setup_config() {
 download_network_config() {
   NETWORK=$1;
   CDN="https://storage.googleapis.com/l15-cdn/networks/$NETWORK";
-  sudo mkdir -p /opt/lukso/networks/$NETWORK;
-  download $CDN/network-config.yaml /opt/lukso/networks/$NETWORK/network-config.yaml;
-  download $CDN/pandora-genesis.json /opt/lukso/networks/$NETWORK/pandora-genesis.json;
-  download $CDN/vanguard-genesis.ssz /opt/lukso/networks/$NETWORK/vanguard-genesis.ssz;
-  download $CDN/vanguard-config.yaml /opt/lukso/networks/$NETWORK/vanguard-config.yaml;
-  download $CDN/pandora-nodes.json /opt/lukso/networks/$NETWORK/pandora-nodes.json;
+  sudo mkdir -p /opt/lukso/networks/$NETWORK/config;
+  TARGET=/opt/lukso/networks/$NETWORK/config;
+  download $CDN/network-config.yaml $TARGET/network-config.yaml;
+  download $CDN/pandora-genesis.json $TARGET/pandora-genesis.json;
+  download $CDN/vanguard-genesis.ssz $TARGET/vanguard-genesis.ssz;
+  download $CDN/vanguard-config.yaml $TARGET/vanguard-config.yaml;
+  download $CDN/pandora-nodes.json $TARGET/pandora-nodes.json;
 }
 
 pick_network() {
@@ -254,13 +255,13 @@ start_pandora() {
   if [[ ! -d "$DATADIR/pandora" ]]; then
     mkdir -p "$DATADIR/pandora";
     pandora --datadir $DATADIR/pandora init /opt/lukso/networks/$NETWORK/config/pandora-genesis.json &> /dev/null
-    cp /opt/lukso/networks/"$NETWORK"/config/static-nodes.json $DATADIR/pandora/geth;
+    cp /opt/lukso/networks/"$NETWORK"/config/pandora-nodes.json $DATADIR/pandora/geth/static-nodes.json;
   fi
 
   ARGUMENTS=(
     "--datadir=$DATADIR/pandora"
     "--networkid=$NETWORK_ID"
-    "--ethstats=$NODE_NAME:$PANDORA_STATS_PASSWORD@stats.pandora.l15.lukso.network"
+    "--ethstats=$NODE_NAME:$ETH1_STATS_APIKEY@$ETH1_STATS_URL"
     "--port=30405"
     "--rpc"
     "--rpcaddr=0.0.0.0"
@@ -303,7 +304,7 @@ start_vanguard() {
     "--network-id=$NETWORK_ID"
     "--genesis-state=/opt/lukso/networks/$NETWORK/config/vanguard-genesis.ssz"
     "--datadir=$DATADIR/vanguard/"
-    "--chain-config-file=/opt/lukso/networks/$NETWORK/config/chain-config.yaml"
+    "--chain-config-file=/opt/lukso/networks/$NETWORK/config/vanguard-config.yaml"
     "${BOOTNODES_ARGS[@]}"
     "--http-web3provider=http://127.0.0.1:8545"
     "--deposit-contract=0x000000000000000000000000000000000000cafe"
@@ -338,7 +339,7 @@ start_validator() {
 	  --datadir="$DATADIR"/validator/ \
 	  --accept-terms-of-use \
 	  --beacon-rpc-provider=localhost:4000 \
-	  --chain-config-file=/opt/lukso/networks/config/vanguard-config.yml \
+	  --chain-config-file=/opt/lukso/networks/$NETWORK/config/vanguard-config.yaml \
 	  --verbosity=debug \
 	  --pandora-http-provider=http://127.0.0.1:8545 \
 	  --wallet-dir=$WALLET_DIR \
@@ -359,7 +360,7 @@ start_eth2stats_client() {
     --beacon.metrics-addr="http://127.0.0.1:8080/metrics" \
     --data.folder=$DATADIR/eth2stats-client \
     --eth2stats.node-name="$NODE_NAME" \
-    --eth2stats.addr="$VANGUARD_STATS_HOST" \
+    --eth2stats.addr="$ETH2_STATS_URL" \
     --eth2stats.tls="false" >| "$LOGSDIR"/eth2stats/eth2stats_"$RUN_DATE".log  2>&1 &
   disown
 }
