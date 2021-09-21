@@ -650,6 +650,17 @@ help() {
   echo "--config               Path to config file"
   echo "                       [config.yaml]"
   echo
+  echo "--datadir              Sets datadir path"
+  echo "                       [Ex. /mnt/external/lukso-datadir]"
+  echo
+  echo "--logsdir              Sets logs path"
+  echo "                       [Ex. /mnt/external/lukso-logs]"
+  echo
+  echo "--home                 Sets path for datadir and logs in a single location (--datadir and --logs take priority)"
+  echo "                       [Ex. /var/lukso]"
+  echo
+
+
   echo "--validate             Starts validator"
   echo
   echo "--coinbase             Sets pandora coinbase"
