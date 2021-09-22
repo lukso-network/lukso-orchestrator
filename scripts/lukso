@@ -12,6 +12,7 @@ FORCE=false;
 CHAIN_ID="";
 NETWORK_ID="";
 PANDORA_BOOTNODES="";
+PANDORA_HTTP_PORT="8545";
 VANGUARD_BOOTNODES="";
 ETH1_STATS_URL="";
 ETH2_STATS_URL="";
@@ -276,7 +277,7 @@ start_pandora() {
     "--rpcaddr=0.0.0.0"
     "--rpcapi=admin,net,eth,debug,ethash,miner,personal,txpool,web3"
     "--bootnodes=$PANDORA_BOOTNODES" ###
-    "--rpcport=8545"
+    "--rpcport=$PANDORA_HTTP_PORT"
     "--http.corsdomain=*"
     "--ws"
     "--ws.addr=0.0.0.0"
@@ -837,6 +838,11 @@ while getopts "$optspec" optchar; do
                   OVERRIDE_PANDORA_BOOTNODES=$val
                 ;;
 
+                pandora-http-port)
+                  val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
+                  OVERRIDE_PANDORA_HTTP_PORT=$val;
+                ;;
+
                 vanguard-bootnodes)
                   val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
                   OVERRIDE_VANGUARD_BOOTNODES=$val
@@ -887,6 +893,10 @@ fi
 
 if [[ -n $OVERRIDE_PANDORA_BOOTNODES ]]; then
   PANDORA_BOOTNODES=$OVERRIDE_PANDORA_BOOTNODES;
+fi
+
+if [[ -n $OVERRIDE_PANDORA_HTTP_PORT ]]; then
+  PANDORA_HTTP_PORT=$OVERRIDE_PANDORA_HTTP_PORT;
 fi
 
 if [[ -n $OVERRIDE_VANGUARD_BOOTNODES ]]; then
