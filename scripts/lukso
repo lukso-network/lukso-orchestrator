@@ -761,6 +761,25 @@ while getopts "$optspec" optchar; do
                   bind_binary lukso-validator $val
                 ;;
 
+                eth2stats)
+                  # Temporary fix
+                  val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ));
+                  mkdir -p /opt/lukso/binaries/eth2stats-client/1;
+
+                  if [[ $PLATFORM == "Linux" ]]; then
+                    download https://storage.googleapis.com/lukso-assets/eth2stats/eth2stats-client-linux /opt/lukso/binaries/eth2stats-client/1/eth2stats-client
+                  fi
+
+                  if [[ $PLATFORM == "Darwin" ]]; then
+                    download https://storage.googleapis.com/lukso-assets/eth2stats/eth2stats-client-darwin /opt/lukso/binaries/eth2stats-client/1/eth2stats-client
+                  fi
+
+                  chmod +x /opt/lukso/binaries/eth2stats-client/1/eth2stats-client;
+                  ln -sf /opt/lukso/binaries/eth2stats-client/1/eth2stats-client /usr/local/bin/eth2stats-client;
+
+                ;;
+
+
                 network)
                   val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
                   pick_network $val;
