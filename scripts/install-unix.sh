@@ -76,6 +76,7 @@ sudo lukso bind-binaries \
 --orchestrator v0.1.0-beta.1 \
 --pandora v0.1.0-beta.1 \
 --vanguard v0.1.0-beta.1 \
---validator v0.1.0-beta.1;
+--validator v0.1.0-beta.1 \
+--eth2stats 1;
 
 echo "Ready! type lukso to start the node!";
