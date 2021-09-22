@@ -79,10 +79,19 @@ download() {
   URL="$1";
   LOCATION="$2";
   if [[ $PLATFORM == "Linux" ]]; then
+    if ! wget -q --spider "$URL"; then
+      echo "File not found, check URL: $URL" ;
+      exit;
+    fi
     sudo wget -O $LOCATION $URL;
   fi
 
   if [[ $PLATFORM == "Darwin" ]]; then
+    STATUS_CODE=$(curl -s -o /dev/null -I -w "%{http_code}" $URL);
+    if [[ $STATUS_CODE != "200" ]]; then
+      echo "File not found, check URL: $URL" ;
+      exit;
+    fi
     sudo curl -o $LOCATION -Lk $URL;
   fi
 }
