@@ -682,6 +682,9 @@ help() {
   echo "--pandora-bootnodes    Sets pandora bootnodes"
   echo "                       [Strings of bootnodes separated by commas: \"enode://72caa...,enode://b4a11a...\"]"
   echo
+  echo "--pandora-http-port    Sets pandora RPC (over http) port"
+  echo "                       [Number between 1023-65535]"
+  echo
   echo "--vanguard-bootnodes   Sets vanguard bootnodes"
   echo "                       [Strings of bootnodes separated by commas: \"enr:-Ku4QAmY...,enr:-M23QLmY...\"]"
   echo
