@@ -88,7 +88,7 @@ download() {
   fi
 
   if [[ $PLATFORM == "Darwin" ]]; then
-    STATUS_CODE=$(curl -s -o /dev/null -I -w "%{http_code}" $URL);
+    STATUS_CODE=$(curl -L -s -o /dev/null -I -w "%{http_code}" $URL);
     if [[ $STATUS_CODE != "200" ]]; then
       echo "File not found, check URL: $URL" ;
       exit;
