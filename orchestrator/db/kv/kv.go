@@ -130,12 +130,7 @@ func (s *Store) ClearDB() error {
 
 // Close closes the underlying BoltDB database.
 func (s *Store) Close() error {
-	err := s.SaveLatestEpoch(s.ctx)
-	if nil != err {
-		return err
-	}
-
-	err = s.SaveLatestVerifiedSlot(s.ctx)
+	err := s.SaveLatestVerifiedSlot(s.ctx)
 	if nil != err {
 		return err
 	}

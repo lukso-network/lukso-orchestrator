@@ -19,11 +19,6 @@ func (s *Service) OnNewConsensusInfo(ctx context.Context, consensusInfo *types.M
 		log.WithError(err).Warn("failed to save consensus info into consensusInfoDB!")
 		return err
 	}
-
-	if err := s.orchestratorDB.SaveLatestEpoch(ctx); err != nil {
-		log.WithError(err).Warn("failed to save latest epoch into consensusInfoDB!")
-		return err
-	}
 	return nil
 }
 

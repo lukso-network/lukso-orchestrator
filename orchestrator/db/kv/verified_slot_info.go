@@ -27,7 +27,7 @@ func (s *Store) VerifiedSlotInfo(slot uint64) (*types.SlotInfo, error) {
 		key := bytesutil.Uint64ToBytesBigEndian(slot)
 		value := bkt.Get(key[:])
 		if value == nil {
-			return nil
+			return ErrValueNotFound
 		}
 		return decode(value, &slotInfo)
 	})

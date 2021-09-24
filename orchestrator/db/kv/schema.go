@@ -7,6 +7,5 @@ var (
 	invalidSlotInfosBucket  = []byte("invalid-slots")
 
 	latestHeaderHashKey        = []byte("latest-header-hash")
-	lastStoredEpochKey         = []byte("last-epoch")
 	latestSavedVerifiedSlotKey = []byte("latest-verified-slot")
 )
