@@ -85,6 +85,7 @@ func Test_PandoraHeaderRemoveCache(t *testing.T) {
 	require.Equal(t, 100-removedSlotNumber, uint64(pc.cache.Len()))
 }
 
+
 func Test_PandoraHeaderGetAll(t *testing.T) {
 	maxCacheSize = 1 << 10
 	pc := NewPanHeaderCache()

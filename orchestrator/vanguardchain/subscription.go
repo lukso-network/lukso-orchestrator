@@ -3,6 +3,8 @@ package vanguardchain
 import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/db/kv"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/utils"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/client"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	"github.com/pkg/errors"
@@ -27,7 +29,7 @@ func (s *Service) subscribeVanNewPendingBlockHash(
 	latestVerifiedSlot := s.orchestratorDB.LatestSavedVerifiedSlot()
 	latestVerifiedSlotInfo, err := s.orchestratorDB.VerifiedSlotInfo(latestVerifiedSlot)
 	var blockRoot []byte
-	if err != nil {
+	if err != nil && err != kv.ErrValueNotFound {
 		log.WithField("latestVerifiedSlot", latestVerifiedSlot).
 			WithError(err).
 			Warn("Failed to retrieve latest verified slot info for pending block subscription")
@@ -94,6 +96,7 @@ func (s *Service) subscribeNewConsensusInfoGRPC(client client.VanguardClient) er
 		Info("Successfully subscribed to minimal consensus info to vanguard client")
 
 	go func() {
+		previousEpoch := fromEpoch
 		for {
 			select {
 			case <-s.ctx.Done():
@@ -129,6 +132,16 @@ func (s *Service) subscribeNewConsensusInfoGRPC(client client.VanguardClient) er
 						"empty validator list")
 					s.conInfoSubErrCh <- errInvalidValidatorLength
 					return
+				}
+
+				if uint64(vanMinimalConsensusInfo.Epoch) < previousEpoch {
+					log.WithField("last seen epoch", previousEpoch).WithField("currently seen epoch", vanMinimalConsensusInfo.Epoch).Info("received previous epoch. So re-org happened in vanguard")
+					err := utils.PreviousEpochReceived(client, uint64(vanMinimalConsensusInfo.Epoch), s.orchestratorDB)
+					if err != nil {
+						log.WithField("error", err).Error("error while investigating previous epoch info data")
+						return
+					}
+					previousEpoch = uint64(vanMinimalConsensusInfo.Epoch)
 				}
 
 				log.WithField("epoch", vanMinimalConsensusInfo.Epoch).

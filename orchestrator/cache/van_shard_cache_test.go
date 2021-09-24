@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+
 	lru "github.com/hashicorp/golang-lru"
 	"math/rand"
 	"testing"
@@ -114,6 +115,7 @@ func TestVanguardShardingInfoCacheSize(t *testing.T) {
 
 	// Should not found slot-0 because cache size is 10
 	actualHeader, err := vanguardCache.Get(ctx, 88)
+
 	require.ErrorContains(t, "Invalid slot", err, "Should not be found because cache size is 10")
 
 	actualHeader, err = vanguardCache.Get(ctx, 91)
@@ -125,12 +127,14 @@ func TestVanguardShardingInfoCacheSize(t *testing.T) {
 func TestVanguardRemoveShardInfo(t *testing.T) {
 	vanguardCache := NewVanShardInfoCache(100)
 	ctx := context.Background()
+
 	generatedShardInfos, err := setupShardingCache(100)
 
 	if err != nil {
 		t.Error("vanguard sharding data generation failed", "error", err)
 		return
 	}
+
 
 	for slot := 1; slot < 100; slot++ {
 		slotUint64 := uint64(slot)
@@ -145,12 +149,14 @@ func TestVanguardRemoveShardInfo(t *testing.T) {
 	// now all slots from removedSlotNumber to 0 is null
 	for i := int(removedSlotNumber); i >= 0; i-- {
 		_, err := vanguardCache.Get(ctx, uint64(i))
+
 		require.ErrorContains(t, "Invalid slot", err, "Should not be found because it is removed")
 	}
 
 	for i := int(removedSlotNumber) + 1; i < 100; i++ {
 		actualHeader, err := vanguardCache.Get(ctx, uint64(i))
 		require.NoError(t, err, "Should be found slot")
+
 		assert.DeepEqual(t, generatedShardInfos[uint64(i)], actualHeader)
 	}
 }

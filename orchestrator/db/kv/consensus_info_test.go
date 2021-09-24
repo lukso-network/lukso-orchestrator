@@ -26,6 +26,111 @@ func TestStore_ConsensusInfo_RetrieveByEpoch_FromCache(t *testing.T) {
 	assert.DeepEqual(t, totalConsensusInfos[49], retrievedConsensusInfo)
 }
 
+func TestStore_ConsensusInfo_Remove(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	db := setupDB(t, true)
+	for i := 0; i < 50; i++ {
+		consensusInfo := testutil.NewMinimalConsensusInfo(uint64(i))
+		require.NoError(t, db.SaveConsensusInfo(ctx, consensusInfo))
+	}
+
+	err := db.removeConsensusInfoDb(40)
+	require.NoError(t, err)
+
+	_, err = db.ConsensusInfo(ctx, 40)
+	require.ErrorContains(t, ErrValueNotFound.Error(), err)
+}
+
+func TestStore_GetLatestConsensusInfo(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	db := setupDB(t, true)
+
+	for i := 0; i < 50; i++ {
+		consensusInfo := testutil.NewMinimalConsensusInfo(uint64(i))
+		require.NoError(t, db.SaveConsensusInfo(ctx, consensusInfo))
+	}
+
+	err := db.removeConsensusInfoDb(40)
+	require.NoError(t, err)
+
+	info, err := db.GetLatestConsensusInfo()
+	require.NoError(t, err)
+	assert.Equal(t,  uint64(49), info.Epoch)
+
+	for i := 50; i < 100; i++ {
+		consensusInfo := testutil.NewMinimalConsensusInfo(uint64(i))
+		require.NoError(t, db.SaveConsensusInfo(ctx, consensusInfo))
+	}
+
+	info, err = db.GetLatestConsensusInfo()
+	require.NoError(t, err)
+	assert.Equal(t, uint64(99), info.Epoch)
+
+	err = db.removeConsensusInfoDb(99)
+	require.NoError(t, err)
+
+	info, err = db.GetLatestConsensusInfo()
+	require.NoError(t, err)
+	assert.Equal(t, uint64(98), info.Epoch)
+
+	for i := 0; i < 100; i++ {
+		err = db.removeConsensusInfoDb(uint64(i))
+		require.NoError(t, err)
+	}
+	info, err = db.GetLatestConsensusInfo()
+	require.ErrorContains(t, ErrValueNotFound.Error(), err)
+}
+
+func TestStore_ConsensusInfos(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	db := setupDB(t, true)
+	generatedConsensusInfo := make([]*eventTypes.MinimalEpochConsensusInfo, 50)
+
+	for i := 0; i < 30; i++ {
+		consensusInfo := testutil.NewMinimalConsensusInfo(uint64(i))
+		generatedConsensusInfo[consensusInfo.Epoch] = consensusInfo
+		require.NoError(t, db.SaveConsensusInfo(ctx, consensusInfo))
+	}
+
+	t.Run("search from an epoch", func(t *testing.T) {
+		infos, err := db.ConsensusInfos(10)
+		require.NoError(t, err)
+		for _, info := range infos {
+			assert.DeepEqual(t, generatedConsensusInfo[info.Epoch], info)
+		}
+
+		consensusInfo := testutil.NewMinimalConsensusInfo(uint64(40))
+		generatedConsensusInfo[consensusInfo.Epoch] = consensusInfo
+		require.NoError(t, db.SaveConsensusInfo(ctx, consensusInfo))
+
+		infos, err = db.ConsensusInfos(10)
+		require.NoError(t, err)
+		for _, info := range infos {
+			t.Log(info.Epoch)
+			assert.DeepEqual(t, generatedConsensusInfo[info.Epoch], info)
+		}
+	})
+
+	t.Run("search from out of boundary", func(t *testing.T) {
+		infos, err := db.ConsensusInfos(200)
+		require.NoError(t, err)
+		assert.Equal(t, 0, len(infos))
+	})
+
+	t.Run("remove and search from the next", func(t *testing.T) {
+		err := db.removeConsensusInfoDb(2)
+		require.NoError(t, err)
+
+		infos, err := db.ConsensusInfos(2)
+		require.NoError(t, err)
+		// it should get from the next available key
+		assert.DeepEqual(t, generatedConsensusInfo[3], infos[0])
+	})
+}
+
 func TestStore_ConsensusInfo_RetrieveByEpoch_FromDB(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -57,8 +162,6 @@ func TestStore_ConsensusInfos_RetrieveByEpoch(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	db := setupDB(t, true)
-	db.latestEpoch = 199
-	db.SaveLatestEpoch(ctx)
 	totalConsensusInfos := make([]*eventTypes.MinimalEpochConsensusInfo, 200)
 
 	for i := 0; i < 200; i++ {
@@ -77,21 +180,6 @@ func TestStore_LatestSavedEpoch_ForFirstTime(t *testing.T) {
 	t.Parallel()
 	db := setupDB(t, true)
 
-	latestEpoch := db.LatestSavedEpoch()
-	assert.Equal(t, db.latestEpoch, latestEpoch)
-}
-
-// TestStore_LatestSavedEpoch
-func TestStore_SaveLatestSavedEpoch_RetrieveLatestEpoch(t *testing.T) {
-	t.Parallel()
-	ctx := context.Background()
-	db := setupDB(t, true)
-	db.latestEpoch = uint64(1000)
-
-	// SaveLatestEpoch is called when db is going to close
-	require.NoError(t, db.SaveLatestEpoch(ctx))
-
-	// LatestSavedEpoch is called when db is going up
 	latestEpoch := db.LatestSavedEpoch()
 	assert.Equal(t, db.latestEpoch, latestEpoch)
 }

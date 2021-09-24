@@ -28,6 +28,14 @@ type vanClientMock struct {
 	consensusInfoClient eth.BeaconChain_StreamMinimalConsensusInfoClient
 }
 
+func (v vanClientMock) IsValidBlock(slot types.Slot, blockHash []byte) (bool, error) {
+	panic("implement me")
+}
+
+func (v vanClientMock) GetFinalizedEpoch() (types.Epoch, error) {
+	panic("implement me")
+}
+
 var (
 	ConsensusInfoMocks        []*eth.MinimalConsensusInfo
 	PendingBlockMocks         []*eth.BeaconBlock

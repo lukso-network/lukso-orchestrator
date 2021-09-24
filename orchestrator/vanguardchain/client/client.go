@@ -8,7 +8,7 @@ import (
 	ethpb "github.com/prysmaticlabs/prysm/proto/eth/v1alpha1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"time"
 )
 
@@ -16,6 +16,8 @@ type VanguardClient interface {
 	CanonicalHeadSlot() (types.Slot, error)
 	StreamNewPendingBlocks(blockRoot []byte, fromSlot types.Slot) (ethpb.BeaconChain_StreamNewPendingBlocksClient, error)
 	StreamMinimalConsensusInfo(epoch uint64) (stream ethpb.BeaconChain_StreamMinimalConsensusInfoClient, err error)
+	IsValidBlock (slot types.Slot, blockHash []byte) (bool, error)
+	GetFinalizedEpoch () (types.Epoch, error)
 	Close()
 }
 
@@ -109,6 +111,20 @@ func (vanClient *GRPCClient) StreamMinimalConsensusInfo(epoch uint64) (
 	}
 	log.WithField("fromEpoch", epoch).Info("Successfully subscribed to StreamMinimalConsensusInfo event")
 	return
+}
+
+// IsValidBlock validates a block hash with vanguard to check if it is in the canonical chain of vanguard
+func (vanClient *GRPCClient) IsValidBlock (slot types.Slot, blockHash []byte) (bool, error) {
+	retVal, err := vanClient.beaconClient.IsValidBlock(vanClient.ctx, &ethpb.BlockStatusValidationRequest{Hash: blockHash, Slot: slot})
+	return retVal.GetIsValid(), err
+}
+
+func (vanClient *GRPCClient) GetFinalizedEpoch () (types.Epoch, error) {
+	head, err := vanClient.beaconClient.GetChainHead(vanClient.ctx, &emptypb.Empty{})
+	if err != nil {
+		return 0, err
+	}
+	return head.FinalizedEpoch, nil
 }
 
 // constructDialOptions constructs a list of grpc dial options

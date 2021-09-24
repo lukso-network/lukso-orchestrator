@@ -37,7 +37,7 @@ func TestKV_Start_Stop(t *testing.T) {
 
 	require.NoError(t, kv.Close())
 	kv = setupDB(t, false)
-	assert.Equal(t, uint64(100), kv.latestVerifiedSlot)
-	assert.Equal(t, uint64(3), kv.latestEpoch)
-	assert.Equal(t, headerHash, kv.latestHeaderHash)
+	assert.Equal(t, uint64(0), kv.latestVerifiedSlot)
+	assert.Equal(t, uint64(0), kv.latestEpoch)
+	assert.Equal(t, EmptyHash, kv.latestHeaderHash)
 }

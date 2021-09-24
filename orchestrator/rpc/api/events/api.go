@@ -154,11 +154,6 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, requestedE
 					WithField("epochStartTime", currentEpochInfo.EpochStartTime).
 					Info("Sending consensus info to subscriber")
 
-				if currentEpochInfo.Epoch < requestedEpoch {
-					log.Debug("Current epoch is old enough for pandora. So not sending the epoch info")
-					continue
-				}
-
 				if firstTime {
 					firstTime = false
 					startEpoch = endEpoch
