@@ -60,7 +60,7 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 		services:          registry,
 		stop:              make(chan struct{}),
 		pandoraInfoCache:  cache.NewPanHeaderCache(),
-		vanShardInfoCache: cache.NewVanShardInfoCache(1 << 10),
+		vanShardInfoCache: cache.NewVanShardInfoCache(math.MaxInt32),
 	}
 
 	if err := orchestrator.startDB(orchestrator.cliCtx); err != nil {
