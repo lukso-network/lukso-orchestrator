@@ -54,7 +54,10 @@ func SyncDatabase(ctx context.Context, localDB db.Database, vanguardEndpoint str
 		// so maybe orchestrator is in the wrong chain and as soon as vanguard syncs orchestrator will hold invalid info
 		// so just remove everything from finalized epoch to our latest epoch
 		// we will subscribe from or before finalize epoch so info won't be reverted.
-
+		err := localDB.RemoveInfoFromAllDb(uint64(finalizedEpoch), latestEpochInOrchestrator)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

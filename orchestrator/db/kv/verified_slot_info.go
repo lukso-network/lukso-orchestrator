@@ -1,19 +1,14 @@
 package kv
 
 import (
-	"context"
-	"fmt"
-
 	"github.com/boltdb/bolt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/lukso-network/lukso-orchestrator/shared/bytesutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
-	"github.com/pkg/errors"
 )
 
 var (
 	EmptyHash      = common.HexToHash("0000000000000000000000000000000000000000000000000000000000000000")
-	errInvalidSlot = errors.New("invalid slot and not found any verified slot info for the given slot")
 )
 
 // VerifiedSlotInfo
@@ -36,31 +31,23 @@ func (s *Store) VerifiedSlotInfo(slot uint64) (*types.SlotInfo, error) {
 
 // ConsensusInfos
 func (s *Store) VerifiedSlotInfos(fromSlot uint64) (map[uint64]*types.SlotInfo, error) {
-	latestVerifiedSlot := s.LatestSavedVerifiedSlot()
-	// when requested epoch is greater than stored latest epoch
-	if fromSlot > latestVerifiedSlot {
-		return nil, errors.Wrap(errInvalidSlot, fmt.Sprintf("fromSlot: %d", fromSlot))
-	}
 
 	slotInfos := make(map[uint64]*types.SlotInfo)
 	err := s.db.View(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(verifiedSlotInfosBucket)
-		for slot := fromSlot; slot <= latestVerifiedSlot; slot++ {
-			// fast finding into cache, if the value does not exist in cache, it starts finding into db
-			if v, _ := s.verifiedSlotInfoCache.Get(slot); v != nil {
-				slotInfos[slot] = v.(*types.SlotInfo)
-				continue
-			}
-			// preparing key bytes for searching into db
-			key := bytesutil.Uint64ToBytesBigEndian(slot)
-			enc := bkt.Get(key[:])
-			if enc == nil {
-				// no data found for the associated slot. So just find for other slot
-				continue
-			}
+		cursor := bkt.Cursor()
+
+		key := bytesutil.Uint64ToBytesBigEndian(fromSlot)
+		slotNumber, slotData := cursor.Seek(key)
+		for slotNumber != nil && slotData != nil {
 			var slotInfo *types.SlotInfo
-			decode(enc, &slotInfo)
+			err := decode(slotData, &slotInfo)
+			if err != nil {
+				return err
+			}
+			slot := bytesutil.BytesToUint64BigEndian(slotNumber)
 			slotInfos[slot] = slotInfo
+			slotNumber, slotData = cursor.Next()
 		}
 		return nil
 	})
@@ -99,92 +86,70 @@ func (s *Store) SaveVerifiedSlotInfo(slot uint64, slotInfo *types.SlotInfo) erro
 	})
 }
 
-// SaveLatestEpoch
-func (s *Store) SaveLatestVerifiedSlot(ctx context.Context) error {
-	s.Mutex.Lock()
-	defer s.Mutex.Unlock()
-
-	// storing latest epoch number into db
-	return s.db.Update(func(tx *bolt.Tx) error {
+func (s *Store) GetLatestVerifiedSlotInfo() (uint64, *types.SlotInfo, error) {
+	var slotInfo *types.SlotInfo
+	var slotNumber uint64
+	err := s.db.View(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(verifiedSlotInfosBucket)
-		slotBytes := bytesutil.Uint64ToBytesBigEndian(s.latestVerifiedSlot)
-		if err := bkt.Put(latestSavedVerifiedSlotKey, slotBytes); err != nil {
-			return err
+		cursor := bkt.Cursor()
+		key, value := cursor.Last()
+		if value == nil || key == nil {
+			return ErrValueNotFound
 		}
+		slotNumber = bytesutil.BytesToUint64BigEndian(key)
+		return decode(value, &slotInfo)
+	})
+	return slotNumber, slotInfo, err
+}
+
+func (s *Store) GetFirstVerifiedSlotNumber (fromSlot uint64) (uint64, error) {
+	var derivedSlot uint64
+	err := s.db.View(func(tx *bolt.Tx) error {
+		bkt := tx.Bucket(verifiedSlotInfosBucket)
+		cursor := bkt.Cursor()
+
+		key := bytesutil.Uint64ToBytesBigEndian(fromSlot)
+		slotNumber, _ := cursor.Seek(key)
+		if slotNumber == nil {
+			return ErrValueNotFound
+		}
+		derivedSlot = bytesutil.BytesToUint64BigEndian(slotNumber)
 		return nil
 	})
+	return derivedSlot, err
 }
 
 // LatestSavedEpoch
 func (s *Store) LatestSavedVerifiedSlot() uint64 {
-	var latestSavedVerifiedSlot uint64
-	// Db is not prepared yet. Retrieve latest saved epoch number from db
-	if !s.isRunning {
-		s.db.View(func(tx *bolt.Tx) error {
-			bkt := tx.Bucket(verifiedSlotInfosBucket)
-			slotBytes := bkt.Get(latestSavedVerifiedSlotKey[:])
-			// not found the latest epoch in db. so latest epoch will be zero
-			if slotBytes == nil {
-				latestSavedVerifiedSlot = uint64(0)
-				log.Trace("Latest verified slot number could not find in db. It may happen for brand new DB")
-				return nil
-			}
-			latestSavedVerifiedSlot = bytesutil.BytesToUint64BigEndian(slotBytes)
-			return nil
-		})
+	slot, _, err := s.GetLatestVerifiedSlotInfo()
+	if err != nil {
+		return 0
 	}
 	// db is already started so latest epoch must be initialized in store
-	return latestSavedVerifiedSlot
-}
-
-func (s *Store) InMemoryLatestVerifiedSlot() uint64 {
-	s.Mutex.Lock()
-	defer s.Mutex.Unlock()
-
-	return s.latestVerifiedSlot
-}
-
-// SaveLatestEpoch
-func (s *Store) SaveLatestVerifiedHeaderHash() error {
-	s.Mutex.Lock()
-	defer s.Mutex.Unlock()
-
-	// storing latest epoch number into db
-	return s.db.Update(func(tx *bolt.Tx) error {
-		bkt := tx.Bucket(verifiedSlotInfosBucket)
-		headerHashBytes := s.latestHeaderHash.Bytes()
-		if err := bkt.Put(latestHeaderHashKey, headerHashBytes); err != nil {
-			return err
-		}
-		return nil
-	})
+	return slot
 }
 
 // LatestSavedEpoch
 func (s *Store) LatestVerifiedHeaderHash() common.Hash {
-	var latestHeaderHash common.Hash
-	// Db is not prepared yet. Retrieve latest saved epoch number from db
-	if !s.isRunning {
-		s.db.View(func(tx *bolt.Tx) error {
-			bkt := tx.Bucket(verifiedSlotInfosBucket)
-			latestHeaderHashBytes := bkt.Get(latestHeaderHashKey[:])
-			// not found the latest epoch in db. so latest epoch will be zero
-			if latestHeaderHashBytes == nil {
-				latestHeaderHash = EmptyHash
-				log.Trace("Latest verified header hash could not find in db. Brand new DB.")
-				return nil
-			}
-			latestHeaderHash = common.BytesToHash(latestHeaderHashBytes)
-			return nil
-		})
+	latestHeaderHash := EmptyHash
+	_, slotInfo, err := s.GetLatestVerifiedSlotInfo()
+	if err == nil {
+		latestHeaderHash = slotInfo.PandoraHeaderHash
 	}
-	// db is already started so latest epoch must be initialized in store
 	return latestHeaderHash
 }
 
-func (s *Store) InMemoryLatestVerifiedHeaderHash() common.Hash {
+func (s *Store) removeSlotInfoFromVerifiedDB(slot uint64) error {
 	s.Mutex.Lock()
 	defer s.Mutex.Unlock()
 
-	return s.latestHeaderHash
+	return s.db.Update(func(tx *bolt.Tx) error {
+		bkt := tx.Bucket(verifiedSlotInfosBucket)
+		key := bytesutil.Uint64ToBytesBigEndian(slot)
+		s.verifiedSlotInfoCache.Del(slot)
+		if err := bkt.Delete(key); err != nil {
+			return err
+		}
+		return nil
+	})
 }

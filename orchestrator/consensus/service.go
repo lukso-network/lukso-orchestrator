@@ -48,7 +48,7 @@ func New(ctx context.Context, cfg *Config) (service *Service) {
 	ctx, cancel := context.WithCancel(ctx)
 	_ = cancel // govet fix for lost cancel. Cancel is handled in service.Stop()
 
-	latestVerifiedSlot := cfg.VerifiedSlotInfoDB.InMemoryLatestVerifiedSlot()
+	latestVerifiedSlot := cfg.VerifiedSlotInfoDB.LatestSavedVerifiedSlot()
 	log.WithField("latestVerifiedSlot", latestVerifiedSlot).Debug("Initializing consensus service")
 
 	return &Service{

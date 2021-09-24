@@ -25,17 +25,14 @@ type ReadOnlyVerifiedSlotInfoDatabase interface {
 	VerifiedSlotInfo(slot uint64) (*types.SlotInfo, error)
 	VerifiedSlotInfos(fromSlot uint64) (map[uint64]*types.SlotInfo, error)
 	LatestSavedVerifiedSlot() uint64
-	InMemoryLatestVerifiedSlot() uint64
 	LatestVerifiedHeaderHash() common.Hash
-	InMemoryLatestVerifiedHeaderHash() common.Hash
+	GetFirstVerifiedSlotNumber (fromSlot uint64) (uint64, error)
 }
 
 type VerifiedSlotDatabase interface {
 	ReadOnlyVerifiedSlotInfoDatabase
 
 	SaveVerifiedSlotInfo(slot uint64, slotInfo *types.SlotInfo) error
-	SaveLatestVerifiedSlot(ctx context.Context) error
-	SaveLatestVerifiedHeaderHash() error
 }
 
 type ReadOnlyInvalidSlotInfoDatabase interface {
@@ -57,6 +54,9 @@ type Database interface {
 	VerifiedSlotDatabase
 
 	InvalidSlotDatabase
+
+	RemoveInfoFromAllDb(fromEpoch, toEpoch uint64) error
+
 
 	DatabasePath() string
 	ClearDB() error

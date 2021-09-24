@@ -5,7 +5,4 @@ var (
 	consensusInfosBucket    = []byte("consensus-info")
 	verifiedSlotInfosBucket = []byte("verified-slots")
 	invalidSlotInfosBucket  = []byte("invalid-slots")
-
-	latestHeaderHashKey        = []byte("latest-header-hash")
-	latestSavedVerifiedSlotKey = []byte("latest-verified-slot")
 )
