@@ -52,3 +52,19 @@ func (c *PanHeaderCache) Remove(ctx context.Context, slot uint64) {
 		}
 	}
 }
+
+func (c *PanHeaderCache) GetAll() ([]*eth1Types.Header, error) {
+	keys := c.cache.Keys()
+	pendingHeaders := make([]*eth1Types.Header, 0)
+
+	for _, key := range keys {
+		slot := key.(uint64)
+		item, exists := c.cache.Get(slot)
+		if exists && item != nil {
+			header := item.(*eth1Types.Header)
+			copiedHeader := types.CopyHeader(header)
+			pendingHeaders = append(pendingHeaders, copiedHeader)
+		}
+	}
+	return pendingHeaders, nil
+}

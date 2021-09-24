@@ -9,6 +9,7 @@ import (
 type PandoraHeaderCache interface {
 	Put(ctx context.Context, slot uint64, header *eth1Types.Header) error
 	Get(ctx context.Context, slot uint64) (*eth1Types.Header, error)
+	GetAll() ([]*eth1Types.Header, error)
 	Remove(ctx context.Context, slot uint64)
 }
 

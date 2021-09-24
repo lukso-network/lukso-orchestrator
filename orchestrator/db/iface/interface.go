@@ -25,6 +25,7 @@ type ConsensusInfoAccessDatabase interface {
 
 type ReadOnlyVerifiedSlotInfoDatabase interface {
 	VerifiedSlotInfo(slot uint64) (*types.SlotInfo, error)
+	VerifiedSlotInfos(fromSlot uint64) (map[uint64]*types.SlotInfo, error)
 	LatestSavedVerifiedSlot() uint64
 	InMemoryLatestVerifiedSlot() uint64
 	LatestVerifiedHeaderHash() common.Hash

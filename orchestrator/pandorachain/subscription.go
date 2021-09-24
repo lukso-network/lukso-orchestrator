@@ -5,6 +5,11 @@ import (
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
+	"github.com/pkg/errors"
+)
+
+var (
+	errPandoraHeaderProcessing = errors.New("Failed to process the pending pandora header")
 )
 
 // subscribePendingHeaders subscribes to pandora client from latest saved slot using given rpc client
@@ -30,6 +35,8 @@ func (s *Service) SubscribePendingHeaders(
 				err = s.OnNewPendingHeader(ctx, newPendingHeader)
 				if nil != err {
 					log.WithError(err).Error("Failed to process the pending pandora header")
+					s.conInfoSubErrCh <- errPandoraHeaderProcessing
+					return
 				}
 			case err := <-sub.Err():
 				if err != nil {

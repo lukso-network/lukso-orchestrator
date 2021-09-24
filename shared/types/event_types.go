@@ -16,6 +16,11 @@ type MinimalEpochConsensusInfo struct {
 	SlotTimeDuration time.Duration `json:"slotTimeDuration"`
 }
 
+type BlockStatus struct {
+	Hash   common.Hash `json:"hash"`
+	Status Status      `json:"status"`
+}
+
 // PandoraPendingHeaderFilter
 type PandoraPendingHeaderFilter struct {
 	FromBlockHash common.Hash `json:"fromBlockHash"`
@@ -41,6 +46,13 @@ type VanguardShardInfo struct {
 }
 
 type BlsSignatureBytes [BLSSignatureSize]byte
+
+// SlotInfo
+type SlotInfoWithStatus struct {
+	VanguardBlockHash common.Hash
+	PandoraHeaderHash common.Hash
+	Status
+}
 
 // Bytes gets the byte representation of the underlying hash.
 func (h BlsSignatureBytes) Bytes() []byte { return h[:] }

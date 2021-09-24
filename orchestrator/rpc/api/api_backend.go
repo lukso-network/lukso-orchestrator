@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"github.com/ethereum/go-ethereum/common"
+	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
+	conIface "github.com/lukso-network/lukso-orchestrator/orchestrator/consensus/iface"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/iface"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
@@ -17,7 +19,8 @@ var ErrHeaderHashMisMatch = errors.New("Header hash mis-matched")
 
 type Backend struct {
 	// feed
-	ConsensusInfoFeed iface.ConsensusInfoFeed
+	ConsensusInfoFeed    iface.ConsensusInfoFeed
+	VerifiedSlotInfoFeed conIface.VerifiedSlotInfoFeed
 
 	// db reference
 	ConsensusInfoDB    db.ROnlyConsensusInfoDB
@@ -33,6 +36,10 @@ func (backend *Backend) SubscribeNewEpochEvent(ch chan<- *types.MinimalEpochCons
 	return backend.ConsensusInfoFeed.SubscribeMinConsensusInfoEvent(ch)
 }
 
+func (backend *Backend) SubscribeNewVerifiedSlotInfoEvent(ch chan<- *types.SlotInfoWithStatus) event.Subscription {
+	return backend.VerifiedSlotInfoFeed.SubscribeVerifiedSlotInfoEvent(ch)
+}
+
 func (backend *Backend) ConsensusInfoByEpochRange(fromEpoch uint64) []*types.MinimalEpochConsensusInfo {
 	consensusInfos, err := backend.ConsensusInfoDB.ConsensusInfos(fromEpoch)
 	if err != nil {
@@ -41,8 +48,28 @@ func (backend *Backend) ConsensusInfoByEpochRange(fromEpoch uint64) []*types.Min
 	return consensusInfos
 }
 
+func (backend *Backend) VerifiedSlotInfos(fromSlot uint64) map[uint64]*types.SlotInfo {
+	slotInfos, err := backend.VerifiedSlotInfoDB.VerifiedSlotInfos(fromSlot)
+	if err != nil {
+		return nil
+	}
+	return slotInfos
+}
+
 func (backend *Backend) LatestEpoch() uint64 {
 	return backend.ConsensusInfoDB.LatestSavedEpoch()
+}
+
+func (backend *Backend) LatestVerifiedSlot() uint64 {
+	return backend.VerifiedSlotInfoDB.LatestSavedVerifiedSlot()
+}
+
+func (backed *Backend) PendingPandoraHeaders() []*eth1Types.Header {
+	headers, err := backed.PandoraPendingHeaderCache.GetAll()
+	if err != nil {
+		return nil
+	}
+	return headers
 }
 
 // GetSlotStatus

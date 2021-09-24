@@ -20,6 +20,9 @@ const (
 	// MinConsensusInfoSubscription
 	MinConsensusInfoSubscription
 
+	// VerifiedSlotInfoSubscription triggers when new slot is verified
+	VerifiedSlotInfoSubscription
+
 	// LastSubscription keeps track of the last index
 	LastIndexSubscription
 )
@@ -34,6 +37,7 @@ type subscription struct {
 
 	epoch         uint64 // last served epoch number
 	consensusInfo chan *types.MinimalEpochConsensusInfo
+	slotInfo      chan *types.SlotInfoWithStatus
 }
 
 // EventSystem creates subscriptions, processes events and broadcasts them to the
@@ -42,12 +46,14 @@ type EventSystem struct {
 	backend Backend
 
 	// Subscriptions
-	consensusInfoSub event.Subscription // Subscription for new epoch validator list
+	consensusInfoSub    event.Subscription // Subscription for new epoch validator list
+	verifiedSlotInfoSub event.Subscription
 
 	// Channels
 	install         chan *subscription                    // install filter for event notification
 	uninstall       chan *subscription                    // remove filter for event notification
 	consensusInfoCh chan *types.MinimalEpochConsensusInfo // Channel to receive new new consensus info event
+	slotInfoCh      chan *types.SlotInfoWithStatus
 }
 
 // NewEventSystem creates a new manager that listens for event on the given mux,
@@ -62,14 +68,19 @@ func NewEventSystem(backend Backend) *EventSystem {
 		install:         make(chan *subscription),
 		uninstall:       make(chan *subscription),
 		consensusInfoCh: make(chan *types.MinimalEpochConsensusInfo, 1),
+		slotInfoCh:      make(chan *types.SlotInfoWithStatus, 1),
 	}
 
 	// Subscribe events
 	m.consensusInfoSub = m.backend.SubscribeNewEpochEvent(m.consensusInfoCh)
-
 	// Make sure none of the subscriptions are empty
 	if m.consensusInfoSub == nil {
-		ethLog.Crit("Subscribe for event system failed")
+		ethLog.Crit("Subscribe for minimal consensus info event system failed")
+	}
+	m.verifiedSlotInfoSub = m.backend.SubscribeNewVerifiedSlotInfoEvent(m.slotInfoCh)
+	// Make sure none of the subscriptions are empty
+	if m.consensusInfoSub == nil {
+		ethLog.Crit("Subscribe for verified slot info event system failed")
 	}
 
 	go m.eventLoop()
@@ -134,12 +145,32 @@ func (es *EventSystem) SubscribeConsensusInfo(consensusInfo chan *types.MinimalE
 	return es.subscribe(sub)
 }
 
+// SubscribeVerifiedSlotInfo
+func (es *EventSystem) SubscribeVerifiedSlotInfo(slotInfo chan *types.SlotInfoWithStatus) *Subscription {
+	sub := &subscription{
+		id:        rpc.NewID(),
+		typ:       VerifiedSlotInfoSubscription,
+		created:   time.Now(),
+		installed: make(chan struct{}),
+		err:       make(chan error),
+		slotInfo:  slotInfo,
+	}
+	return es.subscribe(sub)
+}
+
 type filterIndex map[Type]map[rpc.ID]*subscription
 
 // handleConsensusInfoEvent
 func (es *EventSystem) handleConsensusInfoEvent(filters filterIndex, ev *types.MinimalEpochConsensusInfo) {
 	for _, f := range filters[MinConsensusInfoSubscription] {
 		f.consensusInfo <- ev
+	}
+}
+
+// handleVerifiedSlotInfoEvent
+func (es *EventSystem) handleVerifiedSlotInfoEvent(filters filterIndex, si *types.SlotInfoWithStatus) {
+	for _, f := range filters[VerifiedSlotInfoSubscription] {
+		f.slotInfo <- si
 	}
 }
 
@@ -159,6 +190,8 @@ func (es *EventSystem) eventLoop() {
 		select {
 		case ev := <-es.consensusInfoCh:
 			es.handleConsensusInfoEvent(index, ev)
+		case si := <-es.slotInfoCh:
+			es.handleVerifiedSlotInfoEvent(index, si)
 		case f := <-es.install:
 			index[f.typ][f.id] = f
 			close(f.installed)

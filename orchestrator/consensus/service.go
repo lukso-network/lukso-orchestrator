@@ -2,6 +2,9 @@ package consensus
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/event"
 	"sync"
 
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
@@ -29,15 +32,15 @@ type Service struct {
 	cancel         context.CancelFunc
 	runError       error
 
-	curSlot uint64
-
+	scope                        event.SubscriptionScope
 	verifiedSlotInfoDB           db.VerifiedSlotInfoDB
 	invalidSlotInfoDB            db.InvalidSlotInfoDB
 	vanguardPendingShardingCache cache.VanguardShardCache
 	pandoraPendingHeaderCache    cache.PandoraHeaderCache
 
-	vanguardShardFeed iface.VanguardShardInfoFeed
-	pandoraHeaderFeed iface2.PandoraHeaderFeed
+	vanguardShardFeed    iface.VanguardShardInfoFeed
+	pandoraHeaderFeed    iface2.PandoraHeaderFeed
+	verifiedSlotInfoFeed event.Feed
 }
 
 //
@@ -51,7 +54,6 @@ func New(ctx context.Context, cfg *Config) (service *Service) {
 	return &Service{
 		ctx:                          ctx,
 		cancel:                       cancel,
-		curSlot:                      latestVerifiedSlot,
 		verifiedSlotInfoDB:           cfg.VerifiedSlotInfoDB,
 		invalidSlotInfoDB:            cfg.InvalidSlotInfoDB,
 		vanguardPendingShardingCache: cfg.VanguardPendingShardingCache,
@@ -78,16 +80,36 @@ func (s *Service) Start() {
 		for {
 			select {
 			case newPanHeaderInfo := <-panHeaderInfoCh:
-				s.curSlot = newPanHeaderInfo.Slot
-				err := s.processPandoraHeader(newPanHeaderInfo)
-				if err != nil {
+				if slotInfo, _ := s.verifiedSlotInfoDB.VerifiedSlotInfo(newPanHeaderInfo.Slot); slotInfo != nil {
+					if slotInfo.PandoraHeaderHash == newPanHeaderInfo.Header.Hash() {
+						log.WithField("slot", newPanHeaderInfo.Slot).
+							WithField("headerHash", newPanHeaderInfo.Header.Hash()).
+							Info("Pandora header is already in verified slot info db")
+
+						s.verifiedSlotInfoFeed.Send(&types.SlotInfoWithStatus{
+							VanguardBlockHash: slotInfo.VanguardBlockHash,
+							PandoraHeaderHash: slotInfo.PandoraHeaderHash,
+							Status:            types.Verified,
+						})
+						continue
+					}
+				}
+				if err := s.processPandoraHeader(newPanHeaderInfo); err != nil {
 					log.WithField("error", err).Error("error found while processing pandora header")
 					return
 				}
 			case newVanShardInfo := <-vanShardInfoCh:
-				s.curSlot = newVanShardInfo.Slot
-				err := s.processVanguardShardInfo(newVanShardInfo)
-				if err != nil {
+				if slotInfo, _ := s.verifiedSlotInfoDB.VerifiedSlotInfo(newVanShardInfo.Slot); slotInfo != nil {
+					blockHashHex := common.BytesToHash(newVanShardInfo.BlockHash[:])
+					if slotInfo.VanguardBlockHash == blockHashHex {
+						log.WithField("slot", newVanShardInfo.Slot).
+							WithField("shardInfoHash", hexutil.Encode(newVanShardInfo.ShardInfo.Hash)).
+							Info("Vanguard shard info is already in verified slot info db")
+						//TODO(Atif)- Need to send this verified slot info to vanguard subscriber
+						continue
+					}
+				}
+				if err := s.processVanguardShardInfo(newVanShardInfo); err != nil {
 					log.WithField("error", err).Error("error found while processing vanguard sharding info")
 					return
 				}
@@ -118,4 +140,8 @@ func (s *Service) Status() error {
 		return s.runError
 	}
 	return nil
+}
+
+func (s *Service) SubscribeVerifiedSlotInfoEvent(ch chan<- *types.SlotInfoWithStatus) event.Subscription {
+	return s.scope.Track(s.verifiedSlotInfoFeed.Subscribe(ch))
 }
