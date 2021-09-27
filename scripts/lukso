@@ -10,11 +10,6 @@ FORCE=false
 ##### network info
 CHAIN_ID=""
 NETWORK_ID=""
-PANDORA_BOOTNODES=""
-PANDORA_HTTP_PORT="8545"
-VANGUARD_BOOTNODES=""
-ETH1_STATS_URL=""
-ETH2_STATS_URL=""
 #####
 
 ##### default client values
@@ -45,10 +40,32 @@ DATADIR="$LUKSO_HOME/$NETWORK/datadirs"
 LOGSDIR="$LUKSO_HOME/$NETWORK/logs"
 NODE_NAME="$(LC_CTYPE=C LANG=C tr -dc A-F0-9 </dev/urandom | head -c 8)"
 EXTERNAL_IP=$(curl -s ident.me)
+
+
+###### Orchestrator settings
+ORCHESTRATOR_VERBOSITY=debug
+######
+
+###### Pandora settings
+PANDORA_BOOTNODES=""
+PANDORA_HTTP_PORT="8545"
+PANDORA_METRICS=false
+PANDORA_VERBOSITY=debug
+ETH1_STATS_URL=""
+######
+
+###### Vanguard
+VANGUARD_VERBOSITY=debug
+VANGUARD_BOOTNODES=""
+ETH2_STATS_URL=""
+######
+
+###### Validator
 KEYS_DIR="$LUKSO_HOME/$NETWORK"
 WALLET_DIR="$LUKSO_HOME/$NETWORK/vanguard_wallet"
-PANDORA_METRICS=false
+VALIDATOR_VERBOSITY=debug
 ######
+
 
 ###### for config tool
 CONFIG_DATA=()
@@ -254,11 +271,33 @@ start_orchestrator() {
     --ws.addr=0.0.0.0 \
     --ws.port=7878 \
     --pandora-rpc-endpoint=ws://127.0.0.1:8546 \
-    --verbosity=trace >|$LOGSDIR/orchestrator/orchestrator_"$RUN_DATE".log 2>&1 &
+    --verbosity=$ORCHESTRATOR_VERBOSITY >|$LOGSDIR/orchestrator/orchestrator_"$RUN_DATE".log 2>&1 &
   disown
 }
 
 start_pandora() {
+
+  case $PANDORA_VERBOSITY in
+  silent)
+    PANDORA_VERBOSITY=0
+    ;;
+  error)
+    PANDORA_VERBOSITY=1
+    ;;
+  warn)
+    PANDORA_VERBOSITY=2
+    ;;
+  info)
+    PANDORA_VERBOSITY=3
+    ;;
+  debug)
+    PANDORA_VERBOSITY=4
+    ;;
+  detail|trace)
+    PANDORA_VERBOSITY=5
+    ;;
+  esac
+
   mkdir -p "$LOGSDIR"/pandora
   echo -n $RUN_DATE >|"$LOGSDIR"/pandora/current.tmp
   if [[ ! -d "$DATADIR/pandora" ]]; then
@@ -289,7 +328,7 @@ start_pandora() {
     "--syncmode=full"
     "--allow-insecure-unlock"
     "--nat=extip:$EXTERNAL_IP"
-    "--verbosity=4"
+    "--verbosity=$PANDORA_VERBOSITY"
   )
 
   if $PANDORA_METRICS; then
@@ -329,7 +368,7 @@ start_vanguard() {
     "--contract-deployment-block=0"
     "--rpc-host=0.0.0.0"
     "--monitoring-host=0.0.0.0"
-    "--verbosity=debug"
+    "--verbosity=$VANGUARD_VERBOSITY"
     "--min-sync-peers=2"
     "--p2p-max-peers=50"
     "--orc-http-provider=http://127.0.0.1:7877"
@@ -357,7 +396,7 @@ start_validator() {
     --accept-terms-of-use \
     --beacon-rpc-provider=localhost:4000 \
     --chain-config-file=/opt/lukso/networks/$NETWORK/config/vanguard-config.yaml \
-    --verbosity=debug \
+    --verbosity=$VALIDATOR_VERBOSITY \
     --pandora-http-provider=http://127.0.0.1:8545 \
     --wallet-dir=$WALLET_DIR \
     --wallet-password-file=./validator/password.txt \
@@ -852,6 +891,12 @@ while getopts "$optspec" optchar; do
       OVERRIDE_IS_VALIDATOR=true
       ;;
 
+    orchestrator-verbosity)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_ORCHESTRATOR_VERBOSITY=$val
+      ;;
+
     pandora-bootnodes)
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
@@ -869,10 +914,28 @@ while getopts "$optspec" optchar; do
       OVERRIDE_PANDORA_METRICS=true
       ;;
 
+    pandora-verbosity)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_PANDORA_VERBOSITY=$val
+      ;;
+
     vanguard-bootnodes)
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
       OVERRIDE_VANGUARD_BOOTNODES=$val
+      ;;
+
+    vanguard-verbosity)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_VANGUARD_VERBOSITY=$val
+      ;;
+
+    validator-verbosity)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_VALIDATOR_VERBOSITY=$val
       ;;
 
     external-ip)
@@ -920,6 +983,10 @@ if [[ -n $OVERRIDE_IS_VALIDATOR ]]; then
   IS_VALIDATOR=$OVERRIDE_IS_VALIDATOR
 fi
 
+if [[ -n $OVERRIDE_ORCHESTRATOR_VERBOSITY ]]; then
+  ORCHESTRATOR_VERBOSITY=$OVERRIDE_ORCHESTRATOR_VERBOSITY
+fi
+
 if [[ -n $OVERRIDE_PANDORA_BOOTNODES ]]; then
   PANDORA_BOOTNODES=$OVERRIDE_PANDORA_BOOTNODES
 fi
@@ -932,8 +999,20 @@ if [[ -n $OVERRIDE_PANDORA_METRICS ]]; then
   PANDORA_METRICS=$OVERRIDE_PANDORA_METRICS
 fi
 
+if [[ -n $OVERRIDE_PANDORA_VERBOSITY ]]; then
+  PANDORA_VERBOSITY=$OVERRIDE_PANDORA_VERBOSITY
+fi
+
 if [[ -n $OVERRIDE_VANGUARD_BOOTNODES ]]; then
   VANGUARD_BOOTNODES=$OVERRIDE_VANGUARD_BOOTNODES
+fi
+
+if [[ -n $OVERRIDE_VANGUARD_VERBOSITY ]]; then
+  VANGUARD_VERBOSITY=$OVERRIDE_VANGUARD_VERBOSITY
+fi
+
+if [[ -n $OVERRIDE_VALIDATOR_VERBOSITY ]]; then
+  VALIDATOR_VERBOSITY=$OVERRIDE_VALIDATOR_VERBOSITY
 fi
 
 if [[ -n $OVERRIDE_EXTERNAL_IP ]]; then
