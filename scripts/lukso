@@ -47,6 +47,7 @@ NODE_NAME="$(LC_CTYPE=C LANG=C tr -dc A-F0-9 </dev/urandom | head -c 8)"
 EXTERNAL_IP=$(curl -s ident.me)
 KEYS_DIR="$LUKSO_HOME/$NETWORK"
 WALLET_DIR="$LUKSO_HOME/$NETWORK/vanguard_wallet"
+PANDORA_METRICS=false
 ######
 
 ###### for config tool
@@ -290,6 +291,16 @@ start_pandora() {
     "--nat=extip:$EXTERNAL_IP"
     "--verbosity=4"
   )
+
+  if $PANDORA_METRICS; then
+    METRICS_FLAGS=(
+      "--metrics"
+      "--metrics.expensive"
+      "--pprof"
+      "--pprof.addr=0.0.0.0"
+    )
+    ARGUMENTS=("${ARGUMENTS[@]}" "${METRICS_FLAGS[@]}")
+  fi
 
   nohup pandora \
     "${ARGUMENTS[@]}" \
@@ -679,6 +690,8 @@ help() {
   echo "--pandora-http-port    Sets pandora RPC (over http) port"
   echo "                       [Number between 1023-65535]"
   echo
+  echo "--pandora-metrics      Enables pandora metrics server"
+  echo
   echo "--vanguard-bootnodes   Sets vanguard bootnodes"
   echo "                       [Strings of bootnodes separated by commas: \"enr:-Ku4QAmY...,enr:-M23QLmY...\"]"
   echo
@@ -851,6 +864,11 @@ while getopts "$optspec" optchar; do
       OVERRIDE_PANDORA_HTTP_PORT=$val
       ;;
 
+    pandora-metrics)
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_PANDORA_METRICS=true
+      ;;
+
     vanguard-bootnodes)
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
@@ -908,6 +926,10 @@ fi
 
 if [[ -n $OVERRIDE_PANDORA_HTTP_PORT ]]; then
   PANDORA_HTTP_PORT=$OVERRIDE_PANDORA_HTTP_PORT
+fi
+
+if [[ -n $OVERRIDE_PANDORA_METRICS ]]; then
+  PANDORA_METRICS=$OVERRIDE_PANDORA_METRICS
 fi
 
 if [[ -n $OVERRIDE_VANGUARD_BOOTNODES ]]; then
