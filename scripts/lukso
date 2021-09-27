@@ -780,8 +780,7 @@ while getopts "$optspec" optchar; do
 
       ;;
 
-    \
-      network)
+    network)
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
       pick_network $val
