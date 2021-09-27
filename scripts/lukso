@@ -1,67 +1,65 @@
 #!/usr/bin/env bash
 
-
 ##### binary behavior
-COMMAND=$1;
-COMMAND_ARG=$2;
-USE_CONFIG_FILE=false;
-FORCE=false;
+COMMAND=$1
+COMMAND_ARG=$2
+USE_CONFIG_FILE=false
+FORCE=false
 #####
 
 ##### network info
-CHAIN_ID="";
-NETWORK_ID="";
-PANDORA_BOOTNODES="";
-PANDORA_HTTP_PORT="8545";
-VANGUARD_BOOTNODES="";
-ETH1_STATS_URL="";
-ETH2_STATS_URL="";
+CHAIN_ID=""
+NETWORK_ID=""
+PANDORA_BOOTNODES=""
+PANDORA_HTTP_PORT="8545"
+VANGUARD_BOOTNODES=""
+ETH1_STATS_URL=""
+ETH2_STATS_URL=""
 #####
 
 ##### default client values
-if [[ "$OSTYPE" = "linux-gnu" ]]; then
-  PLATFORM="Linux";
+if [[ "$OSTYPE" == "linux-gnu" ]]; then
+  PLATFORM="Linux"
 fi
 
-if [[ "$OSTYPE" = "darwin"* ]]; then
-  PLATFORM="Darwin";
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  PLATFORM="Darwin"
 fi
 
-ARCHITECTURE=$(uname -m);
+ARCHITECTURE=$(uname -m)
 
-RUN_DATE=$(date '+%Y-%m-%d__%H-%M-%S');
-NETWORK="l15";
-IS_VALIDATOR=false;
-COINBASE="0x616e6f6e796d6f75730000000000000000000000";
+RUN_DATE=$(date '+%Y-%m-%d__%H-%M-%S')
+NETWORK="l15"
+IS_VALIDATOR=false
+COINBASE="0x616e6f6e796d6f75730000000000000000000000"
 
-if [[ "$PLATFORM" = "Linux" ]]; then
-  LUKSO_HOME="$HOME/.lukso";
+if [[ "$PLATFORM" == "Linux" ]]; then
+  LUKSO_HOME="$HOME/.lukso"
 fi
 
-if [[ "$PLATFORM" = "Darwin" ]]; then
-  LUKSO_HOME="$HOME/Library/LUKSO";
+if [[ "$PLATFORM" == "Darwin" ]]; then
+  LUKSO_HOME="$HOME/Library/LUKSO"
 fi
 
-
-DATADIR="$LUKSO_HOME/$NETWORK/datadirs";
-LOGSDIR="$LUKSO_HOME/$NETWORK/logs";
-NODE_NAME="$(LC_CTYPE=C LANG=C tr -dc A-F0-9 </dev/urandom | head -c 8)";
-EXTERNAL_IP=$(curl -s ident.me);
-KEYS_DIR="$LUKSO_HOME/$NETWORK";
-WALLET_DIR="$LUKSO_HOME/$NETWORK/vanguard_wallet";
+DATADIR="$LUKSO_HOME/$NETWORK/datadirs"
+LOGSDIR="$LUKSO_HOME/$NETWORK/logs"
+NODE_NAME="$(LC_CTYPE=C LANG=C tr -dc A-F0-9 </dev/urandom | head -c 8)"
+EXTERNAL_IP=$(curl -s ident.me)
+KEYS_DIR="$LUKSO_HOME/$NETWORK"
+WALLET_DIR="$LUKSO_HOME/$NETWORK/vanguard_wallet"
 ######
 
 ###### for config tool
-CONFIG_DATA=();
+CONFIG_DATA=()
 ######
 
-function parse_yaml {
-   local prefix=""
-   local s='[[:space:]]*' w='[a-zA-Z0-9_]*' fs=$(echo @|tr @ '\034')
-   LC_CTYPE=C LANG=C sed -ne "s|^\($s\):|\1|" \
-        -e "s|^\($s\)\($w\)$s:$s[\"']\(.*\)[\"']$s\$|\1$fs\2$fs\3|p" \
-        -e "s|^\($s\)\($w\)$s:$s\(.*\)$s\$|\1$fs\2$fs\3|p"  $1 |
-   awk -F$fs '{
+function parse_yaml() {
+  local prefix=""
+  local s='[[:space:]]*' w='[a-zA-Z0-9_]*' fs=$(echo @ | tr @ '\034')
+  LC_CTYPE=C LANG=C sed -ne "s|^\($s\):|\1|" \
+    -e "s|^\($s\)\($w\)$s:$s[\"']\(.*\)[\"']$s\$|\1$fs\2$fs\3|p" \
+    -e "s|^\($s\)\($w\)$s:$s\(.*\)$s\$|\1$fs\2$fs\3|p" $1 |
+    awk -F$fs '{
       indent = length($1)/2;
       vname[indent] = $2;
       for (i in vname) {if (i > indent) {delete vname[i]}}
@@ -77,195 +75,195 @@ parse_config() {
 }
 
 download() {
-  URL="$1";
-  LOCATION="$2";
+  URL="$1"
+  LOCATION="$2"
   if [[ $PLATFORM == "Linux" ]]; then
     if ! wget -q --spider "$URL"; then
-      echo "File not found, check URL: $URL" ;
-      exit;
+      echo "File not found, check URL: $URL"
+      exit
     fi
-    sudo wget -O $LOCATION $URL;
+    sudo wget -O $LOCATION $URL
   fi
 
   if [[ $PLATFORM == "Darwin" ]]; then
-    STATUS_CODE=$(curl -L -s -o /dev/null -I -w "%{http_code}" $URL);
+    STATUS_CODE=$(curl -L -s -o /dev/null -I -w "%{http_code}" $URL)
     if [[ $STATUS_CODE != "200" ]]; then
-      echo "File not found, check URL: $URL" ;
-      exit;
+      echo "File not found, check URL: $URL"
+      exit
     fi
-    sudo curl -o $LOCATION -Lk $URL;
+    sudo curl -o $LOCATION -Lk $URL
   fi
 }
 
 download_binary() {
-  CLIENT="$1";
-  TAG="$2";
+  CLIENT="$1"
+  TAG="$2"
 
   case $CLIENT in
   lukso-orchestrator)
     REPO="lukso-orchestrator"
-  ;;
+    ;;
 
   pandora)
-    REPO="pandora-execution-engine";
-  ;;
+    REPO="pandora-execution-engine"
+    ;;
 
   vanguard)
-    REPO="vanguard-consensus-engine";
-  ;;
+    REPO="vanguard-consensus-engine"
+    ;;
 
   lukso-validator)
-    REPO="vanguard-consensus-engine";
-  ;;
+    REPO="vanguard-consensus-engine"
+    ;;
 
   esac
 
-  mkdir -p /opt/lukso/binaries/$CLIENT/$TAG;
-  download https://github.com/lukso-network/"$REPO"/releases/download/$TAG/$CLIENT-$PLATFORM-$ARCHITECTURE /opt/lukso/binaries/$CLIENT/$TAG/$CLIENT-$PLATFORM-$ARCHITECTURE;
-  sudo chmod +x /opt/lukso/binaries/$CLIENT/$TAG/$CLIENT-$PLATFORM-$ARCHITECTURE;
+  mkdir -p /opt/lukso/binaries/$CLIENT/$TAG
+  download https://github.com/lukso-network/"$REPO"/releases/download/$TAG/$CLIENT-$PLATFORM-$ARCHITECTURE /opt/lukso/binaries/$CLIENT/$TAG/$CLIENT-$PLATFORM-$ARCHITECTURE
+  sudo chmod +x /opt/lukso/binaries/$CLIENT/$TAG/$CLIENT-$PLATFORM-$ARCHITECTURE
 }
 
 bind_binary() {
-  CLIENT="$1";
-  TAG="$2";
+  CLIENT="$1"
+  TAG="$2"
   if [[ ! -f /opt/lukso/binaries/$CLIENT/$TAG/$CLIENT-$PLATFORM-$ARCHITECTURE ]]; then
-    download_binary $CLIENT $TAG;
+    download_binary $CLIENT $TAG
   fi
 
-  sudo ln -sf "/opt/lukso/binaries/$CLIENT/$TAG/$CLIENT-$PLATFORM-$ARCHITECTURE" /usr/local/bin/$CLIENT;
+  sudo ln -sf "/opt/lukso/binaries/$CLIENT/$TAG/$CLIENT-$PLATFORM-$ARCHITECTURE" /usr/local/bin/$CLIENT
 }
 
 bind_binaries() {
- echo;
+  echo
 }
 
 generate_keys() {
-  read -p "Where to store deposit keys? Default: [$KEYS_DIR] " INPUT;
+  read -p "Where to store deposit keys? Default: [$KEYS_DIR] " INPUT
   if [[ -n "$INPUT" ]]; then
     KEYS_DIR=$INPUT
   fi
-  eval KEYS_DIR=$KEYS_DIR;
-  mkdir -p $KEYS_DIR;
-  read -p "How many validators? " VALIDATORS_NUMBER;
+  eval KEYS_DIR=$KEYS_DIR
+  mkdir -p $KEYS_DIR
+  read -p "How many validators? " VALIDATORS_NUMBER
   echo "Running lukso-deposit-cli..."
   lukso-deposit-cli new-mnemonic \
-  --chain $NETWORK \
-  --mnemonic_language english \
-  --folder $KEYS_DIR \
-  --num_validators $VALIDATORS_NUMBER
+    --chain $NETWORK \
+    --mnemonic_language english \
+    --folder $KEYS_DIR \
+    --num_validators $VALIDATORS_NUMBER
 }
 
 import_accounts() {
   read -p "Where do you have deposit keys? Default: [$KEYS_DIR] " KEYS_DIR
   lukso-validator accounts import \
-  --keys-dir $KEYS_DIR \
-  --wallet-dir $WALLET_DIR;
+    --keys-dir $KEYS_DIR \
+    --wallet-dir $WALLET_DIR
 }
 
 parse_config_field() {
-   VALUE="$1";
-   DEFAULT="$3";
-   LABEL="$2 [default: $DEFAULT]: ";
-    read -p "$LABEL" INPUT;
-    eval INPUT="$INPUT";
-    if [[ -z "$INPUT" ]];then
-      echo -e "\033[1A\033[2K$LABEL<Using default>";
-      CONFIG_DATA+=("$VALUE: \"$DEFAULT\"");
-    else
-      CONFIG_DATA+=("$VALUE: \"$INPUT\"");
-    fi
+  VALUE="$1"
+  DEFAULT="$3"
+  LABEL="$2 [default: $DEFAULT]: "
+  read -p "$LABEL" INPUT
+  eval INPUT="$INPUT"
+  if [[ -z "$INPUT" ]]; then
+    echo -e "\033[1A\033[2K$LABEL<Using default>"
+    CONFIG_DATA+=("$VALUE: \"$DEFAULT\"")
+  else
+    CONFIG_DATA+=("$VALUE: \"$INPUT\"")
+  fi
 }
 
 setup_config() {
-    clear;
-    echo "This tool will create config file to be used with node.";
-    echo "Enter desired value or leave it empty to use default.";
-    echo "For paths you can use variables like \$PWD or \".\" as they will be resolved";
-    echo;
+  clear
+  echo "This tool will create config file to be used with node."
+  echo "Enter desired value or leave it empty to use default."
+  echo "For paths you can use variables like \$PWD or \".\" as they will be resolved"
+  echo
 
-    mkdir -p "$LUKSO_HOME/$NETWORK";
-    DEFAULT="$LUKSO_HOME/$NETWORK/config.yaml";
-    LABEL="Config file location [default: $DEFAULT]: "
-    read -p "$LABEL" CONFIG_LOCATION;
-    eval CONFIG_LOCATION="$CONFIG_LOCATION";
-    if [[ -z "$CONFIG_LOCATION" ]];then
-      echo -e "\033[1A\033[2K$LABEL<Using default>";
-      CONFIG_LOCATION="$DEFAULT";
-    fi
+  mkdir -p "$LUKSO_HOME/$NETWORK"
+  DEFAULT="$LUKSO_HOME/$NETWORK/config.yaml"
+  LABEL="Config file location [default: $DEFAULT]: "
+  read -p "$LABEL" CONFIG_LOCATION
+  eval CONFIG_LOCATION="$CONFIG_LOCATION"
+  if [[ -z "$CONFIG_LOCATION" ]]; then
+    echo -e "\033[1A\033[2K$LABEL<Using default>"
+    CONFIG_LOCATION="$DEFAULT"
+  fi
 
-    parse_config_field "COINBASE" "Enter your coinbase:" "0x616e6f6e796d6f75730000000000000000000000";
-    parse_config_field "WALLET_DIR" "Type wallet location:" "$LUKSO_HOME/$NETWORK/vanguard-wallet";
-    parse_config_field "DATADIR" "Type data directory (chain will be stored there) location:" "$LUKSO_HOME/$NETWORK/datadirs";
-    parse_config_field "LOGSDIR" "Type logs location:" "$LUKSO_HOME/$NETWORK/logs";
-    parse_config_field "NODE_NAME" "Type name of the node:" "$NETWORK-$NODE_NAME";
+  parse_config_field "COINBASE" "Enter your coinbase:" "0x616e6f6e796d6f75730000000000000000000000"
+  parse_config_field "WALLET_DIR" "Type wallet location:" "$LUKSO_HOME/$NETWORK/vanguard-wallet"
+  parse_config_field "DATADIR" "Type data directory (chain will be stored there) location:" "$LUKSO_HOME/$NETWORK/datadirs"
+  parse_config_field "LOGSDIR" "Type logs location:" "$LUKSO_HOME/$NETWORK/logs"
+  parse_config_field "NODE_NAME" "Type name of the node:" "$NETWORK-$NODE_NAME"
 
-    echo "Saving config to $CONFIG_LOCATION";
-    printf '%s\n' "${CONFIG_DATA[@]}" >| "$CONFIG_LOCATION";
+  echo "Saving config to $CONFIG_LOCATION"
+  printf '%s\n' "${CONFIG_DATA[@]}" >|"$CONFIG_LOCATION"
 }
 
 download_network_config() {
-  NETWORK=$1;
-  CDN="https://storage.googleapis.com/l15-cdn/networks/$NETWORK";
-  sudo mkdir -p /opt/lukso/networks/$NETWORK/config;
-  TARGET=/opt/lukso/networks/$NETWORK/config;
-  download $CDN/network-config.yaml $TARGET/network-config.yaml;
-  download $CDN/pandora-genesis.json $TARGET/pandora-genesis.json;
-  download $CDN/vanguard-genesis.ssz $TARGET/vanguard-genesis.ssz;
-  download $CDN/vanguard-config.yaml $TARGET/vanguard-config.yaml;
-  download $CDN/pandora-nodes.json $TARGET/pandora-nodes.json;
+  NETWORK=$1
+  CDN="https://storage.googleapis.com/l15-cdn/networks/$NETWORK"
+  sudo mkdir -p /opt/lukso/networks/$NETWORK/config
+  TARGET=/opt/lukso/networks/$NETWORK/config
+  download $CDN/network-config.yaml $TARGET/network-config.yaml
+  download $CDN/pandora-genesis.json $TARGET/pandora-genesis.json
+  download $CDN/vanguard-genesis.ssz $TARGET/vanguard-genesis.ssz
+  download $CDN/vanguard-config.yaml $TARGET/vanguard-config.yaml
+  download $CDN/pandora-nodes.json $TARGET/pandora-nodes.json
 }
 
 pick_network() {
-  NETWORK=$1;
+  NETWORK=$1
   if [[ ! -d /opt/lukso/networks/"$NETWORK" ]]; then
-    download_network_config $NETWORK;
+    download_network_config $NETWORK
   fi
 }
 
 check_validator_requirements() {
-  CAN_VALIDATE=true;
+  CAN_VALIDATE=true
   if [[ ! -d $WALLET_DIR ]]; then
-    echo "Cannot validate, wallet not found";
-    CAN_VALIDATE=false;
+    echo "Cannot validate, wallet not found"
+    CAN_VALIDATE=false
   fi
 
   if [[ ! -f $WALLET_DIR/password.txt ]]; then
-    echo "Cannot validate, password not provided";
-    CAN_VALIDATE=false;
+    echo "Cannot validate, password not provided"
+    CAN_VALIDATE=false
   fi
 
   if [[ "$CAN_VALIDATE" == "false" ]]; then
-    exit 1;
+    exit 1
   fi
 
 }
 
 start_orchestrator() {
-  mkdir -p "$LOGSDIR"/orchestrator;
-  echo -n $RUN_DATE >| "$LOGSDIR"/orchestrator/current.tmp;
+  mkdir -p "$LOGSDIR"/orchestrator
+  echo -n $RUN_DATE >|"$LOGSDIR"/orchestrator/current.tmp
   if [[ ! -d "$DATADIR/orchestrator" ]]; then
-    mkdir -p $DATADIR/orchestrator;
+    mkdir -p $DATADIR/orchestrator
   fi
   nohup lukso-orchestrator --datadir=$DATADIR/orchestrator \
-		--vanguard-grpc-endpoint=127.0.0.1:4000 \
-		--http \
-		--http.addr=0.0.0.0 \
-		--http.port=7877 \
-		--ws \
-		--ws.addr=0.0.0.0 \
-		--ws.port=7878 \
-		--pandora-rpc-endpoint=ws://127.0.0.1:8546 \
-		--verbosity=trace >| $LOGSDIR/orchestrator/orchestrator_"$RUN_DATE".log  2>&1 &
-	disown
+    --vanguard-grpc-endpoint=127.0.0.1:4000 \
+    --http \
+    --http.addr=0.0.0.0 \
+    --http.port=7877 \
+    --ws \
+    --ws.addr=0.0.0.0 \
+    --ws.port=7878 \
+    --pandora-rpc-endpoint=ws://127.0.0.1:8546 \
+    --verbosity=trace >|$LOGSDIR/orchestrator/orchestrator_"$RUN_DATE".log 2>&1 &
+  disown
 }
 
 start_pandora() {
-  mkdir -p "$LOGSDIR"/pandora;
-  echo -n $RUN_DATE >| "$LOGSDIR"/pandora/current.tmp;
+  mkdir -p "$LOGSDIR"/pandora
+  echo -n $RUN_DATE >|"$LOGSDIR"/pandora/current.tmp
   if [[ ! -d "$DATADIR/pandora" ]]; then
-    mkdir -p "$DATADIR/pandora";
-    pandora --datadir $DATADIR/pandora init /opt/lukso/networks/$NETWORK/config/pandora-genesis.json &> /dev/null
-    cp /opt/lukso/networks/"$NETWORK"/config/pandora-nodes.json $DATADIR/pandora/geth/static-nodes.json;
+    mkdir -p "$DATADIR/pandora"
+    pandora --datadir $DATADIR/pandora init /opt/lukso/networks/$NETWORK/config/pandora-genesis.json &>/dev/null
+    cp /opt/lukso/networks/"$NETWORK"/config/pandora-nodes.json $DATADIR/pandora/geth/static-nodes.json
   fi
 
   ARGUMENTS=(
@@ -285,27 +283,26 @@ start_pandora() {
     "--ws.port=8546"
     "--ws.origins=*"
     "--mine"
-	  "--miner.notify=ws://127.0.0.1:7878,http://127.0.0.1:7877"
-	  "--miner.etherbase=$COINBASE"
-	  "--syncmode=full"
-	  "--allow-insecure-unlock"
-	  "--nat=extip:$EXTERNAL_IP"
-	  "--verbosity=4"
+    "--miner.notify=ws://127.0.0.1:7878,http://127.0.0.1:7877"
+    "--miner.etherbase=$COINBASE"
+    "--syncmode=full"
+    "--allow-insecure-unlock"
+    "--nat=extip:$EXTERNAL_IP"
+    "--verbosity=4"
   )
 
-	nohup pandora  \
-   "${ARGUMENTS[@]}" \
-	 >| $LOGSDIR/pandora/pandora_"$RUN_DATE".log  2>&1 &
-	 disown
+  nohup pandora \
+    "${ARGUMENTS[@]}" \
+    >|$LOGSDIR/pandora/pandora_"$RUN_DATE".log 2>&1 &
+  disown
 }
 
 start_vanguard() {
-  mkdir -p "$LOGSDIR"/vanguard;
-  echo -n $RUN_DATE >| "$LOGSDIR"/vanguard/current.tmp;
+  mkdir -p "$LOGSDIR"/vanguard
+  echo -n $RUN_DATE >|"$LOGSDIR"/vanguard/current.tmp
   VANGUARD_BOOTNODES=(${VANGUARD_BOOTNODES//,/ })
   BOOTNODES_ARGS=()
-  for n in "${VANGUARD_BOOTNODES[@]}"
-  do
+  for n in "${VANGUARD_BOOTNODES[@]}"; do
     BOOTNODES_ARGS+=("--bootstrap-node=$n")
   done
   ARGUMENTS=(
@@ -332,37 +329,36 @@ start_vanguard() {
     "--grpc-gateway-port=3500"
     "--update-head-timely"
     "--lukso-network"
-  );
-
+  )
 
   nohup vanguard \
-	  "${ARGUMENTS[@]}" \
-	  >| $LOGSDIR/vanguard/vanguard_"$RUN_DATE".log  2>&1 &
-	disown
+    "${ARGUMENTS[@]}" \
+    >|$LOGSDIR/vanguard/vanguard_"$RUN_DATE".log 2>&1 &
+  disown
 }
 
 start_validator() {
-  mkdir -p "$LOGSDIR"/validator;
-  echo -n $RUN_DATE >| "$LOGSDIR"/validator/current.tmp;
+  mkdir -p "$LOGSDIR"/validator
+  echo -n $RUN_DATE >|"$LOGSDIR"/validator/current.tmp
 
   nohup lukso-validator \
-	  --datadir="$DATADIR"/validator/ \
-	  --accept-terms-of-use \
-	  --beacon-rpc-provider=localhost:4000 \
-	  --chain-config-file=/opt/lukso/networks/$NETWORK/config/vanguard-config.yaml \
-	  --verbosity=debug \
-	  --pandora-http-provider=http://127.0.0.1:8545 \
-	  --wallet-dir=$WALLET_DIR \
-	  --wallet-password-file=./validator/password.txt \
-	  --rpc \
-	  --log-file=$LOGSDIR/validator/validator_"$RUN_DATE".log \
-	  --lukso-network >| $LOGSDIR/validator/validator_"$RUN_DATE".log  2>&1 &
-	disown
+    --datadir="$DATADIR"/validator/ \
+    --accept-terms-of-use \
+    --beacon-rpc-provider=localhost:4000 \
+    --chain-config-file=/opt/lukso/networks/$NETWORK/config/vanguard-config.yaml \
+    --verbosity=debug \
+    --pandora-http-provider=http://127.0.0.1:8545 \
+    --wallet-dir=$WALLET_DIR \
+    --wallet-password-file=./validator/password.txt \
+    --rpc \
+    --log-file=$LOGSDIR/validator/validator_"$RUN_DATE".log \
+    --lukso-network >|$LOGSDIR/validator/validator_"$RUN_DATE".log 2>&1 &
+  disown
 }
 
 start_eth2stats_client() {
-  mkdir -p "$LOGSDIR"/eth2stats;
-  echo -n $RUN_DATE >| "$LOGSDIR"/eth2stats/current.tmp;
+  mkdir -p "$LOGSDIR"/eth2stats
+  echo -n $RUN_DATE >|"$LOGSDIR"/eth2stats/current.tmp
 
   nohup eth2stats-client run \
     --beacon.type="prysm" \
@@ -371,7 +367,7 @@ start_eth2stats_client() {
     --data.folder=$DATADIR/eth2stats-client \
     --eth2stats.node-name="$NODE_NAME" \
     --eth2stats.addr="$ETH2_STATS_URL" \
-    --eth2stats.tls="false" >| "$LOGSDIR"/eth2stats/eth2stats_"$RUN_DATE".log  2>&1 &
+    --eth2stats.tls="false" >|"$LOGSDIR"/eth2stats/eth2stats_"$RUN_DATE".log 2>&1 &
   disown
 }
 
@@ -381,137 +377,137 @@ start_all() {
   fi
 
   echo "################# Starting orchestrator #################"
-	start_orchestrator
-	sleep 2
+  start_orchestrator
+  sleep 2
 
-	echo "################# Starting pandora #######################"
-	start_pandora
-	sleep 2
+  echo "################# Starting pandora #######################"
+  start_pandora
+  sleep 2
 
-	echo "################# Starting vanguard #######################"
-	start_vanguard
-	sleep 2
+  echo "################# Starting vanguard #######################"
+  start_vanguard
+  sleep 2
 
-	if [[ "$IS_VALIDATOR" == true ]]; then
-	 	echo "################# Starting validator #######################"
-	  start_validator
-	  sleep 2
-	fi
+  if [[ "$IS_VALIDATOR" == true ]]; then
+    echo "################# Starting validator #######################"
+    start_validator
+    sleep 2
+  fi
 
-	echo "################# Starting eth2stats_client #######################"
-	start_eth2stats_client
-	sleep 2
+  echo "################# Starting eth2stats_client #######################"
+  start_eth2stats_client
+  sleep 2
 }
 
 start() {
 
   if [[ $# -eq 0 ]]; then
-    ARGUMENT="all";
+    ARGUMENT="all"
   else
-    ARGUMENT=$1;
+    ARGUMENT=$1
   fi
 
-  echo -n "Starting: ";
+  echo -n "Starting: "
   case $ARGUMENT in
   orchestrator)
-    echo "orchestrator client";
+    echo "orchestrator client"
     start_orchestrator
-  ;;
+    ;;
   pandora)
-    echo "pandora client";
+    echo "pandora client"
     start_pandora
-  ;;
+    ;;
   vanguard)
-    echo "vanguard client";
+    echo "vanguard client"
     start_vanguard
-  ;;
+    ;;
   validator)
-    echo "validator client";
+    echo "validator client"
     start_validator
-  ;;
+    ;;
   eth2stats)
     echo "eth2stats client"
     start_eth2stats_client
-  ;;
+    ;;
   *)
-    echo "ALL clients";
+    echo "ALL clients"
     start_all
-  ;;
+    ;;
   esac
 }
 
 stop_orchestrator() {
   echo -n "Stopping orchestrator client "
   if [[ "$FORCE" == true ]]; then
-	  echo "[FORCE]"
-	  sudo kill -9 $(sudo lsof -t -i:7877) &> /dev/null
-	  sleep 1
-	else
-		echo
-	  sudo kill $(sudo lsof -t -i:7877) &> /dev/null
-	  sleep 1
-	fi
-}
-
-stop_pandora() {
-	echo -n "Stopping pandora client... "
-	if [[ "$FORCE" == true ]]; then
-	  echo "[FORCE]"
-	  sudo kill -9 $(sudo lsof -t -i:30405) &> /dev/null
-	  sleep 1
-	else
-    echo
-	  sudo kill $(sudo lsof -t -i:30405) &> /dev/null
-	  sleep 1
-	fi
-}
-
-stop_vanguard() {
-	echo -n "Stopping vanguard client... ";
-
-	if [[ "$FORCE" == true ]]; then
-	  echo "[FORCE]";
-	  sudo kill -9 $(sudo lsof -t -i:4000) &> /dev/null
-    sleep 1
-    sudo kill -9 $(sudo lsof -t -i:12000) &> /dev/null
-    sleep 1
-    sudo kill -9 $(sudo lsof -t -i:13000) &> /dev/null
+    echo "[FORCE]"
+    sudo kill -9 $(sudo lsof -t -i:7877) &>/dev/null
     sleep 1
   else
     echo
-    sudo kill $(sudo lsof -t -i:4000) &> /dev/null
+    sudo kill $(sudo lsof -t -i:7877) &>/dev/null
     sleep 1
-    sudo kill $(sudo lsof -t -i:12000) &> /dev/null
+  fi
+}
+
+stop_pandora() {
+  echo -n "Stopping pandora client... "
+  if [[ "$FORCE" == true ]]; then
+    echo "[FORCE]"
+    sudo kill -9 $(sudo lsof -t -i:30405) &>/dev/null
     sleep 1
-    sudo kill $(sudo lsof -t -i:13000) &> /dev/null
+  else
+    echo
+    sudo kill $(sudo lsof -t -i:30405) &>/dev/null
     sleep 1
-	fi
+  fi
+}
+
+stop_vanguard() {
+  echo -n "Stopping vanguard client... "
+
+  if [[ "$FORCE" == true ]]; then
+    echo "[FORCE]"
+    sudo kill -9 $(sudo lsof -t -i:4000) &>/dev/null
+    sleep 1
+    sudo kill -9 $(sudo lsof -t -i:12000) &>/dev/null
+    sleep 1
+    sudo kill -9 $(sudo lsof -t -i:13000) &>/dev/null
+    sleep 1
+  else
+    echo
+    sudo kill $(sudo lsof -t -i:4000) &>/dev/null
+    sleep 1
+    sudo kill $(sudo lsof -t -i:12000) &>/dev/null
+    sleep 1
+    sudo kill $(sudo lsof -t -i:13000) &>/dev/null
+    sleep 1
+  fi
 }
 
 stop_validator() {
   echo -n "Stopping validator client... "
   if [[ "$FORCE" == true ]]; then
-	  echo "[FORCE]";
-  	sudo kill -9 $(sudo lsof -t -i:7000) &> /dev/null
-  	sleep 1
+    echo "[FORCE]"
+    sudo kill -9 $(sudo lsof -t -i:7000) &>/dev/null
+    sleep 1
   else
     echo
-    sudo kill $(sudo lsof -t -i:7000) &> /dev/null
+    sudo kill $(sudo lsof -t -i:7000) &>/dev/null
     sleep 1
-	fi
+  fi
 }
 
 stop_eth2stats_client() {
   echo -n "Stopping eth2stats client... "
   if [[ "$FORCE" == true ]]; then
-	  echo "[FORCE]";
-  	sudo pkill -9 "eth2stats-client*"
-  	sleep 1
+    echo "[FORCE]"
+    sudo pkill -9 "eth2stats-client*"
+    sleep 1
   else
     echo
     sudo pkill "eth2stats-client*"
     sleep 1
-	fi
+  fi
 }
 
 stop_all() {
@@ -525,47 +521,46 @@ stop_all() {
 stop() {
 
   if [[ $# -eq 0 ]]; then
-    ARGUMENT="all";
+    ARGUMENT="all"
   else
-    ARGUMENT=$1;
+    ARGUMENT=$1
   fi
 
-
   if [[ "$FORCE" == true ]]; then
-    read -p "This may result in node data corruption. Continue? (Y/n) " var;
+    read -p "This may result in node data corruption. Continue? (Y/n) " var
     if [[ "$var" != "Y" ]]; then
-      echo "Exiting without effect...";
-      exit 0;
+      echo "Exiting without effect..."
+      exit 0
     fi
   fi
   case "$ARGUMENT" in
   orchestrator)
     stop_orchestrator
-  ;;
+    ;;
   pandora)
     stop_pandora
-  ;;
+    ;;
   vanguard)
     stop_vanguard
-  ;;
+    ;;
   validator)
     stop_validator
-  ;;
+    ;;
   eth2stats)
     stop_eth2stats_client
-  ;;
+    ;;
   *)
     stop_all
-  ;;
+    ;;
   esac
 }
 
 reset_orchestrator() {
-  rm -rf $DATADIR/orchestrator;
+  rm -rf $DATADIR/orchestrator
 }
 
 reset_pandora() {
-  rm -rf $DATADIR/pandora;
+  rm -rf $DATADIR/pandora
 }
 
 reset_vanguard() {
@@ -573,7 +568,7 @@ reset_vanguard() {
 }
 
 reset_validator() {
-  rm -rf $DATADIR/validator;
+  rm -rf $DATADIR/validator
 }
 
 reset_eth2stats_client() {
@@ -581,50 +576,50 @@ reset_eth2stats_client() {
 }
 
 reset_all() {
-  reset_orchestrator;
-  reset_pandora;
-  reset_vanguard;
-  reset_validator;
-  reset_eth2stats_client;
+  reset_orchestrator
+  reset_pandora
+  reset_vanguard
+  reset_validator
+  reset_eth2stats_client
 }
 
 reset() {
 
   if [[ $# -eq 0 ]]; then
-    ARGUMENT="none";
+    ARGUMENT="none"
   else
-    ARGUMENT=$1;
+    ARGUMENT=$1
   fi
 
-    case "$ARGUMENT" in
+  case "$ARGUMENT" in
   orchestrator)
     reset_orchestrator
-  ;;
+    ;;
   pandora)
     reset_pandora
-  ;;
+    ;;
   vanguard)
     reset_vanguard
-  ;;
+    ;;
   validator)
     reset_validator
-  ;;
+    ;;
   eth2stats)
     reset_eth2stats_client
-  ;;
+    ;;
   all)
     reset_all
-  ;;
+    ;;
   *)
     echo "Choose a client: [orchestrator, pandora, vanguard, validator, all] "
-  ;;
+    ;;
   esac
 }
 
 help() {
-  echo "USAGE:";
+  echo "USAGE:"
   echo "lukso <command> [argument] [--flags]"
-  echo;
+  echo
   echo "Available commands with arguments:"
   echo "start)         Starts up all or specific client(s)"
   echo "               [orchestrator, pandora, vanguard, validator, eth2stats-client, all]"
@@ -645,9 +640,9 @@ help() {
   echo "               [orchestrator, pandora, vanguard, validator, eth2stats-client]"
   echo
   echo "bind-binaries) sets client(s) to desired version"
-  echo;
-  echo;
-  echo "Available flags:";
+  echo
+  echo
+  echo "Available flags:"
   echo "--network              Picks config collection to be used"
   echo "                       [l15, l15-staging, l15-dev]"
   echo
@@ -669,7 +664,6 @@ help() {
   echo "--home                 Sets path for datadir and logs in a single location (--datadir and --logs take priority)"
   echo "                       [Ex. /var/lukso]"
   echo
-
 
   echo "--validate             Starts validator"
   echo
@@ -693,237 +687,251 @@ help() {
   echo
   echo "--force                Enables force mode for stopping"
 
-
-  exit;
+  exit
 }
 
 logs() {
   case "$1" in
   orchestrator)
-    CLIENT="orchestrator";
+    CLIENT="orchestrator"
     ;;
   pandora)
-    CLIENT="pandora";
+    CLIENT="pandora"
     ;;
   vanguard)
     CLIENT="vanguard"
     ;;
   validator)
-    CLIENT="validator";
+    CLIENT="validator"
     ;;
   eth2stats)
-    CLIENT="eth2stats";
+    CLIENT="eth2stats"
     ;;
   *)
-    echo "SELECT one of the clients ex. pandora";
+    echo "SELECT one of the clients ex. pandora"
     exit
     ;;
   esac
-  CURRENT_RUN=$(<"$LOGSDIR"/"$CLIENT"/current.tmp);
+  CURRENT_RUN=$(<"$LOGSDIR"/"$CLIENT"/current.tmp)
   tail -f "$LOGSDIR"/"$CLIENT"/"$CLIENT"_"$CURRENT_RUN".log
 
 }
 
-
 if [[ "$1" != -* ]]; then
-  COMMAND=$1;
-  shift;
+  COMMAND=$1
+  shift
 fi
 
 if [[ "$1" != -* ]]; then
-  COMMAND_ARG=$1;
-  shift;
+  COMMAND_ARG=$1
+  shift
 fi
 
 optspec=":hv-:"
 while getopts "$optspec" optchar; do
-    case "${optchar}" in
-        h)
-          echo "usage: $0 [-v] [--loglevel[=]<value>]" >&2
-          exit 2
-        ;;
-        -)
-            case "${OPTARG}" in
+  case "${optchar}" in
+  h)
+    echo "usage: $0 [-v] [--loglevel[=]<value>]" >&2
+    exit 2
+    ;;
+  -)
+    case "${OPTARG}" in
 
-                orchestrator)
-                  val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ));
-                  bind_binary lukso-orchestrator $val;
-                ;;
+    orchestrator)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      bind_binary lukso-orchestrator $val
+      ;;
 
-                pandora)
-                  val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ));
-                  bind_binary pandora $val
-                ;;
+    pandora)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      bind_binary pandora $val
+      ;;
 
-                vanguard)
-                  val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ));
-                  bind_binary vanguard $val
-                ;;
+    vanguard)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      bind_binary vanguard $val
+      ;;
 
-                validator)
-                  val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ));
-                  bind_binary lukso-validator $val
-                ;;
+    validator)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      bind_binary lukso-validator $val
+      ;;
 
-                eth2stats)
-                  # Temporary fix
-                  val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ));
-                  mkdir -p /opt/lukso/binaries/eth2stats-client/1;
+    eth2stats)
+      # Temporary fix
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      mkdir -p /opt/lukso/binaries/eth2stats-client/1
 
-                  if [[ $PLATFORM == "Linux" ]]; then
-                    download https://storage.googleapis.com/lukso-assets/eth2stats/eth2stats-client-linux /opt/lukso/binaries/eth2stats-client/1/eth2stats-client
-                  fi
+      if [[ $PLATFORM == "Linux" ]]; then
+        download https://storage.googleapis.com/lukso-assets/eth2stats/eth2stats-client-linux /opt/lukso/binaries/eth2stats-client/1/eth2stats-client
+      fi
 
-                  if [[ $PLATFORM == "Darwin" ]]; then
-                    download https://storage.googleapis.com/lukso-assets/eth2stats/eth2stats-client-darwin /opt/lukso/binaries/eth2stats-client/1/eth2stats-client
-                  fi
+      if [[ $PLATFORM == "Darwin" ]]; then
+        download https://storage.googleapis.com/lukso-assets/eth2stats/eth2stats-client-darwin /opt/lukso/binaries/eth2stats-client/1/eth2stats-client
+      fi
 
-                  chmod +x /opt/lukso/binaries/eth2stats-client/1/eth2stats-client;
-                  ln -sf /opt/lukso/binaries/eth2stats-client/1/eth2stats-client /usr/local/bin/eth2stats-client;
+      chmod +x /opt/lukso/binaries/eth2stats-client/1/eth2stats-client
+      ln -sf /opt/lukso/binaries/eth2stats-client/1/eth2stats-client /usr/local/bin/eth2stats-client
 
-                ;;
+      ;;
 
+    \
+      network)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      pick_network $val
+      ;;
 
-                network)
-                  val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
-                  pick_network $val;
-                ;;
+    home)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      eval OVERRIDE_LUKSO_HOME=$val
+      ;;
 
-                home)
-                  val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
-                  eval OVERRIDE_LUKSO_HOME=$val;
-                ;;
+    datadir)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      eval OVERRIDE_DATADIR=$val
+      ;;
 
-                datadir)
-                  val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
-                  eval OVERRIDE_DATADIR=$val;
-                ;;
+    logsdir)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      eval OVERRIDE_LOGSDIR=$val
+      ;;
 
-                logsdir)
-                  val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
-                  eval OVERRIDE_LOGSDIR=$val;
-                ;;
+    l15)
+      pick_network l15
+      ;;
 
-                l15)
-                  pick_network l15
-                ;;
+    l15-staging)
+      pick_network l15-staging
+      ;;
 
-                l15-staging)
-                  pick_network l15-staging
-                ;;
+    l15-dev)
+      pick_network l15-dev
+      ;;
 
-                l15-dev)
-                  pick_network l15-dev
-                ;;
+    config)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      USE_CONFIG_FILE=true
+      CONFIG_FILE_PATH="$val"
+      ;;
 
-                config)
-                  val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
-                  USE_CONFIG_FILE=true;
-                  CONFIG_FILE_PATH="$val";
-                ;;
+    coinbase)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_COINBASE="$val"
+      ;;
 
-                coinbase)
-                  val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
-                  OVERRIDE_COINBASE="$val";
-                ;;
+    node-name)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_NODE_NAME="$val"
+      ;;
 
-                node-name)
-                  val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
-                  OVERRIDE_NODE_NAME="$val";
-                ;;
+    validate)
+      OVERRIDE_IS_VALIDATOR=true
+      ;;
 
-                validate)
-                  OVERRIDE_IS_VALIDATOR=true;
-                ;;
+    pandora-bootnodes)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_PANDORA_BOOTNODES=$val
+      ;;
 
-                pandora-bootnodes)
-                  val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
-                  OVERRIDE_PANDORA_BOOTNODES=$val
-                ;;
+    pandora-http-port)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_PANDORA_HTTP_PORT=$val
+      ;;
 
-                pandora-http-port)
-                  val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
-                  OVERRIDE_PANDORA_HTTP_PORT=$val;
-                ;;
+    vanguard-bootnodes)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_VANGUARD_BOOTNODES=$val
+      ;;
 
-                vanguard-bootnodes)
-                  val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
-                  OVERRIDE_VANGUARD_BOOTNODES=$val
-                ;;
+    external-ip)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_EXTERNAL_IP=$val
+      ;;
 
-                external-ip)
-                  val="${!OPTIND}"; OPTIND=$(( $OPTIND + 1 ))
-                  OVERRIDE_EXTERNAL_IP=$val
-                ;;
+    force)
+      FORCE=true
+      ;;
 
-                force)
-                  FORCE=true
-                ;;
-
-                *)
-                    if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
-                        echo "Unknown option --${OPTARG}" >&2
-                    fi
-                    ;;
-            esac;;
-
-        *)
-            if [ "$OPTERR" != 1 ] || [ "${optspec:0:1}" = ":" ]; then
-                echo "Non-option argument: '-${OPTARG}'" >&2
-            fi
-            ;;
+    *)
+      if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+        echo "Unknown option --${OPTARG}" >&2
+      fi
+      ;;
     esac
+    ;;
+
+  *)
+    if [ "$OPTERR" != 1 ] || [ "${optspec:0:1}" = ":" ]; then
+      echo "Non-option argument: '-${OPTARG}'" >&2
+    fi
+    ;;
+  esac
 done
 
-if [[ "$USE_CONFIG_FILE" = true ]]; then
-  parse_config "$CONFIG_FILE_PATH";
+if [[ "$USE_CONFIG_FILE" == true ]]; then
+  parse_config "$CONFIG_FILE_PATH"
 fi
 
-parse_config "/opt/lukso/networks/$NETWORK/config/network-config.yaml";
+parse_config "/opt/lukso/networks/$NETWORK/config/network-config.yaml"
 
 # Override config file
 if [[ -n $OVERRIDE_COINBASE ]]; then
-  COINBASE=$OVERRIDE_COINBASE;
+  COINBASE=$OVERRIDE_COINBASE
 fi
 
 if [[ -n $OVERRIDE_NODE_NAME ]]; then
-  NODE_NAME=$OVERRIDE_NODE_NAME;
+  NODE_NAME=$OVERRIDE_NODE_NAME
 fi
 
 if [[ -n $OVERRIDE_IS_VALIDATOR ]]; then
-  IS_VALIDATOR=$OVERRIDE_IS_VALIDATOR;
+  IS_VALIDATOR=$OVERRIDE_IS_VALIDATOR
 fi
 
 if [[ -n $OVERRIDE_PANDORA_BOOTNODES ]]; then
-  PANDORA_BOOTNODES=$OVERRIDE_PANDORA_BOOTNODES;
+  PANDORA_BOOTNODES=$OVERRIDE_PANDORA_BOOTNODES
 fi
 
 if [[ -n $OVERRIDE_PANDORA_HTTP_PORT ]]; then
-  PANDORA_HTTP_PORT=$OVERRIDE_PANDORA_HTTP_PORT;
+  PANDORA_HTTP_PORT=$OVERRIDE_PANDORA_HTTP_PORT
 fi
 
 if [[ -n $OVERRIDE_VANGUARD_BOOTNODES ]]; then
-  VANGUARD_BOOTNODES=$OVERRIDE_VANGUARD_BOOTNODES;
+  VANGUARD_BOOTNODES=$OVERRIDE_VANGUARD_BOOTNODES
 fi
 
 if [[ -n $OVERRIDE_EXTERNAL_IP ]]; then
-  EXTERNAL_IP=$OVERRIDE_EXTERNAL_IP;
+  EXTERNAL_IP=$OVERRIDE_EXTERNAL_IP
 fi
 
 if [[ -n $OVERRIDE_LUKSO_HOME ]]; then
-  LUKSO_HOME=$OVERRIDE_LUKSO_HOME;
-  DATADIR=$LUKSO_HOME/$NETWORK/datadirs;
-  LOGSDIR=$LUKSO_HOME/$NETWORK/logs;
+  LUKSO_HOME=$OVERRIDE_LUKSO_HOME
+  DATADIR=$LUKSO_HOME/$NETWORK/datadirs
+  LOGSDIR=$LUKSO_HOME/$NETWORK/logs
 fi
 
 if [[ -n $OVERRIDE_DATADIR ]]; then
-  DATADIR=$OVERRIDE_DATADIR;
+  DATADIR=$OVERRIDE_DATADIR
 fi
 
 if [[ -n $OVERRIDE_LOGSDIR ]]; then
-  LOGSDIR=$LOGSDIR;
+  LOGSDIR=$LOGSDIR
 fi
-
 
 case $COMMAND in
 ping)
@@ -951,15 +959,12 @@ logs)
   logs "$COMMAND_ARG"
   ;;
 attach)
-  pandora attach $DATADIR/pandora/geth.ipc;
+  pandora attach $DATADIR/pandora/geth.ipc
   ;;
-bind-binaries)
-  ;;
+bind-binaries) ;;
+
 *)
   help
   exit 1
   ;;
 esac
-
-
-
