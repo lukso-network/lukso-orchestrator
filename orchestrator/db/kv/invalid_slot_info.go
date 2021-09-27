@@ -40,3 +40,17 @@ func (s *Store) SaveInvalidSlotInfo(slot uint64, slotInfo *types.SlotInfo) error
 		return nil
 	})
 }
+
+func (s *Store) removeSlotInfoFromInvalidDB(slot uint64) error {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
+
+	return s.db.Update(func(tx *bolt.Tx) error {
+		bkt := tx.Bucket(invalidSlotInfosBucket)
+		key := bytesutil.Uint64ToBytesBigEndian(slot)
+		if err := bkt.Delete(key); err != nil {
+			return err
+		}
+		return nil
+	})
+}

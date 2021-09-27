@@ -26,7 +26,7 @@ type ReadOnlyVerifiedSlotInfoDatabase interface {
 	VerifiedSlotInfos(fromSlot uint64) (map[uint64]*types.SlotInfo, error)
 	LatestSavedVerifiedSlot() uint64
 	LatestVerifiedHeaderHash() common.Hash
-	GetFirstVerifiedSlotNumber (fromSlot uint64) (uint64, error)
+	GetFirstVerifiedSlotInAnEpoch (epoch uint64) (*types.SlotInfo, error)
 }
 
 type VerifiedSlotDatabase interface {
@@ -56,6 +56,7 @@ type Database interface {
 	InvalidSlotDatabase
 
 	RemoveInfoFromAllDb(fromEpoch, toEpoch uint64) error
+	RemoveSlotInfo (slot uint64) error
 
 
 	DatabasePath() string

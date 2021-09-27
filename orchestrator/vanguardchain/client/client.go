@@ -17,7 +17,7 @@ type VanguardClient interface {
 	StreamNewPendingBlocks(blockRoot []byte, fromSlot types.Slot) (ethpb.BeaconChain_StreamNewPendingBlocksClient, error)
 	StreamMinimalConsensusInfo(epoch uint64) (stream ethpb.BeaconChain_StreamMinimalConsensusInfoClient, err error)
 	IsValidBlock (slot types.Slot, blockHash []byte) (bool, error)
-	GetFinalizedEpoch () types.Epoch
+	GetFinalizedEpoch () (types.Epoch, error)
 	Close()
 }
 
@@ -119,12 +119,12 @@ func (vanClient *GRPCClient) IsValidBlock (slot types.Slot, blockHash []byte) (b
 	return retVal.GetIsValid(), err
 }
 
-func (vanClient *GRPCClient) GetFinalizedEpoch () types.Epoch {
+func (vanClient *GRPCClient) GetFinalizedEpoch () (types.Epoch, error) {
 	head, err := vanClient.beaconClient.GetChainHead(vanClient.ctx, &ptypes.Empty{})
 	if err != nil {
-		return 0
+		return 0, err
 	}
-	return head.FinalizedEpoch
+	return head.FinalizedEpoch, nil
 }
 
 // constructDialOptions constructs a list of grpc dial options

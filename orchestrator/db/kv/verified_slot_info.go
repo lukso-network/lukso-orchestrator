@@ -97,7 +97,17 @@ func (s *Store) GetLatestVerifiedSlotInfo() (uint64, *types.SlotInfo, error) {
 			return ErrValueNotFound
 		}
 		slotNumber = bytesutil.BytesToUint64BigEndian(key)
-		return decode(value, &slotInfo)
+		decodeError := decode(value, &slotInfo)
+		for decodeError != nil {
+			key, value := cursor.Prev()
+			if key == nil {
+				// first element has reached. So just return error
+				return decodeError
+			}
+			slotNumber = bytesutil.BytesToUint64BigEndian(key)
+			decodeError = decode(value, &slotInfo)
+		}
+		return nil
 	})
 	return slotNumber, slotInfo, err
 }

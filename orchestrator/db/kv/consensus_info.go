@@ -37,7 +37,19 @@ func (s *Store) GetLatestConsensusInfo() (*eventTypes.MinimalEpochConsensusInfo,
 		if enc == nil {
 			return ErrValueNotFound
 		}
-		return decode(enc, &consensusInfo)
+
+		// This section has done due to the compatibility of already existing dB.
+		// If retrieved info can't be decoded then get the second last and so on.
+		decodeError := decode(enc, &consensusInfo)
+		for decodeError != nil {
+			key, enc := cursor.Prev()
+			if key == nil {
+				// first element has reached. So just return error
+				return decodeError
+			}
+			decodeError = decode(enc, &consensusInfo)
+		}
+		return nil
 	})
 	return consensusInfo, err
 }
