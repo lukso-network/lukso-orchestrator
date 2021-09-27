@@ -2,7 +2,6 @@ package cache
 
 import (
 	"context"
-	"github.com/ethereum/go-ethereum/common/math"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	"sync"
@@ -16,7 +15,7 @@ type VanShardingInfoCache struct {
 
 // NewVanShardInfoCache initializes the map and underlying cache.
 func NewVanShardInfoCache(cacheSize int) *VanShardingInfoCache {
-	cache, err := lru.New(math.MaxInt32)
+	cache, err := lru.New(cacheSize)
 	if err != nil {
 		panic(err)
 	}

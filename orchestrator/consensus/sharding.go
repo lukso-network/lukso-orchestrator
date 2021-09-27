@@ -6,7 +6,7 @@ import (
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
-	eth2Types "github.com/prysmaticlabs/ethereumapis/eth/v1alpha1"
+	eth2Types "github.com/prysmaticlabs/prysm/proto/eth/v1alpha1"
 )
 
 func CompareShardingInfo(ph *eth1Types.Header, vs *eth2Types.PandoraShard) bool {

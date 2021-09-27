@@ -3,6 +3,7 @@ package rpc
 import (
 	"context"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/consensus"
 	testDB "github.com/lukso-network/lukso-orchestrator/orchestrator/db/testing"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain"
 	"github.com/lukso-network/lukso-orchestrator/shared/cmd"
@@ -25,16 +26,28 @@ func setup(t *testing.T) (*Config, error) {
 		return nil, err
 	}
 
+	consensusSvr := consensus.New(
+		context.Background(),
+		&consensus.Config{
+			orchestratorDB,
+			orchestratorDB,
+			cache.NewVanShardInfoCache(1 << 10),
+			cache.NewPanHeaderCache(),
+			nil,
+			nil,
+		})
+
 	return &Config{
-		ConsensusInfoFeed: consensusInfoFeed,
-		Db:                orchestratorDB,
-		IPCPath:           cmd.DefaultIpcPath,
-		HTTPEnable:        true,
-		HTTPHost:          cmd.DefaultHTTPHost,
-		HTTPPort:          9874,
-		WSEnable:          true,
-		WSHost:            cmd.DefaultWSHost,
-		WSPort:            9875,
+		ConsensusInfoFeed:    consensusInfoFeed,
+		VerifiedSlotInfoFeed: consensusSvr,
+		Db:                   orchestratorDB,
+		IPCPath:              cmd.DefaultIpcPath,
+		HTTPEnable:           true,
+		HTTPHost:             cmd.DefaultHTTPHost,
+		HTTPPort:             9874,
+		WSEnable:             true,
+		WSHost:               cmd.DefaultWSHost,
+		WSPort:               9875,
 	}, nil
 }
 

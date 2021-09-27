@@ -2,14 +2,14 @@ package cache
 
 import (
 	"context"
+	lru "github.com/hashicorp/golang-lru"
 	"math/rand"
 	"testing"
 
-	"github.com/lukso-network/lukso-orchestrator/shared/types"
-
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/require"
-	eth "github.com/prysmaticlabs/ethereumapis/eth/v1alpha1"
+	"github.com/lukso-network/lukso-orchestrator/shared/types"
+	eth "github.com/prysmaticlabs/prysm/proto/eth/v1alpha1"
 )
 
 func NewPandoraShardingInfo() (*eth.PandoraShard, error) {
@@ -95,7 +95,11 @@ func TestVanguardShardingInfoCacheAPIs(t *testing.T) {
 }
 
 func TestVanguardShardingInfoCacheSize(t *testing.T) {
-	vanguardCache := NewVanShardInfoCache(10)
+	cache, err := lru.New(10)
+	require.NoError(t, err)
+	vanguardCache := &VanShardingInfoCache{
+		cache: cache,
+	}
 	ctx := context.Background()
 	generatedPandoraShardInfo, err := setupShardingCache(100)
 	if err != nil {

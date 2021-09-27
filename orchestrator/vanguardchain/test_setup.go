@@ -12,7 +12,7 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
 	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
 	types "github.com/prysmaticlabs/eth2-types"
-	eth "github.com/prysmaticlabs/ethereumapis/eth/v1alpha1"
+	eth "github.com/prysmaticlabs/prysm/proto/eth/v1alpha1"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/metadata"
 	"testing"

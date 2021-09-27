@@ -5,7 +5,8 @@ import (
 	"errors"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
-	eth "github.com/prysmaticlabs/ethereumapis/eth/v1alpha1"
+	eth "github.com/prysmaticlabs/prysm/proto/eth/v1alpha1"
+	"github.com/prysmaticlabs/prysm/proto/eth/v1alpha1/wrapper"
 )
 
 // OnNewConsensusInfo :
@@ -34,7 +35,8 @@ func (s *Service) OnNewPendingVanguardBlock(ctx context.Context, block *eth.Beac
 		log.WithError(err).Warn("failed to retrieve vanguard block hash from HashTreeRoot")
 		return err
 	}
-	pandoraShards := block.GetBody().GetPandoraShard()
+	wrappedPhase0Blk := wrapper.WrappedPhase0BeaconBlock(block)
+	pandoraShards := wrappedPhase0Blk.Body().PandoraShards()
 	if len(pandoraShards) < 1 {
 		// The first value is the sharding info. If not present throw error
 		log.WithField("pandoraShard length", len(pandoraShards)).Error("pandora sharding info not present")

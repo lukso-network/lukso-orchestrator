@@ -2,10 +2,10 @@ package vanguardchain
 
 import (
 	"context"
-	"github.com/gogo/protobuf/types"
+	duration "github.com/golang/protobuf/ptypes/duration"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
-	eth "github.com/prysmaticlabs/ethereumapis/eth/v1alpha1"
+	eth "github.com/prysmaticlabs/prysm/proto/eth/v1alpha1"
 	logTest "github.com/sirupsen/logrus/hooks/test"
 	"testing"
 	"time"
@@ -26,7 +26,7 @@ func Test_VanguardChainStartStop_Initialized(t *testing.T) {
 	minimalConsensusInfo := testutil.NewMinimalConsensusInfo(0)
 
 	ConsensusInfoMocks = append(ConsensusInfoMocks, &eth.MinimalConsensusInfo{
-		SlotTimeDuration: &types.Duration{Seconds: 6},
+		SlotTimeDuration: &duration.Duration{Seconds: 6},
 		ValidatorList:    minimalConsensusInfo.ValidatorList,
 	})
 	PendingBlockMocks = nil
