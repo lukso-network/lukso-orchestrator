@@ -48,6 +48,8 @@ EXTERNAL_IP=$(curl -s ident.me)
 KEYS_DIR="$LUKSO_HOME/$NETWORK"
 WALLET_DIR="$LUKSO_HOME/$NETWORK/vanguard_wallet"
 PANDORA_METRICS=false
+PANDORA_NODEKEY=""
+VANGUARD_P2P_PRIV_KEY=""
 ######
 
 ###### for config tool
@@ -302,6 +304,13 @@ start_pandora() {
     ARGUMENTS=("${ARGUMENTS[@]}" "${METRICS_FLAGS[@]}")
   fi
 
+  if [[ -n $PANDORA_NODEKEY ]]; then
+    NODEKEY_FLAGS=(
+      "--nodekey=$PANDORA_NODEKEY"
+    )
+    ARGUMENTS=("${ARGUMENTS[@]}" "${NODEKEY_FLAGS[@]}")
+  fi
+
   nohup pandora \
     "${ARGUMENTS[@]}" \
     >|$LOGSDIR/pandora/pandora_"$RUN_DATE".log 2>&1 &
@@ -341,6 +350,13 @@ start_vanguard() {
     "--update-head-timely"
     "--lukso-network"
   )
+
+  if [[ -n $VANGUARD_P2P_PRIV_KEY ]]; then
+    P2P_PRIV_KEY_FLAGS=(
+      "--p2p-priv-key=$VANGUARD_P2P_PRIV_KEY"
+    )
+    ARGUMENTS=("${ARGUMENTS[@]}" "${P2P_PRIV_KEY_FLAGS[@]}")
+  fi
 
   nohup vanguard \
     "${ARGUMENTS[@]}" \
@@ -869,10 +885,22 @@ while getopts "$optspec" optchar; do
       OVERRIDE_PANDORA_METRICS=true
       ;;
 
+    pandora-nodekey)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_PANDORA_NODEKEY=$val
+      ;;
+
     vanguard-bootnodes)
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
       OVERRIDE_VANGUARD_BOOTNODES=$val
+      ;;
+
+    vanguard-p2p-priv-key)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_VANGUARD_P2P_PRIV_KEY=$val
       ;;
 
     external-ip)
@@ -932,8 +960,16 @@ if [[ -n $OVERRIDE_PANDORA_METRICS ]]; then
   PANDORA_METRICS=$OVERRIDE_PANDORA_METRICS
 fi
 
+if [[ -n $OVERRIDE_PANDORA_NODEKEY ]]; then
+  PANDORA_NODEKEY=$OVERRIDE_PANDORA_NODEKEY
+fi
+
 if [[ -n $OVERRIDE_VANGUARD_BOOTNODES ]]; then
   VANGUARD_BOOTNODES=$OVERRIDE_VANGUARD_BOOTNODES
+fi
+
+if [[ -n $OVERRIDE_VANGUARD_P2P_PRIV_KEY ]]; then
+  VANGUARD_P2P_PRIV_KEY=$OVERRIDE_VANGUARD_P2P_PRIV_KEY
 fi
 
 if [[ -n $OVERRIDE_EXTERNAL_IP ]]; then
