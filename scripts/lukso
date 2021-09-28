@@ -708,8 +708,14 @@ help() {
   echo
   echo "--pandora-metrics      Enables pandora metrics server"
   echo
+  echo "--pandora-nodekey      P2P node key file"
+  echo "                       [Path to file (relative or absolute)]"
+  echo
   echo "--vanguard-bootnodes   Sets vanguard bootnodes"
   echo "                       [Strings of bootnodes separated by commas: \"enr:-Ku4QAmY...,enr:-M23QLmY...\"]"
+  echo
+  echo "--vanguard-p2p-priv-key The file containing the private key to use in communications with other peers."
+  echo "                       [Path to file (relative or absolute)]"
   echo
   echo "--external-ip          Sets external IP for pandora and vanguard"
   echo "                       [72.122.32.234]"
