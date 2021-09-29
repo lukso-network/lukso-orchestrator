@@ -120,6 +120,10 @@ download_binary() {
     REPO="vanguard-consensus-engine"
     ;;
 
+  lukso-deposit-cli)
+    REPO="network-deposit-cli"
+    ;;
+
   esac
 
   mkdir -p /opt/lukso/binaries/$CLIENT/$TAG
@@ -159,6 +163,7 @@ generate_keys() {
 
 import_accounts() {
   read -p "Where do you have deposit keys? Default: [$KEYS_DIR] " KEYS_DIR
+  eval KEYS_DIR="$KEYS_DIR"
   lukso-validator accounts import \
     --keys-dir $KEYS_DIR \
     --wallet-dir $WALLET_DIR
@@ -375,6 +380,7 @@ start_vanguard() {
 }
 
 start_validator() {
+  check_validator_requirements
   mkdir -p "$LOGSDIR"/validator
   echo -n $RUN_DATE >|"$LOGSDIR"/validator/current.tmp
 
@@ -386,7 +392,7 @@ start_validator() {
     --verbosity=debug \
     --pandora-http-provider=http://127.0.0.1:8545 \
     --wallet-dir=$WALLET_DIR \
-    --wallet-password-file=./validator/password.txt \
+    --wallet-password-file=$WALLET_DIR/password.txt \
     --rpc \
     --log-file=$LOGSDIR/validator/validator_"$RUN_DATE".log \
     --lukso-network >|$LOGSDIR/validator/validator_"$RUN_DATE".log 2>&1 &
@@ -815,22 +821,28 @@ while getopts "$optspec" optchar; do
       bind_binary lukso-validator $val
       ;;
 
+    deposit)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      bind_binary lukso-deposit-cli $val
+      ;;
+
     eth2stats)
       # Temporary fix
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
-      mkdir -p /opt/lukso/binaries/eth2stats-client/1
+      mkdir -p /opt/lukso/binaries/eth2stats-client/$val
 
       if [[ $PLATFORM == "Linux" ]]; then
-        download https://storage.googleapis.com/lukso-assets/eth2stats/eth2stats-client-linux /opt/lukso/binaries/eth2stats-client/1/eth2stats-client
+        download https://storage.googleapis.com/lukso-assets/eth2stats/eth2stats-client-linux /opt/lukso/binaries/eth2stats-client/$val/eth2stats-client
       fi
 
       if [[ $PLATFORM == "Darwin" ]]; then
-        download https://storage.googleapis.com/lukso-assets/eth2stats/eth2stats-client-darwin /opt/lukso/binaries/eth2stats-client/1/eth2stats-client
+        download https://storage.googleapis.com/lukso-assets/eth2stats/eth2stats-client-darwin /opt/lukso/binaries/eth2stats-client/$val/eth2stats-client
       fi
 
-      chmod +x /opt/lukso/binaries/eth2stats-client/1/eth2stats-client
-      ln -sf /opt/lukso/binaries/eth2stats-client/1/eth2stats-client /usr/local/bin/eth2stats-client
+      chmod +x /opt/lukso/binaries/eth2stats-client/$val/eth2stats-client
+      ln -sf /opt/lukso/binaries/eth2stats-client/$val/eth2stats-client /usr/local/bin/eth2stats-client
 
       ;;
 
@@ -850,6 +862,12 @@ while getopts "$optspec" optchar; do
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
       eval OVERRIDE_DATADIR=$val
+      ;;
+
+    wallet-dir)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      eval OVERRIDE_WALLET_DIR=$val
       ;;
 
     logsdir)
@@ -1043,6 +1061,10 @@ fi
 
 if [[ -n $OVERRIDE_LOGSDIR ]]; then
   LOGSDIR=$LOGSDIR
+fi
+
+if [[ -n $OVERRIDE_WALLET_DIR ]]; then
+  WALLET_DIR=$OVERRIDE_WALLET_DIR
 fi
 
 case $COMMAND in
