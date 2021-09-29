@@ -50,6 +50,7 @@ WALLET_DIR="$LUKSO_HOME/$NETWORK/vanguard_wallet"
 PANDORA_METRICS=false
 PANDORA_NODEKEY=""
 VANGUARD_P2P_PRIV_KEY=""
+VANGUARD_P2P_HOST_DNS=""
 ######
 
 ###### for config tool
@@ -290,9 +291,14 @@ start_pandora() {
     "--miner.etherbase=$COINBASE"
     "--syncmode=full"
     "--allow-insecure-unlock"
-    "--nat=extip:$EXTERNAL_IP"
     "--verbosity=4"
   )
+
+  if [[ -n $OVERRIDE_PANDORA_EXTERNAL_IP ]]; then
+    ARGUMENTS=("${ARGUMENTS[@]}" "--nat=extip:$OVERRIDE_PANDORA_EXTERNAL_IP")
+  else
+    ARGUMENTS=("${ARGUMENTS[@]}" "--nat=extip:$EXTERNAL_IP")
+  fi
 
   if $PANDORA_METRICS; then
     METRICS_FLAGS=(
@@ -342,7 +348,6 @@ start_vanguard() {
     "--min-sync-peers=2"
     "--p2p-max-peers=50"
     "--orc-http-provider=http://127.0.0.1:7877"
-    "--p2p-host-ip=$EXTERNAL_IP"
     "--rpc-port=4000"
     "--p2p-udp-port=12000"
     "--p2p-tcp-port=13000"
@@ -352,10 +357,15 @@ start_vanguard() {
   )
 
   if [[ -n $VANGUARD_P2P_PRIV_KEY ]]; then
-    P2P_PRIV_KEY_FLAGS=(
-      "--p2p-priv-key=$VANGUARD_P2P_PRIV_KEY"
-    )
-    ARGUMENTS=("${ARGUMENTS[@]}" "${P2P_PRIV_KEY_FLAGS[@]}")
+    ARGUMENTS=("${ARGUMENTS[@]}" "--p2p-priv-key=$VANGUARD_P2P_PRIV_KEY")
+  fi
+
+  if [[ -n $VANGUARD_P2P_HOST_DNS ]]; then
+    ARGUMENTS=("${ARGUMENTS[@]}" "--p2p-host-dns=$VANGUARD_P2P_HOST_DNS")
+  elif [[ -n $OVERRIDE_VANGUARD_EXTERNAL_IP ]]; then
+    ARGUMENTS=("${ARGUMENTS[@]}" "--p2p-host-ip=$OVERRIDE_VANGUARD_EXTERNAL_IP")
+  else
+    ARGUMENTS=("${ARGUMENTS[@]}" "--p2p-host-ip=$EXTERNAL_IP")
   fi
 
   nohup vanguard \
@@ -711,11 +721,20 @@ help() {
   echo "--pandora-nodekey      P2P node key file"
   echo "                       [Path to file (relative or absolute)]"
   echo
+  echo "--pandora-external-ip  Sets external IP for pandora (overrides --external-ip if present)"
+  echo "                       [72.122.32.234]"
+  echo
   echo "--vanguard-bootnodes   Sets vanguard bootnodes"
   echo "                       [Strings of bootnodes separated by commas: \"enr:-Ku4QAmY...,enr:-M23QLmY...\"]"
   echo
   echo "--vanguard-p2p-priv-key The file containing the private key to use in communications with other peers."
   echo "                       [Path to file (relative or absolute)]"
+  echo
+  echo "--vanguard-external-ip Sets external IP for vanguard (overrides --external-ip if present)"
+  echo "                       [72.122.32.234]"
+  echo
+  echo "--vanguard-p2p-host-dns Sets host DNS vanguard (overrides --external-ip AND --vanguard-external-ip if present)"
+  echo "                       [72.122.32.234]"
   echo
   echo "--external-ip          Sets external IP for pandora and vanguard"
   echo "                       [72.122.32.234]"
@@ -897,6 +916,12 @@ while getopts "$optspec" optchar; do
       OVERRIDE_PANDORA_NODEKEY=$val
       ;;
 
+    pandora-external-ip)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_PANDORA_EXTERNAL_IP=$val
+      ;;
+
     vanguard-bootnodes)
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
@@ -907,6 +932,18 @@ while getopts "$optspec" optchar; do
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
       OVERRIDE_VANGUARD_P2P_PRIV_KEY=$val
+      ;;
+
+    vanguard-external-ip)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_VANGUARD_EXTERNAL_IP=$val
+      ;;
+
+    vanguard-p2p-host-dns)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_VANGUARD_P2P_HOST_DNS=$val
       ;;
 
     external-ip)
@@ -970,12 +1007,24 @@ if [[ -n $OVERRIDE_PANDORA_NODEKEY ]]; then
   PANDORA_NODEKEY=$OVERRIDE_PANDORA_NODEKEY
 fi
 
+if [[ -n $OVERRIDE_PANDORA_EXTERNAL_IP ]]; then
+  PANDORA_EXTERNAL_IP=$OVERRIDE_PANDORA_EXTERNAL_IP
+fi
+
 if [[ -n $OVERRIDE_VANGUARD_BOOTNODES ]]; then
   VANGUARD_BOOTNODES=$OVERRIDE_VANGUARD_BOOTNODES
 fi
 
 if [[ -n $OVERRIDE_VANGUARD_P2P_PRIV_KEY ]]; then
   VANGUARD_P2P_PRIV_KEY=$OVERRIDE_VANGUARD_P2P_PRIV_KEY
+fi
+
+if [[ -n $OVERRIDE_VANGUARD_EXTERNAL_IP ]]; then
+  VANGUARD_EXTERNAL_IP=$OVERRIDE_VANGUARD_EXTERNAL_IP
+fi
+
+if [[ -n $OVERRIDE_VANGUARD_P2P_HOST_DNS ]]; then
+  VANGUARD_P2P_HOST_DNS=$OVERRIDE_VANGUARD_P2P_HOST_DNS
 fi
 
 if [[ -n $OVERRIDE_EXTERNAL_IP ]]; then
