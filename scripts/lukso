@@ -236,8 +236,8 @@ check_validator_requirements() {
     CAN_VALIDATE=false
   fi
 
-  if [[ ! -f $WALLET_DIR/password.txt ]]; then
-    echo "Cannot validate, password not provided"
+  if [[ -n $VALIDATOR_PASSWORD_FILE ]] && [[ ! -f $VALIDATOR_PASSWORD_FILE ]]; then
+    echo "Cannot validate, password file not found"
     CAN_VALIDATE=false
   fi
 
@@ -384,18 +384,26 @@ start_validator() {
   mkdir -p "$LOGSDIR"/validator
   echo -n $RUN_DATE >|"$LOGSDIR"/validator/current.tmp
 
+  ARGUMENTS=(
+    "--datadir=$DATADIR/validator/"
+    "--accept-terms-of-use"
+    "--beacon-rpc-provider=localhost:4000"
+    "--chain-config-file=/opt/lukso/networks/$NETWORK/config/vanguard-config.yaml"
+    "--verbosity=debug"
+    "--pandora-http-provider=http://127.0.0.1:8545"
+    "--wallet-dir=$WALLET_DIR"
+    "--rpc"
+    "--log-file=$LOGSDIR/validator/validator_$RUN_DATE.log"
+    "--lukso-network"
+  )
+
+  if [[ -n $VALIDATOR_PASSWORD_FILE ]]; then
+    ARGUMENTS=("${ARGUMENTS[@]}" "--wallet-password-file=$VALIDATOR_PASSWORD_FILE")
+  fi
+
   nohup lukso-validator \
-    --datadir="$DATADIR"/validator/ \
-    --accept-terms-of-use \
-    --beacon-rpc-provider=localhost:4000 \
-    --chain-config-file=/opt/lukso/networks/$NETWORK/config/vanguard-config.yaml \
-    --verbosity=debug \
-    --pandora-http-provider=http://127.0.0.1:8545 \
-    --wallet-dir=$WALLET_DIR \
-    --wallet-password-file=$WALLET_DIR/password.txt \
-    --rpc \
-    --log-file=$LOGSDIR/validator/validator_"$RUN_DATE".log \
-    --lukso-network >|$LOGSDIR/validator/validator_"$RUN_DATE".log 2>&1 &
+    "${ARGUMENTS[@]}" \
+    >|$LOGSDIR/validator/validator_"$RUN_DATE".log 2>&1 &
   disown
 }
 
@@ -870,6 +878,12 @@ while getopts "$optspec" optchar; do
       eval OVERRIDE_WALLET_DIR=$val
       ;;
 
+    wallet-password-file)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      eval OVERRIDE_VALIDATOR_PASSWORD_FILE=$val
+      ;;
+
     logsdir)
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
@@ -931,7 +945,7 @@ while getopts "$optspec" optchar; do
     pandora-nodekey)
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
-      OVERRIDE_PANDORA_NODEKEY=$val
+      eval OVERRIDE_PANDORA_NODEKEY=$val
       ;;
 
     pandora-external-ip)
@@ -949,7 +963,7 @@ while getopts "$optspec" optchar; do
     vanguard-p2p-priv-key)
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
-      OVERRIDE_VANGUARD_P2P_PRIV_KEY=$val
+      eval OVERRIDE_VANGUARD_P2P_PRIV_KEY=$val
       ;;
 
     vanguard-external-ip)
@@ -1065,6 +1079,10 @@ fi
 
 if [[ -n $OVERRIDE_WALLET_DIR ]]; then
   WALLET_DIR=$OVERRIDE_WALLET_DIR
+fi
+
+if [[ -n $OVERRIDE_VALIDATOR_PASSWORD_FILE ]]; then
+  VALIDATOR_PASSWORD_FILE=$OVERRIDE_VALIDATOR_PASSWORD_FILE
 fi
 
 case $COMMAND in
