@@ -162,8 +162,30 @@ generate_keys() {
 }
 
 import_accounts() {
-  read -p "Where do you have deposit keys? Default: [$KEYS_DIR] " KEYS_DIR
-  eval KEYS_DIR="$KEYS_DIR"
+
+  if [[ -z $OVERRIDE_KEYS_DIR ]]; then
+    read -p "Where do you have deposit keys? Default: [$KEYS_DIR] " KEYS_DIR
+    eval KEYS_DIR="$KEYS_DIR"
+  fi
+
+  if [[ -z $OVERRIDE_WALLET_DIR ]]; then
+    read -p "Where to store wallet? Default: [$WALLET_DIR] " WALLET_DIR
+    eval WALLET_DIR="$WALLET_DIR"
+  fi
+
+  ARGUMENTS=(
+  "--keys-dir $KEYS_DIR"
+  "--wallet-dir $WALLET_DIR"
+  )
+
+  if [[ -n $KEYS_PASSWORD_FILE ]]; then
+    ARGUMENTS=("${ARGUMENTS[@]}" "--account-password-file $KEYS_PASSWORD_FILE")
+  fi
+
+  if [[ -n $VALIDATOR_PASSWORD_FILE ]]; then
+    ARGUMENTS=("${ARGUMENTS[@]}" "--wallet-password-file $VALIDATOR_PASSWORD_FILE")
+  fi
+
   lukso-validator accounts import \
     --keys-dir $KEYS_DIR \
     --wallet-dir $WALLET_DIR
@@ -215,11 +237,11 @@ download_network_config() {
   CDN="https://storage.googleapis.com/l15-cdn/networks/$NETWORK"
   sudo mkdir -p /opt/lukso/networks/$NETWORK/config
   TARGET=/opt/lukso/networks/$NETWORK/config
-  download $CDN/network-config.yaml $TARGET/network-config.yaml
-  download $CDN/pandora-genesis.json $TARGET/pandora-genesis.json
-  download $CDN/vanguard-genesis.ssz $TARGET/vanguard-genesis.ssz
-  download $CDN/vanguard-config.yaml $TARGET/vanguard-config.yaml
-  download $CDN/pandora-nodes.json $TARGET/pandora-nodes.json
+  download $CDN/network-config.yaml?ignoreCache=1 $TARGET/network-config.yaml
+  download $CDN/pandora-genesis.json?ignoreCache=1 $TARGET/pandora-genesis.json
+  download $CDN/vanguard-genesis.ssz?ignoreCache=1 $TARGET/vanguard-genesis.ssz
+  download $CDN/vanguard-config.yaml?ignoreCache=1 $TARGET/vanguard-config.yaml
+  download $CDN/pandora-nodes.json?ignoreCache=1 $TARGET/pandora-nodes.json
 }
 
 pick_network() {
@@ -872,6 +894,18 @@ while getopts "$optspec" optchar; do
       eval OVERRIDE_DATADIR=$val
       ;;
 
+    keys-dir)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      eval OVERRIDE_KEYS_DIR=$val
+      ;;
+
+    keys-password-file)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      eval OVERRIDE_KEYS_PASSWORD_FILE=$val
+      ;;
+
     wallet-dir)
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
@@ -1075,6 +1109,14 @@ fi
 
 if [[ -n $OVERRIDE_LOGSDIR ]]; then
   LOGSDIR=$LOGSDIR
+fi
+
+if [[ -n $OVERRIDE_KEYS_DIR ]]; then
+  KEYS_DIR=$OVERRIDE_KEYS_DIR
+fi
+
+if [[ -n $OVERRIDE_KEYS_PASSWORD_FILE ]]; then
+  KEYS_PASSWORD_FILE=$OVERRIDE_KEYS_PASSWORD_FILE
 fi
 
 if [[ -n $OVERRIDE_WALLET_DIR ]]; then
