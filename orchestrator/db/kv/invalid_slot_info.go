@@ -54,3 +54,20 @@ func (s *Store) removeSlotInfoFromInvalidDB(slot uint64) error {
 		return nil
 	})
 }
+
+
+func (s *Store) rangeRemoveSlotInfoFromInvalidDB(startSlot, endSlot uint64) error {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
+
+	return s.db.Update(func(tx *bolt.Tx) error {
+		bkt := tx.Bucket(invalidSlotInfosBucket)
+		for i := startSlot; i <= endSlot; i++ {
+			key := bytesutil.Uint64ToBytesBigEndian(i)
+			if err := bkt.Delete(key); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}

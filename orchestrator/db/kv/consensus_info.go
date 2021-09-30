@@ -1,6 +1,7 @@
 package kv
 
 import (
+	"bytes"
 	"context"
 	"github.com/boltdb/bolt"
 	"github.com/lukso-network/lukso-orchestrator/shared/bytesutil"
@@ -33,9 +34,16 @@ func (s *Store) GetLatestConsensusInfo() (*eventTypes.MinimalEpochConsensusInfo,
 	err := s.db.View(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(consensusInfosBucket)
 		cursor := bkt.Cursor()
-		_, enc := cursor.Last()
+		key, enc := cursor.Last()
 		if enc == nil {
 			return ErrValueNotFound
+		}
+
+		for bytes.Equal(key, lastStoredEpochKey) {
+			key, enc = cursor.Prev()
+			if key == nil {
+				return ErrValueNotFound
+			}
 		}
 
 		// This section has done due to the compatibility of already existing dB.
@@ -115,6 +123,7 @@ func (s *Store) SaveConsensusInfo(
 func (s *Store) LatestSavedEpoch() uint64 {
 	info, err := s.GetLatestConsensusInfo()
 	if err != nil || info == nil {
+		log.WithField("error", err).Info("LatestConsensusInfo returned nothing")
 		return 0
 	}
 	// db is already started so latest epoch must be initialized in store
@@ -132,6 +141,24 @@ func (s *Store) removeConsensusInfoDb (epoch uint64)  error {
 		s.consensusInfoCache.Del(epoch)
 		if err := bkt.Delete(epochBytes); err != nil {
 			return err
+		}
+		return nil
+	})
+}
+
+func (s *Store) rangeRemoveConsensusInfoDb (startEpoch, endEpoch uint64)  error {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
+
+	// storing consensus info into cache and db
+	return s.db.Update(func(tx *bolt.Tx) error {
+		bkt := tx.Bucket(consensusInfosBucket)
+		for i := startEpoch; i <= endEpoch; i++ {
+			epochBytes := bytesutil.Uint64ToBytesBigEndian(i)
+			s.consensusInfoCache.Del(i)
+			if err := bkt.Delete(epochBytes); err != nil {
+				return err
+			}
 		}
 		return nil
 	})

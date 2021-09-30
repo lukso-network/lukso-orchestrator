@@ -94,7 +94,7 @@ func SyncDatabase(ctx context.Context, localDB db.Database, vanguardEndpoint str
 				break
 			}
 		}
-		log.WithField("epoch", validationIterator).WithField("hash", retrievedSlotInfo.VanguardBlockHash).Debug("now validating")
+		log.WithField("epoch", validationIterator).Debug("now validating")
 		validationIterator--
 	}
 

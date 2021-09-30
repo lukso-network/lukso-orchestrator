@@ -1,6 +1,7 @@
 package kv
 
 import (
+	"bytes"
 	"github.com/boltdb/bolt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/lukso-network/lukso-orchestrator/shared/bytesutil"
@@ -96,6 +97,12 @@ func (s *Store) GetLatestVerifiedSlotInfo() (uint64, *types.SlotInfo, error) {
 		if value == nil || key == nil {
 			return ErrValueNotFound
 		}
+		for bytes.Equal(key, latestHeaderHashKey) || bytes.Equal(key, latestSavedVerifiedSlotKey) {
+			key, value = cursor.Prev()
+			if key == nil {
+				return ErrValueNotFound
+			}
+		}
 		slotNumber = bytesutil.BytesToUint64BigEndian(key)
 		decodeError := decode(value, &slotInfo)
 		for decodeError != nil {
@@ -133,6 +140,7 @@ func (s *Store) GetFirstVerifiedSlotNumber (fromSlot uint64) (uint64, error) {
 func (s *Store) LatestSavedVerifiedSlot() uint64 {
 	slot, _, err := s.GetLatestVerifiedSlotInfo()
 	if err != nil {
+		log.WithField("error", err).Info("LatestVerifiedSlotInfo returned nothing")
 		return 0
 	}
 	// db is already started so latest epoch must be initialized in store
@@ -144,6 +152,7 @@ func (s *Store) LatestVerifiedHeaderHash() common.Hash {
 	latestHeaderHash := EmptyHash
 	_, slotInfo, err := s.GetLatestVerifiedSlotInfo()
 	if err == nil {
+		log.WithField("error", err).Info("LatestVerifiedHeaderHash returned nothing")
 		latestHeaderHash = slotInfo.PandoraHeaderHash
 	}
 	return latestHeaderHash
@@ -159,6 +168,23 @@ func (s *Store) removeSlotInfoFromVerifiedDB(slot uint64) error {
 		s.verifiedSlotInfoCache.Del(slot)
 		if err := bkt.Delete(key); err != nil {
 			return err
+		}
+		return nil
+	})
+}
+
+func (s *Store) rangeRemoveSlotInfoFromVerifiedDB(startSlot, endSlot uint64) error {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
+
+	return s.db.Update(func(tx *bolt.Tx) error {
+		bkt := tx.Bucket(verifiedSlotInfosBucket)
+		for i := startSlot; i <= endSlot; i++ {
+			key := bytesutil.Uint64ToBytesBigEndian(i)
+			s.verifiedSlotInfoCache.Del(i)
+			if err := bkt.Delete(key); err != nil {
+				return err
+			}
 		}
 		return nil
 	})

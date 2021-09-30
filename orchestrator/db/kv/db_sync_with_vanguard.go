@@ -6,11 +6,9 @@ import (
 )
 
 func (s *Store) RemoveInfoFromAllDb(fromEpoch, toEpoch uint64) error {
-	for i := fromEpoch; i <= toEpoch; i++ {
-		err := s.removeConsensusInfoDb(i)
-		if err != nil {
-			return err
-		}
+	err := s.rangeRemoveConsensusInfoDb(fromEpoch, toEpoch)
+	if err != nil {
+		return err
 	}
 	startSlot := StartSlot(fromEpoch)
 	endSlot, err := EndSlot(toEpoch)
@@ -18,11 +16,9 @@ func (s *Store) RemoveInfoFromAllDb(fromEpoch, toEpoch uint64) error {
 		return err
 	}
 	log.WithField("start slot", startSlot).WithField("end slot", endSlot).Debug("removing info")
-	for i := startSlot; i <= endSlot; i++ {
-		err := s.RemoveSlotInfo(i)
-		if err != nil {
-			return err
-		}
+	err = s.RangeRemoveSlotInfo(startSlot, endSlot)
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -53,7 +49,19 @@ func (s *Store) RemoveSlotInfo (slot uint64) error {
 	if err != nil {
 		return err
 	}
-	err = s.removeSlotInfoFromVerifiedDB(slot)
+	err = s.removeSlotInfoFromInvalidDB(slot)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Store) RangeRemoveSlotInfo (startSlot, endSlot uint64) error {
+	err := s.rangeRemoveSlotInfoFromVerifiedDB(startSlot, endSlot)
+	if err != nil {
+		return err
+	}
+	err = s.rangeRemoveSlotInfoFromInvalidDB(startSlot, endSlot)
 	if err != nil {
 		return err
 	}
