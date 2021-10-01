@@ -44,15 +44,15 @@ download() {
 }
 
 download_network_config() {
-  NETWORK=$1;
-  CDN="https://storage.googleapis.com/l15-cdn/networks/$NETWORK";
-  sudo mkdir -p /opt/lukso/networks/$NETWORK/config;
-  TARGET=/opt/lukso/networks/$NETWORK/config;
-  download $CDN/network-config.yaml $TARGET/network-config.yaml;
-  download $CDN/pandora-genesis.json $TARGET/pandora-genesis.json;
-  download $CDN/vanguard-genesis.ssz $TARGET/vanguard-genesis.ssz;
-  download $CDN/vanguard-config.yaml $TARGET/vanguard-config.yaml;
-  download $CDN/pandora-nodes.json $TARGET/pandora-nodes.json;
+  NETWORK=$1
+  CDN="https://storage.googleapis.com/l15-cdn/networks/$NETWORK"
+  sudo mkdir -p /opt/lukso/networks/$NETWORK/config
+  TARGET=/opt/lukso/networks/$NETWORK/config
+  download $CDN/network-config.yaml?ignoreCache=1 $TARGET/network-config.yaml
+  download $CDN/pandora-genesis.json?ignoreCache=1 $TARGET/pandora-genesis.json
+  download $CDN/vanguard-genesis.ssz?ignoreCache=1 $TARGET/vanguard-genesis.ssz
+  download $CDN/vanguard-config.yaml?ignoreCache=1 $TARGET/vanguard-config.yaml
+  download $CDN/pandora-nodes.json?ignoreCache=1 $TARGET/pandora-nodes.json
 }
 
 sudo mkdir \
