@@ -10,6 +10,7 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db/kv"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/pandorachain"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/utils"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/client"
 	"github.com/lukso-network/lukso-orchestrator/shared"
@@ -66,6 +67,13 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 	if err := orchestrator.startDB(orchestrator.cliCtx); err != nil {
 		return nil, err
 	}
+	vanguardGRPCUrl := cliCtx.String(cmd.VanguardGRPCEndpoint.Name)
+	err := utils.SyncDatabase(orchestrator.ctx, orchestrator.db, vanguardGRPCUrl)
+	if err != nil {
+		log.WithField("error", err).Error("Database synchronization failed")
+		return nil, err
+	}
+	log.WithField("till epoch", orchestrator.db.LatestSavedEpoch()).Info("orchestrator database now synced with vanguard")
 
 	if err := orchestrator.registerVanguardChainService(cliCtx); err != nil {
 		return nil, err

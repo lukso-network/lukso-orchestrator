@@ -1,15 +1,13 @@
 package kv
 
 import (
+	"bytes"
 	"context"
-	"fmt"
 	"github.com/boltdb/bolt"
 	"github.com/lukso-network/lukso-orchestrator/shared/bytesutil"
 	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
-	"github.com/pkg/errors"
 )
 
-var errInvalidEpoch = errors.New("invalid epoch and not found any consensusInfo for the given epoch")
 
 // ConsensusInfo
 func (s *Store) ConsensusInfo(ctx context.Context, epoch uint64) (*eventTypes.MinimalEpochConsensusInfo, error) {
@@ -24,9 +22,42 @@ func (s *Store) ConsensusInfo(ctx context.Context, epoch uint64) (*eventTypes.Mi
 		key := bytesutil.Uint64ToBytesBigEndian(epoch)
 		enc := bkt.Get(key[:])
 		if enc == nil {
-			return nil
+			return ErrValueNotFound
 		}
 		return decode(enc, &consensusInfo)
+	})
+	return consensusInfo, err
+}
+
+func (s *Store) GetLatestConsensusInfo() (*eventTypes.MinimalEpochConsensusInfo, error) {
+	var consensusInfo *eventTypes.MinimalEpochConsensusInfo
+	err := s.db.View(func(tx *bolt.Tx) error {
+		bkt := tx.Bucket(consensusInfosBucket)
+		cursor := bkt.Cursor()
+		key, enc := cursor.Last()
+		if enc == nil {
+			return ErrValueNotFound
+		}
+
+		for bytes.Equal(key, lastStoredEpochKey) {
+			key, enc = cursor.Prev()
+			if key == nil {
+				return ErrValueNotFound
+			}
+		}
+
+		// This section has done due to the compatibility of already existing dB.
+		// If retrieved info can't be decoded then get the second last and so on.
+		decodeError := decode(enc, &consensusInfo)
+		for decodeError != nil {
+			key, enc := cursor.Prev()
+			if key == nil {
+				// first element has reached. So just return error
+				return decodeError
+			}
+			decodeError = decode(enc, &consensusInfo)
+		}
+		return nil
 	})
 	return consensusInfo, err
 }
@@ -35,30 +66,20 @@ func (s *Store) ConsensusInfo(ctx context.Context, epoch uint64) (*eventTypes.Mi
 func (s *Store) ConsensusInfos(fromEpoch uint64) (
 	[]*eventTypes.MinimalEpochConsensusInfo, error,
 ) {
-	latestEpoch := s.LatestSavedEpoch()
-	// when requested epoch is greater than stored latest epoch
-	if fromEpoch > latestEpoch {
-		return nil, errors.Wrap(errInvalidEpoch, fmt.Sprintf("fromEpoch: %d", fromEpoch))
-	}
-
 	consensusInfos := make([]*eventTypes.MinimalEpochConsensusInfo, 0)
 	err := s.db.View(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(consensusInfosBucket)
-		for epoch := fromEpoch; epoch <= latestEpoch; epoch++ {
-			// fast finding into cache, if the value does not exist in cache, it starts finding into db
-			if v, _ := s.consensusInfoCache.Get(epoch); v != nil {
-				consensusInfos = append(consensusInfos, v.(*eventTypes.MinimalEpochConsensusInfo))
-				continue
-			}
-			// preparing key bytes for searching into db
-			key := bytesutil.Uint64ToBytesBigEndian(epoch)
-			enc := bkt.Get(key[:])
-			if enc == nil {
-				return errors.Wrap(errInvalidEpoch, fmt.Sprintf("epoch: %d", epoch))
-			}
+		cursor := bkt.Cursor()
+		key := bytesutil.Uint64ToBytesBigEndian(fromEpoch)
+		epoch, mininalConsInfo := cursor.Seek(key)
+		for epoch != nil {
 			var consensusInfo *eventTypes.MinimalEpochConsensusInfo
-			decode(enc, &consensusInfo)
+			err := decode(mininalConsInfo, &consensusInfo)
+			if err != nil {
+				return err
+			}
 			consensusInfos = append(consensusInfos, consensusInfo)
+			epoch, mininalConsInfo = cursor.Next()
 		}
 		return nil
 	})
@@ -100,43 +121,46 @@ func (s *Store) SaveConsensusInfo(
 
 // LatestSavedEpoch
 func (s *Store) LatestSavedEpoch() uint64 {
-	var latestSavedEpoch uint64
-	// Db is not prepared yet. Retrieve latest saved epoch number from db
-	if !s.isRunning {
-		s.db.View(func(tx *bolt.Tx) error {
-			bkt := tx.Bucket(consensusInfosBucket)
-			epochBytes := bkt.Get(lastStoredEpochKey[:])
-			// not found the latest epoch in db. so latest epoch will be zero
-			if epochBytes == nil {
-				latestSavedEpoch = uint64(0)
-				log.Trace("Latest epoch could not find in db. It may happen for brand new DB")
-				return nil
-			}
-			latestSavedEpoch = bytesutil.BytesToUint64BigEndian(epochBytes)
-			return nil
-		})
+	info, err := s.GetLatestConsensusInfo()
+	if err != nil || info == nil {
+		log.WithField("error", err).Info("LatestConsensusInfo returned nothing")
+		return 0
 	}
 	// db is already started so latest epoch must be initialized in store
-	return latestSavedEpoch
+	return info.Epoch
 }
 
-// SaveLatestEpoch
-func (s *Store) SaveLatestEpoch(ctx context.Context) error {
+func (s *Store) removeConsensusInfoDb (epoch uint64)  error {
 	s.Mutex.Lock()
 	defer s.Mutex.Unlock()
 
-	// storing latest epoch number into db
+	// storing consensus info into cache and db
 	return s.db.Update(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(consensusInfosBucket)
-		epochBytes := bytesutil.Uint64ToBytesBigEndian(s.latestEpoch)
-		if err := bkt.Put(lastStoredEpochKey, epochBytes); err != nil {
+		epochBytes := bytesutil.Uint64ToBytesBigEndian(epoch)
+		s.consensusInfoCache.Del(epoch)
+		if err := bkt.Delete(epochBytes); err != nil {
 			return err
 		}
 		return nil
 	})
 }
 
-// GetLatestHeaderHash
-func (s *Store) GetLatestEpoch() uint64 {
-	return s.latestEpoch
+func (s *Store) rangeRemoveConsensusInfoDb (startEpoch, endEpoch uint64)  error {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
+
+	// storing consensus info into cache and db
+	return s.db.Update(func(tx *bolt.Tx) error {
+		bkt := tx.Bucket(consensusInfosBucket)
+		for i := startEpoch; i <= endEpoch; i++ {
+			epochBytes := bytesutil.Uint64ToBytesBigEndian(i)
+			s.consensusInfoCache.Del(i)
+			if err := bkt.Delete(epochBytes); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
+

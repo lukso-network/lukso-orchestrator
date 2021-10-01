@@ -130,20 +130,6 @@ func (s *Store) ClearDB() error {
 
 // Close closes the underlying BoltDB database.
 func (s *Store) Close() error {
-	err := s.SaveLatestEpoch(s.ctx)
-	if nil != err {
-		return err
-	}
-
-	err = s.SaveLatestVerifiedSlot(s.ctx)
-	if nil != err {
-		return err
-	}
-
-	err = s.SaveLatestVerifiedHeaderHash()
-	if err != nil {
-		return err
-	}
 	log.Info("Received cancelled context, closing db")
 	return s.db.Close()
 }

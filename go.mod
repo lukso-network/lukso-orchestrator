@@ -18,7 +18,6 @@ require (
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/prysmaticlabs/eth2-types v0.0.0-20210303084904-c9735a06829d
-	github.com/prysmaticlabs/ethereumapis v0.0.0-20210914175745-687a5597a635
 	github.com/prysmaticlabs/prysm v1.4.4
 	github.com/rs/cors v1.7.0
 	github.com/sirupsen/logrus v1.8.1
@@ -31,4 +30,4 @@ require (
 	google.golang.org/protobuf v1.26.0
 )
 
-replace github.com/prysmaticlabs/prysm => github.com/lukso-network/vanguard-consensus-engine v1.4.3-0.20210926102533-46dba7ed174e
+replace github.com/prysmaticlabs/prysm => github.com/lukso-network/vanguard-consensus-engine v1.4.3-0.20211001141113-22ba95225893

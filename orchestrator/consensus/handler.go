@@ -49,12 +49,6 @@ func (s *Service) verifyShardingInfo(slot uint64, vanShardInfo *types.VanguardSh
 				"Failed to store verified slot info")
 			return err
 		}
-		if err := s.verifiedSlotInfoDB.SaveLatestVerifiedSlot(s.ctx); err != nil {
-			log.WithError(err).Error("Failed to store latest verified slot")
-		}
-		if err := s.verifiedSlotInfoDB.SaveLatestVerifiedHeaderHash(); err != nil {
-			log.WithError(err).Error("Failed to store latest verified slot")
-		}
 		slotInfoWithStatus.Status = types.Verified
 		//removing previous cached slots which dont verified yet. By convention, they are skipped
 		s.pandoraPendingHeaderCache.Remove(s.ctx, slot)
