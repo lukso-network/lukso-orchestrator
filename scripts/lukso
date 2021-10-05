@@ -293,9 +293,11 @@ start_pandora() {
   echo -n $RUN_DATE >|"$LOGSDIR"/pandora/current.tmp
   if [[ ! -d "$DATADIR/pandora" ]]; then
     mkdir -p "$DATADIR/pandora"
-    pandora --datadir $DATADIR/pandora init /opt/lukso/networks/$NETWORK/config/pandora-genesis.json &>/dev/null
-    cp /opt/lukso/networks/"$NETWORK"/config/pandora-nodes.json $DATADIR/pandora/geth/static-nodes.json
   fi
+
+  pandora --datadir $DATADIR/pandora init /opt/lukso/networks/$NETWORK/config/pandora-genesis.json &>/dev/null
+  cp /opt/lukso/networks/"$NETWORK"/config/pandora-nodes.json $DATADIR/pandora/geth/static-nodes.json
+
 
   ARGUMENTS=(
     "--datadir=$DATADIR/pandora"
