@@ -87,8 +87,8 @@ func (api *PublicFilterAPI) SteamConfirmedPanBlockHashes(
 						Error("Failed to notify slot info status. Could not send over stream.")
 					return
 				}
-			case <-rpcSub.Err():
-				log.Info("Unsubscribing registered subscriber from SteamConfirmedPanBlockHashes")
+			case rpcErr := <-rpcSub.Err():
+				log.WithField("error", rpcErr).Info("Unsubscribing registered subscriber from SteamConfirmedPanBlockHashes")
 				verifiedSlotInfoSub.Unsubscribe()
 				return
 			case <-notifier.Closed():
