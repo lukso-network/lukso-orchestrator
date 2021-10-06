@@ -23,7 +23,7 @@ archives:
       windows: Windows
       amd64: x86_64
     format: binary  
-    name_template: "{{ .Binary }}_{{ .Tag }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}"
+    name_template: "{{ .Binary }}-{{ .Os }}-{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}-{{ .Mips }}{{ end }}"
 checksum:
   name_template: 'checksums.txt'
 snapshot:
