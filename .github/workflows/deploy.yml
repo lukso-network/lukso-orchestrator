@@ -1,22 +1,49 @@
-name: Deploy
+name: Build and deploy
 
 on:
-  create:
-    tags:
-      - v*
+  push:
+    branches:
+      - 'feature/gh-actions-trigger-cd'
 
 jobs:
-  goreleaser:
-    runs-on: ubuntu-latest
+  deploy:
+    runs-on: ubuntu-18.04
 
     steps:
-      - name: Deploy
-        uses: deliverybot/helm@master
+      - name: Checkout
+        uses: actions/checkout@v2
         with:
-          token: ${{ secrets.GH_TOKEN }}
-          chart: app
-          namespace: test
-          release: eth20
-          dry-run: true
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.16
+        id: go
+
+      - name: Delete old tag and release
+        uses: dev-drprasad/delete-tag-and-release@v0.2.0
+        with:
+          delete_release: true
+          tag_name: v0.1.0-develop
         env:
-          KUBECONFIG_FILE: ${{ secrets.KUBECONFIG }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@master
+        with:
+          version: latest
+          workdir: ./cmd/orchestrator
+          args: release --rm-dist --config ../../.github/.goreleaser.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Request network upgrade
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -X POST \
+          -H "Accept: application/vnd.github.v3+json" \
+          -d '{"event_type":"upgrade_dev", "client_payload": {"repository": "ORCHESTRATOR", "tag": "v0.1.0-develop"}}' \
+          -u "$GITHUB_TOKEN" \
+          https://api.github.com/repos/lukso-network/network-helm-charts/dispatches
