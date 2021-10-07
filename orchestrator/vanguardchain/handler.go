@@ -36,14 +36,14 @@ func (s *Service) OnNewPendingVanguardBlock(ctx context.Context, block *eth.Beac
 		return err
 	}
 	wrappedPhase0Blk := wrapper.WrappedPhase0BeaconBlock(block)
-	pandoraShards := wrappedPhase0Blk.Body().PandoraShards()
-	if len(pandoraShards) < 1 {
+	pandoraShard := wrappedPhase0Blk.Body().PandoraShard()
+	if pandoraShard == nil {
 		// The first value is the sharding info. If not present throw error
-		log.WithField("pandoraShard length", len(pandoraShards)).Error("pandora sharding info not present")
+		log.WithField("slot", block.Slot).Error("pandora sharding info not present")
 		return errors.New("invalid shard info length in vanguard block body")
 	}
 
-	shardInfo := pandoraShards[0]
+	shardInfo := pandoraShard
 	cachedShardInfo := &types.VanguardShardInfo{
 		Slot:      uint64(block.Slot),
 		BlockHash: blockHash[:],

@@ -33,7 +33,7 @@ func TestService_OnNewPendingVanguardBlock(t *testing.T) {
 			Deposits:          []*eth.Deposit{},
 			ProposerSlashings: []*eth.ProposerSlashing{},
 			VoluntaryExits:    []*eth.SignedVoluntaryExit{},
-			PandoraShard: []*eth.PandoraShard{{
+			PandoraShard: &eth.PandoraShard{
 				ParentHash:  make([]byte, 32),
 				TxHash:      make([]byte, 32),
 				StateRoot:   make([]byte, 32),
@@ -42,7 +42,7 @@ func TestService_OnNewPendingVanguardBlock(t *testing.T) {
 				Signature:   make([]byte, 96),
 				Hash:        make([]byte, 32),
 				SealHash:    make([]byte, 32),
-			}},
+			},
 		},
 	}
 	require.NoError(t, vanSvc.OnNewPendingVanguardBlock(ctx, beaconBlock))
