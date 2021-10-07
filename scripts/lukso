@@ -174,8 +174,8 @@ import_accounts() {
   fi
 
   ARGUMENTS=(
-  "--keys-dir $KEYS_DIR"
-  "--wallet-dir $WALLET_DIR"
+    "--keys-dir $KEYS_DIR"
+    "--wallet-dir $WALLET_DIR"
   )
 
   if [[ -n $KEYS_PASSWORD_FILE ]]; then
@@ -278,10 +278,10 @@ start_orchestrator() {
   nohup lukso-orchestrator --datadir=$DATADIR/orchestrator \
     --vanguard-grpc-endpoint=127.0.0.1:4000 \
     --http \
-    --http.addr=0.0.0.0 \
+    --http.addr=127.0.0.1 \
     --http.port=7877 \
     --ws \
-    --ws.addr=0.0.0.0 \
+    --ws.addr=127.0.0.1 \
     --ws.port=7878 \
     --pandora-rpc-endpoint=ws://127.0.0.1:8546 \
     --verbosity=trace >|$LOGSDIR/orchestrator/orchestrator_"$RUN_DATE".log 2>&1 &
@@ -298,30 +298,42 @@ start_pandora() {
   pandora --datadir $DATADIR/pandora init /opt/lukso/networks/$NETWORK/config/pandora-genesis.json &>/dev/null
   cp /opt/lukso/networks/"$NETWORK"/config/pandora-nodes.json $DATADIR/pandora/geth/static-nodes.json
 
-
   ARGUMENTS=(
     "--datadir=$DATADIR/pandora"
     "--networkid=$NETWORK_ID"
     "--ethstats=$NODE_NAME:$ETH1_STATS_APIKEY@$ETH1_STATS_URL"
     "--port=30405"
     "--rpc"
-    "--rpcaddr=0.0.0.0"
-    "--rpcapi=admin,net,eth,debug,ethash,miner,personal,txpool,web3"
-    "--bootnodes=$PANDORA_BOOTNODES" ###
+    "--rpcaddr=127.0.0.1"
+    "--bootnodes=$PANDORA_BOOTNODES"
     "--rpcport=$PANDORA_HTTP_PORT"
     "--http.corsdomain=*"
     "--ws"
-    "--ws.addr=0.0.0.0"
-    "--ws.api=admin,net,eth,debug,ethash,miner,personal,txpool,web3"
+    "--ws.addr=127.0.0.1"
     "--ws.port=8546"
     "--ws.origins=*"
     "--mine"
     "--miner.notify=ws://127.0.0.1:7878,http://127.0.0.1:7877"
     "--miner.etherbase=$COINBASE"
     "--syncmode=full"
-    "--allow-insecure-unlock"
     "--verbosity=4"
   )
+
+  if [[ $PANDORA_UNIVERSAL_PROFILE_EXPOSE ]] && [[ ! $PANDORA_UNSAFE_EXPOSE ]]; then
+    API_ARGUMENTS=(
+      "--rpcapi=net,eth,txpool,web3"
+      "--ws.api=net,eth,txpool,web3"
+    )
+    ARGUMENTS=("${ARGUMENTS[@]}" "${API_ARGUMENTS[@]}")
+  fi
+
+  if [[ $PANDORA_UNSAFE_EXPOSE ]] && [[ ! $PANDORA_UNIVERSAL_PROFILE_EXPOSE ]]; then
+    API_ARGUMENTS=(
+      "--rpcapi=admin,net,eth,debug,miner,personal,txpool,web3"
+      "--ws.api=admin,net,eth,debug,miner,personal,txpool,web3"
+    )
+    ARGUMENTS=("${ARGUMENTS[@]}" "${API_ARGUMENTS[@]}")
+  fi
 
   if [[ -n $OVERRIDE_PANDORA_EXTERNAL_IP ]]; then
     ARGUMENTS=("${ARGUMENTS[@]}" "--nat=extip:$OVERRIDE_PANDORA_EXTERNAL_IP")
@@ -334,7 +346,7 @@ start_pandora() {
       "--metrics"
       "--metrics.expensive"
       "--pprof"
-      "--pprof.addr=0.0.0.0"
+      "--pprof.addr=127.0.0.1"
     )
     ARGUMENTS=("${ARGUMENTS[@]}" "${METRICS_FLAGS[@]}")
   fi
@@ -371,8 +383,8 @@ start_vanguard() {
     "--http-web3provider=http://127.0.0.1:8545"
     "--deposit-contract=0x000000000000000000000000000000000000cafe"
     "--contract-deployment-block=0"
-    "--rpc-host=0.0.0.0"
-    "--monitoring-host=0.0.0.0"
+    "--rpc-host=127.0.0.1"
+    "--monitoring-host=127.0.0.1"
     "--verbosity=debug"
     "--min-sync-peers=2"
     "--p2p-max-peers=50"
@@ -990,6 +1002,22 @@ while getopts "$optspec" optchar; do
       OVERRIDE_PANDORA_EXTERNAL_IP=$val
       ;;
 
+    pandora-universal-profile-expose)
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_PANDORA_UNIVERSAL_PROFILE_EXPOSE=true
+      ;;
+
+    pandora-unsafe-expose)
+      echo "🛑 STOP! 🛑"
+      echo "This flag will expose every possible API, someone malicious may use it to interfere with node behavior."
+      read -rp "Are you sure you want to continue? (Y/n) " CHECK
+      if [[ "$CHECK" != "Y" ]]; then
+        echo "Exiting without effect"
+        exit
+      fi
+      OVERRIDE_PANDORA_UNSAFE_EXPOSE=true
+      ;;
+
     vanguard-bootnodes)
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
@@ -1077,6 +1105,14 @@ fi
 
 if [[ -n $OVERRIDE_PANDORA_EXTERNAL_IP ]]; then
   PANDORA_EXTERNAL_IP=$OVERRIDE_PANDORA_EXTERNAL_IP
+fi
+
+if [[ -n $OVERRIDE_PANDORA_UNIVERSAL_PROFILE_EXPOSE ]]; then
+  PANDORA_UNIVERSAL_PROFILE_EXPOSE=$OVERRIDE_PANDORA_UNIVERSAL_PROFILE_EXPOSE
+fi
+
+if [[ -n $OVERRIDE_PANDORA_UNSAFE_EXPOSE ]]; then
+  PANDORA_UNSAFE_EXPOSE=$OVERRIDE_PANDORA_UNSAFE_EXPOSE
 fi
 
 if [[ -n $OVERRIDE_VANGUARD_BOOTNODES ]]; then
