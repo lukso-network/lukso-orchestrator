@@ -3,7 +3,7 @@ name: Build and deploy
 on:
   push:
     branches:
-      - 'feature/gh-actions-trigger-cd'
+      - 'develop'
 
 jobs:
   prepare_tag:
