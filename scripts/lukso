@@ -174,8 +174,8 @@ import_accounts() {
   fi
 
   ARGUMENTS=(
-  "--keys-dir $KEYS_DIR"
-  "--wallet-dir $WALLET_DIR"
+    "--keys-dir $KEYS_DIR"
+    "--wallet-dir $WALLET_DIR"
   )
 
   if [[ -n $KEYS_PASSWORD_FILE ]]; then
@@ -297,7 +297,6 @@ start_pandora() {
 
   pandora --datadir $DATADIR/pandora init /opt/lukso/networks/$NETWORK/config/pandora-genesis.json &>/dev/null
   cp /opt/lukso/networks/"$NETWORK"/config/pandora-nodes.json $DATADIR/pandora/geth/static-nodes.json
-
 
   ARGUMENTS=(
     "--datadir=$DATADIR/pandora"
@@ -777,6 +776,8 @@ help() {
   echo "--external-ip          Sets external IP for pandora and vanguard"
   echo "                       [72.122.32.234]"
   echo
+  echo "--allow-respin         Deletes all datadirs IF network config changed (based on genesis time)"
+  echo
   echo "--force                Enables force mode for stopping"
 
   exit
@@ -1020,6 +1021,10 @@ while getopts "$optspec" optchar; do
       OVERRIDE_EXTERNAL_IP=$val
       ;;
 
+    allow-respin)
+      OVERRIDE_ALLOW_RESPIN=true
+      ;;
+
     force)
       FORCE=true
       ;;
@@ -1129,10 +1134,28 @@ if [[ -n $OVERRIDE_VALIDATOR_PASSWORD_FILE ]]; then
   VALIDATOR_PASSWORD_FILE=$OVERRIDE_VALIDATOR_PASSWORD_FILE
 fi
 
+if [[ -n $OVERRIDE_ALLOW_RESPIN ]]; then
+  ALLOW_RESPIN=$OVERRIDE_ALLOW_RESPIN
+fi
+
+if [[ ! -d $DATADIR ]]; then
+  mkdir $DATADIR
+fi
+
+if [[ ! -f $DATADIR/genesis-time.txt ]]; then
+  echo -n $GENESIS_TIME > $DATADIR/genesis-time.txt
+fi
+
+if [[ $ALLOW_RESPIN ]]; then
+  # Check if new genesis
+  if [[ $(cat $DATADIR/genesis-time.txt) != $GENESIS_TIME ]]; then
+    echo "New config received, resetting datadirs"
+    reset all
+    echo -n $GENESIS_TIME > $DATADIR/genesis-time.txt
+  fi
+fi
+
 case $COMMAND in
-ping)
-  echo $PING_MSG
-  ;;
 start)
   start $COMMAND_ARG
   ;;
