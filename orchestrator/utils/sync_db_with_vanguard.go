@@ -30,14 +30,14 @@ func EstablishConnectionWithVanguard(ctx context.Context, endpoint string) (vanC
 		}
 		retryLimit--
 	}
-	return
+	return nil, errors.New("connection establishment failed with vanguard")
 }
 
 func SyncDatabase(ctx context.Context, localDB db.Database, vanguardEndpoint string) error {
 
 	if localDB.LatestSavedEpoch() == 0 && localDB.LatestSavedVerifiedSlot() == 0 {
 		// the instance is just started freshly. No need to sync the database.
-		log.Debug("fresh start. No need to sync database")
+		log.Info("fresh start. No need to sync database")
 		return nil
 	}
 
