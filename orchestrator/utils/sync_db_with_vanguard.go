@@ -14,9 +14,11 @@ import (
 
 const vanguardConnectionRetryLimit = 10
 
-func EstablishConnectionWithVanguard(ctx context.Context, endpoint string) (vanClient client.VanguardClient, err error) {
+func EstablishConnectionWithVanguard(ctx context.Context, endpoint string) (client.VanguardClient, error) {
 	ticker := time.NewTicker(5 * time.Second)
 	retryLimit := vanguardConnectionRetryLimit
+	var vanClient client.VanguardClient
+	var err error
 	for retryLimit > 0 {
 		select {
 		case <- ctx.Done():
