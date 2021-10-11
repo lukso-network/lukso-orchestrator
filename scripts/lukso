@@ -1139,7 +1139,7 @@ if [[ -n $OVERRIDE_ALLOW_RESPIN ]]; then
 fi
 
 if [[ ! -d $DATADIR ]]; then
-  mkdir $DATADIR
+  mkdir -p $DATADIR
 fi
 
 if [[ ! -f $DATADIR/genesis-time.txt ]]; then
