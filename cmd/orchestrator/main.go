@@ -31,7 +31,7 @@ var appFlags = []cli.Flag{
 	cmd.ClearDB,
 	cmd.ForceClearDB,
 	cmd.LogFileName,
-	cmd.LogFormat,
+	cmd.VanguardIpcEndpoint,
 }
 
 func init() {
