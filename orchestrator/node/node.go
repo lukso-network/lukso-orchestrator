@@ -129,20 +129,21 @@ func (o *OrchestratorNode) startDB(cliCtx *cli.Context) error {
 
 // registerVanguardChainService
 func (o *OrchestratorNode) registerVanguardChainService(cliCtx *cli.Context) error {
-	vanguardGRPCUrl := cliCtx.String(cmd.VanguardGRPCEndpoint.Name)
+	vanguardIpc := cliCtx.String(cmd.VanguardIpcEndpoint.Name)
+
 	dialGRPCClient := vanguardchain.DIALGRPCFn(func(endpoint string) (client.VanguardClient, error) {
 		return client.Dial(o.ctx, endpoint, time.Minute*6, 32, math.MaxInt32)
 	})
 	svc, err := vanguardchain.NewService(
 		o.ctx,
-		vanguardGRPCUrl,
+		vanguardIpc,
 		o.db,
 		dialGRPCClient,
 	)
 	if err != nil {
 		return nil
 	}
-	log.WithField("vanguardGRPCUrl", vanguardGRPCUrl).Info("Registered vanguard chain service")
+	log.WithField("vanguardIpc", vanguardIpc).Info("Registered vanguard chain service")
 	return o.services.RegisterService(svc)
 }
 

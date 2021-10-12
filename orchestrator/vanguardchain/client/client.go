@@ -8,6 +8,7 @@ import (
 	ethpb "github.com/prysmaticlabs/ethereumapis/eth/v1alpha1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"net"
 	"time"
 )
 
@@ -21,6 +22,10 @@ type VanguardClient interface {
 // Assure that GRPCClient struct will implement VanguardClient interface
 var _ VanguardClient = &GRPCClient{}
 
+const (
+	protocol = "unix"
+)
+
 // GRPCClient
 type GRPCClient struct {
 	ctx             context.Context
@@ -31,22 +36,28 @@ type GRPCClient struct {
 }
 
 // Dial connects a client to the given URL.
-func Dial(ctx context.Context, rawurl string, grpcRetryDelay time.Duration,
+func Dial(ctx context.Context, ipc string, grpcRetryDelay time.Duration,
 	grpcRetries uint, maxCallRecvMsgSize int) (VanguardClient, error) {
+
+	dialer := func(addr string, t time.Duration) (net.Conn, error) {
+		return net.Dial(protocol, addr)
+	}
 
 	dialOpts := constructDialOptions(
 		maxCallRecvMsgSize,
 		"",
 		grpcRetries,
 		grpcRetryDelay,
+		grpc.WithInsecure(),
+		grpc.WithDialer(dialer),
 	)
 	if dialOpts == nil {
 		return nil, nil
 	}
 
-	c, err := grpc.DialContext(ctx, rawurl, dialOpts...)
+	c, err := grpc.DialContext(ctx, ipc, dialOpts...)
 	if err != nil {
-		log.Errorf("Could not dial endpoint: %s, %v", rawurl, err)
+		log.Errorf("Could not connect to IPC socket: %s, %v", ipc, err)
 		return nil, err
 	}
 

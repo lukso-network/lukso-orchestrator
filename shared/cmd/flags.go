@@ -101,4 +101,11 @@ var (
 		Name:  "log-file",
 		Usage: "Specify log file name, relative or absolute",
 	}
+
+	// VanguardIpcEndpoint provides an IPC access endpoint to an Vanguard GRPC.
+	VanguardIpcEndpoint = &cli.StringFlag{
+		Name:  "vanguard-ipc",
+		Usage: "Vanguard node IPC provider endpoint for gRPC server",
+		Value: DefaultVanguardIpcEndpoint,
+	}
 )
