@@ -100,7 +100,7 @@ func (s *Service) Start() {
 		if err != nil {
 			s.stopRPC()
 			s.runError = err
-			log.Errorf("Could not serve gRPC: %v", err)
+			log.WithError(err).Error("Could not start rpc serve")
 		}
 	}()
 }

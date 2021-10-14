@@ -123,7 +123,7 @@ func (s *Service) waitForConnection() {
 		s.connectedVanguard = true
 		return
 	}
-	log.WithError(err).Debug("Could not connect to vanguard endpoint")
+	log.WithError(err).Warn("Could not connect to vanguard endpoint")
 	s.runError = err
 	ticker := time.NewTicker(reConPeriod)
 	defer ticker.Stop()
