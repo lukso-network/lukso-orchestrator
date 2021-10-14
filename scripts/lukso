@@ -297,6 +297,10 @@ start_pandora() {
   if [[ ! -d "$DATADIR/pandora" ]]; then
     mkdir -p "$DATADIR/pandora"
   fi
+  
+  if [[ ! -d "$DATADIR/pandora/geth" ]]; then
+    mkdir -p "$DATADIR/pandora/geth"
+  fi
 
   pandora --datadir $DATADIR/pandora init /opt/lukso/networks/$NETWORK/config/pandora-genesis.json &>/dev/null
   cp /opt/lukso/networks/"$NETWORK"/config/pandora-nodes.json $DATADIR/pandora/geth/static-nodes.json
