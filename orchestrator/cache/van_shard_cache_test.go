@@ -57,7 +57,7 @@ func NewPandoraShardingInfo() (*eth.PandoraShard, error) {
 
 func setupShardingCache(slotNumber int) (map[uint64]*types.VanguardShardInfo, error) {
 	slotShardMap := make(map[uint64]*types.VanguardShardInfo)
-	for i := 0; i < slotNumber; i++ {
+	for i := 1; i <= slotNumber; i++ {
 		tempPanShard, err := NewPandoraShardingInfo()
 		tempVanShardInfo := &types.VanguardShardInfo{
 			Slot:      uint64(i),
@@ -75,13 +75,13 @@ func setupShardingCache(slotNumber int) (map[uint64]*types.VanguardShardInfo, er
 func TestVanguardShardingInfoCacheAPIs(t *testing.T) {
 	vanguardCache := NewVanShardInfoCache(100)
 	ctx := context.Background()
-	generatedPandoraShardInfo, err := setupShardingCache(100)
+	generatedShardInfos, err := setupShardingCache(100)
 	if err != nil {
 		t.Error("vanguard sharding data generation failed", "error", err)
 		return
 	}
 
-	for slotNumber, genInfo := range generatedPandoraShardInfo {
+	for slotNumber, genInfo := range generatedShardInfos {
 		err := vanguardCache.Put(ctx, slotNumber, genInfo)
 		if err != nil {
 			t.Error("failed while putting element vanguard cache", "slot number", slotNumber, "error", err)
@@ -101,40 +101,40 @@ func TestVanguardShardingInfoCacheSize(t *testing.T) {
 		cache: cache,
 	}
 	ctx := context.Background()
-	generatedPandoraShardInfo, err := setupShardingCache(100)
+	generatedShardInfos, err := setupShardingCache(100)
 	if err != nil {
 		t.Error("vanguard sharding data generation failed", "error", err)
 		return
 	}
 
-	for slot := 0; slot < 100; slot++ {
+	for slot := 1; slot <= 100; slot++ {
 		slotUint64 := uint64(slot)
-		vanguardCache.Put(ctx, slotUint64, generatedPandoraShardInfo[slotUint64])
+		vanguardCache.Put(ctx, slotUint64, generatedShardInfos[slotUint64])
 	}
 
 	// Should not found slot-0 because cache size is 10
 	actualHeader, err := vanguardCache.Get(ctx, 88)
-	require.ErrorContains(t, "Invalid slot", err, "Should not found because cache size is 10")
+	require.ErrorContains(t, "Invalid slot", err, "Should not be found because cache size is 10")
 
-	actualHeader, err = vanguardCache.Get(ctx, 90)
+	actualHeader, err = vanguardCache.Get(ctx, 91)
 	require.NoError(t, err, "Should be found slot 90")
-	assert.DeepEqual(t, generatedPandoraShardInfo[90], actualHeader)
+	assert.DeepEqual(t, generatedShardInfos[91], actualHeader)
 
 }
 
 func TestVanguardRemoveShardInfo(t *testing.T) {
 	vanguardCache := NewVanShardInfoCache(100)
 	ctx := context.Background()
-	generatedPandoraShardInfo, err := setupShardingCache(100)
+	generatedShardInfos, err := setupShardingCache(100)
 
 	if err != nil {
 		t.Error("vanguard sharding data generation failed", "error", err)
 		return
 	}
 
-	for slot := 0; slot < 100; slot++ {
+	for slot := 1; slot < 100; slot++ {
 		slotUint64 := uint64(slot)
-		vanguardCache.Put(ctx, slotUint64, generatedPandoraShardInfo[slotUint64])
+		vanguardCache.Put(ctx, slotUint64, generatedShardInfos[slotUint64])
 	}
 
 	// now remove a slot from the cache and check if previous slots are removed
@@ -145,12 +145,12 @@ func TestVanguardRemoveShardInfo(t *testing.T) {
 	// now all slots from removedSlotNumber to 0 is null
 	for i := int(removedSlotNumber); i >= 0; i-- {
 		_, err := vanguardCache.Get(ctx, uint64(i))
-		require.ErrorContains(t, "Invalid slot", err, "Should not found because it is removed")
+		require.ErrorContains(t, "Invalid slot", err, "Should not be found because it is removed")
 	}
 
 	for i := int(removedSlotNumber) + 1; i < 100; i++ {
 		actualHeader, err := vanguardCache.Get(ctx, uint64(i))
 		require.NoError(t, err, "Should be found slot")
-		assert.DeepEqual(t, generatedPandoraShardInfo[uint64(i)], actualHeader)
+		assert.DeepEqual(t, generatedShardInfos[uint64(i)], actualHeader)
 	}
 }

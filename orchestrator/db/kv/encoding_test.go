@@ -18,14 +18,3 @@ func Test_EncodingDecoding_Success(t *testing.T) {
 	require.NoError(t, decode(consensusInfoEncoded0, &consensusInfoDecoded0))
 	assert.DeepEqual(t, consensusInfo0, consensusInfoDecoded0)
 }
-
-// Test_EncodingDecoding_PanHeader
-//func Test_EncodingDecoding_PanHeaderHash(t *testing.T) {
-//	encPandHeaderHash := testutil.NewPandoraHeaderHash(uint64(0), types.Status(0))
-//	enc0, err := encode(encPandHeaderHash)
-//	require.NoError(t, err)
-//
-//	var decPanHeaderHash *types.HeaderHash
-//	require.NoError(t, decode(enc0, &decPanHeaderHash))
-//	assert.DeepEqual(t, encPandHeaderHash, decPanHeaderHash)
-//}

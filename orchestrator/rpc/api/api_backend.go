@@ -15,7 +15,7 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 )
 
-var ErrHeaderHashMisMatch = errors.New("Header hash mis-matched")
+var ErrHeaderHashMisMatch = errors.New("header hash mismatched")
 
 type Backend struct {
 	// feed

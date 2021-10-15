@@ -41,10 +41,10 @@ func (vc *VanShardingInfoCache) Get(ctx context.Context, slot uint64) (*types.Va
 }
 
 func (vc *VanShardingInfoCache) Remove(ctx context.Context, slot uint64) {
-	for i := slot; i >= 0; i-- {
-		if !vc.cache.Remove(i) {
+	for i := slot; i > 0; i-- {
+		if vc.cache.Contains(i) {
 			// removed all the previous slot number from cache. Now return
-			return
+			vc.cache.Remove(i)
 		}
 	}
 }
