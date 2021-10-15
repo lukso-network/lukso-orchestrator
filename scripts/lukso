@@ -327,7 +327,7 @@ start_pandora() {
     ARGUMENTS=("${ARGUMENTS[@]}" "${API_ARGUMENTS[@]}")
   fi
 
-  if [[ $PANDORA_UNSAFE_EXPOSE ]] && [[ ! $PANDORA_UNIVERSAL_PROFILE_EXPOSE ]]; then
+  if [[ $PANDORA_UNSAFE_EXPOSE ]]; then
     API_ARGUMENTS=(
       "--http.api=admin,net,eth,debug,miner,personal,txpool,web3"
       "--ws.api=admin,net,eth,debug,miner,personal,txpool,web3"
