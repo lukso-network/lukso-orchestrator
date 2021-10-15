@@ -303,10 +303,10 @@ start_pandora() {
     "--networkid=$NETWORK_ID"
     "--ethstats=$NODE_NAME:$ETH1_STATS_APIKEY@$ETH1_STATS_URL"
     "--port=30405"
-    "--rpc"
-    "--rpcaddr=127.0.0.1"
+    "--http"
+    "--http.addr=127.0.0.1"
     "--bootnodes=$PANDORA_BOOTNODES"
-    "--rpcport=$PANDORA_HTTP_PORT"
+    "--http.port=$PANDORA_HTTP_PORT"
     "--http.corsdomain=*"
     "--ws"
     "--ws.addr=127.0.0.1"
@@ -321,7 +321,7 @@ start_pandora() {
 
   if [[ $PANDORA_UNIVERSAL_PROFILE_EXPOSE ]] && [[ ! $PANDORA_UNSAFE_EXPOSE ]]; then
     API_ARGUMENTS=(
-      "--rpcapi=net,eth,txpool,web3"
+      "--http.api=net,eth,txpool,web3"
       "--ws.api=net,eth,txpool,web3"
     )
     ARGUMENTS=("${ARGUMENTS[@]}" "${API_ARGUMENTS[@]}")
@@ -329,7 +329,7 @@ start_pandora() {
 
   if [[ $PANDORA_UNSAFE_EXPOSE ]] && [[ ! $PANDORA_UNIVERSAL_PROFILE_EXPOSE ]]; then
     API_ARGUMENTS=(
-      "--rpcapi=admin,net,eth,debug,miner,personal,txpool,web3"
+      "--http.api=admin,net,eth,debug,miner,personal,txpool,web3"
       "--ws.api=admin,net,eth,debug,miner,personal,txpool,web3"
     )
     ARGUMENTS=("${ARGUMENTS[@]}" "${API_ARGUMENTS[@]}")
