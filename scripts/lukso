@@ -716,11 +716,11 @@ help() {
   echo "logs)          Shows logs"
   echo "               [orchestrator, pandora, vanguard, validator, eth2stats-client]"
   echo
-  echo "bind-binaries) sets client(s) to desired version"
+  echo "bind-binaries) sets client(s) to desired version, use with flags for setting tag: --orchestrator v0.1.0, --pandora v0.1.0, --vanguard v0.1.0, --validator v0.1.0"
   echo
   echo
   echo "Available flags:"
-  echo "--network              Picks config collection to be used"
+  echo "--network              Picks config collection to be used (and downloads if it doesn't exist)"
   echo "                       [l15, l15-staging, l15-dev]"
   echo
   echo "--l15                  Alias for --network l15"
@@ -750,6 +750,12 @@ help() {
   echo "--node-name            Name of node that's shown on pandora stats and vanguard stats"
   echo "                       [String ex. johnsmith123]"
   echo
+  echo "--orchestrator         Sets orchestrator tag to be used"
+  echo "                       [Tag name ex. v0.1.0-develop]"
+  echo
+  echo "--pandora              Sets pandora tag to be used"
+  echo "                       [Tag name ex. v0.1.0-develop]"
+  echo
   echo "--pandora-bootnodes    Sets pandora bootnodes"
   echo "                       [Strings of bootnodes separated by commas: \"enode://72caa...,enode://b4a11a...\"]"
   echo
@@ -764,6 +770,9 @@ help() {
   echo "--pandora-external-ip  Sets external IP for pandora (overrides --external-ip if present)"
   echo "                       [72.122.32.234]"
   echo
+  echo "--vanguard             Sets vanguard tag to be used"
+  echo "                       [Tag name ex. v0.1.0-develop]"
+  echo
   echo "--vanguard-bootnodes   Sets vanguard bootnodes"
   echo "                       [Strings of bootnodes separated by commas: \"enr:-Ku4QAmY...,enr:-M23QLmY...\"]"
   echo
@@ -775,6 +784,9 @@ help() {
   echo
   echo "--vanguard-p2p-host-dns Sets host DNS vanguard (overrides --external-ip AND --vanguard-external-ip if present)"
   echo "                       [72.122.32.234]"
+  echo
+  echo "--validator            Sets validator tag to be used"
+  echo "                       [Tag name ex. v0.1.0-develop]"
   echo
   echo "--external-ip          Sets external IP for pandora and vanguard"
   echo "                       [72.122.32.234]"
