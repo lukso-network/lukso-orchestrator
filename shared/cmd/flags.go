@@ -62,10 +62,10 @@ var (
 		Value: DefaultWSPort,
 	}
 
-	VanguardGRPCEndpoint = &cli.StringFlag{
-		Name:  "vanguard-grpc-endpoint",
-		Usage: "Vanguard node gRPC provider endpoint",
-		Value: DefaultVanguardGRPCEndpoint,
+	VanguardRPCEndpoint = &cli.StringFlag{
+		Name:  "vanguard-rpc-endpoint",
+		Usage: "Vanguard node RPC provider endpoint or socket path",
+		Value: DefaultVanguardRPCEndpoint,
 	}
 
 	// PandoraRPCEndpoint provides an WSS/IPC access endpoint to an Pandora RPC.
@@ -100,12 +100,5 @@ var (
 	LogFileName = &cli.StringFlag{
 		Name:  "log-file",
 		Usage: "Specify log file name, relative or absolute",
-	}
-
-	// VanguardIpcEndpoint provides an IPC access endpoint to an Vanguard GRPC.
-	VanguardIpcEndpoint = &cli.StringFlag{
-		Name:  "vanguard-ipc",
-		Usage: "Vanguard node IPC provider endpoint for gRPC server",
-		Value: DefaultVanguardIpcEndpoint,
 	}
 )
