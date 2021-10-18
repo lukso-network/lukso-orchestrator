@@ -334,7 +334,7 @@ start_pandora() {
     ARGUMENTS=("${ARGUMENTS[@]}" "${API_ARGUMENTS[@]}")
   fi
 
-   if [[ -n $CORS_DOMAIN ]]; then
+  if [[ -n $CORS_DOMAIN ]]; then
     CORS_DOMAIN_FLAGS=(
       "--http.corsdomain=$CORS_DOMAIN"
       "--ws.origins=$CORS_DOMAIN"
@@ -364,8 +364,7 @@ start_pandora() {
     )
     ARGUMENTS=("${ARGUMENTS[@]}" "${NODEKEY_FLAGS[@]}")
   fi
-  echo "${ARGUMENTS[@]}"
-  exit
+
   nohup pandora \
     "${ARGUMENTS[@]}" \
     >|$LOGSDIR/pandora/pandora_"$RUN_DATE".log 2>&1 &
@@ -782,6 +781,10 @@ help() {
   echo "--pandora-external-ip  Sets external IP for pandora (overrides --external-ip if present)"
   echo "                       [72.122.32.234]"
   echo
+  echo "--pandora-universal-expose  Exposes \"net,eth,txpool,web3\" API's on Pandora "
+  echo
+  echo "--pandora-unsafe-expose  Exposes \"admin,net,eth,debug,miner,personal,txpool,web3\" API's on Pandora"
+  echo
   echo "--vanguard-bootnodes   Sets vanguard bootnodes"
   echo "                       [Strings of bootnodes separated by commas: \"enr:-Ku4QAmY...,enr:-M23QLmY...\"]"
   echo
@@ -793,6 +796,8 @@ help() {
   echo
   echo "--vanguard-p2p-host-dns Sets host DNS vanguard (overrides --external-ip AND --vanguard-external-ip if present)"
   echo "                       [72.122.32.234]"
+  echo
+  echo "--cors-domain          Sets CORS domain (note: if you want to set every origin you must type asterisk wrapped in quotes '*' otherwise shell may try to resolve it"
   echo
   echo "--external-ip          Sets external IP for pandora and vanguard"
   echo "                       [72.122.32.234]"
@@ -1016,13 +1021,8 @@ while getopts "$optspec" optchar; do
       ;;
 
     pandora-unsafe-expose)
-      echo "🛑 STOP! 🛑"
-      echo "This flag will expose every possible API, someone malicious may use it to interfere with node behavior."
-      read -rp "Are you sure you want to continue? (Y/n) " CHECK
-      if [[ "$CHECK" != "Y" ]]; then
-        echo "Exiting without effect"
-        exit
-      fi
+      echo "🛑 Unsafe expose enabled! 🛑"
+      echo "🛑 Your node may be vulnerable to attacks 🛑"
       OVERRIDE_PANDORA_UNSAFE_EXPOSE=true
       ;;
 
@@ -1056,7 +1056,7 @@ while getopts "$optspec" optchar; do
       OVERRIDE_EXTERNAL_IP=$val
       ;;
 
-    corsdomain)
+    cors-domain)
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
       OVERRIDE_CORS_DOMAIN=$val
