@@ -58,7 +58,7 @@ var appHelpFlagGroups = []flagGroup{
 			cmd.WSEnabledFlag,
 			cmd.WSListenAddrFlag,
 			cmd.WSPortFlag,
-			cmd.VanguardGRPCEndpoint,
+			cmd.VanguardRPCEndpoint,
 			cmd.PandoraRPCEndpoint,
 		},
 	},
