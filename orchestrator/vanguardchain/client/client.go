@@ -35,8 +35,8 @@ type GRPCClient struct {
 	validatorClient ethpb.BeaconNodeValidatorClient
 }
 
-// Dial connects a client to the given URL.
-func Dial(ctx context.Context, ipc string, grpcRetryDelay time.Duration,
+// Dial connects a client to the given URL or socket path.
+func Dial(ctx context.Context, rpcAddress string, grpcRetryDelay time.Duration,
 	grpcRetries uint, maxCallRecvMsgSize int) (VanguardClient, error) {
 
 	dialer := func(addr string, t time.Duration) (net.Conn, error) {
@@ -55,9 +55,9 @@ func Dial(ctx context.Context, ipc string, grpcRetryDelay time.Duration,
 		return nil, nil
 	}
 
-	c, err := grpc.DialContext(ctx, ipc, dialOpts...)
+	c, err := grpc.DialContext(ctx, rpcAddress, dialOpts...)
 	if err != nil {
-		log.Errorf("Could not connect to IPC socket: %s, %v", ipc, err)
+		log.Errorf("Could not connect to RPC endpoint or socket: %s, %v", rpcAddress, err)
 		return nil, err
 	}
 
