@@ -17,7 +17,7 @@ func setup(t *testing.T) (*Config, error) {
 	orchestratorDB := testDB.SetupDB(t)
 	consensusInfoFeed, err := vanguardchain.NewService(
 		context.Background(),
-		cmd.DefaultVanguardGRPCEndpoint,
+		cmd.DefaultVanguardRPCEndpoint,
 		orchestratorDB,
 		cache.NewVanShardInfoCache(1<<10),
 	)
