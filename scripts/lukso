@@ -51,6 +51,7 @@ PANDORA_METRICS=false
 PANDORA_NODEKEY=""
 VANGUARD_P2P_PRIV_KEY=""
 VANGUARD_P2P_HOST_DNS=""
+CORS_DOMAIN=""
 ######
 
 ###### for config tool
@@ -307,11 +308,9 @@ start_pandora() {
     "--http.addr=127.0.0.1"
     "--bootnodes=$PANDORA_BOOTNODES"
     "--http.port=$PANDORA_HTTP_PORT"
-    "--http.corsdomain=*"
     "--ws"
     "--ws.addr=127.0.0.1"
     "--ws.port=8546"
-    "--ws.origins=*"
     "--mine"
     "--miner.notify=ws://127.0.0.1:7878,http://127.0.0.1:7877"
     "--miner.etherbase=$COINBASE"
@@ -333,6 +332,14 @@ start_pandora() {
       "--ws.api=admin,net,eth,debug,miner,personal,txpool,web3"
     )
     ARGUMENTS=("${ARGUMENTS[@]}" "${API_ARGUMENTS[@]}")
+  fi
+
+   if [[ -n $CORS_DOMAIN ]]; then
+    CORS_DOMAIN_FLAGS=(
+      "--http.corsdomain=$CORS_DOMAIN"
+      "--ws.origins=$CORS_DOMAIN"
+    )
+    ARGUMENTS=("${ARGUMENTS[@]}" "${CORS_DOMAIN_FLAGS[@]}")
   fi
 
   if [[ -n $OVERRIDE_PANDORA_EXTERNAL_IP ]]; then
@@ -357,7 +364,8 @@ start_pandora() {
     )
     ARGUMENTS=("${ARGUMENTS[@]}" "${NODEKEY_FLAGS[@]}")
   fi
-
+  echo "${ARGUMENTS[@]}"
+  exit
   nohup pandora \
     "${ARGUMENTS[@]}" \
     >|$LOGSDIR/pandora/pandora_"$RUN_DATE".log 2>&1 &
@@ -1048,6 +1056,12 @@ while getopts "$optspec" optchar; do
       OVERRIDE_EXTERNAL_IP=$val
       ;;
 
+    corsdomain)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_CORS_DOMAIN=$val
+      ;;
+
     force)
       FORCE=true
       ;;
@@ -1155,6 +1169,10 @@ fi
 
 if [[ -n $OVERRIDE_KEYS_PASSWORD_FILE ]]; then
   KEYS_PASSWORD_FILE=$OVERRIDE_KEYS_PASSWORD_FILE
+fi
+
+if [[ -n $OVERRIDE_CORS_DOMAIN ]]; then
+  CORS_DOMAIN=$OVERRIDE_CORS_DOMAIN
 fi
 
 if [[ -n $OVERRIDE_WALLET_DIR ]]; then
