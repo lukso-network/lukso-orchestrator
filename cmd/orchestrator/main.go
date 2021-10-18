@@ -17,7 +17,7 @@ import (
 )
 
 var appFlags = []cli.Flag{
-	cmd.VanguardGRPCEndpoint,
+	cmd.VanguardRPCEndpoint,
 	cmd.PandoraRPCEndpoint,
 	cmd.VerbosityFlag,
 	cmd.IPCPathFlag,
@@ -31,7 +31,7 @@ var appFlags = []cli.Flag{
 	cmd.ClearDB,
 	cmd.ForceClearDB,
 	cmd.LogFileName,
-	cmd.VanguardIpcEndpoint,
+	cmd.LogFormat,
 }
 
 func init() {
