@@ -57,7 +57,7 @@ Start-Process -FilePath "lukso-orchestrator" -ArgumentList "--datadir=$datadir\o
 "--ws.addr=0.0.0.0", `
 "--ws.port=7878", `
 "--pandora-rpc-endpoint=ws://127.0.0.1:8546", `
-"--verbosity=trace" -NoNewWindow -RedirectStandardOutput "console.out" -RedirectStandardError "console.err"
+"--verbosity=trace" -NoNewWindow -RedirectStandardOutput "orchestrator_$runDate.out" -RedirectStandardError "orchestrator_$runDate..err"
 #    | Out-File -FilePath $logsdir/orchestrator/orchestrator_"$RUN_DATE".log
 
 
@@ -71,6 +71,18 @@ function _start($client) {
             start_orchestrator
         }
 
+        pandora {
+            start_pandora
+        }
+
+        vanguard {
+            start_vanguard
+        }
+
+        validator {
+            start_validator
+        }
+
         Default {
             echo none
         }
@@ -81,12 +93,30 @@ switch ($command) {
 start {
     _start $argument
 }
+
+stop {
+    _stop $argument
+}
+
+restart {
+    _restart $argument
+}
+
+help {
+    _help
+}
+
+logs {
+    logs $argument
+}
+
+bind-binaries {
+
+}
+
 Default {
     Write-Output "Unknown command"
     exit
 }
 }
 
-Write-Output $command
-Write-Output $server
-Write-Output $force

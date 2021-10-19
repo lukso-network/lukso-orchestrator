@@ -24,3 +24,9 @@ New-Item -ItemType Directory -Force -Path $InstallDir/globalPath
 
 download_network_config("l15-dev")
 
+lukso bind-binaries `
+--orchestrator `
+--pandora `
+--vanguard `
+--validator `
+
