@@ -1,64 +1,80 @@
 param (
-    [Parameter(Position = 0, Mandatory)][string]$command,
-    [Parameter(Position = 1)][string]$argument,
+    [Parameter(Position = 0, Mandatory)][String]$command,
+    [Parameter(Position = 1)][String]$argument,
 
-    [string]$orchestrator = "",
-    [string]$pandora = "",
-    [string]$vanguard = "",
-    [string]$validator = "",
-    [string]$deposit = "",
-    [string]$eth2stats = "",
-    [string]$network = "l15",
-    [string]$lukso_home = "$HOME\.lukso",
-    [string]$datadir = "$lukso_home\datadir",
-    [string]$keys_dir = "",
-    [string]$keys_password_file = "",
-    [string]$wallet_dir = "",
-    [string]$wallet_password_file = "",
-    [string]$logsdir = "",
-    [string]$l15 = "",
-    [string]$l15_staging = "",
-    [string]$l15_dev = "",
-    [string]$config = "",
-    [string]$coinbase = "",
-    [string]$node_name = "",
-    [string]$validate = "",
-    [string]$pandora_bootnodes = "",
-    [string]$pandora_http_port = "",
-    [string]$pandora_metrics = "",
-    [string]$pandora_nodekey = "",
-    [string]$pandora_external_ip = "",
-    [string]$vanguard_bootnodes = "",
-    [string]$vanguard_p2p_priv_key = "",
-    [string]$vanguard_external_ip = "",
-    [string]$vanguard_p2p_host_dns = "",
-    [string]$external_ip = "",
-    [string]$allow_respin = "",
-    [Switch]$force = $false
+    [String]$orchestrator = "",
+    [String]$pandora = "",
+    [String]$vanguard = "",
+    [String]$validator = "",
+    [String]$deposit = "",
+    [String]$eth2stats = "",
+    [String]$network = "l15",
+    [String]$lukso_home = "$HOME\.lukso",
+    [String]$datadir = "$lukso_home\datadir",
+    [String]$logsdir = "$lukso_home\logs",
+    [String]$keys_dir = "",
+    [String]$keys_password_file = "",
+    [String]$wallet_dir = "",
+    [String]$wallet_password_file = "",
+    [Switch]$l15,
+    [Switch]$l15_staging,
+    [Switch]$l15_dev,
+    [String]$config = "",
+    [String]$coinbase = "0x616e6f6e796d6f75730000000000000000000000",
+    [String]$node_name = "",
+    [Switch]$validate,
+    [String]$pandora_bootnodes = "",
+    [String]$pandora_http_port = "8545",
+    [Switch]$pandora_metrics,
+    [String]$pandora_nodekey = "",
+    [String]$pandora_external_ip = "",
+    [String]$vanguard_bootnodes = "",
+    [String]$vanguard_p2p_priv_key = "",
+    [String]$vanguard_external_ip = "",
+    [String]$vanguard_p2p_host_dns = "",
+    [String]$external_ip = "",
+    [Switch]$allow_respin,
+    [Switch]$force
 )
 
-#function start_orchestrator() {
-#mkdir -p "$LOGSDIR"/orchestrator
-#echo -n $RUN_DATE >|"$LOGSDIR"/orchestrator/current.tmp
-#if [[ ! -d "$DATADIR/orchestrator" ]]; then
-#mkdir -p $DATADIR/orchestrator
-#fi
-#
-#Start-Process -FilePath lukso-orchestrator -ArgumentList "--datadir=$DATADIR/orchestrator", `
-#"--vanguard-grpc-endpoint=127.0.0.1:4000", `
-#"--http", `
-#"--http.addr=0.0.0.0",  `
-#"--http.port=7877" `
-#"--ws" `
-#"--ws.addr=0.0.0.0" `
-#"--ws.port=7878" `
-#"--pandora-rpc-endpoint=ws://127.0.0.1:8546" `
-#--verbosity=trace | Out-File -FilePath $LOGSDIR/orchestrator/orchestrator_"$RUN_DATE".log
-#
-#}
+$runDate = Get-Date -Format "yyyy-m-dd__HH-mm-ss"
 
-function _start() {
-  Write-Output $argument
+function start_orchestrator() {
+
+    New-Item -ItemType Directory -Force -Path $logsdir\orchestrator
+    echo -n $runDate | Out-File -FilePath "$logsdir\orchestrator\current.tmp"
+
+    if ( ! (Test-Path "$datadir\orchestrator") ) {
+       New-Item -ItemType Directory -Force -Path $datadir\orchestrator
+    }
+
+Start-Process -FilePath "lukso-orchestrator" -ArgumentList "--datadir=$datadir\orchestrator", `
+"--vanguard-grpc-endpoint=127.0.0.1:4000", `
+"--http", `
+"--http.addr=0.0.0.0",  `
+"--http.port=7877", `
+"--ws", `
+"--ws.addr=0.0.0.0", `
+"--ws.port=7878", `
+"--pandora-rpc-endpoint=ws://127.0.0.1:8546", `
+"--verbosity=trace" -NoNewWindow -RedirectStandardOutput "console.out" -RedirectStandardError "console.err"
+#    | Out-File -FilePath $logsdir/orchestrator/orchestrator_"$RUN_DATE".log
+
+
+
+}
+
+# "start" is a reserved keyword in PowerShell
+function _start($client) {
+    switch ($client) {
+        orchestrator {
+            start_orchestrator
+        }
+
+        Default {
+            echo none
+        }
+    }
 }
 
 switch ($command) {
