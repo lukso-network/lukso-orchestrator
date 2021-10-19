@@ -6,16 +6,12 @@ type ROnlyConsensusInfoDB = iface.ReadOnlyConsensusInfoDatabase
 
 type ConsensusInfoAccessDB = iface.ConsensusInfoAccessDatabase
 
-type VanguardHeaderHashDB = iface.VanHeaderAccessDatabase
+type ROnlyVerifiedSlotInfoDB = iface.ReadOnlyVerifiedSlotInfoDatabase
 
-type ROnlyVanHeaderHashDB = iface.VanHeaderAccessDatabase
+type ROnlyInvalidSlotInfoDB = iface.ReadOnlyInvalidSlotInfoDatabase
 
-type PandoraHeaderHashDB = iface.PanHeaderAccessDatabase
+type VerifiedSlotInfoDB = iface.VerifiedSlotDatabase
 
-type ROnlyPanHeaderHashDB = iface.ReadOnlyPanHeaderAccessDatabase
-
-type ROnlyRealmDB = iface.RealmReadOnlyAccessDatabase
-
-type RealmDB = iface.RealmAccessDatabase
+type InvalidSlotInfoDB = iface.InvalidSlotDatabase
 
 type Database = iface.Database

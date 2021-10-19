@@ -30,16 +30,16 @@ func TestStore_ConsensusInfo_RetrieveByEpoch_FromDB(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	db := setupDB(t, true)
-	totalConsensusInfos := make([]*eventTypes.MinimalEpochConsensusInfo, 2000)
-	for i := 0; i < 2000; i++ {
+	totalConsensusInfos := make([]*eventTypes.MinimalEpochConsensusInfo, 2001)
+	for i := 1; i <= 2000; i++ {
 		consensusInfo := testutil.NewMinimalConsensusInfo(uint64(i))
 		totalConsensusInfos[i] = consensusInfo
 		require.NoError(t, db.SaveConsensusInfo(ctx, consensusInfo))
 	}
 
-	retrievedConsensusInfo, err := db.ConsensusInfo(ctx, 0)
+	retrievedConsensusInfo, err := db.ConsensusInfo(ctx, 1)
 	require.NoError(t, err)
-	assert.DeepEqual(t, totalConsensusInfos[0], retrievedConsensusInfo)
+	assert.DeepEqual(t, totalConsensusInfos[1], retrievedConsensusInfo)
 }
 
 func TestStore_SaveConsensusInfo_AlreadyExist(t *testing.T) {
@@ -58,6 +58,7 @@ func TestStore_ConsensusInfos_RetrieveByEpoch(t *testing.T) {
 	ctx := context.Background()
 	db := setupDB(t, true)
 	db.latestEpoch = 199
+	db.SaveLatestEpoch(ctx)
 	totalConsensusInfos := make([]*eventTypes.MinimalEpochConsensusInfo, 200)
 
 	for i := 0; i < 200; i++ {

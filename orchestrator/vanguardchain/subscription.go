@@ -1,113 +1,146 @@
 package vanguardchain
 
 import (
+	"fmt"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/client"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
+	"github.com/pkg/errors"
+	eth2Types "github.com/prysmaticlabs/eth2-types"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"time"
 )
 
+var (
+	errShardInfoProcess       = errors.New("Failed to process the pending vanguard shardInfo")
+	errConsensusInfoNil       = errors.New("Incoming consensus info is nil")
+	errInvalidValidatorLength = errors.New("Incoming consensus info's validator list is invalid")
+	errConsensusInfoProcess   = errors.New("Could not process minimal consensus info")
+)
+
+// subscribeVanNewPendingBlockHash
 func (s *Service) subscribeVanNewPendingBlockHash(
 	client client.VanguardClient,
-) (err error) {
-	stream, err := client.StreamNewPendingBlocks()
+) error {
 
-	if nil != err {
-		log.WithError(err).Error("Failed to subscribe to stream of new pending blocks")
-		return
+	latestVerifiedSlot := s.orchestratorDB.LatestSavedVerifiedSlot()
+	latestVerifiedSlotInfo, err := s.orchestratorDB.VerifiedSlotInfo(latestVerifiedSlot)
+	var blockRoot []byte
+	if err != nil {
+		log.WithField("latestVerifiedSlot", latestVerifiedSlot).
+			WithError(err).
+			Warn("Failed to retrieve latest verified slot info for pending block subscription")
+		return err
 	}
 
-	log.WithField("context", "awaiting to start vanguard block subscription").
-		Trace("subscribeVanNewPendingBlockHash")
+	if latestVerifiedSlotInfo != nil {
+		blockRoot = latestVerifiedSlotInfo.VanguardBlockHash.Bytes()
+	}
+
+	if latestVerifiedSlot == 0 {
+		latestVerifiedSlot = latestVerifiedSlot + 1
+	}
+
+	stream, err := client.StreamNewPendingBlocks(blockRoot, eth2Types.Slot(latestVerifiedSlot))
+	if nil != err {
+		log.WithError(err).Error("Failed to subscribe to stream of new pending blocks")
+		return err
+	}
+
+	log.WithField("fromSlot", latestVerifiedSlot).
+		WithField("blockRoot", hexutil.Encode(blockRoot)).
+		Info("Successfully subscribed to vanguard blocks")
 
 	go func() {
 		for {
-			log.WithField("context", "awaiting to fetch vanBlock from stream").Trace("Got new block")
-			vanBlock, currentErr := stream.Recv()
-			log.WithField("block", vanBlock).Trace("Got new van block")
-
-			if nil != currentErr {
-				log.WithError(currentErr).Error("Failed to receive chain header")
+			select {
+			case <-s.ctx.Done():
+				log.Debug("closing subscribeVanNewPendingBlockHash")
 				return
-			}
+			default:
+				vanBlock, err := stream.Recv()
 
-			s.OnNewPendingVanguardBlock(s.ctx, vanBlock)
-		}
-	}()
+				if e, ok := status.FromError(err); ok {
+					switch e.Code() {
+					case codes.Canceled, codes.Internal, codes.Unavailable:
+						log.WithError(err).Infof("Trying to restart connection. rpc status: %v", e.Code())
+						s.conInfoSubErrCh <- err
+						return
+					}
+				}
 
-	return
-}
-
-func (s *Service) subscribeNewConsensusInfoGRPC(
-	client client.VanguardClient,
-) (err error) {
-	stream, err := client.StreamMinimalConsensusInfo(s.orchestratorDB.LatestSavedEpoch())
-
-	if nil != err {
-		log.WithError(err).Error("Failed to subscribe to stream of new pending blocks")
-		return
-	}
-
-	log.WithField("context", "awaiting to start vanguard block subscription").
-		Trace("subscribeVanNewPendingBlockHash")
-
-	go func() {
-		for {
-			log.WithField("context", "awaiting to fetch minimalConsensusInfo from stream").
-				Trace("Got new minimal consensus info")
-			vanMinimalConsensusInfo, currentErr := stream.Recv()
-			log.WithField("minimalConsensusInfo", vanMinimalConsensusInfo).
-				Trace("Got new minimal consensus info")
-
-			if nil != currentErr {
-				log.WithError(currentErr).Error("Failed to receive minimalConsensusInfo")
-				return
-			}
-
-			if nil == vanMinimalConsensusInfo {
-				log.Error("Received nil consensus info")
-				continue
-			}
-
-			log.WithField("fromEpoch", vanMinimalConsensusInfo.Epoch).
-				Debug("subscribed to vanguard chain for consensus info")
-
-			consensusInfo := &types.MinimalEpochConsensusInfo{
-				Epoch:            uint64(vanMinimalConsensusInfo.Epoch),
-				ValidatorList:    vanMinimalConsensusInfo.ValidatorList,
-				EpochStartTime:   vanMinimalConsensusInfo.EpochTimeStart,
-				SlotTimeDuration: time.Duration(vanMinimalConsensusInfo.SlotTimeDuration.Seconds),
-			}
-
-			// Only non empty check for now
-			if len(consensusInfo.ValidatorList) < 1 {
-				log.WithField("consensusInfo", consensusInfo).
-					WithField("err", err).
-					Error("empty validator list")
-
-				continue
-			}
-
-			for index, validator := range consensusInfo.ValidatorList {
-				_, err = hexutil.Decode(validator)
-
-				if nil != err {
-					log.WithField("consensusInfo", consensusInfo).
-						WithField("err", err).
-						WithField("index", index).
-						WithField("validator", validator).
-						Error("could not sanitize the validator")
-
-					break
+				if err := s.OnNewPendingVanguardBlock(s.ctx, vanBlock); err != nil {
+					log.WithError(err).Error("Failed to process the pending vanguard shardInfo")
+					s.conInfoSubErrCh <- errShardInfoProcess
+					return
 				}
 			}
+		}
+	}()
+	return nil
+}
 
-			log.WithField("consensusInfo", vanMinimalConsensusInfo).
-				Debug("consensus info passed sanitization")
+// subscribeNewConsensusInfoGRPC
+func (s *Service) subscribeNewConsensusInfoGRPC(client client.VanguardClient) error {
+	fromEpoch := s.orchestratorDB.LatestSavedEpoch()
+	stream, err := client.StreamMinimalConsensusInfo(fromEpoch)
+	if nil != err {
+		log.WithError(err).Error("Failed to subscribe to stream of new pending blocks")
+		return err
+	}
 
-			s.OnNewConsensusInfo(s.ctx, consensusInfo)
+	log.WithField("fromEpoch", fromEpoch).
+		Info("Successfully subscribed to minimal consensus info to vanguard client")
+
+	go func() {
+		for {
+			select {
+			case <-s.ctx.Done():
+				log.Info("Received cancelled context, closing existing consensus info subscription")
+				return
+
+			default:
+				vanMinimalConsensusInfo, err := stream.Recv()
+				if e, ok := status.FromError(err); ok {
+					switch e.Code() {
+					case codes.Canceled, codes.Internal, codes.Unavailable:
+						log.WithError(err).Infof("Trying to restart connection. rpc status: %v", e.Code())
+						s.conInfoSubErrCh <- err
+						return
+					}
+				}
+
+				if nil == vanMinimalConsensusInfo {
+					log.Error("Received nil consensus info")
+					s.conInfoSubErrCh <- errConsensusInfoNil
+					return
+				}
+
+				consensusInfo := &types.MinimalEpochConsensusInfo{
+					Epoch:            uint64(vanMinimalConsensusInfo.Epoch),
+					ValidatorList:    vanMinimalConsensusInfo.ValidatorList,
+					EpochStartTime:   vanMinimalConsensusInfo.EpochTimeStart,
+					SlotTimeDuration: time.Duration(vanMinimalConsensusInfo.SlotTimeDuration.Seconds),
+				}
+				// Only non empty check for now
+				if len(consensusInfo.ValidatorList) < 1 {
+					log.WithField("consensusInfo", consensusInfo).WithField("err", err).Error(
+						"empty validator list")
+					s.conInfoSubErrCh <- errInvalidValidatorLength
+					return
+				}
+
+				log.WithField("epoch", vanMinimalConsensusInfo.Epoch).
+					WithField("epochInfo", fmt.Sprintf("%+v", vanMinimalConsensusInfo)).
+					Debug("Received new consensus info for next epoch")
+				if err := s.OnNewConsensusInfo(s.ctx, consensusInfo); err != nil {
+					s.conInfoSubErrCh <- errConsensusInfoProcess
+					return
+				}
+			}
 		}
 	}()
 
-	return
+	return nil
 }

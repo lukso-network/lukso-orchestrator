@@ -1,18 +1,20 @@
 package types
 
 import (
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
-	"math/big"
 )
 
-type Status int
+type Status string
 
 const (
-	Pending Status = iota
-	Verified
-	Invalid
-	Skipped
+	Pending  Status = "Pending"
+	Verified Status = "Verified"
+	Invalid  Status = "Invalid"
+	Skipped  Status = "Skipped"
+	Unknown  Status = "Unknown"
 )
 
 // ExtraData
@@ -22,10 +24,10 @@ type ExtraData struct {
 	ProposerIndex uint64
 }
 
-// generic header hash
-type HeaderHash struct {
-	HeaderHash common.Hash `json:"headerHash"`
-	Status     Status      `json:"status"`
+// SlotInfo
+type SlotInfo struct {
+	VanguardBlockHash common.Hash
+	PandoraHeaderHash common.Hash
 }
 
 // CopyHeader creates a deep copy of a block header to prevent side effects from

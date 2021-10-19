@@ -1,168 +1,43 @@
 package api
 
 import (
-	"fmt"
+	"context"
+	"errors"
 	"github.com/ethereum/go-ethereum/common"
+	eth1Types "github.com/ethereum/go-ethereum/core/types"
+	log "github.com/sirupsen/logrus"
+
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/consensus"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
+	conIface "github.com/lukso-network/lukso-orchestrator/orchestrator/consensus/iface"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/iface"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
-	"sync"
-	"time"
 )
 
+var ErrHeaderHashMisMatch = errors.New("header hash mismatched")
+
 type Backend struct {
+	// feed
 	ConsensusInfoFeed    iface.ConsensusInfoFeed
-	ConsensusInfoDB      db.ROnlyConsensusInfoDB
-	VanguardHeaderHashDB db.VanguardHeaderHashDB
-	PandoraHeaderHashDB  db.PandoraHeaderHashDB
-	RealmDB              db.RealmDB
-	consensusService     *consensus.Service
-	sync.Mutex
-}
+	VerifiedSlotInfoFeed conIface.VerifiedSlotInfoFeed
 
-func (backend *Backend) GetPendingHashes() (response *events.PendingHashesResponse, err error) {
-	vanguardHashes, err := backend.VanguardHeaderHashDB.VanguardHeaderHashes(0, 15000)
+	// db reference
+	ConsensusInfoDB    db.ROnlyConsensusInfoDB
+	VerifiedSlotInfoDB db.ROnlyVerifiedSlotInfoDB
+	InvalidSlotInfoDB  db.ROnlyInvalidSlotInfoDB
 
-	if nil != err {
-		return
-	}
-
-	pandoraHashes, err := backend.PandoraHeaderHashDB.PandoraHeaderHashes(0, 15000)
-
-	if nil != err {
-		return
-	}
-
-	timestamp := time.Now().Unix()
-
-	response = &events.PendingHashesResponse{
-		VanguardHashes:    vanguardHashes,
-		PandoraHashes:     pandoraHashes,
-		VanguardHashesLen: int64(len(vanguardHashes)),
-		PandoraHashesLen:  int64(len(pandoraHashes)),
-		UnixTime:          timestamp,
-	}
-
-	return
-}
-
-var _ events.Backend = &Backend{}
-
-func (backend *Backend) FetchPanBlockStatus(slot uint64, hash common.Hash) (status events.Status, err error) {
-	pandoraHeaderHashDB := backend.PandoraHeaderHashDB
-	realmDB := backend.RealmDB
-
-	if nil == pandoraHeaderHashDB {
-		err = fmt.Errorf("pandora database is empty")
-		status = events.Invalid
-
-		return
-	}
-
-	if nil == realmDB {
-		err = fmt.Errorf("realm database is empty")
-		status = events.Invalid
-
-		return
-	}
-
-	headerHash, err := pandoraHeaderHashDB.PandoraHeaderHash(slot)
-
-	if nil != err {
-		status = events.Invalid
-
-		return
-	}
-
-	latestSlot := realmDB.LatestVerifiedRealmSlot()
-
-	if slot > latestSlot {
-		status = events.Pending
-
-		return
-	}
-
-	pandoraHash := headerHash.HeaderHash
-
-	if pandoraHash.String() != hash.String() && types.Skipped != headerHash.Status {
-		err = fmt.Errorf(
-			"hashes does not match for slot: %d, provided: %s, proper: %s",
-			slot,
-			hash.String(),
-			pandoraHash.String(),
-		)
-		status = events.Invalid
-
-		return
-	}
-
-	status = events.FromDBStatus(headerHash.Status)
-
-	return
-}
-
-func (backend *Backend) FetchVanBlockStatus(slot uint64, hash common.Hash) (status events.Status, err error) {
-	vanHashDB := backend.VanguardHeaderHashDB
-	realmDB := backend.RealmDB
-
-	if nil == vanHashDB {
-		err = fmt.Errorf("vanguard database is empty")
-		status = events.Invalid
-
-		return
-	}
-
-	if nil == realmDB {
-		err = fmt.Errorf("realm database is empty")
-		status = events.Invalid
-
-		return
-	}
-
-	headerHash, err := vanHashDB.VanguardHeaderHash(slot)
-
-	if nil != err {
-		status = events.Invalid
-
-		return
-	}
-
-	latestSlot := realmDB.LatestVerifiedRealmSlot()
-
-	if slot > latestSlot {
-		status = events.Pending
-
-		return
-	}
-
-	vanguardHash := headerHash.HeaderHash
-
-	if vanguardHash.String() != hash.String() && types.Skipped != headerHash.Status {
-		err = fmt.Errorf(
-			"hashes does not match for slot: %d, provided: %s, proper: %s",
-			slot,
-			hash.String(),
-			vanguardHash.String(),
-		)
-		status = events.Invalid
-
-		return
-	}
-
-	status = events.FromDBStatus(headerHash.Status)
-
-	return
+	// cache reference
+	VanguardPendingShardingCache cache.VanguardShardCache
+	PandoraPendingHeaderCache    cache.PandoraHeaderCache
 }
 
 func (backend *Backend) SubscribeNewEpochEvent(ch chan<- *types.MinimalEpochConsensusInfo) event.Subscription {
 	return backend.ConsensusInfoFeed.SubscribeMinConsensusInfoEvent(ch)
 }
 
-func (backend *Backend) CurrentEpoch() uint64 {
-	return backend.ConsensusInfoDB.GetLatestEpoch()
+func (backend *Backend) SubscribeNewVerifiedSlotInfoEvent(ch chan<- *types.SlotInfoWithStatus) event.Subscription {
+	return backend.VerifiedSlotInfoFeed.SubscribeVerifiedSlotInfoEvent(ch)
 }
 
 func (backend *Backend) ConsensusInfoByEpochRange(fromEpoch uint64) []*types.MinimalEpochConsensusInfo {
@@ -171,4 +46,77 @@ func (backend *Backend) ConsensusInfoByEpochRange(fromEpoch uint64) []*types.Min
 		return nil
 	}
 	return consensusInfos
+}
+
+func (backend *Backend) VerifiedSlotInfos(fromSlot uint64) map[uint64]*types.SlotInfo {
+	slotInfos, err := backend.VerifiedSlotInfoDB.VerifiedSlotInfos(fromSlot)
+	if err != nil {
+		return nil
+	}
+	return slotInfos
+}
+
+func (backend *Backend) LatestEpoch() uint64 {
+	return backend.ConsensusInfoDB.LatestSavedEpoch()
+}
+
+func (backend *Backend) LatestVerifiedSlot() uint64 {
+	return backend.VerifiedSlotInfoDB.LatestSavedVerifiedSlot()
+}
+
+func (backed *Backend) PendingPandoraHeaders() []*eth1Types.Header {
+	headers, err := backed.PandoraPendingHeaderCache.GetAll()
+	if err != nil {
+		return nil
+	}
+	return headers
+}
+
+// GetSlotStatus
+func (backend *Backend) GetSlotStatus(ctx context.Context, slot uint64, hash common.Hash, requestFrom bool) types.Status {
+	// by default if nothing is found then return skipped
+	status := types.Pending
+
+	//when requested slot is greater than latest verified slot
+	latestVerifiedSlot := backend.VerifiedSlotInfoDB.InMemoryLatestVerifiedSlot()
+	var slotInfo *types.SlotInfo
+
+	logPrinter := func(stat types.Status) {
+		log.WithField("slot", slot).
+			WithField("latestVerifiedSlot", latestVerifiedSlot).
+			WithField("status", stat).
+			Debug("Verification status")
+	}
+	// finally found in the database so return immediately so that no other db call happens
+	if slotInfo, _ = backend.VerifiedSlotInfoDB.VerifiedSlotInfo(slot); slotInfo != nil {
+		panHeaderHash := slotInfo.PandoraHeaderHash
+		vanHeaderHash := slotInfo.VanguardBlockHash
+
+		if requestFrom && panHeaderHash != hash {
+			log.WithError(ErrHeaderHashMisMatch).
+				Warn("Failed to match header hash with requested header hash from pandora node")
+			logPrinter(types.Invalid)
+			return types.Invalid
+		}
+
+		if !requestFrom && vanHeaderHash != hash {
+			log.WithError(ErrHeaderHashMisMatch).
+				Warn("Failed to match header hash with requested header hash from vanguard node")
+			logPrinter(types.Invalid)
+			return types.Invalid
+		}
+
+		status = types.Verified
+		logPrinter(types.Verified)
+		return status
+	}
+
+	// finally found in the database so return immediately so that no other db call happens
+	if slotInfo, _ = backend.InvalidSlotInfoDB.InvalidSlotInfo(slot); slotInfo != nil {
+		status = types.Invalid
+		logPrinter(types.Invalid)
+		return status
+	}
+	logPrinter(status)
+	return status
 }

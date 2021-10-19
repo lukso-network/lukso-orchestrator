@@ -10,13 +10,11 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db/kv"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/pandorachain"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/utils"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/client"
 	"github.com/lukso-network/lukso-orchestrator/shared"
 	"github.com/lukso-network/lukso-orchestrator/shared/cmd"
 	"github.com/lukso-network/lukso-orchestrator/shared/fileutil"
-	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	"github.com/lukso-network/lukso-orchestrator/shared/version"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -43,6 +41,10 @@ type OrchestratorNode struct {
 
 	//kv database with cache
 	db db.Database
+
+	// lru caches
+	pandoraInfoCache  *cache.PanHeaderCache
+	vanShardInfoCache *cache.VanShardingInfoCache
 }
 
 // New creates a new node instance, sets up configuration options, and registers
@@ -50,12 +52,15 @@ type OrchestratorNode struct {
 func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 	registry := shared.NewServiceRegistry()
 	ctx, cancel := context.WithCancel(cliCtx.Context)
+
 	orchestrator := &OrchestratorNode{
-		cliCtx:   cliCtx,
-		ctx:      ctx,
-		cancel:   cancel,
-		services: registry,
-		stop:     make(chan struct{}),
+		cliCtx:            cliCtx,
+		ctx:               ctx,
+		cancel:            cancel,
+		services:          registry,
+		stop:              make(chan struct{}),
+		pandoraInfoCache:  cache.NewPanHeaderCache(),
+		vanShardInfoCache: cache.NewVanShardInfoCache(math.MaxInt32),
 	}
 
 	if err := orchestrator.startDB(orchestrator.cliCtx); err != nil {
@@ -70,12 +75,13 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 		return nil, err
 	}
 
-	if err := orchestrator.registerRPCService(cliCtx); err != nil {
+	if err := orchestrator.registerConsensusService(cliCtx); err != nil {
 		return nil, err
 	}
 
-	// Register consensus service only after Vanguard and Pandora notified about consensus info and blocks
-	go orchestrator.registerAndStartConsensusService(cliCtx)
+	if err := orchestrator.registerRPCService(cliCtx); err != nil {
+		return nil, err
+	}
 
 	return orchestrator, nil
 }
@@ -137,6 +143,7 @@ func (o *OrchestratorNode) registerVanguardChainService(cliCtx *cli.Context) err
 		o.ctx,
 		vanguardGRPCUrl,
 		o.db,
+		o.vanShardInfoCache,
 		dialGRPCClient,
 	)
 	if err != nil {
@@ -157,8 +164,7 @@ func (o *OrchestratorNode) registerPandoraChainService(cliCtx *cli.Context) erro
 		return rpcClient, nil
 	}
 	namespace := "eth"
-	panCache := cache.NewPanHeaderCache()
-	svc, err := pandorachain.NewService(o.ctx, pandoraRPCUrl, namespace, o.db, panCache, dialRPCClient)
+	svc, err := pandorachain.NewService(o.ctx, pandoraRPCUrl, namespace, o.db, o.pandoraInfoCache, dialRPCClient)
 	if err != nil {
 		return nil
 	}
@@ -166,164 +172,40 @@ func (o *OrchestratorNode) registerPandoraChainService(cliCtx *cli.Context) erro
 	return o.services.RegisterService(svc)
 }
 
-func (o *OrchestratorNode) registerAndStartConsensusService(
-	cliCtx *cli.Context,
-) {
-	var (
-		vanguardChain             *vanguardchain.Service
-		pandoraChain              *pandorachain.Service
-		vanguardHeadersChan       chan *types.HeaderHash
-		vanguardConsensusInfoChan chan *types.MinimalEpochConsensusInfo
-		pandoraHeadersChan        chan *types.HeaderHash
-	)
-
-	vanguardHeadersChan = make(chan *types.HeaderHash, 100000)
-	pandoraHeadersChan = make(chan *types.HeaderHash, 100000)
-	vanguardConsensusInfoChan = make(chan *types.MinimalEpochConsensusInfo, 100000)
-
-	services := o.services
-	err := services.FetchService(&vanguardChain)
-
-	if err != nil {
-		log.WithField("err", err).Error("Consensus service not registered")
-
-		return
+// registerConsensusService
+func (o *OrchestratorNode) registerConsensusService(cliCtx *cli.Context) error {
+	var vanguardShardFeed *vanguardchain.Service
+	if err := o.services.FetchService(&vanguardShardFeed); err != nil {
+		return err
 	}
 
-	err = services.FetchService(&pandoraChain)
-
-	if err != nil {
-		log.WithField("err", err).Error("Consensus service not registered")
-
-		return
+	var pandoraHeaderFeed *pandorachain.Service
+	if err := o.services.FetchService(&pandoraHeaderFeed); err != nil {
+		return err
 	}
 
-	vanguardChain.SubscribeVanNewPendingBlockHash(vanguardHeadersChan)
-	vanguardChain.SubscribeMinConsensusInfoEvent(vanguardConsensusInfoChan)
-	err = pandoraChain.SubscribeToPendingWorkChannel(pandoraHeadersChan)
+	svc := consensus.New(o.ctx, &consensus.Config{
+		VerifiedSlotInfoDB:           o.db,
+		InvalidSlotInfoDB:            o.db,
+		VanguardPendingShardingCache: o.vanShardInfoCache,
+		PandoraPendingHeaderCache:    o.pandoraInfoCache,
+		VanguardShardFeed:            vanguardShardFeed,
+		PandoraHeaderFeed:            pandoraHeaderFeed,
+	})
 
-	if nil != err {
-		log.WithField("err", err).Error("cannot subscribe to pending work channel")
-
-		return
-	}
-
-	waitGroup := sync.WaitGroup{}
-	waitGroup.Add(3)
-
-	// This is arbitrary, it may be less or more. Depends on the approach
-	debounceDuration := time.Second * 3
-
-	// Locks that will prevent negative waitGroup counters
-	vanguardHeadersChanLock := false
-	vanguardConsensusChanLock := false
-	pandoraHeadersChanLock := false
-
-	// Create bridge channels for debounce
-	vanguardHeadersChanBridge := make(chan interface{})
-	vanguardConsensusChanBridge := make(chan interface{})
-	pandoraHeadersChanBridge := make(chan interface{})
-
-	// Create bridge handlers for debounce
-	vanguardHeadersChanHandler := func(interface{}) {
-		if vanguardHeadersChanLock {
-			return
-		}
-
-		log.Info("I have reached vanguardHeadersChanHandler confirmation")
-		waitGroup.Done()
-		vanguardHeadersChanLock = true
-		close(vanguardHeadersChanBridge)
-	}
-	vanguardConsensusChanHandler := func(interface{}) {
-		if vanguardConsensusChanLock {
-			return
-		}
-
-		log.Info("I have reached vanguardConsensusChanHandler confirmation")
-		waitGroup.Done()
-
-		vanguardConsensusChanLock = true
-		close(vanguardConsensusChanBridge)
-	}
-	pandoraHeadersChanHandler := func(interface{}) {
-		if pandoraHeadersChanLock {
-			return
-		}
-
-		log.Info("I have reached pandoraHeadersChanHandler confirmation")
-		waitGroup.Done()
-		pandoraHeadersChanLock = true
-		close(pandoraHeadersChanBridge)
-	}
-
-	isLocked := func() bool {
-		return vanguardHeadersChanLock && vanguardConsensusChanLock && pandoraHeadersChanLock
-	}
-
-	go func() {
-		for {
-		loop:
-			select {
-			case header := <-vanguardHeadersChan:
-				if isLocked() {
-					break loop
-				}
-
-				if !vanguardHeadersChanLock {
-					vanguardHeadersChanBridge <- header
-				}
-			case header := <-pandoraHeadersChan:
-				if isLocked() {
-					break loop
-				}
-
-				if !pandoraHeadersChanLock {
-					pandoraHeadersChanBridge <- header
-				}
-			case info := <-vanguardConsensusInfoChan:
-				if isLocked() {
-					break loop
-				}
-
-				if !vanguardConsensusChanLock {
-					vanguardConsensusChanBridge <- info
-				}
-			}
-		}
-	}()
-
-	// Debounce and wait for sideEffect
-	go utils.Debounce(cliCtx.Context, debounceDuration, vanguardHeadersChanBridge, vanguardHeadersChanHandler)
-	go utils.Debounce(cliCtx.Context, debounceDuration, vanguardConsensusChanBridge, vanguardConsensusChanHandler)
-	go utils.Debounce(cliCtx.Context, debounceDuration, pandoraHeadersChanBridge, pandoraHeadersChanHandler)
-
-	log.Info("I am waiting for orchestrator to receive all pending data")
-	waitGroup.Wait()
-
-	svc := consensus.New(
-		cliCtx.Context,
-		o.db,
-		vanguardHeadersChan,
-		vanguardConsensusInfoChan,
-		pandoraHeadersChan,
-	)
-	err = o.services.RegisterService(svc)
-
-	if nil != err {
-		log.WithField("err", err).Error("Consensus service not registered")
-
-		return
-	}
-
-	log.Info("I am starting consensus service")
-	svc.Start()
+	log.Info("Registered consensus service")
+	return o.services.RegisterService(svc)
 }
 
 // register RPC server
 func (o *OrchestratorNode) registerRPCService(cliCtx *cli.Context) error {
 	var consensusInfoFeed *vanguardchain.Service
 	if err := o.services.FetchService(&consensusInfoFeed); err != nil {
+		return err
+	}
+
+	var verifiedSlotInfoFeed *consensus.Service
+	if err := o.services.FetchService(&verifiedSlotInfoFeed); err != nil {
 		return err
 	}
 
@@ -357,6 +239,10 @@ func (o *OrchestratorNode) registerRPCService(cliCtx *cli.Context) error {
 		WSEnable:          wsEnable,
 		WSHost:            wsListenerAddr,
 		WSPort:            wsPort,
+
+		VanguardPendingShardingCache: o.vanShardInfoCache,
+		PandoraPendingHeaderCache:    o.pandoraInfoCache,
+		VerifiedSlotInfoFeed:         verifiedSlotInfoFeed,
 	})
 	if err != nil {
 		return nil
@@ -406,6 +292,9 @@ func (b *OrchestratorNode) Close() {
 
 	log.Info("Stopping orchestrator node")
 	b.services.StopAll()
+	if err := b.db.Close(); err != nil {
+		log.Errorf("Failed to close database: %v", err)
+	}
 	b.cancel()
 	close(b.stop)
 }

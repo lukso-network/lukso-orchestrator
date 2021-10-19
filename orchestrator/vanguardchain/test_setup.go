@@ -3,6 +3,7 @@ package vanguardchain
 import (
 	"context"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
 	testDB "github.com/lukso-network/lukso-orchestrator/orchestrator/db/testing"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/client"
@@ -11,7 +12,7 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
 	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
 	types "github.com/prysmaticlabs/eth2-types"
-	eth "github.com/prysmaticlabs/ethereumapis/eth/v1alpha1"
+	eth "github.com/prysmaticlabs/prysm/proto/eth/v1alpha1"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/metadata"
 	"testing"
@@ -92,7 +93,7 @@ func (v vanClientMock) StreamMinimalConsensusInfo(epoch uint64) (stream eth.Beac
 	return v.consensusInfoClient, nil
 }
 
-func (v vanClientMock) StreamNewPendingBlocks() (eth.BeaconChain_StreamNewPendingBlocksClient, error) {
+func (v vanClientMock) StreamNewPendingBlocks(blockRoot []byte, fromSlot types.Slot) (eth.BeaconChain_StreamNewPendingBlocksClient, error) {
 	return v.pendingBlocksClient, nil
 }
 
@@ -190,6 +191,7 @@ func SetupVanguardSvc(
 		ctx,
 		"127.0.0.1:4000",
 		db,
+		cache.NewVanShardInfoCache(1<<10),
 		dialGRPCFn,
 	)
 	if err != nil {

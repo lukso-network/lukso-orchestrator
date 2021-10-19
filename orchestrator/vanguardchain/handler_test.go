@@ -5,7 +5,7 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/require"
 	types "github.com/prysmaticlabs/eth2-types"
-	eth "github.com/prysmaticlabs/ethereumapis/eth/v1alpha1"
+	eth "github.com/prysmaticlabs/prysm/proto/eth/v1alpha1"
 	logTest "github.com/sirupsen/logrus/hooks/test"
 	"testing"
 	"time"
@@ -33,16 +33,24 @@ func TestService_OnNewPendingVanguardBlock(t *testing.T) {
 			Deposits:          []*eth.Deposit{},
 			ProposerSlashings: []*eth.ProposerSlashing{},
 			VoluntaryExits:    []*eth.SignedVoluntaryExit{},
+			PandoraShard: []*eth.PandoraShard{{
+				ParentHash:  make([]byte, 32),
+				TxHash:      make([]byte, 32),
+				StateRoot:   make([]byte, 32),
+				BlockNumber: slot,
+				ReceiptHash: make([]byte, 32),
+				Signature:   make([]byte, 96),
+				Hash:        make([]byte, 32),
+				SealHash:    make([]byte, 32),
+			}},
 		},
 	}
-	vanSvc.OnNewPendingVanguardBlock(ctx, beaconBlock)
+	require.NoError(t, vanSvc.OnNewPendingVanguardBlock(ctx, beaconBlock))
 	time.Sleep(100 * time.Millisecond)
-	assert.LogsContain(t, hook, "Successfully inserted vanguard block to db")
+	assert.LogsContain(t, hook, "New vanguard shard info has arrived")
 
-	//	 Should return error when possible reorg will happen
-	require.NoError(t, vanSvc.orchestratorDB.SaveLatestVerifiedRealmSlot(6))
-	vanSvc.OnNewPendingVanguardBlock(ctx, beaconBlock)
+	require.NoError(t, vanSvc.OnNewPendingVanguardBlock(ctx, beaconBlock))
 
 	time.Sleep(100 * time.Millisecond)
-	assert.LogsContain(t, hook, "Successfully inserted vanguard block to db")
+	assert.LogsContain(t, hook, "New vanguard shard info has arrived")
 }

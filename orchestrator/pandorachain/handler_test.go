@@ -2,7 +2,6 @@ package pandorachain
 
 import (
 	"context"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/require"
 	"testing"
@@ -16,16 +15,5 @@ func Test_PandoraSvc_OnNewPendingHeader(t *testing.T) {
 
 	panSvc := SetupPandoraSvc(ctx, t, DialInProcClient(inProcServer))
 	newPanHeader := testutil.NewEth1Header(123)
-
-	// Prepare new pandora header with extraData with BLS signature
-	extraDataWithSig, err := testutil.GenerateExtraDataWithBLSSig(newPanHeader)
-	require.NoError(t, err)
-	newPanHeader.Extra, err = rlp.EncodeToBytes(extraDataWithSig)
-	require.NoError(t, err)
 	require.NoError(t, panSvc.OnNewPendingHeader(ctx, newPanHeader))
-
-	//	 Should return error when possible reorg will happen
-	require.NoError(t, panSvc.db.SaveLatestVerifiedRealmSlot(124))
-	require.NoError(t, err)
-	require.ErrorContains(t, "reorgs not supported", panSvc.OnNewPendingHeader(ctx, newPanHeader))
 }
