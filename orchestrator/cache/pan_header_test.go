@@ -67,7 +67,7 @@ func Test_PandoraHeaderRemoveCache(t *testing.T) {
 		pc.Put(ctx, slotUint64, expectedPanHeaders[slotUint64])
 	}
 	// now remove a slot from the cache and check if previous slots are removed
-	removedSlotNumber := uint64(rand.Int31n(100))
+	removedSlotNumber := uint64(rand.Int31n(80))
 	// slot is removed
 	pc.Remove(ctx, removedSlotNumber)
 
