@@ -296,13 +296,14 @@ start_orchestrator() {
     mkdir -p $DATADIR/orchestrator
   fi
   nohup lukso-orchestrator --datadir=$DATADIR/orchestrator \
-    --vanguard-grpc-endpoint=127.0.0.1:4000 \
+    --vanguard-rpc-endpoint=$DATADIR/vanguard/vanguard.ipc \
     --http \
     --http.addr=0.0.0.0 \
     --http.port=7877 \
     --ws \
     --ws.addr=0.0.0.0 \
     --ws.port=7878 \
+    --ipcpath=$DATADIR/orchestrator \
     --pandora-rpc-endpoint=ws://127.0.0.1:8546 \
     --verbosity=$ORCHESTRATOR_VERBOSITY >|$LOGSDIR/orchestrator/orchestrator_"$RUN_DATE".log 2>&1 &
   disown
@@ -409,15 +410,15 @@ start_vanguard() {
     "--datadir=$DATADIR/vanguard/"
     "--chain-config-file=/opt/lukso/networks/$NETWORK/config/vanguard-config.yaml"
     "${BOOTNODES_ARGS[@]}"
-    "--http-web3provider=http://127.0.0.1:8545"
+    "--http-web3provider=$DATADIR/pandora/geth.ipc"
     "--deposit-contract=0x000000000000000000000000000000000000cafe"
     "--contract-deployment-block=0"
-    "--rpc-host=vanguard.ipc"
+    "--rpc-host=$DATADIR/vanguard/vanguard.ipc"
     "--monitoring-host=0.0.0.0"
     "--verbosity=$VANGUARD_VERBOSITY"
     "--min-sync-peers=2"
     "--p2p-max-peers=50"
-    "--orc-rpc-provider=$DATADIR/vanguard/"
+    "--orc-rpc-provider=$DATADIR/orchestrator/orchestrator.ipc"
     "--rpc-port=4000"
     "--p2p-udp-port=12000"
     "--p2p-tcp-port=13000"
@@ -452,10 +453,10 @@ start_validator() {
   ARGUMENTS=(
     "--datadir=$DATADIR/validator/"
     "--accept-terms-of-use"
-    "--beacon-rpc-provider=localhost:4000"
+    "--beacon-rpc-provider=$DATADIR/vanguard/vanguard.ipc"
     "--chain-config-file=/opt/lukso/networks/$NETWORK/config/vanguard-config.yaml"
     "--verbosity=$VALIDATOR_VERBOSITY"
-    "--pandora-http-provider=http://127.0.0.1:8545"
+    "--pandora-http-provider=$DATADIR/pandora/geth.ipc"
     "--wallet-dir=$WALLET_DIR"
     "--rpc"
     "--log-file=$LOGSDIR/validator/validator_$RUN_DATE.log"
