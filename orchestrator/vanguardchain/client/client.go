@@ -2,19 +2,20 @@ package client
 
 import (
 	"context"
-	ptypes "github.com/gogo/protobuf/types"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	types "github.com/prysmaticlabs/eth2-types"
-	ethpb "github.com/prysmaticlabs/ethereumapis/eth/v1alpha1"
+	ethpb "github.com/prysmaticlabs/prysm/proto/eth/v1alpha1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"net"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	"time"
 )
 
 type VanguardClient interface {
 	CanonicalHeadSlot() (types.Slot, error)
-	StreamNewPendingBlocks() (ethpb.BeaconChain_StreamNewPendingBlocksClient, error)
+	StreamNewPendingBlocks(blockRoot []byte, fromSlot types.Slot) (ethpb.BeaconChain_StreamNewPendingBlocksClient, error)
 	StreamMinimalConsensusInfo(epoch uint64) (stream ethpb.BeaconChain_StreamMinimalConsensusInfoClient, err error)
 	Close()
 }
@@ -78,32 +79,30 @@ func (ec *GRPCClient) Close() {
 // CanonicalHeadSlot returns the slot of canonical block currently found in the
 // beacon chain via RPC.
 func (vanClient *GRPCClient) CanonicalHeadSlot() (types.Slot, error) {
-	head, err := vanClient.beaconClient.GetChainHead(vanClient.ctx, &ptypes.Empty{})
+	head, err := vanClient.beaconClient.GetChainHead(vanClient.ctx, &emptypb.Empty{})
 	if err != nil {
-		log.WithError(err).Info("failed to get canonical head")
+		log.WithError(err).Warn("Failed to get canonical head")
 		return types.Slot(0), err
 	}
-
 	return head.HeadSlot, nil
 }
 
 // StreamNewPendingBlocks
-func (vanClient *GRPCClient) StreamNewPendingBlocks() (
+func (vanClient *GRPCClient) StreamNewPendingBlocks(blockRoot []byte, fromSlot types.Slot) (
 	stream ethpb.BeaconChain_StreamNewPendingBlocksClient,
 	err error,
 ) {
 	stream, err = vanClient.beaconClient.StreamNewPendingBlocks(
 		vanClient.ctx,
-		&ptypes.Empty{},
+		&ethpb.StreamPendingBlocksRequest{BlockRoot: blockRoot, FromSlot: fromSlot},
 	)
 	if err != nil {
 		log.WithError(err).Error("Failed to subscribe to StreamChainHead")
-
 		return
 	}
-
-	log.Info("Successfully subscribed to chain header event")
-
+	log.WithField("fromSlot", fromSlot).
+		WithField("blockRoot", hexutil.Encode(blockRoot)).
+		Info("Successfully subscribed to chain header event")
 	return
 }
 
@@ -115,15 +114,11 @@ func (vanClient *GRPCClient) StreamMinimalConsensusInfo(epoch uint64) (
 		vanClient.ctx,
 		&ethpb.MinimalConsensusInfoRequest{FromEpoch: types.Epoch(epoch)},
 	)
-
 	if err != nil {
 		log.WithError(err).Error("Failed to subscribe to StreamMinimalConsensusInfo")
-
 		return
 	}
-
-	log.Info("Successfully subscribed to StreamMinimalConsensusInfo event")
-
+	log.WithField("fromEpoch", epoch).Info("Successfully subscribed to StreamMinimalConsensusInfo event")
 	return
 }
 

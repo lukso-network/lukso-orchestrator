@@ -17,8 +17,6 @@ import (
 const (
 	// ConsensusInfosCacheSize with 1024 consensus infos will be 1.5MB.
 	ConsensusInfosCacheSize = 1 << 10
-	// HeaderHashesCacheSize with
-	HeaderHashesCacheSize = 1 << 20
 	// OrchestratorNodeDbDirName is the name of the directory containing the orchestrator node database.
 	OrchestratorNodeDbDirName = "orchestrator"
 	// DatabaseFileName is the name of the orchestrator node database.
@@ -33,20 +31,18 @@ type Config struct {
 }
 
 type Store struct {
-	ctx                context.Context
-	isRunning          bool
-	db                 *bolt.DB
-	databasePath       string
-	consensusInfoCache *ristretto.Cache
-	panHeaderCache     *ristretto.Cache
-	vanHeaderCache     *ristretto.Cache
+	ctx                   context.Context
+	isRunning             bool
+	db                    *bolt.DB
+	databasePath          string
+	consensusInfoCache    *ristretto.Cache
+	verifiedSlotInfoCache *ristretto.Cache
 
 	// Latest information need to be stored into db
-	latestEpoch         uint64
-	latestPanSlot       uint64
-	latestPanHeaderHash common.Hash
-	latestVanSlot       uint64
-	latestVanHash       common.Hash
+	latestEpoch        uint64
+	latestVerifiedSlot uint64
+	latestHeaderHash   common.Hash
+	latestVanBlockHash []byte
 	// There should be mutex in store
 	sync.Mutex
 }
@@ -88,42 +84,29 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 	if err != nil {
 		return nil, err
 	}
-
-	panHeaderCache, err := ristretto.NewCache(&ristretto.Config{
-		NumCounters: 1000,                  // number of keys to track frequency of (1000).
-		MaxCost:     HeaderHashesCacheSize, // maximum cost of cache (1000 headers).
-		BufferItems: 64,                    // number of keys per Get buffer.
+	verifiedSlotInfoCache, err := ristretto.NewCache(&ristretto.Config{
+		NumCounters: 1000,                    // number of keys to track frequency of (1000).
+		MaxCost:     ConsensusInfosCacheSize, // maximum cost of cache (1000 headers).
+		BufferItems: 64,                      // number of keys per Get buffer.
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	vanBlockCache, err := ristretto.NewCache(&ristretto.Config{
-		NumCounters: 1000,                  // number of keys to track frequency of (1000).
-		MaxCost:     HeaderHashesCacheSize, // maximum cost of cache (1000 headers).
-		BufferItems: 64,                    // number of keys per Get buffer.
-	})
-
-	if nil != err {
-		return nil, err
-	}
-
 	kv := &Store{
-		ctx:                ctx,
-		db:                 boltDB,
-		databasePath:       dirPath,
-		consensusInfoCache: consensusInfoCache,
-		panHeaderCache:     panHeaderCache,
-		vanHeaderCache:     vanBlockCache,
+		ctx:                   ctx,
+		db:                    boltDB,
+		databasePath:          dirPath,
+		consensusInfoCache:    consensusInfoCache,
+		verifiedSlotInfoCache: verifiedSlotInfoCache,
 	}
 
 	if err := kv.db.Update(func(tx *bolt.Tx) error {
 		return createBuckets(
 			tx,
 			consensusInfosBucket,
-			pandoraHeaderHashesBucket,
-			vanguardHeaderHashesBucket,
-			realmBucket,
+			verifiedSlotInfosBucket,
+			invalidSlotInfosBucket,
 		)
 	}); err != nil {
 		return nil, err
@@ -148,11 +131,20 @@ func (s *Store) ClearDB() error {
 // Close closes the underlying BoltDB database.
 func (s *Store) Close() error {
 	err := s.SaveLatestEpoch(s.ctx)
-
 	if nil != err {
 		return err
 	}
 
+	err = s.SaveLatestVerifiedSlot(s.ctx)
+	if nil != err {
+		return err
+	}
+
+	err = s.SaveLatestVerifiedHeaderHash()
+	if err != nil {
+		return err
+	}
+	log.Info("Received cancelled context, closing db")
 	return s.db.Close()
 }
 
@@ -165,14 +157,11 @@ func (s *Store) DatabasePath() string {
 func (s *Store) initLatestDataFromDB() {
 	// Retrieve latest saved epoch number from db
 	s.latestEpoch = s.LatestSavedEpoch()
-	// Retrieve latest saved pandora slot from db
-	s.latestPanSlot = s.LatestSavedPandoraSlot()
-	// Retrieve latest saved pandora header hash from db
-	s.latestPanHeaderHash = s.LatestSavedPandoraHeaderHash()
-	// Retrieve latest saved vanguard hash from db
-	s.latestVanHash = s.LatestSavedVanguardHeaderHash()
-	// Retrieve latest savend vanguard slot from db
-	s.latestVanSlot = s.LatestSavedVanguardSlot()
+	s.latestVerifiedSlot = s.LatestSavedVerifiedSlot()
+	s.latestHeaderHash = s.LatestVerifiedHeaderHash()
+	log.WithField("latestSavedEpoch", s.latestEpoch).WithField(
+		"latestVerifiedSlot", s.latestVerifiedSlot).WithField(
+		"latestHeaderHash", s.latestHeaderHash).Debug("latest saved info from db")
 }
 
 // createBuckets

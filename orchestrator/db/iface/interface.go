@@ -23,49 +23,31 @@ type ConsensusInfoAccessDatabase interface {
 	SaveLatestEpoch(ctx context.Context) error
 }
 
-// ReadOnlyPanHeaderAccessDatabase
-type ReadOnlyPanHeaderAccessDatabase interface {
-	PandoraHeaderHash(slot uint64) (*types.HeaderHash, error)
-	PandoraHeaderHashes(fromSlot uint64, limit uint64) ([]*types.HeaderHash, error)
-	LatestSavedPandoraSlot() uint64
-	LatestSavedPandoraHeaderHash() common.Hash
-	GetLatestHeaderHash() common.Hash
+type ReadOnlyVerifiedSlotInfoDatabase interface {
+	VerifiedSlotInfo(slot uint64) (*types.SlotInfo, error)
+	VerifiedSlotInfos(fromSlot uint64) (map[uint64]*types.SlotInfo, error)
+	LatestSavedVerifiedSlot() uint64
+	InMemoryLatestVerifiedSlot() uint64
+	LatestVerifiedHeaderHash() common.Hash
+	InMemoryLatestVerifiedHeaderHash() common.Hash
 }
 
-// ReadOnlyVanHeaderAccessDatabase
-type ReadOnlyVanHeaderAccessDatabase interface {
-	VanguardHeaderHash(slot uint64) (*types.HeaderHash, error)
-	VanguardHeaderHashes(fromSlot uint64, limit uint64) ([]*types.HeaderHash, error)
-	LatestSavedVanguardSlot() uint64
-	LatestSavedVanguardHeaderHash() common.Hash
-	GetLatestHeaderHash() common.Hash
+type VerifiedSlotDatabase interface {
+	ReadOnlyVerifiedSlotInfoDatabase
+
+	SaveVerifiedSlotInfo(slot uint64, slotInfo *types.SlotInfo) error
+	SaveLatestVerifiedSlot(ctx context.Context) error
+	SaveLatestVerifiedHeaderHash() error
 }
 
-// PanHeaderAccessDatabase
-type PanHeaderAccessDatabase interface {
-	ReadOnlyPanHeaderAccessDatabase
-
-	SavePandoraHeaderHash(slot uint64, headerHash *types.HeaderHash) error
-	SaveLatestPandoraSlot() error
-	SaveLatestPandoraHeaderHash() error
+type ReadOnlyInvalidSlotInfoDatabase interface {
+	InvalidSlotInfo(slots uint64) (*types.SlotInfo, error)
 }
 
-type VanHeaderAccessDatabase interface {
-	ReadOnlyVanHeaderAccessDatabase
+type InvalidSlotDatabase interface {
+	ReadOnlyInvalidSlotInfoDatabase
 
-	SaveVanguardHeaderHash(slot uint64, headerHash *types.HeaderHash) error
-	SaveLatestVanguardSlot() error
-	SaveLatestVanguardHeaderHash() error
-}
-
-type RealmReadOnlyAccessDatabase interface {
-	LatestVerifiedRealmSlot() (slot uint64)
-}
-
-type RealmAccessDatabase interface {
-	RealmReadOnlyAccessDatabase
-
-	SaveLatestVerifiedRealmSlot(slot uint64) (err error)
+	SaveInvalidSlotInfo(slot uint64, slotInfo *types.SlotInfo) error
 }
 
 // Database interface with full access.
@@ -74,11 +56,9 @@ type Database interface {
 
 	ConsensusInfoAccessDatabase
 
-	PanHeaderAccessDatabase
+	VerifiedSlotDatabase
 
-	VanHeaderAccessDatabase
-
-	RealmAccessDatabase
+	InvalidSlotDatabase
 
 	DatabasePath() string
 	ClearDB() error
