@@ -3,10 +3,10 @@ package vanguardchain
 import (
 	"context"
 	"fmt"
-	"github.com/gogo/protobuf/types"
+	duration "github.com/golang/protobuf/ptypes/duration"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/client"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
-	eth "github.com/prysmaticlabs/ethereumapis/eth/v1alpha1"
+	eth "github.com/prysmaticlabs/prysm/proto/eth/v1alpha1"
 	logTest "github.com/sirupsen/logrus/hooks/test"
 	"testing"
 	"time"
@@ -20,7 +20,7 @@ func Test_VanguardSvc_StartStop(t *testing.T) {
 
 	ConsensusInfoMocks = make([]*eth.MinimalConsensusInfo, 0)
 	ConsensusInfoMocks = append(ConsensusInfoMocks, &eth.MinimalConsensusInfo{
-		SlotTimeDuration: &types.Duration{Seconds: 6}})
+		SlotTimeDuration: &duration.Duration{Seconds: 6}})
 
 	PendingBlockMocks = nil
 
@@ -50,7 +50,7 @@ func Test_VanguardSvc_NoServerConn(t *testing.T) {
 
 	ConsensusInfoMocks = make([]*eth.MinimalConsensusInfo, 0)
 	ConsensusInfoMocks = append(ConsensusInfoMocks, &eth.MinimalConsensusInfo{
-		SlotTimeDuration: &types.Duration{Seconds: 6}})
+		SlotTimeDuration: &duration.Duration{Seconds: 6}})
 
 	PendingBlockMocks = nil
 
@@ -82,7 +82,7 @@ func Test_VanguardSvc_RetryToConnServer(t *testing.T) {
 
 	ConsensusInfoMocks = make([]*eth.MinimalConsensusInfo, 0)
 	ConsensusInfoMocks = append(ConsensusInfoMocks, &eth.MinimalConsensusInfo{
-		SlotTimeDuration: &types.Duration{Seconds: 6}})
+		SlotTimeDuration: &duration.Duration{Seconds: 6}})
 
 	PendingBlockMocks = nil
 

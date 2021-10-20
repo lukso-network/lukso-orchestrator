@@ -3,7 +3,7 @@ package types
 import (
 	"github.com/ethereum/go-ethereum/common"
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
-	eth2Types "github.com/prysmaticlabs/ethereumapis/eth/v1alpha1"
+	eth2Types "github.com/prysmaticlabs/prysm/proto/eth/v1alpha1"
 	"time"
 )
 

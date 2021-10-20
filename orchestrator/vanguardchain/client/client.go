@@ -3,12 +3,12 @@ package client
 import (
 	"context"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	ptypes "github.com/gogo/protobuf/types"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	types "github.com/prysmaticlabs/eth2-types"
-	ethpb "github.com/prysmaticlabs/ethereumapis/eth/v1alpha1"
+	ethpb "github.com/prysmaticlabs/prysm/proto/eth/v1alpha1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"time"
 )
 
@@ -70,7 +70,7 @@ func (ec *GRPCClient) Close() {
 // CanonicalHeadSlot returns the slot of canonical block currently found in the
 // beacon chain via RPC.
 func (vanClient *GRPCClient) CanonicalHeadSlot() (types.Slot, error) {
-	head, err := vanClient.beaconClient.GetChainHead(vanClient.ctx, &ptypes.Empty{})
+	head, err := vanClient.beaconClient.GetChainHead(vanClient.ctx, &emptypb.Empty{})
 	if err != nil {
 		log.WithError(err).Warn("Failed to get canonical head")
 		return types.Slot(0), err
@@ -120,7 +120,7 @@ func (vanClient *GRPCClient) IsValidBlock (slot types.Slot, blockHash []byte) (b
 }
 
 func (vanClient *GRPCClient) GetFinalizedEpoch () (types.Epoch, error) {
-	head, err := vanClient.beaconClient.GetChainHead(vanClient.ctx, &ptypes.Empty{})
+	head, err := vanClient.beaconClient.GetChainHead(vanClient.ctx, &emptypb.Empty{})
 	if err != nil {
 		return 0, err
 	}

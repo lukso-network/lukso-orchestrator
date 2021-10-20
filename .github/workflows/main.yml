@@ -2,16 +2,15 @@ name: Test and build
 
 on:
   push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ '**' ]
+    branches:
+      - '**'
 
 jobs:
   test:
     strategy:
       matrix:
         go-version: [ 1.16 ]
-        platform: [ ubuntu-latest ]
+        platform: [ ubuntu-18.04 ]
 
     runs-on: ${{ matrix.platform }}
 
@@ -31,7 +30,7 @@ jobs:
     strategy:
       matrix:
         go-version: [ 1.16 ]
-        platform: [ ubuntu-latest ]
+        platform: [ ubuntu-18.04 ]
 
     runs-on: ${{ matrix.platform }}
 
