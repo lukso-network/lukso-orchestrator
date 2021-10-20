@@ -39,20 +39,23 @@ param (
 
 $platform = "Windows"
 $architecture = "x86_64"
-$InstallDir = $Env:APPDATA+"\LUKSO";
+$InstallDir = $Env:APPDATA + "\LUKSO";
 
 $runDate = Get-Date -Format "yyyy-m-dd__HH-mm-ss"
 
-Function download ($url, $dst) {
+Function download($url, $dst)
+{
     echo $url
     echo $dst
     $client = New-Object System.Net.WebClient
     $client.DownloadFile($url, $dst)
 }
 
-Function download_binary ($client, $tag) {
+Function download_binary($client, $tag)
+{
 
-    switch ($client) {
+    switch ($client)
+    {
         orchestrator {
             $repo = "lukso-orchestrator"
         }
@@ -76,44 +79,50 @@ Function download_binary ($client, $tag) {
 
 }
 
-Function download_network_config ($network) {
-    $CDN = "https://storage.googleapis.com/l15-cdn/networks/"+$network
-    $TARGET = $InstallDir+"\networks\"+$network+"\config"
+Function download_network_config($network)
+{
+    $CDN = "https://storage.googleapis.com/l15-cdn/networks/" + $network
+    $TARGET = $InstallDir + "\networks\" + $network + "\config"
     New-Item -ItemType Directory -Force -Path $TARGET
     download $CDN"\network-config.yaml?ignoreCache=1" $TARGET"\network-config.yaml"
 }
 
-Function bind_binary($client, $tag) {
-    if (!(Test-Path "$InstallDir/binaries/$client/$tag/$client-$platform-$architecture")) {
+Function bind_binary($client, $tag)
+{
+    if (!(Test-Path "$InstallDir/binaries/$client/$tag/$client-$platform-$architecture"))
+    {
         download_binary $client $tag
     }
     rm "$InstallDir\globalPath\$client"
     cmd /c mklink "$InstallDir\globalPath\$client" "$InstallDir\binaries\$client\$tag\$client-$platform-$architecture"
 }
 
-Function bind_binaries() {
+Function bind_binaries()
+{
     Write-Output
 }
 
-Function start_orchestrator() {
+Function start_orchestrator()
+{
 
-    if ( ! (Test-Path "$datadir\orchestrator") ) {
-       New-Item -ItemType Directory -Force -Path $datadir\orchestrator
+    if (!(Test-Path "$datadir\orchestrator"))
+    {
+        New-Item -ItemType Directory -Force -Path $datadir\orchestrator
     }
 
     Write-Output $runDate | Out-File -FilePath "$logsdir\orchestrator\current.tmp"
 
     $arguments = @(
-        "--datadir=$datadir\orchestrator"
-        "--vanguard-grpc-endpoint=127.0.0.1:4000"
-        "--http"
-        "--http.addr=0.0.0.0"
-        "--http.port=7877"
-        "--ws"
-        "--ws.addr=0.0.0.0"
-        "--ws.port=7878"
-        "--pandora-rpc-endpoint=ws://127.0.0.1:8546"
-        "--verbosity=trace"
+    "--datadir=$datadir\orchestrator"
+    "--vanguard-grpc-endpoint=127.0.0.1:4000"
+    "--http"
+    "--http.addr=0.0.0.0"
+    "--http.port=7877"
+    "--ws"
+    "--ws.addr=0.0.0.0"
+    "--ws.port=7878"
+    "--pandora-rpc-endpoint=ws://127.0.0.1:8546"
+    "--verbosity=trace"
     )
 
     Write-Output $arguments
@@ -126,8 +135,10 @@ Function start_orchestrator() {
 }
 
 # "start" is a reserved keyword in PowerShell
-function _start($client) {
-    switch ($client) {
+function _start($client)
+{
+    switch ($client)
+    {
         orchestrator {
             start_orchestrator
         }
@@ -151,59 +162,66 @@ function _start($client) {
 }
 
 ##Flags action
-if ($orchestrator) {
+if ($orchestrator)
+{
     bind_binary orchestrator $orchestrator
 }
 
-if ($pandora) {
+if ($pandora)
+{
     bind_binary pandora $pandora
 }
 
-if ($vanguard) {
+if ($vanguard)
+{
     bind_binary vanguard $vanguard
 }
 
-if ($validator) {
+if ($validator)
+{
     bind_binary validator $validator
 }
 
-switch ($command) {
-start {
-    _start $argument
-    $KeepShell = $true
+switch ($command)
+{
+    start {
+        _start $argument
+        $KeepShell = $true
+    }
+
+    stop {
+        _stop $argument
+    }
+
+    restart {
+        _restart $argument
+    }
+
+    help {
+        _help
+    }
+
+    logs {
+        logs $argument
+    }
+
+    bind-binaries {
+        Write-Output binding
+    }
+
+    Default {
+        Write-Output "Unknown command"
+        exit
+    }
 }
 
-stop {
-    _stop $argument
-}
-
-restart {
-    _restart $argument
-}
-
-help {
-    _help
-}
-
-logs {
-    logs $argument
-}
-
-bind-binaries {
-    Write-Output binding
-}
-
-Default {
-    Write-Output "Unknown command"
-    exit
-}
-}
-
-if ($KeepShell) {
+if ($KeepShell)
+{
     Write-Output "LUKSO clients are working do not close this shell"
 }
 
-while ($KeepShell) {
+while ($KeepShell)
+{
     Read-Host
 }
 
