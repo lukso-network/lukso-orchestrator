@@ -794,8 +794,14 @@ help() {
   echo "--orchestrator         Sets orchestrator tag to be used"
   echo "                       [Tag name ex. v0.1.0-develop]"
   echo
+  echo "--orchestrator-verbosity Sets orchestrator logging depth"
+  echo "                       [silent, error, warn, info, debug, trace]"
+  echo
   echo "--pandora              Sets pandora tag to be used"
   echo "                       [Tag name ex. v0.1.0-develop]"
+  echo
+  echo "--pandora-verbosity    Sets pandora logging depth (note: pandora uses integers for that flag, script will convert those to proper values)"
+  echo "                       [silent, error, warn, info, debug, trace]"
   echo
   echo "--pandora-bootnodes    Sets pandora bootnodes"
   echo "                       [Strings of bootnodes separated by commas: \"enode://72caa...,enode://b4a11a...\"]"
@@ -814,6 +820,9 @@ help() {
   echo "--vanguard             Sets vanguard tag to be used"
   echo "                       [Tag name ex. v0.1.0-develop]"
   echo
+  echo "--vanguard-verbosity   Sets vanguard logging depth"
+  echo "                       [silent, error, warn, info, debug, trace]"
+  echo
   echo "--vanguard-bootnodes   Sets vanguard bootnodes"
   echo "                       [Strings of bootnodes separated by commas: \"enr:-Ku4QAmY...,enr:-M23QLmY...\"]"
   echo
@@ -828,6 +837,9 @@ help() {
   echo
   echo "--validator            Sets validator tag to be used"
   echo "                       [Tag name ex. v0.1.0-develop]"
+  echo
+  echo "--validator-verbosity  Sets validator logging depth"
+  echo "                       [silent, error, warn, info, debug, trace]"
   echo
   echo "--external-ip          Sets external IP for pandora and vanguard"
   echo "                       [72.122.32.234]"
