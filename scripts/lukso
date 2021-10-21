@@ -1151,31 +1151,31 @@ while getopts "$optspec" optchar; do
       OVERRIDE_VANGUARD_ORC_RPC_PROVIDER=$val
       ;;
 
-    vanguard-rpc-endpoint)
+    orchestrator-vanguard-rpc-endpoint)
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
       OVERRIDE_ORCHESTRATOR_VANGUARD_RPC_ENDPOINT=$val
       ;;
 
-    pandora-rpc-endpoint)
+    orchestrator-pandora-rpc-endpoint)
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
       OVERRIDE_ORCHESTRATOR_PANDORA_RPC_ENDPOINT=$val
       ;;
 
-    beacon-rpc-provider)
+    validator-beacon-rpc-provider)
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
       OVERRIDE_VALIDATOR_BEACON_RPC_PROVIDER=$val
       ;;
 
-    pandora-http-provider)
+    validator-pandora-http-provider)
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
       OVERRIDE_VALIDATOR_PANDORA_HTTP_PROVIDER=$val
       ;;
 
-    beacon-addr)
+    eth2stats-beacon-addr)
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
       OVERRIDE_ETH2STATS_BEACON_ADDR=$val
