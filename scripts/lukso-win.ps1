@@ -3,41 +3,41 @@ param (
     [Parameter(Position = 1)][String]$argument,
 
     [String]$orchestrator = "",
-    [String]$orchestrator_verbosity = "",
+    [String]${orchestrator-verbosity} = "",
     [String]$pandora = "",
     [String]$vanguard = "",
     [String]$validator = "",
     [String]$deposit = "",
     [String]$eth2stats = "",
     [String]$network = "l15",
-    [String]$lukso_home = "$HOME\.lukso",
-    [String]$datadir = "$lukso_home\$network\datadir",
-    [String]$logsdir = "$lukso_home\$network\logs",
-    [String]$keys_dir = "",
-    [String]$keys_password_file = "",
-    [String]$wallet_dir = "",
-    [String]$wallet_password_file = "",
+    [String]${lukso-home} = "$HOME\.lukso",
+    [String]$datadir = "${lukso-home}\$network\datadir",
+    [String]$logsdir = "${lukso-home}\$network\logs",
+    [String]${keys-dir} = "",
+    [String]${keys-password-file} = "",
+    [String]${wallet-dir} = "",
+    [String]${wallet-password-file} = "",
     [Switch]$l15,
-    [Switch]$l15_staging,
-    [Switch]$l15_dev,
+    [Switch]${l15-staging},
+    [Switch]${l15-dev},
     [String]$config = "",
     [String]$coinbase = "0x616e6f6e796d6f75730000000000000000000000",
-    [String]$node_name = "",
+    [String]${node-name} = "",
     [Switch]$validate,
-    [String]$pandora_bootnodes = "",
-    [String]$pandora_http_port = "8545",
-    [Switch]$pandora_metrics,
-    [String]$pandora_nodekey = "",
-    [String]$pandora_external_ip = "",
-    [String]$pandora_verbosity = "",
-    [String]$vanguard_bootnodes = "",
-    [String]$vanguard_p2p_priv_key = "",
-    [String]$vanguard_external_ip = "",
-    [String]$vanguard_p2p_host_dns = "",
-    [String]$vanguard_verbosity = "",
-    [String]$validator_verbosity = "",
-    [String]$external_ip = "",
-    [Switch]$allow_respin,
+    [String]${pandora-bootnodes} = "",
+    [String]${pandora-http-port} = "8545",
+    [Switch]${pandora-metrics},
+    [String]${pandora-nodekey} = "",
+    [String]${pandora-external-ip} = "",
+    [String]${pandora-verbosity} = "",
+    [String]${vanguard-bootnodes} = "",
+    [String]${vanguard-p2p-priv-key} = "",
+    [String]${vanguard-external-ip} = "",
+    [String]${vanguard-p2p-host-dns} = "",
+    [String]${vanguard-verbosity} = "",
+    [String]${validator-verbosity} = "",
+    [String]${external-ip} = "",
+    [Switch]${allow-respin},
     [Switch]$force
 )
 
@@ -165,28 +165,28 @@ Function start_orchestrator()
 
 function start_pandora()
 {
-    switch ($pandora_verbosity)
+    switch (${pandora-verbosity})
     {
         silent {
-            $pandora_verbosity = 0
+            ${pandora-verbosity} = 0
         }
         error {
-            $pandora_verbosity = 1
+            ${pandora-verbosity} = 1
         }
         warn {
-            $pandora_verbosity = 2
+            ${pandora-verbosity} = 2
         }
         info {
-            $pandora_verbosity = 3
+            ${pandora-verbosity} = 3
         }
         debug {
-            $pandora_verbosity = 4
+            ${pandora-verbosity} = 4
         }
         detail {
-            $pandora_verbosity= 5
+            ${pandora-verbosity}= 5
         }
         trace {
-            $pandora_verbosity= 5
+            ${pandora-verbosity}= 5
         }
     }
 
@@ -223,18 +223,18 @@ function start_pandora()
     $Arguments.Add("--miner.etherbase=$coinbase")
     $Arguments.Add("--syncmode=full")
     $Arguments.Add("--allow-insecure-unlock")
-    $Arguments.Add("--verbosity=$pandora_verbosity")
-    $Arguments.Add("--nat=extip:$pandora_external_ip")
+    $Arguments.Add("--verbosity=${pandora-verbosity}")
+    $Arguments.Add("--nat=extip:${pandora-external-ip}")
 
-    if ($pandora_metrics) {
+    if (${pandora-metrics}) {
         $Arguments.Add("--metrics")
         $Arguments.Add("--metrics.expensive")
         $Arguments.Add("--pprof")
         $Arguments.Add("--pprof.addr=0.0.0.0")
     }
 
-    if ($pandora_nodekey) {
-        $Arguments.Add("--nodekey=$pandora_nodekey")
+    if (${pandora-nodekey}) {
+        $Arguments.Add("--nodekey=${pandora-nodekey}")
     }
 
     Start-Process -FilePath "pandora" `
@@ -253,7 +253,7 @@ function start_vanguard() {
     Write-Output $runDate | Out-File -FilePath "$logsdir\vanguard\current.tmp"
     $Arguments = New-Object System.Collections.Generic.List[System.Object]
 
-    $BootnodesArray = $vanguard_bootnodes.Split(",")
+    $BootnodesArray = ${vanguard-bootnodes}.Split(",")
 
 
     $Arguments.Add("--accept-terms-of-use")
@@ -265,12 +265,12 @@ function start_vanguard() {
     foreach ($Bootnode in $BootnodesArray) {
         $Arguments.Add("--bootstrap-node=$Bootnode")
     }
-    $Arguments.Add("--http-web3provider=http://127.0.0.1:$pandora_http_port")
+    $Arguments.Add("--http-web3provider=http://127.0.0.1:${pandora-http-port}")
     $Arguments.Add("--deposit-contract=0x000000000000000000000000000000000000cafe")
     $Arguments.Add("--contract-deployment-block=0")
     $Arguments.Add("--rpc-host=0.0.0.0")
     $Arguments.Add("--monitoring-host=0.0.0.0")
-    $Arguments.Add("--verbosity=$vanguard_verbosity")
+    $Arguments.Add("--verbosity=${vanguard-verbosity}")
     $Arguments.Add("--min-sync-peers=2")
     $Arguments.Add("--p2p-max-peers=50")
     $Arguments.Add("--orc-http-provider=http://127.0.0.1:7877")
@@ -281,8 +281,8 @@ function start_vanguard() {
     $Arguments.Add("--update-head-timely")
     $Arguments.Add("--lukso-network")
 
-    if ($vanguard_p2p_priv_key) {
-        $Arguments.Add("--p2p-priv-key=$vanguard_p2p_priv_key")
+    if (${vanguard-p2p-priv-key}) {
+        $Arguments.Add("--p2p-priv-key=${vanguard-p2p-priv-key}")
     }
 
     if ($vanguard_p2p_host_dns) {
