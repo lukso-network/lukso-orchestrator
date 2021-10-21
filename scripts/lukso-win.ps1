@@ -44,8 +44,9 @@ param (
 $platform = "Windows"
 $architecture = "x86_64"
 $InstallDir = $Env:APPDATA + "\LUKSO";
+$NetworkConfig = "$InstallDir\networks\$network\config\network-config.yaml"
 
-$runDate = Get-Date -Format "yyyy-m-dd__HH-mm-ss"
+$RunDate = Get-Date -Format "yyyy-m-dd__HH-mm-ss"
 
 Function download($url, $dst)
 {
@@ -60,7 +61,7 @@ Function download_binary($client, $tag)
 
     switch ($client)
     {
-        orchestrator {
+        lukso-orchestrator {
             $repo = "lukso-orchestrator"
         }
 
@@ -72,33 +73,40 @@ Function download_binary($client, $tag)
             $repo = "vanguard-consensus-engine"
         }
 
-        validator {
+        lukso-validator {
+            $repo = "vanguard-consensus-engine"
+        }
+
+        eth2stats {
             $repo = "vanguard-consensus-engine"
         }
     }
 
-    $TARGET = "$InstallDir\binaries\$CLIENT\$TAG"
-    New-Item -ItemType Directory -Force -Path $TARGET
-    download "https://github.com/lukso-network/$repo/releases/download/$tag/$client-$platform-$architecture.exe" "$TARGET\$CLIENT-$PLATFORM-$ARCHITECTURE"
+    $Target = "$InstallDir\binaries\$CLIENT\$TAG"
+    New-Item -ItemType Directory -Force -Path $Target
+    download "https://github.com/lukso-network/$repo/releases/download/$tag/$client-$platform-$architecture.exe" "$Target\$CLIENT-$PLATFORM-$ARCHITECTURE.exe"
 
 }
 
 Function download_network_config($network)
 {
     $CDN = "https://storage.googleapis.com/l15-cdn/networks/" + $network
-    $TARGET = $InstallDir + "\networks\" + $network + "\config"
-    New-Item -ItemType Directory -Force -Path $TARGET
-    download $CDN"\network-config.yaml?ignoreCache=1" $TARGET"\network-config.yaml"
+    $Target = $InstallDir + "\networks\" + $network + "\config"
+    New-Item -ItemType Directory -Force -Path $Target
+    download $CDN"\network-config.yaml?ignoreCache=1" $Target"\network-config.yaml"
 }
 
 Function bind_binary($client, $tag)
 {
-    if (!(Test-Path "$InstallDir/binaries/$client/$tag/$client-$platform-$architecture"))
+    if (!(Test-Path "$InstallDir/binaries/$client/$tag/$client-$platform-$architecture.exe"))
     {
         download_binary $client $tag
     }
-    rm "$InstallDir\globalPath\$client"
-    cmd /c mklink "$InstallDir\globalPath\$client" "$InstallDir\binaries\$client\$tag\$client-$platform-$architecture"
+    if (Test-Path "$InstallDir\globalPath\$client") {
+        rm "$InstallDir\globalPath\$client"
+    }
+
+    cmd /c mklink "$InstallDir\globalPath\$client" "$InstallDir\binaries\$client\$tag\$client-$platform-$architecture.exe"
 }
 
 Function bind_binaries()
@@ -109,10 +117,11 @@ Function bind_binaries()
 Function pick_network($picked_network)
 {
     $network = $picked_network
-    if (!(Test-Path "$InstallDir\networks\$network"))
+        if (!(Test-Path "$InstallDir\networks\$network"))
     {
         download_network_config $network
     }
+    $NetworkConfig = ConvertFrom-Yaml $(cat $config)
 }
 
 function check_validator_requirements()
@@ -149,7 +158,7 @@ Function start_orchestrator()
     -ArgumentList $arguments `
     -NoNewWindow `
     -RedirectStandardOutput "orchestrator_$runDate.out" `
-    -RedirectStandardError "orchestrator_$runDate..err"
+    -RedirectStandardError "orchestrator_$runDate.err"
 
 
 }
@@ -159,25 +168,25 @@ function start_pandora()
     switch ($pandora_verbosity)
     {
         silent {
-            PANDORA_VERBOSITY = 0
+            $pandora_verbosity = 0
         }
         error {
-            PANDORA_VERBOSITY = 1
+            $pandora_verbosity = 1
         }
         warn {
-            PANDORA_VERBOSITY = 2
+            $pandora_verbosity = 2
         }
         info {
-            PANDORA_VERBOSITY = 3
+            $pandora_verbosity = 3
         }
         debug {
-            PANDORA_VERBOSITY = 4
+            $pandora_verbosity = 4
         }
         detail {
-            PANDORA_VERBOSITY= 5
+            $pandora_verbosity= 5
         }
         trace {
-            PANDORA_VERBOSITY= 5
+            $pandora_verbosity= 5
         }
     }
 
@@ -188,6 +197,8 @@ function start_pandora()
         New-Item -ItemType Directory -Force -Path $datadir/pandora
     }
 
+    Write-Output $runDate | Out-File -FilePath "$logsdir\pandora\current.tmp"
+
     pandora --datadir $DATADIR/pandora init $InstallDir\networks\$NETWORK\config\pandora-genesis.json
     Copy-Item $InstallDir\networks\$NETWORK\config\pandora-nodes.json -Destination $datadir\pandora\geth
 
@@ -197,18 +208,19 @@ function start_pandora()
     $Arguments.Add("--networkid=$NETWORK_ID")
     $Arguments.Add("--ethstats=${NODE_NAME}:$ETH1_STATS_APIKEY@$ETH1_STATS_URL")
     $Arguments.Add("--port=30405")
-    $Arguments.Add("--rpc")
-    $Arguments.Add("--rpcaddr=0.0.0.0")
-    $Arguments.Add("--rpcapi=admin,net,eth,debug,miner,personal,txpool,web3")
-    $Arguments.Add("--bootnodes=$PANDORA_BOOTNODES")
+    $Arguments.Add("--http")
+    $Arguments.Add("--http.addr=0.0.0.0")
+    $Arguments.Add("--http.port=$pandora_http_port")
+    $Arguments.Add("--http.api=admin,net,eth,debug,miner,personal,txpool,web3")
     $Arguments.Add("--http.corsdomain=*")
+    $Arguments.Add("--bootnodes=$pandora_bootnodes")
     $Arguments.Add("--ws")
-    $Arguments.Add("--ws.api=admin,net,eth,debug,miner,personal,txpool,web3")
     $Arguments.Add("--ws.port=8546")
+    $Arguments.Add("--ws.api=admin,net,eth,debug,miner,personal,txpool,web3")
     $Arguments.Add("--ws.origins=*")
     $Arguments.Add("--mine")
     $Arguments.Add("--miner.notify=ws://127.0.0.1:7878,http://127.0.0.1:7877")
-    $Arguments.Add("--miner.etherbase=$COINBASE")
+    $Arguments.Add("--miner.etherbase=$coinbase")
     $Arguments.Add("--syncmode=full")
     $Arguments.Add("--allow-insecure-unlock")
     $Arguments.Add("--verbosity=$pandora_verbosity")
@@ -229,10 +241,63 @@ function start_pandora()
     -ArgumentList $arguments `
     -NoNewWindow `
     -RedirectStandardOutput "$logsdir\pandora_$runDate.out" `
-    -RedirectStandardError "$logsdir\pandora_$runDate..err"
+    -RedirectStandardError "$logsdir\pandora_$runDate.err"
 }
 
-function start_vanguard() {}
+function start_vanguard() {
+    if (!(Test-Path $logsdir\vanguard))
+    {
+        New-Item -ItemType Directory -Force -Path $logsdir\vanguard
+    }
+
+    Write-Output $runDate | Out-File -FilePath "$logsdir\vanguard\current.tmp"
+    $Arguments = New-Object System.Collections.Generic.List[System.Object]
+
+    $BootnodesArray = $vanguard_bootnodes.Split(",")
+
+
+    $Arguments.Add("--accept-terms-of-use")
+    $Arguments.Add("--chain-id=$NetworkConfig.CHAIN_ID")
+    $Arguments.Add("--network-id=$NetworkConfig.NETWORK_ID")
+    $Arguments.Add("--genesis-state=$InstallDir\$network\config\vanguard-genesis.ssz")
+    $Arguments.Add("--datadir=$datadir\vanguard\")
+    $Arguments.Add("--chain-config-file=$InstallDir\$network\config\vanguard-config.yaml")
+    foreach ($Bootnode in $BootnodesArray) {
+        $Arguments.Add("--bootstrap-node=$Bootnode")
+    }
+    $Arguments.Add("--http-web3provider=http://127.0.0.1:$pandora_http_port")
+    $Arguments.Add("--deposit-contract=0x000000000000000000000000000000000000cafe")
+    $Arguments.Add("--contract-deployment-block=0")
+    $Arguments.Add("--rpc-host=0.0.0.0")
+    $Arguments.Add("--monitoring-host=0.0.0.0")
+    $Arguments.Add("--verbosity=$vanguard_verbosity")
+    $Arguments.Add("--min-sync-peers=2")
+    $Arguments.Add("--p2p-max-peers=50")
+    $Arguments.Add("--orc-http-provider=http://127.0.0.1:7877")
+    $Arguments.Add("--rpc-port=4000")
+    $Arguments.Add("--p2p-udp-port=12000")
+    $Arguments.Add("--p2p-tcp-port=13000")
+    $Arguments.Add("--grpc-gateway-port=3500")
+    $Arguments.Add("--update-head-timely")
+    $Arguments.Add("--lukso-network")
+
+    if ($vanguard_p2p_priv_key) {
+        $Arguments.Add("--p2p-priv-key=$vanguard_p2p_priv_key")
+    }
+
+    if ($vanguard_p2p_host_dns) {
+        $Arguments.Add("--p2p-host-dns=$vanguard_p2p_host_dns")
+    }
+
+    elseif ($vanguard_external_ip) {
+        $Arguments.Add("--p2p-host-ip=$vanguard_external_ip")
+    }
+
+    else {
+        $Arguments.Add("--p2p-host-ip=$vanguard_external_ip")
+    }
+
+}
 
 function start_validator() {}
 
@@ -433,7 +498,7 @@ function _help() {
 ##Flags action
 if ($orchestrator)
 {
-    bind_binary orchestrator $orchestrator
+    bind_binary lukso-orchestrator $orchestrator
 }
 
 if ($pandora)
@@ -448,7 +513,28 @@ if ($vanguard)
 
 if ($validator)
 {
-    bind_binary validator $validator
+    bind_binary lukso-validator $validator
+}
+
+if ($l15) {
+    pick_network l15
+}
+
+if ($l15_staging) {
+    pick_network l15-staging
+}
+
+if ($l15_dev) {
+    pick_network l15-dev
+}
+
+if ($network) {
+    pick_network $network
+}
+
+if ($config)
+{
+    $configObj = ConvertFrom-Yaml $(cat $config)
 }
 
 switch ($command)
