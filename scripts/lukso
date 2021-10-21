@@ -167,7 +167,7 @@ bind_binary() {
 bind_eth2stats_binary() {
   TAG="$1"
   if [[ ! -f /opt/lukso/binaries/eth2stats-client/$TAG/eth2stats-client ]]; then
-    download_binary $CLIENT $TAG
+    download_eth2stats_binary $CLIENT $TAG
   fi
 
   sudo ln -sf "/opt/lukso/binaries/eth2stats-client/$TAG/eth2stats-client" /usr/local/bin/eth2stats-client
@@ -946,7 +946,7 @@ while getopts "$optspec" optchar; do
     eth2stats)
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
-      bind_binary eth2stats-client $val
+      bind_eth2stats_binary eth2stats-client $val
       ;;
 
     network)
