@@ -41,6 +41,10 @@ LOGSDIR="$LUKSO_HOME/$NETWORK/logs"
 NODE_NAME="$(LC_CTYPE=C LANG=C tr -dc A-F0-9 </dev/urandom | head -c 8)"
 EXTERNAL_IP=$(curl -s ident.me)
 
+###### General variables
+VANGUARD_IPC_PATH=$DATADIR/vanguard/vanguard.ipc
+PANDORA_IPC_PATH=$DATADIR/pandora/geth.ipc
+######
 
 ###### Orchestrator settings
 ORCHESTRATOR_VERBOSITY=debug
@@ -57,6 +61,14 @@ ETH1_STATS_URL=""
 
 ###### Vanguard
 VANGUARD_VERBOSITY=debug
+VANGUARD_HTTP_WEB3PROVIDER=$PANDORA_IPC_PATH
+VANGUARD_RPC_HOST=$VANGUARD_IPC_PATH
+VANGUARD_ORC_RPC_PROVIDER=$DATADIR/orchestrator/orchestrator.ipc
+ORCHESTRATOR_VANGUARD_RPC_ENDPOINT=$VANGUARD_IPC_PATH
+ORCHESTRATOR_PANDORA_RPC_ENDPOINT=$PANDORA_IPC_PATH
+VALIDATOR_BEACON_RPC_PROVIDER=$VANGUARD_IPC_PATH
+VALIDATOR_PANDORA_HTTP_PROVIDER=$PANDORA_IPC_PATH
+ETH2STATS_BEACON_ADDR=$VANGUARD_IPC_PATH
 VANGUARD_BOOTNODES=""
 ETH2_STATS_URL=""
 VANGUARD_P2P_PRIV_KEY=""
@@ -313,7 +325,7 @@ start_orchestrator() {
     mkdir -p $DATADIR/orchestrator
   fi
   nohup lukso-orchestrator --datadir=$DATADIR/orchestrator \
-    --vanguard-rpc-endpoint=$DATADIR/vanguard/vanguard.ipc \
+    --vanguard-rpc-endpoint=$ORCHESTRATOR_VANGUARD_RPC_ENDPOINT \
     --http \
     --http.addr=0.0.0.0 \
     --http.port=7877 \
@@ -321,7 +333,7 @@ start_orchestrator() {
     --ws.addr=0.0.0.0 \
     --ws.port=7878 \
     --ipcpath=$DATADIR/orchestrator \
-    --pandora-rpc-endpoint=$DATADIR/pandora/geth.ipc \
+    --pandora-rpc-endpoint=$ORCHESTRATOR_PANDORA_RPC_ENDPOINT \
     --verbosity=$ORCHESTRATOR_VERBOSITY >|$LOGSDIR/orchestrator/orchestrator_"$RUN_DATE".log 2>&1 &
   disown
 }
@@ -427,15 +439,15 @@ start_vanguard() {
     "--datadir=$DATADIR/vanguard/"
     "--chain-config-file=/opt/lukso/networks/$NETWORK/config/vanguard-config.yaml"
     "${BOOTNODES_ARGS[@]}"
-    "--http-web3provider=$DATADIR/pandora/geth.ipc"
+    "--http-web3provider=$VANGUARD_HTTP_WEB3PROVIDER"
     "--deposit-contract=0x000000000000000000000000000000000000cafe"
     "--contract-deployment-block=0"
-    "--rpc-host=$DATADIR/vanguard/vanguard.ipc"
+    "--rpc-host=$VANGUARD_RPC_HOST"
     "--monitoring-host=0.0.0.0"
     "--verbosity=$VANGUARD_VERBOSITY"
     "--min-sync-peers=2"
     "--p2p-max-peers=50"
-    "--orc-rpc-provider=$DATADIR/orchestrator/orchestrator.ipc"
+    "--orc-rpc-provider=$VANGUARD_ORC_RPC_PROVIDER"
     "--rpc-port=4000"
     "--p2p-udp-port=12000"
     "--p2p-tcp-port=13000"
@@ -470,10 +482,10 @@ start_validator() {
   ARGUMENTS=(
     "--datadir=$DATADIR/validator/"
     "--accept-terms-of-use"
-    "--beacon-rpc-provider=$DATADIR/vanguard/vanguard.ipc"
+    "--beacon-rpc-provider=$VALIDATOR_BEACON_RPC_PROVIDER"
     "--chain-config-file=/opt/lukso/networks/$NETWORK/config/vanguard-config.yaml"
     "--verbosity=$VALIDATOR_VERBOSITY"
-    "--pandora-http-provider=$DATADIR/pandora/geth.ipc"
+    "--pandora-http-provider=$VALIDATOR_PANDORA_HTTP_PROVIDER"
     "--wallet-dir=$WALLET_DIR"
     "--rpc"
     "--log-file=$LOGSDIR/validator/validator_$RUN_DATE.log"
@@ -496,7 +508,7 @@ start_eth2stats_client() {
 
   nohup eth2stats-client run \
     --beacon.type="prysm" \
-    --beacon.addr="$DATADIR/vanguard/vanguard.ipc" \
+    --beacon.addr="$ETH2STATS_BEACON_ADDR" \
     --data.folder=$DATADIR/eth2stats-client \
     --eth2stats.node-name="$NODE_NAME" \
     --eth2stats.addr="$ETH2_STATS_URL" \
@@ -864,6 +876,22 @@ help() {
   echo "--allow-respin         Deletes all datadirs IF network config changed (based on genesis time)"
   echo
   echo "--force                Enables force mode for stopping"
+  echo
+  echo "--vanguard-http-web3provider An eth1 web3 provider string http endpoint or IPC socket path. Example: --http-web3provider=http://127.0.0.1:8545 || Default is: $DATADIR/pandora/geth.ipc"
+  echo
+  echo "--vanguard-rpc-host Host on which the RPC server should listen. Example: --vanguard-rpc-host=0.0.0.0 || Default is: $DATADIR/vanguard/vanguard.ipc"
+  echo
+  echo "--vanguard-orc-rpc-provider A orchestrator string rpc endpoint. This is our orchestrator client http endpoint or socket path. Example: --vanguard-orc-rpc-provider=http://127.0.0.1:7877 || Default is: $DATADIR/orchestrator/orchestrator.ipc"
+  echo
+  echo "--validator-beacon-rpc-provider Beacon node (vanguard) RPC provider endpoint. Example: --validator-beacon-rpc-provider=localhost:4000 || Default is: $DATADIR/vanguard/vanguard.ipc"
+  echo
+  echo "--validator-pandora-http-provider A pandora string rpc endpoint. This is our pandora client http endpoint. Example: --validator-pandora-http-provider=http://127.0.0.1:8545 || Default is: $DATADIR/pandora/geth.ipc"
+  echo
+  echo "--orchestrator-vanguard-rpc-endpoint Enables Vanguard node RPC provider endpoint. Example: --orchestrator-vanguard-rpc-endpoint=127.0.0.1:4000 || Default is: $DATADIR/vanguard/vanguard.ipc"
+  echo
+  echo "--orchestrator-pandora-rpc-endpoint Pandora node RP provider endpoint. Example: --orchestrator-pandora-rpc-endpoint=http://127.0.0.1:8545 || Default is: $DATADIR/pandora/geth.ipc"
+  echo
+  echo "--eth2stats-beacon-addr Beacon node endpoint address for eth2stats-client. Example: --eth2stats-beacon-addr=127.0.0.1:4000 || Default is: $DATADIR/vanguard/vanguard.ipc"
 
   exit
 }
@@ -1105,6 +1133,54 @@ while getopts "$optspec" optchar; do
       OVERRIDE_VANGUARD_VERBOSITY=$val
       ;;
 
+    vanguard-http-web3provider)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_VANGUARD_HTTP_WEB3PROVIDER=$val
+      ;;
+
+    vanguard-rpc-host)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_VANGUARD_RPC_HOST=$val
+      ;;
+
+    vanguard-orc-rpc-provider)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_VANGUARD_ORC_RPC_PROVIDER=$val
+      ;;
+
+    vanguard-rpc-endpoint)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_ORCHESTRATOR_VANGUARD_RPC_ENDPOINT=$val
+      ;;
+
+    pandora-rpc-endpoint)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_ORCHESTRATOR_PANDORA_RPC_ENDPOINT=$val
+      ;;
+
+    beacon-rpc-provider)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_VALIDATOR_BEACON_RPC_PROVIDER=$val
+      ;;
+
+    pandora-http-provider)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_VALIDATOR_PANDORA_HTTP_PROVIDER=$val
+      ;;
+
+    beacon-addr)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_ETH2STATS_BEACON_ADDR=$val
+      ;;
+
     validator-verbosity)
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
@@ -1208,22 +1284,74 @@ if [[ -n $OVERRIDE_VANGUARD_VERBOSITY ]]; then
   VANGUARD_VERBOSITY=$OVERRIDE_VANGUARD_VERBOSITY
 fi
 
+if [[ -n $OVERRIDE_LUKSO_HOME ]]; then
+  LUKSO_HOME=$OVERRIDE_LUKSO_HOME
+  DATADIR=$LUKSO_HOME/$NETWORK/datadirs
+  LOGSDIR=$LUKSO_HOME/$NETWORK/logs
+  VANGUARD_IPC_PATH=$DATADIR/vanguard/vanguard.ipc
+  PANDORA_IPC_PATH=$DATADIR/pandora/geth.ipc
+  VANGUARD_HTTP_WEB3PROVIDER=$PANDORA_IPC_PATH
+  VANGUARD_RPC_HOST=$PANDORA_IPC_PATH
+  VANGUARD_ORC_RPC_PROVIDER=$DATADIR/orchestrator/orchestrator.ipc
+  ORCHESTRATOR_VANGUARD_RPC_ENDPOINT=$VANGUARD_IPC_PATH
+  ORCHESTRATOR_PANDORA_RPC_ENDPOINT=$VANGUARD_IPC_PATH
+  VALIDATOR_BEACON_RPC_PROVIDER=$VANGUARD_IPC_PATH
+  VALIDATOR_PANDORA_HTTP_PROVIDER=$PANDORA_IPC_PATH
+  ETH2STATS_BEACON_ADDR=$VANGUARD_IPC_PATH
+fi
+
+if [[ -n $OVERRIDE_DATADIR ]]; then
+  DATADIR=$OVERRIDE_DATADIR
+  VANGUARD_IPC_PATH=$DATADIR/vanguard/vanguard.ipc
+  PANDORA_IPC_PATH=$DATADIR/pandora/geth.ipc
+  VANGUARD_HTTP_WEB3PROVIDER=$PANDORA_IPC_PATH
+  VANGUARD_RPC_HOST=$PANDORA_IPC_PATH
+  VANGUARD_ORC_RPC_PROVIDER=$DATADIR/orchestrator/orchestrator.ipc
+  ORCHESTRATOR_VANGUARD_RPC_ENDPOINT=$VANGUARD_IPC_PATH
+  ORCHESTRATOR_PANDORA_RPC_ENDPOINT=$VANGUARD_IPC_PATH
+  VALIDATOR_BEACON_RPC_PROVIDER=$VANGUARD_IPC_PATH
+  VALIDATOR_PANDORA_HTTP_PROVIDER=$PANDORA_IPC_PATH
+  ETH2STATS_BEACON_ADDR=$VANGUARD_IPC_PATH
+fi
+
+if [[ -n $OVERRIDE_VANGUARD_HTTP_WEB3PROVIDER ]]; then
+  VANGUARD_HTTP_WEB3PROVIDER=$OVERRIDE_VANGUARD_HTTP_WEB3PROVIDER
+fi
+
+if [[ -n $OVERRIDE_VANGUARD_RPC_HOST ]]; then
+  VANGUARD_RPC_HOST=$OVERRIDE_VANGUARD_RPC_HOST
+fi
+
+if [[ -n $OVERRIDE_VANGUARD_ORC_RPC_PROVIDER ]]; then
+  VANGUARD_ORC_RPC_PROVIDER=$OVERRIDE_VANGUARD_ORC_RPC_PROVIDER
+fi
+
+if [[ -n $OVERRIDE_ORCHESTRATOR_VANGUARD_RPC_ENDPOINT ]]; then
+  ORCHESTRATOR_VANGUARD_RPC_ENDPOINT=$OVERRIDE_ORCHESTRATOR_VANGUARD_RPC_ENDPOINT
+fi
+
+if [[ -n $OVERRIDE_ORCHESTRATOR_PANDORA_RPC_ENDPOINT ]]; then
+  ORCHESTRATOR_PANDORA_RPC_ENDPOINT=$OVERRIDE_ORCHESTRATOR_PANDORA_RPC_ENDPOINT
+fi
+
+if [[ -n $OVERRIDE_VALIDATOR_BEACON_RPC_PROVIDER ]]; then
+  VALIDATOR_BEACON_RPC_PROVIDER=$OVERRIDE_VALIDATOR_BEACON_RPC_PROVIDER
+fi
+
+if [[ -n $OVERRIDE_VALIDATOR_PANDORA_HTTP_PROVIDER ]]; then
+  VALIDATOR_PANDORA_HTTP_PROVIDER=$OVERRIDE_VALIDATOR_PANDORA_HTTP_PROVIDER
+fi
+
+if [[ -n $OVERRIDE_ETH2STATS_BEACON_ADDR ]]; then
+  ETH2STATS_BEACON_ADDR=$OVERRIDE_ETH2STATS_BEACON_ADDR
+fi
+
 if [[ -n $OVERRIDE_VALIDATOR_VERBOSITY ]]; then
   VALIDATOR_VERBOSITY=$OVERRIDE_VALIDATOR_VERBOSITY
 fi
 
 if [[ -n $OVERRIDE_EXTERNAL_IP ]]; then
   EXTERNAL_IP=$OVERRIDE_EXTERNAL_IP
-fi
-
-if [[ -n $OVERRIDE_LUKSO_HOME ]]; then
-  LUKSO_HOME=$OVERRIDE_LUKSO_HOME
-  DATADIR=$LUKSO_HOME/$NETWORK/datadirs
-  LOGSDIR=$LUKSO_HOME/$NETWORK/logs
-fi
-
-if [[ -n $OVERRIDE_DATADIR ]]; then
-  DATADIR=$OVERRIDE_DATADIR
 fi
 
 if [[ -n $OVERRIDE_LOGSDIR ]]; then
