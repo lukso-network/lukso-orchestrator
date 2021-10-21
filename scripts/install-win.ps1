@@ -2,8 +2,6 @@ $Network = "l15";
 $InstallDir = $Env:APPDATA+"\LUKSO";
 
 Function download ($url, $dst) {
-    echo $url
-    echo $dst
     $client = New-Object System.Net.WebClient
     $client.DownloadFile($url, $dst)
 }
@@ -22,11 +20,12 @@ New-Item -ItemType Directory -Force -Path $InstallDir/binaries
 New-Item -ItemType Directory -Force -Path $InstallDir/networks
 New-Item -ItemType Directory -Force -Path $InstallDir/globalPath
 
+download_network_config("l15")
 download_network_config("l15-dev")
 
 lukso bind-binaries `
---orchestrator `
---pandora `
---vanguard `
---validator `
+--orchestrator v0.1.0-develop `
+--pandora v0.1.0-beta.3 `
+--vanguard v0.2.0-develop `
+--validator v0.2.0-develop `
 
