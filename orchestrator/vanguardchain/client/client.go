@@ -2,14 +2,16 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	types "github.com/prysmaticlabs/eth2-types"
 	ethpb "github.com/prysmaticlabs/prysm/proto/eth/v1alpha1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"net"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
+	"net"
+	"net/url"
 	"time"
 )
 
@@ -40,8 +42,9 @@ type GRPCClient struct {
 func Dial(ctx context.Context, rpcAddress string, grpcRetryDelay time.Duration,
 	grpcRetries uint, maxCallRecvMsgSize int) (VanguardClient, error) {
 
-	dialer := func(addr string, t time.Duration) (net.Conn, error) {
-		return net.Dial(protocol, addr)
+	rpcAddress, protocol, err := prepareRpcAddressAndProtocol(rpcAddress)
+	if nil != err {
+		return nil, err
 	}
 
 	dialOpts := constructDialOptions(
@@ -50,10 +53,17 @@ func Dial(ctx context.Context, rpcAddress string, grpcRetryDelay time.Duration,
 		grpcRetries,
 		grpcRetryDelay,
 		grpc.WithInsecure(),
-		grpc.WithDialer(dialer),
 	)
 	if dialOpts == nil {
 		return nil, nil
+	}
+
+	if "unix" == protocol {
+		dialer := func(addr string, t time.Duration) (net.Conn, error) {
+			return net.Dial(protocol, addr)
+		}
+
+		dialOpts = append(dialOpts, grpc.WithDialer(dialer))
 	}
 
 	c, err := grpc.DialContext(ctx, rpcAddress, dialOpts...)
@@ -160,4 +170,21 @@ func constructDialOptions(
 
 	dialOpts = append(dialOpts, extraOpts...)
 	return dialOpts
+}
+
+// prepareRpcAddressAndProtocol returns a RPC address and protocol.
+// It can be HTTP/S layer or IPC socket, tcp or unix socket.
+func prepareRpcAddressAndProtocol(rpcAddress string) (string, string, error) {
+	u, err := url.Parse(rpcAddress)
+	if err != nil {
+		return rpcAddress, protocol, err
+	}
+	switch u.Scheme {
+	case "http", "https":
+		return rpcAddress, "tcp", nil
+	case "":
+		return rpcAddress, "unix", nil
+	default:
+		return rpcAddress, protocol, fmt.Errorf("no known transport for URL scheme %q", u.Scheme)
+	}
 }
