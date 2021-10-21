@@ -321,7 +321,7 @@ start_orchestrator() {
     --ws.addr=0.0.0.0 \
     --ws.port=7878 \
     --ipcpath=$DATADIR/orchestrator \
-    --pandora-rpc-endpoint=ws://127.0.0.1:8546 \
+    --pandora-rpc-endpoint=$DATADIR/pandora/geth.ipc \
     --verbosity=$ORCHESTRATOR_VERBOSITY >|$LOGSDIR/orchestrator/orchestrator_"$RUN_DATE".log 2>&1 &
   disown
 }
