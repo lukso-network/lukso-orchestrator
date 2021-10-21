@@ -148,6 +148,12 @@ download_binary() {
   sudo chmod +x /opt/lukso/binaries/$CLIENT/$TAG/$CLIENT-$PLATFORM-$ARCHITECTURE
 }
 
+download_eth2stats_binary() {
+  mkdir -p /opt/lukso/binaries/eth2stats-client/$TAG
+  download https://github.com/lukso-network/network-vanguard-stats-client/releases/download/$TAG/eth2stats-client /opt/lukso/binaries/eth2stats-client/$TAG/eth2stats-client
+  sudo chmod +x /opt/lukso/binaries/eth2stats-client/$TAG/eth2stats-client
+}
+
 bind_binary() {
   CLIENT="$1"
   TAG="$2"
@@ -156,6 +162,15 @@ bind_binary() {
   fi
 
   sudo ln -sf "/opt/lukso/binaries/$CLIENT/$TAG/$CLIENT-$PLATFORM-$ARCHITECTURE" /usr/local/bin/$CLIENT
+}
+
+bind_eth2stats_binary() {
+  TAG="$1"
+  if [[ ! -f /opt/lukso/binaries/eth2stats-client/$TAG/eth2stats-client ]]; then
+    download_binary $CLIENT $TAG
+  fi
+
+  sudo ln -sf "/opt/lukso/binaries/eth2stats-client/$TAG/eth2stats-client" /usr/local/bin/eth2stats-client
 }
 
 bind_binaries() {
@@ -479,8 +494,7 @@ start_eth2stats_client() {
 
   nohup eth2stats-client run \
     --beacon.type="prysm" \
-    --beacon.addr="127.0.0.1:4000" \
-    --beacon.metrics-addr="http://127.0.0.1:8080/metrics" \
+    --beacon.addr="$DATADIR/vanguard/vanguard.ipc" \
     --data.folder=$DATADIR/eth2stats-client \
     --eth2stats.node-name="$NODE_NAME" \
     --eth2stats.addr="$ETH2_STATS_URL" \
@@ -930,22 +944,9 @@ while getopts "$optspec" optchar; do
       ;;
 
     eth2stats)
-      # Temporary fix
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
-      mkdir -p /opt/lukso/binaries/eth2stats-client/$val
-
-      if [[ $PLATFORM == "Linux" ]]; then
-        download https://storage.googleapis.com/lukso-assets/eth2stats/eth2stats-client-linux /opt/lukso/binaries/eth2stats-client/$val/eth2stats-client
-      fi
-
-      if [[ $PLATFORM == "Darwin" ]]; then
-        download https://storage.googleapis.com/lukso-assets/eth2stats/eth2stats-client-darwin /opt/lukso/binaries/eth2stats-client/$val/eth2stats-client
-      fi
-
-      chmod +x /opt/lukso/binaries/eth2stats-client/$val/eth2stats-client
-      ln -sf /opt/lukso/binaries/eth2stats-client/$val/eth2stats-client /usr/local/bin/eth2stats-client
-
+      bind_binary eth2stats-client $val
       ;;
 
     network)
