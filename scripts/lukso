@@ -390,6 +390,13 @@ start_pandora() {
     ARGUMENTS=("${ARGUMENTS[@]}" "${NODEKEY_FLAGS[@]}")
   fi
 
+  if [[ -n $PANDORA_RPCVHOSTS ]]; then
+    RPCVHOSTS_FLAGS=(
+      "--rpcvhosts=$PANDORA_RPCVHOSTS"
+    )
+    ARGUMENTS=("${ARGUMENTS[@]}" "${RPCVHOSTS_FLAGS[@]}")
+  fi
+
   nohup pandora \
     "${ARGUMENTS[@]}" \
     >|$LOGSDIR/pandora/pandora_"$RUN_DATE".log 2>&1 &
@@ -817,6 +824,9 @@ help() {
   echo "--pandora-nodekey      P2P node key file"
   echo "                       [Path to file (relative or absolute)]"
   echo
+  echo "--pandora-rpcvhosts    Sets pandora rpc virtual hosts (use quotes if you want to set * (\"*\") otherwise shell will resolve it"
+  echo "                       [RPC vhosts]"
+  echo
   echo "--pandora-external-ip  Sets external IP for pandora (overrides --external-ip if present)"
   echo "                       [72.122.32.234]"
   echo
@@ -1068,6 +1078,12 @@ while getopts "$optspec" optchar; do
       OVERRIDE_PANDORA_EXTERNAL_IP=$val
       ;;
 
+    pandora-rpcvhosts)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_PANDORA_RPCVHOSTS=$val
+      ;;
+
     pandora-verbosity)
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
@@ -1181,6 +1197,10 @@ fi
 
 if [[ -n $OVERRIDE_PANDORA_EXTERNAL_IP ]]; then
   PANDORA_EXTERNAL_IP=$OVERRIDE_PANDORA_EXTERNAL_IP
+fi
+
+if [[ -n $OVERRIDE_PANDORA_RPCVHOSTS ]]; then
+  PANDORA_RPCVHOSTS=$OVERRIDE_PANDORA_RPCVHOSTS
 fi
 
 if [[ -n $OVERRIDE_PANDORA_VERBOSITY ]]; then
