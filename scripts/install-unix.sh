@@ -77,6 +77,11 @@ download_network_config l15-dev;
 sudo rm -rf /opt/lukso/tmp;
 
 sudo lukso bind-binaries \
+--orchestrator v0.1.0-beta.2 \
+--pandora v0.1.0-beta.2 \
+--vanguard v0.1.0-beta.2 \
+--validator v0.1.0-beta.2 \
+--deposit v1.2.6-LUKSO \
 --eth2stats v0.1.0-develop;
 
 echo "Ready! type lukso to start the node!";
