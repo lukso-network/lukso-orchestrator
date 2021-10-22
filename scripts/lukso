@@ -24,7 +24,7 @@ fi
 ARCHITECTURE=$(uname -m)
 
 RUN_DATE=$(date '+%Y-%m-%d__%H-%M-%S')
-NETWORK="l15"
+NETWORK="l15-prod"
 IS_VALIDATOR=false
 COINBASE="0x616e6f6e796d6f75730000000000000000000000"
 
@@ -171,6 +171,7 @@ generate_keys() {
   mkdir -p $KEYS_DIR
   read -p "How many validators? " VALIDATORS_NUMBER
   echo "Running lukso-deposit-cli..."
+
   lukso-deposit-cli new-mnemonic \
     --chain $NETWORK \
     --mnemonic_language english \
@@ -181,18 +182,24 @@ generate_keys() {
 import_accounts() {
 
   if [[ -z $OVERRIDE_KEYS_DIR ]]; then
-    read -p "Where do you have deposit keys? Default: [$KEYS_DIR] " KEYS_DIR
-    eval KEYS_DIR="$KEYS_DIR"
+    read -p "Where do you have deposit keys? Default: [$KEYS_DIR] " INPUT
+    eval INPUT="$INPUT"
+      if [[ -n "$INPUT" ]]; then
+        KEYS_DIR=$INPUT
+      fi
   fi
 
   if [[ -z $OVERRIDE_WALLET_DIR ]]; then
-    read -p "Where to store wallet? Default: [$WALLET_DIR] " WALLET_DIR
-    eval WALLET_DIR="$WALLET_DIR"
+    read -p "Where to store wallet? Default: [$WALLET_DIR] " INPUT
+    eval INPUT="$INPUT"
+      if [[ -n "$INPUT" ]]; then
+        WALLET_DIR=$INPUT
+      fi
   fi
 
   ARGUMENTS=(
-    "--keys-dir $KEYS_DIR"
-    "--wallet-dir $WALLET_DIR"
+    "--keys-dir=$KEYS_DIR"
+    "--wallet-dir=$WALLET_DIR"
   )
 
   if [[ -n $KEYS_PASSWORD_FILE ]]; then
@@ -204,8 +211,7 @@ import_accounts() {
   fi
 
   lukso-validator accounts import \
-    --keys-dir $KEYS_DIR \
-    --wallet-dir $WALLET_DIR
+  "${ARGUMENTS[@]}"
 }
 
 parse_config_field() {
@@ -762,9 +768,9 @@ help() {
   echo
   echo "Available flags:"
   echo "--network              Picks config collection to be used (and downloads if it doesn't exist)"
-  echo "                       [l15, l15-staging, l15-dev]"
+  echo "                       [l15-prod, l15-staging, l15-dev]"
   echo
-  echo "--l15                  Alias for --network l15"
+  echo "--l15-prod             Alias for --network l15-prod"
   echo
   echo "--l15-staging          Alias for --network l15-staging"
   echo
@@ -995,8 +1001,8 @@ while getopts "$optspec" optchar; do
       eval OVERRIDE_LOGSDIR=$val
       ;;
 
-    l15)
-      pick_network l15
+    l15-prod)
+      pick_network l15-prod
       ;;
 
     l15-staging)
