@@ -48,10 +48,7 @@ download_network_config() {
   CDN="https://storage.googleapis.com/l15-cdn/networks/$NETWORK"
   sudo mkdir -p /opt/lukso/networks/$NETWORK/config
   TARGET=/opt/lukso/networks/$NETWORK/config
-  echo 'INSTALL-UNIX'
-  echo $(sha256sum $TARGET/network-config.yaml)
   download $CDN/network-config.yaml?ignoreCache=1 $TARGET/network-config.yaml
-  echo $(sha256sum $TARGET/network-config.yaml)
   download $CDN/pandora-genesis.json?ignoreCache=1 $TARGET/pandora-genesis.json
   download $CDN/vanguard-genesis.ssz?ignoreCache=1 $TARGET/vanguard-genesis.ssz
   download $CDN/vanguard-config.yaml?ignoreCache=1 $TARGET/vanguard-config.yaml
