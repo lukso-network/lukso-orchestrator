@@ -431,6 +431,9 @@ start_vanguard() {
   for n in "${VANGUARD_BOOTNODES[@]}"; do
     BOOTNODES_ARGS+=("--bootstrap-node=$n")
   done
+
+  echo "VANGUARD_RPC_HOST is $VANGUARD_RPC_HOST";
+
   ARGUMENTS=(
     "--accept-terms-of-use"
     "--chain-id=$CHAIN_ID"
@@ -1142,7 +1145,7 @@ while getopts "$optspec" optchar; do
     vanguard-rpc-host)
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
-      OVERRIDE_VANGUARD_RPC_HOST=$val
+      OVERRIDE_VANGUARD_RPC_HOST="$val"
       ;;
 
     vanguard-orc-rpc-provider)
@@ -1317,6 +1320,9 @@ fi
 if [[ -n $OVERRIDE_VANGUARD_HTTP_WEB3PROVIDER ]]; then
   VANGUARD_HTTP_WEB3PROVIDER=$OVERRIDE_VANGUARD_HTTP_WEB3PROVIDER
 fi
+
+echo "OVERRIDE_VANGUARD_RPC_HOST is $OVERRIDE_VANGUARD_RPC_HOST";
+echo "VANGUARD_RPC_HOST is $VANGUARD_RPC_HOST";
 
 if [[ -n $OVERRIDE_VANGUARD_RPC_HOST ]]; then
   VANGUARD_RPC_HOST=$OVERRIDE_VANGUARD_RPC_HOST
