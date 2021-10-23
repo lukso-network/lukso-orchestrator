@@ -68,17 +68,18 @@ download https://raw.githubusercontent.com/lukso-network/lukso-orchestrator/feat
 sudo chmod +x /opt/lukso/lukso;
 sudo ln -sfn /opt/lukso/lukso /usr/local/bin/lukso;
 
-download_network_config l15;
+download_network_config l15-prod;
+download_network_config l15-staging;
 download_network_config l15-dev;
 
 sudo rm -rf /opt/lukso/tmp;
 
 sudo lukso bind-binaries \
---orchestrator v0.1.0-beta.2 \
---pandora v0.1.0-beta.2 \
---vanguard v0.1.0-beta.2 \
---validator v0.1.0-beta.2 \
+--orchestrator v0.1.0-rc.1 \
+--pandora v0.1.0-rc.1 \
+--vanguard v0.1.0-rc.1 \
+--validator v0.1.0-rc.1 \
 --deposit v1.2.6-LUKSO \
---eth2stats v0.0.16;
+--eth2stats v0.1.0-rc.1;
 
 echo "Ready! type lukso to start the node!";

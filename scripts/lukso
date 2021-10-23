@@ -10,11 +10,6 @@ FORCE=false
 ##### network info
 CHAIN_ID=""
 NETWORK_ID=""
-PANDORA_BOOTNODES=""
-PANDORA_HTTP_PORT="8545"
-VANGUARD_BOOTNODES=""
-ETH1_STATS_URL=""
-ETH2_STATS_URL=""
 #####
 
 ##### default client values
@@ -29,7 +24,7 @@ fi
 ARCHITECTURE=$(uname -m)
 
 RUN_DATE=$(date '+%Y-%m-%d__%H-%M-%S')
-NETWORK="l15"
+NETWORK="l15-prod"
 IS_VALIDATOR=false
 COINBASE="0x616e6f6e796d6f75730000000000000000000000"
 
@@ -45,14 +40,36 @@ DATADIR="$LUKSO_HOME/$NETWORK/datadirs"
 LOGSDIR="$LUKSO_HOME/$NETWORK/logs"
 NODE_NAME="$(LC_CTYPE=C LANG=C tr -dc A-F0-9 </dev/urandom | head -c 8)"
 EXTERNAL_IP=$(curl -s ident.me)
-KEYS_DIR="$LUKSO_HOME/$NETWORK"
-WALLET_DIR="$LUKSO_HOME/$NETWORK/vanguard_wallet"
+
+
+###### Orchestrator settings
+ORCHESTRATOR_VERBOSITY=debug
+######
+
+###### Pandora settings
+PANDORA_BOOTNODES=""
+PANDORA_HTTP_PORT="8545"
 PANDORA_METRICS=false
 PANDORA_NODEKEY=""
-VANGUARD_P2P_PRIV_KEY=""
-VANGUARD_P2P_HOST_DNS=""
+PANDORA_VERBOSITY=debug
+ETH1_STATS_URL=""
 CORS_DOMAIN=""
 ######
+
+###### Vanguard
+VANGUARD_VERBOSITY=debug
+VANGUARD_BOOTNODES=""
+ETH2_STATS_URL=""
+VANGUARD_P2P_PRIV_KEY=""
+VANGUARD_P2P_HOST_DNS=""
+######
+
+###### Validator
+KEYS_DIR="$LUKSO_HOME/$NETWORK"
+WALLET_DIR="$LUKSO_HOME/$NETWORK/vanguard_wallet"
+VALIDATOR_VERBOSITY=debug
+######
+
 
 ###### for config tool
 CONFIG_DATA=()
@@ -155,6 +172,7 @@ generate_keys() {
   mkdir -p $KEYS_DIR
   read -p "How many validators? " VALIDATORS_NUMBER
   echo "Running lukso-deposit-cli..."
+
   lukso-deposit-cli new-mnemonic \
     --chain $NETWORK \
     --mnemonic_language english \
@@ -165,18 +183,24 @@ generate_keys() {
 import_accounts() {
 
   if [[ -z $OVERRIDE_KEYS_DIR ]]; then
-    read -p "Where do you have deposit keys? Default: [$KEYS_DIR] " KEYS_DIR
-    eval KEYS_DIR="$KEYS_DIR"
+    read -p "Where do you have deposit keys? Default: [$KEYS_DIR] " INPUT
+    eval INPUT="$INPUT"
+      if [[ -n "$INPUT" ]]; then
+        KEYS_DIR=$INPUT
+      fi
   fi
 
   if [[ -z $OVERRIDE_WALLET_DIR ]]; then
-    read -p "Where to store wallet? Default: [$WALLET_DIR] " WALLET_DIR
-    eval WALLET_DIR="$WALLET_DIR"
+    read -p "Where to store wallet? Default: [$WALLET_DIR] " INPUT
+    eval INPUT="$INPUT"
+      if [[ -n "$INPUT" ]]; then
+        WALLET_DIR=$INPUT
+      fi
   fi
 
   ARGUMENTS=(
-    "--keys-dir $KEYS_DIR"
-    "--wallet-dir $WALLET_DIR"
+    "--keys-dir=$KEYS_DIR"
+    "--wallet-dir=$WALLET_DIR"
   )
 
   if [[ -n $KEYS_PASSWORD_FILE ]]; then
@@ -188,8 +212,7 @@ import_accounts() {
   fi
 
   lukso-validator accounts import \
-    --keys-dir $KEYS_DIR \
-    --wallet-dir $WALLET_DIR
+  "${ARGUMENTS[@]}"
 }
 
 parse_config_field() {
@@ -285,11 +308,33 @@ start_orchestrator() {
     --ws.addr=127.0.0.1 \
     --ws.port=7878 \
     --pandora-rpc-endpoint=ws://127.0.0.1:8546 \
-    --verbosity=trace >|$LOGSDIR/orchestrator/orchestrator_"$RUN_DATE".log 2>&1 &
+    --verbosity=$ORCHESTRATOR_VERBOSITY >|$LOGSDIR/orchestrator/orchestrator_"$RUN_DATE".log 2>&1 &
   disown
 }
 
 start_pandora() {
+
+  case $PANDORA_VERBOSITY in
+  silent)
+    PANDORA_VERBOSITY=0
+    ;;
+  error)
+    PANDORA_VERBOSITY=1
+    ;;
+  warn)
+    PANDORA_VERBOSITY=2
+    ;;
+  info)
+    PANDORA_VERBOSITY=3
+    ;;
+  debug)
+    PANDORA_VERBOSITY=4
+    ;;
+  detail|trace)
+    PANDORA_VERBOSITY=5
+    ;;
+  esac
+
   mkdir -p "$LOGSDIR"/pandora
   echo -n $RUN_DATE >|"$LOGSDIR"/pandora/current.tmp
   if [[ ! -d "$DATADIR/pandora" ]]; then
@@ -315,7 +360,7 @@ start_pandora() {
     "--miner.notify=ws://127.0.0.1:7878,http://127.0.0.1:7877"
     "--miner.etherbase=$COINBASE"
     "--syncmode=full"
-    "--verbosity=4"
+    "--verbosity=$PANDORA_VERBOSITY"
   )
 
   if [[ $PANDORA_UNIVERSAL_PROFILE_EXPOSE ]] && [[ ! $PANDORA_UNSAFE_EXPOSE ]]; then
@@ -365,6 +410,13 @@ start_pandora() {
     ARGUMENTS=("${ARGUMENTS[@]}" "${NODEKEY_FLAGS[@]}")
   fi
 
+  if [[ -n $PANDORA_RPCVHOSTS ]]; then
+    RPCVHOSTS_FLAGS=(
+      "--rpcvhosts=$PANDORA_RPCVHOSTS"
+    )
+    ARGUMENTS=("${ARGUMENTS[@]}" "${RPCVHOSTS_FLAGS[@]}")
+  fi
+
   nohup pandora \
     "${ARGUMENTS[@]}" \
     >|$LOGSDIR/pandora/pandora_"$RUN_DATE".log 2>&1 &
@@ -392,7 +444,7 @@ start_vanguard() {
     "--contract-deployment-block=0"
     "--rpc-host=127.0.0.1"
     "--monitoring-host=127.0.0.1"
-    "--verbosity=debug"
+    "--verbosity=$VANGUARD_VERBOSITY"
     "--min-sync-peers=2"
     "--p2p-max-peers=50"
     "--orc-http-provider=http://127.0.0.1:7877"
@@ -432,7 +484,7 @@ start_validator() {
     "--accept-terms-of-use"
     "--beacon-rpc-provider=localhost:4000"
     "--chain-config-file=/opt/lukso/networks/$NETWORK/config/vanguard-config.yaml"
-    "--verbosity=debug"
+    "--verbosity=$VALIDATOR_VERBOSITY"
     "--pandora-http-provider=http://127.0.0.1:8545"
     "--wallet-dir=$WALLET_DIR"
     "--rpc"
@@ -733,14 +785,16 @@ help() {
   echo "logs)          Shows logs"
   echo "               [orchestrator, pandora, vanguard, validator, eth2stats-client]"
   echo
-  echo "bind-binaries) sets client(s) to desired version"
+  echo "attach)        Attaches to pandora console via IPC socket (use with --datadir if not default)"
+  echo
+  echo "bind-binaries) sets client(s) to desired version, use with flags for setting tag: --orchestrator v0.1.0, --pandora v0.1.0, --vanguard v0.1.0, --validator v0.1.0"
   echo
   echo
   echo "Available flags:"
-  echo "--network              Picks config collection to be used"
-  echo "                       [l15, l15-staging, l15-dev]"
+  echo "--network              Picks config collection to be used (and downloads if it doesn't exist)"
+  echo "                       [l15-prod, l15-staging, l15-dev]"
   echo
-  echo "--l15                  Alias for --network l15"
+  echo "--l15-prod             Alias for --network l15-prod"
   echo
   echo "--l15-staging          Alias for --network l15-staging"
   echo
@@ -767,6 +821,18 @@ help() {
   echo "--node-name            Name of node that's shown on pandora stats and vanguard stats"
   echo "                       [String ex. johnsmith123]"
   echo
+  echo "--orchestrator         Sets orchestrator tag to be used"
+  echo "                       [Tag name ex. v0.1.0-develop]"
+  echo
+  echo "--orchestrator-verbosity Sets orchestrator logging depth"
+  echo "                       [silent, error, warn, info, debug, trace]"
+  echo
+  echo "--pandora              Sets pandora tag to be used"
+  echo "                       [Tag name ex. v0.1.0-develop]"
+  echo
+  echo "--pandora-verbosity    Sets pandora logging depth (note: pandora uses integers for that flag, script will convert those to proper values)"
+  echo "                       [silent, error, warn, info, debug, trace]"
+  echo
   echo "--pandora-bootnodes    Sets pandora bootnodes"
   echo "                       [Strings of bootnodes separated by commas: \"enode://72caa...,enode://b4a11a...\"]"
   echo
@@ -778,12 +844,21 @@ help() {
   echo "--pandora-nodekey      P2P node key file"
   echo "                       [Path to file (relative or absolute)]"
   echo
+  echo "--pandora-rpcvhosts    Sets pandora rpc virtual hosts (use quotes if you want to set * (\"*\") otherwise shell will resolve it"
+  echo "                       [RPC vhosts]"
+  echo
   echo "--pandora-external-ip  Sets external IP for pandora (overrides --external-ip if present)"
   echo "                       [72.122.32.234]"
   echo
   echo "--pandora-universal-expose  Exposes \"net,eth,txpool,web3\" API's on Pandora "
   echo
   echo "--pandora-unsafe-expose  Exposes \"admin,net,eth,debug,miner,personal,txpool,web3\" API's on Pandora"
+  echo
+  echo "--vanguard             Sets vanguard tag to be used"
+  echo "                       [Tag name ex. v0.1.0-develop]"
+  echo
+  echo "--vanguard-verbosity   Sets vanguard logging depth"
+  echo "                       [silent, error, warn, info, debug, trace]"
   echo
   echo "--vanguard-bootnodes   Sets vanguard bootnodes"
   echo "                       [Strings of bootnodes separated by commas: \"enr:-Ku4QAmY...,enr:-M23QLmY...\"]"
@@ -797,10 +872,18 @@ help() {
   echo "--vanguard-p2p-host-dns Sets host DNS vanguard (overrides --external-ip AND --vanguard-external-ip if present)"
   echo "                       [72.122.32.234]"
   echo
+  echo "--validator            Sets validator tag to be used"
+  echo "                       [Tag name ex. v0.1.0-develop]"
+  echo
+  echo "--validator-verbosity  Sets validator logging depth"
+  echo "                       [silent, error, warn, info, debug, trace]"
+  echo
   echo "--cors-domain          Sets CORS domain (note: if you want to set every origin you must type asterisk wrapped in quotes '*' otherwise shell may try to resolve it"
   echo
   echo "--external-ip          Sets external IP for pandora and vanguard"
   echo "                       [72.122.32.234]"
+  echo
+  echo "--allow-respin         Deletes all datadirs IF network config changed (based on genesis time)"
   echo
   echo "--force                Enables force mode for stopping"
 
@@ -951,8 +1034,8 @@ while getopts "$optspec" optchar; do
       eval OVERRIDE_LOGSDIR=$val
       ;;
 
-    l15)
-      pick_network l15
+    l15-prod)
+      pick_network l15-prod
       ;;
 
     l15-staging)
@@ -984,6 +1067,12 @@ while getopts "$optspec" optchar; do
 
     validate)
       OVERRIDE_IS_VALIDATOR=true
+      ;;
+
+    orchestrator-verbosity)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_ORCHESTRATOR_VERBOSITY=$val
       ;;
 
     pandora-bootnodes)
@@ -1026,6 +1115,18 @@ while getopts "$optspec" optchar; do
       OVERRIDE_PANDORA_UNSAFE_EXPOSE=true
       ;;
 
+    pandora-rpcvhosts)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_PANDORA_RPCVHOSTS=$val
+      ;;
+
+    pandora-verbosity)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_PANDORA_VERBOSITY=$val
+      ;;
+
     vanguard-bootnodes)
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
@@ -1050,6 +1151,18 @@ while getopts "$optspec" optchar; do
       OVERRIDE_VANGUARD_P2P_HOST_DNS=$val
       ;;
 
+    vanguard-verbosity)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_VANGUARD_VERBOSITY=$val
+      ;;
+
+    validator-verbosity)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_VALIDATOR_VERBOSITY=$val
+      ;;
+
     external-ip)
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
@@ -1060,6 +1173,10 @@ while getopts "$optspec" optchar; do
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
       OVERRIDE_CORS_DOMAIN=$val
+      ;;
+
+    allow-respin)
+      OVERRIDE_ALLOW_RESPIN=true
       ;;
 
     force)
@@ -1101,6 +1218,10 @@ if [[ -n $OVERRIDE_IS_VALIDATOR ]]; then
   IS_VALIDATOR=$OVERRIDE_IS_VALIDATOR
 fi
 
+if [[ -n $OVERRIDE_ORCHESTRATOR_VERBOSITY ]]; then
+  ORCHESTRATOR_VERBOSITY=$OVERRIDE_ORCHESTRATOR_VERBOSITY
+fi
+
 if [[ -n $OVERRIDE_PANDORA_BOOTNODES ]]; then
   PANDORA_BOOTNODES=$OVERRIDE_PANDORA_BOOTNODES
 fi
@@ -1129,6 +1250,14 @@ if [[ -n $OVERRIDE_PANDORA_UNSAFE_EXPOSE ]]; then
   PANDORA_UNSAFE_EXPOSE=$OVERRIDE_PANDORA_UNSAFE_EXPOSE
 fi
 
+if [[ -n $OVERRIDE_PANDORA_RPCVHOSTS ]]; then
+  PANDORA_RPCVHOSTS=$OVERRIDE_PANDORA_RPCVHOSTS
+fi
+
+if [[ -n $OVERRIDE_PANDORA_VERBOSITY ]]; then
+  PANDORA_VERBOSITY=$OVERRIDE_PANDORA_VERBOSITY
+fi
+
 if [[ -n $OVERRIDE_VANGUARD_BOOTNODES ]]; then
   VANGUARD_BOOTNODES=$OVERRIDE_VANGUARD_BOOTNODES
 fi
@@ -1143,6 +1272,14 @@ fi
 
 if [[ -n $OVERRIDE_VANGUARD_P2P_HOST_DNS ]]; then
   VANGUARD_P2P_HOST_DNS=$OVERRIDE_VANGUARD_P2P_HOST_DNS
+fi
+
+if [[ -n $OVERRIDE_VANGUARD_VERBOSITY ]]; then
+  VANGUARD_VERBOSITY=$OVERRIDE_VANGUARD_VERBOSITY
+fi
+
+if [[ -n $OVERRIDE_VALIDATOR_VERBOSITY ]]; then
+  VALIDATOR_VERBOSITY=$OVERRIDE_VALIDATOR_VERBOSITY
 fi
 
 if [[ -n $OVERRIDE_EXTERNAL_IP ]]; then
@@ -1183,10 +1320,28 @@ if [[ -n $OVERRIDE_VALIDATOR_PASSWORD_FILE ]]; then
   VALIDATOR_PASSWORD_FILE=$OVERRIDE_VALIDATOR_PASSWORD_FILE
 fi
 
+if [[ -n $OVERRIDE_ALLOW_RESPIN ]]; then
+  ALLOW_RESPIN=$OVERRIDE_ALLOW_RESPIN
+fi
+
+if [[ ! -d $DATADIR ]]; then
+  mkdir -p $DATADIR
+fi
+
+if [[ ! -f $DATADIR/genesis-time.txt ]]; then
+  echo -n $GENESIS_TIME > $DATADIR/genesis-time.txt
+fi
+
+if [[ $ALLOW_RESPIN ]]; then
+  # Check if new genesis
+  if [[ $(cat $DATADIR/genesis-time.txt) != $GENESIS_TIME ]]; then
+    echo "New config received, resetting datadirs"
+    reset all
+    echo -n $GENESIS_TIME > $DATADIR/genesis-time.txt
+  fi
+fi
+
 case $COMMAND in
-ping)
-  echo $PING_MSG
-  ;;
 start)
   start $COMMAND_ARG
   ;;
