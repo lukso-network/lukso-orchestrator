@@ -850,7 +850,7 @@ help() {
   echo "--pandora-external-ip  Sets external IP for pandora (overrides --external-ip if present)"
   echo "                       [72.122.32.234]"
   echo
-  echo "--pandora-universal-expose  Exposes \"net,eth,txpool,web3\" API's on Pandora "
+  echo "--pandora-universal-profile-expose  Exposes \"net,eth,txpool,web3\" API's on Pandora "
   echo
   echo "--pandora-unsafe-expose  Exposes \"admin,net,eth,debug,miner,personal,txpool,web3\" API's on Pandora"
   echo
