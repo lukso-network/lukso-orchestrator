@@ -53,6 +53,7 @@ PANDORA_METRICS=false
 PANDORA_NODEKEY=""
 PANDORA_VERBOSITY=debug
 ETH1_STATS_URL=""
+CORS_DOMAIN=""
 ######
 
 ###### Vanguard
@@ -301,10 +302,10 @@ start_orchestrator() {
   nohup lukso-orchestrator --datadir=$DATADIR/orchestrator \
     --vanguard-grpc-endpoint=127.0.0.1:4000 \
     --http \
-    --http.addr=0.0.0.0 \
+    --http.addr=127.0.0.1 \
     --http.port=7877 \
     --ws \
-    --ws.addr=0.0.0.0 \
+    --ws.addr=127.0.0.1 \
     --ws.port=7878 \
     --pandora-rpc-endpoint=ws://127.0.0.1:8546 \
     --verbosity=$ORCHESTRATOR_VERBOSITY >|$LOGSDIR/orchestrator/orchestrator_"$RUN_DATE".log 2>&1 &
@@ -348,24 +349,43 @@ start_pandora() {
     "--networkid=$NETWORK_ID"
     "--ethstats=$NODE_NAME:$ETH1_STATS_APIKEY@$ETH1_STATS_URL"
     "--port=30405"
-    "--rpc"
-    "--rpcaddr=0.0.0.0"
-    "--rpcapi=admin,net,eth,debug,miner,personal,txpool,web3"
-    "--bootnodes=$PANDORA_BOOTNODES" ###
-    "--rpcport=$PANDORA_HTTP_PORT"
-    "--http.corsdomain=*"
+    "--http"
+    "--http.addr=127.0.0.1"
+    "--bootnodes=$PANDORA_BOOTNODES"
+    "--http.port=$PANDORA_HTTP_PORT"
     "--ws"
-    "--ws.addr=0.0.0.0"
-    "--ws.api=admin,net,eth,debug,miner,personal,txpool,web3"
+    "--ws.addr=127.0.0.1"
     "--ws.port=8546"
-    "--ws.origins=*"
     "--mine"
     "--miner.notify=ws://127.0.0.1:7878,http://127.0.0.1:7877"
     "--miner.etherbase=$COINBASE"
     "--syncmode=full"
-    "--allow-insecure-unlock"
     "--verbosity=$PANDORA_VERBOSITY"
   )
+
+  if [[ $PANDORA_UNIVERSAL_PROFILE_EXPOSE ]] && [[ ! $PANDORA_UNSAFE_EXPOSE ]]; then
+    API_ARGUMENTS=(
+      "--http.api=net,eth,txpool,web3"
+      "--ws.api=net,eth,txpool,web3"
+    )
+    ARGUMENTS=("${ARGUMENTS[@]}" "${API_ARGUMENTS[@]}")
+  fi
+
+  if [[ $PANDORA_UNSAFE_EXPOSE ]]; then
+    API_ARGUMENTS=(
+      "--http.api=admin,net,eth,debug,miner,personal,txpool,web3"
+      "--ws.api=admin,net,eth,debug,miner,personal,txpool,web3"
+    )
+    ARGUMENTS=("${ARGUMENTS[@]}" "${API_ARGUMENTS[@]}")
+  fi
+
+  if [[ -n $CORS_DOMAIN ]]; then
+    CORS_DOMAIN_FLAGS=(
+      "--http.corsdomain=$CORS_DOMAIN"
+      "--ws.origins=$CORS_DOMAIN"
+    )
+    ARGUMENTS=("${ARGUMENTS[@]}" "${CORS_DOMAIN_FLAGS[@]}")
+  fi
 
   if [[ -n $OVERRIDE_PANDORA_EXTERNAL_IP ]]; then
     ARGUMENTS=("${ARGUMENTS[@]}" "--nat=extip:$OVERRIDE_PANDORA_EXTERNAL_IP")
@@ -378,7 +398,7 @@ start_pandora() {
       "--metrics"
       "--metrics.expensive"
       "--pprof"
-      "--pprof.addr=0.0.0.0"
+      "--pprof.addr=127.0.0.1"
     )
     ARGUMENTS=("${ARGUMENTS[@]}" "${METRICS_FLAGS[@]}")
   fi
@@ -422,8 +442,8 @@ start_vanguard() {
     "--http-web3provider=http://127.0.0.1:8545"
     "--deposit-contract=0x000000000000000000000000000000000000cafe"
     "--contract-deployment-block=0"
-    "--rpc-host=0.0.0.0"
-    "--monitoring-host=0.0.0.0"
+    "--rpc-host=127.0.0.1"
+    "--monitoring-host=127.0.0.1"
     "--verbosity=$VANGUARD_VERBOSITY"
     "--min-sync-peers=2"
     "--p2p-max-peers=50"
@@ -830,6 +850,10 @@ help() {
   echo "--pandora-external-ip  Sets external IP for pandora (overrides --external-ip if present)"
   echo "                       [72.122.32.234]"
   echo
+  echo "--pandora-universal-profile-expose  Exposes \"net,eth,txpool,web3\" API's on Pandora "
+  echo
+  echo "--pandora-unsafe-expose  Exposes \"admin,net,eth,debug,miner,personal,txpool,web3\" API's on Pandora"
+  echo
   echo "--vanguard             Sets vanguard tag to be used"
   echo "                       [Tag name ex. v0.1.0-develop]"
   echo
@@ -853,6 +877,8 @@ help() {
   echo
   echo "--validator-verbosity  Sets validator logging depth"
   echo "                       [silent, error, warn, info, debug, trace]"
+  echo
+  echo "--cors-domain          Sets CORS domain (note: if you want to set every origin you must type asterisk wrapped in quotes '*' otherwise shell may try to resolve it"
   echo
   echo "--external-ip          Sets external IP for pandora and vanguard"
   echo "                       [72.122.32.234]"
@@ -1078,6 +1104,17 @@ while getopts "$optspec" optchar; do
       OVERRIDE_PANDORA_EXTERNAL_IP=$val
       ;;
 
+    pandora-universal-profile-expose)
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_PANDORA_UNIVERSAL_PROFILE_EXPOSE=true
+      ;;
+
+    pandora-unsafe-expose)
+      echo "🛑 Unsafe expose enabled! 🛑"
+      echo "🛑 Your node may be vulnerable to attacks 🛑"
+      OVERRIDE_PANDORA_UNSAFE_EXPOSE=true
+      ;;
+
     pandora-rpcvhosts)
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
@@ -1130,6 +1167,12 @@ while getopts "$optspec" optchar; do
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
       OVERRIDE_EXTERNAL_IP=$val
+      ;;
+
+    cors-domain)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_CORS_DOMAIN=$val
       ;;
 
     allow-respin)
@@ -1199,6 +1242,14 @@ if [[ -n $OVERRIDE_PANDORA_EXTERNAL_IP ]]; then
   PANDORA_EXTERNAL_IP=$OVERRIDE_PANDORA_EXTERNAL_IP
 fi
 
+if [[ -n $OVERRIDE_PANDORA_UNIVERSAL_PROFILE_EXPOSE ]]; then
+  PANDORA_UNIVERSAL_PROFILE_EXPOSE=$OVERRIDE_PANDORA_UNIVERSAL_PROFILE_EXPOSE
+fi
+
+if [[ -n $OVERRIDE_PANDORA_UNSAFE_EXPOSE ]]; then
+  PANDORA_UNSAFE_EXPOSE=$OVERRIDE_PANDORA_UNSAFE_EXPOSE
+fi
+
 if [[ -n $OVERRIDE_PANDORA_RPCVHOSTS ]]; then
   PANDORA_RPCVHOSTS=$OVERRIDE_PANDORA_RPCVHOSTS
 fi
@@ -1255,6 +1306,10 @@ fi
 
 if [[ -n $OVERRIDE_KEYS_PASSWORD_FILE ]]; then
   KEYS_PASSWORD_FILE=$OVERRIDE_KEYS_PASSWORD_FILE
+fi
+
+if [[ -n $OVERRIDE_CORS_DOMAIN ]]; then
+  CORS_DOMAIN=$OVERRIDE_CORS_DOMAIN
 fi
 
 if [[ -n $OVERRIDE_WALLET_DIR ]]; then
