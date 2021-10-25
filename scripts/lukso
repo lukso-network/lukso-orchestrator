@@ -58,6 +58,8 @@ CORS_DOMAIN=""
 
 ###### Vanguard
 VANGUARD_VERBOSITY=debug
+VANGUARD_RPC_HOST="127.0.0.1"
+VANGUARD_MONITORING_HOST="127.0.0.1"
 VANGUARD_BOOTNODES=""
 ETH2_STATS_URL=""
 VANGUARD_P2P_PRIV_KEY=""
@@ -459,8 +461,8 @@ start_vanguard() {
     "--http-web3provider=http://127.0.0.1:8545"
     "--deposit-contract=0x000000000000000000000000000000000000cafe"
     "--contract-deployment-block=0"
-    "--rpc-host=127.0.0.1"
-    "--monitoring-host=127.0.0.1"
+    "--rpc-host=$VANGUARD_RPC_HOST"
+    "--monitoring-host=$VANGUARD_MONITORING_HOST"
     "--verbosity=$VANGUARD_VERBOSITY"
     "--min-sync-peers=2"
     "--p2p-max-peers=50"
@@ -1174,6 +1176,18 @@ while getopts "$optspec" optchar; do
       OVERRIDE_VANGUARD_VERBOSITY=$val
       ;;
 
+    vanguard-rpc-host)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_VANGUARD_RPC_HOST="$val"
+      ;;
+
+    vanguard-monitoring-host)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_VANGUARD_MONITORING_HOST="$val"
+      ;;
+
     validator-verbosity)
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
@@ -1311,6 +1325,14 @@ fi
 
 if [[ -n $OVERRIDE_DATADIR ]]; then
   DATADIR=$OVERRIDE_DATADIR
+fi
+
+if [[ -n $OVERRIDE_VANGUARD_RPC_HOST ]]; then
+  VANGUARD_RPC_HOST=$OVERRIDE_VANGUARD_RPC_HOST
+fi
+
+if [[ -n $OVERRIDE_VANGUARD_MONITORING_HOST ]]; then
+  VANGUARD_MONITORING_HOST=$OVERRIDE_VANGUARD_MONITORING_HOST
 fi
 
 if [[ -n $OVERRIDE_LOGSDIR ]]; then
