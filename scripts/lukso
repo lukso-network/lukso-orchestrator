@@ -765,7 +765,7 @@ help() {
   echo "logs)          Shows logs"
   echo "               [orchestrator, pandora, vanguard, validator, eth2stats-client]"
   echo
-  echo "attach)        Attaches to pandora console via IPC socket (use with --datadir if not default)"
+  echo "attach)        Attaches to pandora console via IPC socket (use with --datadir if not default). You cannot reach remote HTTP or WS via this command"
   echo
   echo "bind-binaries) sets client(s) to desired version, use with flags for setting tag: --orchestrator v0.1.0, --pandora v0.1.0, --vanguard v0.1.0, --validator v0.1.0"
   echo
