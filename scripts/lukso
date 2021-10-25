@@ -43,12 +43,20 @@ EXTERNAL_IP=$(curl -s ident.me)
 
 
 ###### Orchestrator settings
+ORCHESTRATOR_HTTP_ADDR="127.0.0.1"
+ORCHESTRATOR_HTTP_PORT="7877"
+ORCHESTRATOR_WS_ADDR="127.0.0.1"
+ORCHESTRATOR_WS_PORT="7878"
 ORCHESTRATOR_VERBOSITY=debug
 ######
 
 ###### Pandora settings
+PANDORA_PORT="30405"
 PANDORA_BOOTNODES=""
+PANDORA_HTTP_ADDR="127.0.0.1"
 PANDORA_HTTP_PORT="8545"
+PANDORA_WS_ADDR="127.0.0.1"
+PANDORA_WS_PORT="8546"
 PANDORA_METRICS=false
 PANDORA_NODEKEY=""
 PANDORA_VERBOSITY=debug
@@ -58,7 +66,11 @@ CORS_DOMAIN=""
 
 ###### Vanguard
 VANGUARD_VERBOSITY=debug
-VANGUARD_RPC_HOST="127.0.0.1"
+VANGUARD_UDP_PORT="12000"
+VANGUARD_TCP_PORT="13000"
+VANGUARD_RPC_ADDR="127.0.0.1"
+VANGUARD_RPC_PORT="4000"
+VANGUARD_RPC_GATEWAY_PORT="3500"
 VANGUARD_MONITORING_HOST="127.0.0.1"
 VANGUARD_BOOTNODES=""
 ETH2_STATS_URL=""
@@ -319,14 +331,14 @@ start_orchestrator() {
     mkdir -p $DATADIR/orchestrator
   fi
   nohup lukso-orchestrator --datadir=$DATADIR/orchestrator \
-    --vanguard-grpc-endpoint=127.0.0.1:4000 \
+    --vanguard-grpc-endpoint="$VANGUARD_RPC_ADDR:$VANGUARD_RPC_PORT" \
     --http \
-    --http.addr=127.0.0.1 \
-    --http.port=7877 \
+    --http.addr=$ORCHESTRATOR_HTTP_ADDR \
+    --http.port=$ORCHESTRATOR_HTTP_PORT \
     --ws \
-    --ws.addr=127.0.0.1 \
-    --ws.port=7878 \
-    --pandora-rpc-endpoint=ws://127.0.0.1:8546 \
+    --ws.addr=$ORCHESTRATOR_WS_ADDR \
+    --ws.port=$ORCHESTRATOR_WS_PORT \
+    --pandora-rpc-endpoint="ws://$PANDORA_WS_ADDR:$PANDORA_WS_PORT" \
     --verbosity=$ORCHESTRATOR_VERBOSITY >|$LOGSDIR/orchestrator/orchestrator_"$RUN_DATE".log 2>&1 &
   disown
 }
@@ -367,16 +379,16 @@ start_pandora() {
     "--datadir=$DATADIR/pandora"
     "--networkid=$NETWORK_ID"
     "--ethstats=$NODE_NAME:$ETH1_STATS_APIKEY@$ETH1_STATS_URL"
-    "--port=30405"
+    "--port=$PANDORA_PORT"
     "--http"
-    "--http.addr=127.0.0.1"
+    "--http.addr=$PANDORA_HTTP_ADDR"
     "--bootnodes=$PANDORA_BOOTNODES"
     "--http.port=$PANDORA_HTTP_PORT"
     "--ws"
-    "--ws.addr=127.0.0.1"
-    "--ws.port=8546"
+    "--ws.addr=$PANDORA_WS_ADDR"
+    "--ws.port=$PANDORA_WS_PORT"
     "--mine"
-    "--miner.notify=ws://127.0.0.1:7878,http://127.0.0.1:7877"
+    "--miner.notify=ws://$ORCHESTRATOR_WS_ADDR:$ORCHESTRATOR_WS_PORT,http://$ORCHESTRATOR_HTTP_ADDR:$ORCHESTRATOR_HTTP_PORT"
     "--miner.etherbase=$COINBASE"
     "--syncmode=full"
     "--verbosity=$PANDORA_VERBOSITY"
@@ -458,7 +470,7 @@ start_vanguard() {
     "--datadir=$DATADIR/vanguard/"
     "--chain-config-file=/opt/lukso/networks/$NETWORK/config/vanguard-config.yaml"
     "${BOOTNODES_ARGS[@]}"
-    "--http-web3provider=http://127.0.0.1:8545"
+    "--http-web3provider=http://$PANDORA_HTTP_PORT:$PANDORA_HTTP_ADDR"
     "--deposit-contract=0x000000000000000000000000000000000000cafe"
     "--contract-deployment-block=0"
     "--rpc-host=$VANGUARD_RPC_HOST"
@@ -466,11 +478,11 @@ start_vanguard() {
     "--verbosity=$VANGUARD_VERBOSITY"
     "--min-sync-peers=2"
     "--p2p-max-peers=50"
-    "--orc-http-provider=http://127.0.0.1:7877"
-    "--rpc-port=4000"
-    "--p2p-udp-port=12000"
-    "--p2p-tcp-port=13000"
-    "--grpc-gateway-port=3500"
+    "--orc-http-provider=http://$ORCHESTRATOR_HTTP_ADDR:$ORCHESTRATOR_HTTP_PORT"
+    "--rpc-port=$VANGUARD_RPC_PORT"
+    "--p2p-udp-port=$VANGUARD_UDP_PORT"
+    "--p2p-tcp-port=$VANGUARD_TCP_PORT"
+    "--grpc-gateway-port=$VANGUARD_RPC_GATEWAY_PORT"
     "--update-head-timely"
     "--lukso-network"
   )
@@ -501,10 +513,10 @@ start_validator() {
   ARGUMENTS=(
     "--datadir=$DATADIR/validator/"
     "--accept-terms-of-use"
-    "--beacon-rpc-provider=localhost:4000"
+    "--beacon-rpc-provider=$VANGUARD_RPC_HOST:$VANGUARD_RPC_PORT"
     "--chain-config-file=/opt/lukso/networks/$NETWORK/config/vanguard-config.yaml"
     "--verbosity=$VALIDATOR_VERBOSITY"
-    "--pandora-http-provider=http://127.0.0.1:8545"
+    "--pandora-http-provider=http://$PANDORA_HTTP_ADDR:$PANDORA_HTTP_PORT"
     "--wallet-dir=$WALLET_DIR"
     "--rpc"
     "--log-file=$LOGSDIR/validator/validator_$RUN_DATE.log"
@@ -527,7 +539,7 @@ start_eth2stats_client() {
 
   nohup eth2stats-client run \
     --beacon.type="prysm" \
-    --beacon.addr="127.0.0.1:4000" \
+    --beacon.addr="$VANGUARD_RPC_HOST:$VANGUARD_RPC_PORT" \
     --beacon.metrics-addr="http://127.0.0.1:8080/metrics" \
     --data.folder=$DATADIR/eth2stats-client \
     --eth2stats.node-name="$NODE_NAME" \
