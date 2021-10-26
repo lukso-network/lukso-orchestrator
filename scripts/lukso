@@ -470,10 +470,10 @@ start_vanguard() {
     "--datadir=$DATADIR/vanguard/"
     "--chain-config-file=/opt/lukso/networks/$NETWORK/config/vanguard-config.yaml"
     "${BOOTNODES_ARGS[@]}"
-    "--http-web3provider=http://$PANDORA_HTTP_PORT:$PANDORA_HTTP_ADDR"
+    "--http-web3provider=http://$PANDORA_HTTP_ADDR:$PANDORA_HTTP_PORT"
     "--deposit-contract=0x000000000000000000000000000000000000cafe"
     "--contract-deployment-block=0"
-    "--rpc-host=$VANGUARD_RPC_HOST"
+    "--rpc-host=$VANGUARD_RPC_ADDR"
     "--monitoring-host=$VANGUARD_MONITORING_HOST"
     "--verbosity=$VANGUARD_VERBOSITY"
     "--min-sync-peers=2"
@@ -513,7 +513,7 @@ start_validator() {
   ARGUMENTS=(
     "--datadir=$DATADIR/validator/"
     "--accept-terms-of-use"
-    "--beacon-rpc-provider=$VANGUARD_RPC_HOST:$VANGUARD_RPC_PORT"
+    "--beacon-rpc-provider=$VANGUARD_RPC_ADDR:$VANGUARD_RPC_PORT"
     "--chain-config-file=/opt/lukso/networks/$NETWORK/config/vanguard-config.yaml"
     "--verbosity=$VALIDATOR_VERBOSITY"
     "--pandora-http-provider=http://$PANDORA_HTTP_ADDR:$PANDORA_HTTP_PORT"
@@ -539,7 +539,7 @@ start_eth2stats_client() {
 
   nohup eth2stats-client run \
     --beacon.type="prysm" \
-    --beacon.addr="$VANGUARD_RPC_HOST:$VANGUARD_RPC_PORT" \
+    --beacon.addr="$VANGUARD_RPC_ADDR:$VANGUARD_RPC_PORT" \
     --beacon.metrics-addr="http://127.0.0.1:8080/metrics" \
     --data.folder=$DATADIR/eth2stats-client \
     --eth2stats.node-name="$NODE_NAME" \
