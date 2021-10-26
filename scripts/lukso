@@ -397,13 +397,13 @@ start_pandora() {
     ARGUMENTS=("${ARGUMENTS[@]}" "${API_ARGUMENTS[@]}")
   fi
 
-  if [[ -n $CORS_DOMAIN ]]; then
+
     CORS_DOMAIN_FLAGS=(
       "--http.corsdomain=$CORS_DOMAIN"
       "--ws.origins=$CORS_DOMAIN"
     )
     ARGUMENTS=("${ARGUMENTS[@]}" "${CORS_DOMAIN_FLAGS[@]}")
-  fi
+
 
   if [[ -n $OVERRIDE_PANDORA_EXTERNAL_IP ]]; then
     ARGUMENTS=("${ARGUMENTS[@]}" "--nat=extip:$OVERRIDE_PANDORA_EXTERNAL_IP")
