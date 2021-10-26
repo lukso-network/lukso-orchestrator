@@ -53,7 +53,7 @@ PANDORA_METRICS=false
 PANDORA_NODEKEY=""
 PANDORA_VERBOSITY=debug
 ETH1_STATS_URL=""
-CORS_DOMAIN="*"
+CORS_DOMAIN=""
 ######
 
 ###### Vanguard
@@ -321,10 +321,10 @@ start_orchestrator() {
   nohup lukso-orchestrator --datadir=$DATADIR/orchestrator \
     --vanguard-grpc-endpoint=127.0.0.1:4000 \
     --http \
-    --http.addr=0.0.0.0 \
+    --http.addr=127.0.0.1 \
     --http.port=7877 \
     --ws \
-    --ws.addr=0.0.0.0 \
+    --ws.addr=127.0.0.1 \
     --ws.port=7878 \
     --pandora-rpc-endpoint=ws://127.0.0.1:8546 \
     --verbosity=$ORCHESTRATOR_VERBOSITY >|$LOGSDIR/orchestrator/orchestrator_"$RUN_DATE".log 2>&1 &
@@ -368,12 +368,12 @@ start_pandora() {
     "--networkid=$NETWORK_ID"
     "--ethstats=$NODE_NAME:$ETH1_STATS_APIKEY@$ETH1_STATS_URL"
     "--port=30405"
-    "--rpc"
-    "--rpcaddr=0.0.0.0"
-    "--rpcport=$PANDORA_HTTP_PORT"
+    "--http"
+    "--http.addr=127.0.0.1"
     "--bootnodes=$PANDORA_BOOTNODES"
+    "--http.port=$PANDORA_HTTP_PORT"
     "--ws"
-    "--ws.addr=0.0.0.0"
+    "--ws.addr=127.0.0.1"
     "--ws.port=8546"
     "--mine"
     "--miner.notify=ws://127.0.0.1:7878,http://127.0.0.1:7877"
@@ -398,13 +398,13 @@ start_pandora() {
     ARGUMENTS=("${ARGUMENTS[@]}" "${API_ARGUMENTS[@]}")
   fi
 
-
+  if [[ -n $CORS_DOMAIN ]]; then
     CORS_DOMAIN_FLAGS=(
       "--http.corsdomain=$CORS_DOMAIN"
       "--ws.origins=$CORS_DOMAIN"
     )
     ARGUMENTS=("${ARGUMENTS[@]}" "${CORS_DOMAIN_FLAGS[@]}")
-
+  fi
 
   if [[ -n $OVERRIDE_PANDORA_EXTERNAL_IP ]]; then
     ARGUMENTS=("${ARGUMENTS[@]}" "--nat=extip:$OVERRIDE_PANDORA_EXTERNAL_IP")
