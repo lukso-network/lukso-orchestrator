@@ -369,7 +369,6 @@ start_pandora() {
     "--ethstats=$NODE_NAME:$ETH1_STATS_APIKEY@$ETH1_STATS_URL"
     "--port=30405"
     "--http"
-    "--http.addr=0.0.0.0"
     "--bootnodes=$PANDORA_BOOTNODES"
     "--http.port=$PANDORA_HTTP_PORT"
     "--ws"
