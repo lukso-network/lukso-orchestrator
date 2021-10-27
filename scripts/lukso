@@ -378,6 +378,7 @@ start_pandora() {
     "--mine"
     "--miner.notify=ws://127.0.0.1:7878,http://127.0.0.1:7877"
     "--miner.etherbase=$COINBASE"
+    "--miner.gaslimit=80000000"
     "--syncmode=full"
     "--verbosity=$PANDORA_VERBOSITY"
   )
