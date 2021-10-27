@@ -1,3 +1,8 @@
+# Note: Don't put default values here.
+# The hierachy must be Flag THEN ConfigFile THEN Default value
+# If you set it here, they will overwrite config file
+
+# Flags declaration
 param (
     [Parameter(Position = 0, Mandatory)][String]$command,
     [Parameter(Position = 1)][String]$argument,
@@ -9,7 +14,7 @@ param (
     [String]$validator = "",
     [String]$deposit = "",
     [String]$eth2stats = "",
-    [String]$network = "l15",
+    [String]$network = "",
     [String]${lukso-home} = "$HOME\.lukso",
     [String]$datadir = "${lukso-home}\$network\datadir",
     [String]$logsdir = "${lukso-home}\$network\logs",
@@ -17,34 +22,57 @@ param (
     [String]${keys-password-file} = "",
     [String]${wallet-dir} = "",
     [String]${wallet-password-file} = "",
-    [Switch]$l15,
+    [Switch]${l15-prod},
     [Switch]${l15-staging},
     [Switch]${l15-dev},
     [String]$config = "",
-    [String]$coinbase = "0x616e6f6e796d6f75730000000000000000000000",
+    [String]$coinbase = "",
     [String]${node-name} = "",
     [Switch]$validate,
     [String]${pandora-bootnodes} = "",
     [String]${pandora-http-port} = "8545",
     [Switch]${pandora-metrics},
     [String]${pandora-nodekey} = "",
+    [String]${pandora-rpcvhosts} = "",
     [String]${pandora-external-ip} = "",
+    [Switch]${pandora-universal-profile-expose},
+    [Switch]${pandora-unsafe-expose},
     [String]${pandora-verbosity} = "",
     [String]${vanguard-bootnodes} = "",
     [String]${vanguard-p2p-priv-key} = "",
     [String]${vanguard-external-ip} = "",
     [String]${vanguard-p2p-host-dns} = "",
+    [String]${vanguard-rpc-host} = "",
+    [String]${vanguard-monitoring-host} = "",
     [String]${vanguard-verbosity} = "",
     [String]${validator-verbosity} = "",
+    [String]${cors-domain} = "",
     [String]${external-ip} = "",
     [Switch]${allow-respin},
     [Switch]$force
 )
 
+# Parsing config File and setting defaults
+if ($config)
+{
+    $ConfigFile = ConvertFrom-Yaml $( cat $config )
+}
+
+
+$orchestrator = If ($orchestrator) {$orchestrator} ElseIf ($ConfigFile.ORCHESTRATOR) {$ConfigFile.ORCHESTRATOR} Else {"default"}
+${orchestrator-verbosity} = If (${orchestrator-verbosity}) {${orchestrator-verbosity}} ElseIf ($ConfigFile.ORCHESTRATOR_VERBOSITY) {$ConfigFile.ORCHESTRATOR_VERBOSITY} Else {"info"}
+$pandora = If ($pandora) {$pandora} ElseIf ($ConfigFile.PANDORA) {$ConfigFile.PANDORA} Else {""}
+$network = If ($network) {$network} ElseIf ($ConfigFile.NETWORK) {$ConfigFile.NETWORK} Else {"l15-prod"}
+
+
+
+
 $platform = "Windows"
 $architecture = "x86_64"
 $InstallDir = $Env:APPDATA + "\LUKSO";
-$NetworkConfig = "$InstallDir\networks\$network\config\network-config.yaml"
+$NetworkConfigFile = "$InstallDir\networks\$network\config\network-config.yaml"
+
+$NetworkConfig = ConvertFrom-Yaml $(cat $NetworkConfigFile)
 
 $RunDate = Get-Date -Format "yyyy-m-dd__HH-mm-ss"
 
@@ -206,7 +234,7 @@ function start_pandora()
 
     $Arguments.Add("--datadir=$DATADIR/pandora")
     $Arguments.Add("--networkid=$NETWORK_ID")
-    $Arguments.Add("--ethstats=${NODE_NAME}:$ETH1_STATS_APIKEY@$ETH1_STATS_URL")
+    $Arguments.Add("--ethstats=${node-name}:$networkConfig.ETH1_STATS_APIKEY@$networkConfig.ETH1_STATS_URL")
     $Arguments.Add("--port=30405")
     $Arguments.Add("--http")
     $Arguments.Add("--http.addr=0.0.0.0")
@@ -299,11 +327,48 @@ function start_vanguard() {
 
 }
 
-function start_validator() {}
+function start_validator() {
+    check_validator_requirements
+    if (!(Test-Path $logsdir\validator))
+    {
+        New-Item -ItemType Directory -Force -Path $logsdir\validator
+    }
 
-function start_eth2stats() {}
+    Write-Output $runDate | Out-File -FilePath "$logsdir\validator\current.tmp"
 
-function start_all() {}
+    $Arguments = New-Object System.Collections.Generic.List[System.Object]
+    $Arguments.Add("--datadir=$datadir\validator")
+    $Arguments.Add("--accept-terms-of-use")
+    $Arguments.Add("--beacon-rpc-provider=localhost:4000")
+    $Arguments.Add("--chain-config-file=$InstallDir\networks\$network\config\vanguard-config.yaml")
+    $Arguments.Add("--verbosity=${validator-verbosity}")
+    $Arguments.Add("--wallet-dir=${wallet-dir}")
+    $Arguments.Add("--rpc")
+    $Arguments.Add("--log-file=$logsdir\validator\validator_$runDate.log")
+    $Arguments.Add("--lukso-network")
+
+    if (${wallet-password-file}) {
+      $Arguments.Add("--wallet-password-file=${wallet-password-file}")
+    }
+
+    Start-Process -FilePath "lukso-validator" `
+    -ArgumentList $arguments `
+    -NoNewWindow `
+    -RedirectStandardOutput "$logsdir\validator\validator_$runDate.out" `
+    -RedirectStandardError "$logsdir\validator\validator_$runDate.err"
+}
+
+function start_eth2stats() {
+
+}
+
+function start_all() {
+    start_orchestrator
+    start_pandora
+    start_vanguard
+    start_validator
+    start_eth2stats
+}
 
 # "start" is a reserved keyword in PowerShell
 function _start($client)
@@ -326,8 +391,12 @@ function _start($client)
             start_validator
         }
 
+        all {
+            start_all
+        }
+
         Default {
-            Write-Output none
+            start_all
         }
     }
 }
@@ -336,15 +405,29 @@ function stop_orchestrator() {
     Stop-Process -ProcessName "lukso-orchestrator"
 }
 
-function stop_pandora() {}
+function stop_pandora() {
+    Stop-Process -ProcessName "pandora"
+}
 
-function stop_vanguard() {}
+function stop_vanguard() {
+    Stop-Process -ProcessName "vanguard"
+}
 
-function stop_validator() {}
+function stop_validator() {
+    Stop-Process -ProcessName "lukso-validator"
+}
 
-function stop_eth2stats() {}
+function stop_eth2stats() {
+    Stop-Process -ProcessName "eth2stats"
+}
 
-function stop_all() {}
+function stop_all() {
+    stop_orchestrator
+    stop_pandora
+    stop_vanguard
+    stop_validator
+    stop_eth2stats
+}
 
 function stop() {}
 
@@ -537,6 +620,7 @@ if ($config)
     $configObj = ConvertFrom-Yaml $(cat $config)
 }
 
+$NetworkConfig = ConvertFrom-Yaml $(cat $InstallDir\networks\$network\config\network-config.yaml)
 switch ($command)
 {
     start {
