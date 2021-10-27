@@ -832,7 +832,6 @@ help() {
   echo "--home                 Sets path for datadir and logs in a single location (--datadir and --logs take priority)"
   echo "                       [Ex. /var/lukso]"
   echo
-
   echo "--validate             Starts validator"
   echo
   echo "--coinbase             Sets pandora coinbase"
@@ -840,6 +839,12 @@ help() {
   echo
   echo "--node-name            Name of node that's shown on pandora stats and vanguard stats"
   echo "                       [String ex. johnsmith123]"
+  echo
+  echo "--deposit              Sets lukso-deposit-cli tag to be used"
+  echo "                       [Tag name ex. v0.1.0-develop]"
+  echo
+  echo "--eth2stats            Sets eth2stats tag to be used"
+  echo "                       [Tag name ex. v0.1.0-develop]"
   echo
   echo "--orchestrator         Sets orchestrator tag to be used"
   echo "                       [Tag name ex. v0.1.0-develop]"
@@ -892,11 +897,23 @@ help() {
   echo "--vanguard-p2p-host-dns Sets host DNS vanguard (overrides --external-ip AND --vanguard-external-ip if present)"
   echo "                       [72.122.32.234]"
   echo
+  echo "--vanguard-rpc-host    Sets vanguard RPC listening interface"
+  echo "                       [IP, ex. 127.0.0.1]"
+  echo
+  echo "--vanguard-monitoring-host Sets vanguard monitoring listening interface"
+  echo "                       [IP, ex. 127.0.0.1]"
+  echo
   echo "--validator            Sets validator tag to be used"
   echo "                       [Tag name ex. v0.1.0-develop]"
   echo
   echo "--validator-verbosity  Sets validator logging depth"
   echo "                       [silent, error, warn, info, debug, trace]"
+  echo
+  echo "--keys-dir             Sets directory of lukso-deposit-cli keys (can be used with \"keygen\" or \"wallet\")"
+  echo "                       [Path, relative or absolute]"
+  echo
+  echo "--keys-password-file   Sets path to lukso-deposit-cli keys (can be used with \"keygen\" or \"wallet\")"
+  echo "                       [Path, relative or absolute]"
   echo
   echo "--wallet-dir           Sets directory of lukso-validator wallet"
   echo "                       [Path, relative or absolute]"
