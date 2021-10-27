@@ -897,6 +897,12 @@ help() {
   echo "--validator-verbosity  Sets validator logging depth"
   echo "                       [silent, error, warn, info, debug, trace]"
   echo
+  echo "--wallet-dir           Sets directory of lukso-validator wallet"
+  echo "                       [Path, relative or absolute]"
+  echo
+  echo "--wallet-password-file Password for lukso-validator"
+  echo "                       [Path to file]"
+  echo
   echo "--cors-domain          Sets CORS domain (note: if you want to set every origin you must type asterisk wrapped in quotes '*' otherwise shell may try to resolve it"
   echo
   echo "--external-ip          Sets external IP for pandora and vanguard"
