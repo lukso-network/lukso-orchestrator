@@ -474,7 +474,7 @@ start_pandora() {
 
   if [[ -n $PANDORA_RPCVHOSTS ]]; then
     RPCVHOSTS_FLAGS=(
-      "--rpcvhosts=$PANDORA_RPCVHOSTS"
+      "--http.vhosts=$PANDORA_RPCVHOSTS"
     )
     ARGUMENTS=("${ARGUMENTS[@]}" "${RPCVHOSTS_FLAGS[@]}")
   fi
