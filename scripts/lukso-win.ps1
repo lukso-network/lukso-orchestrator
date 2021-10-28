@@ -6,48 +6,47 @@
 param (
     [Parameter(Position = 0, Mandatory)][String]$command,
     [Parameter(Position = 1)][String]$argument,
-
-    [String]$orchestrator = "",
-    [String]${orchestrator-verbosity} = "",
-    [String]$pandora = "",
-    [String]$vanguard = "",
-    [String]$validator = "",
     [String]$deposit = "",
     [String]$eth2stats = "",
     [String]$network = "",
     [String]${lukso-home} = "$HOME\.lukso",
-    [String]$datadir = "${lukso-home}\$network\datadir",
+    [String]$datadir = "",
     [String]$logsdir = "${lukso-home}\$network\logs",
-    [String]${keys-dir} = "",
-    [String]${keys-password-file} = "",
-    [String]${wallet-dir} = "",
-    [String]${wallet-password-file} = "",
+    [String]${keys-dir},
+    [String]${keys-password-file},
+    [String]${wallet-dir},
+    [String]${wallet-password-file},
     [Switch]${l15-prod},
     [Switch]${l15-staging},
     [Switch]${l15-dev},
-    [String]$config = "",
-    [String]$coinbase = "",
-    [String]${node-name} = "",
+    [String]$config,
+    [String]$coinbase,
+    [String]${node-name},
     [Switch]$validate,
-    [String]${pandora-bootnodes} = "",
+    [String]$orchestrator,
+    [String]${orchestrator-verbosity},
+    [String]$pandora,
+    [String]${pandora-bootnodes},
     [String]${pandora-http-port} = "8545",
     [Switch]${pandora-metrics},
-    [String]${pandora-nodekey} = "",
-    [String]${pandora-rpcvhosts} = "",
-    [String]${pandora-external-ip} = "",
+    [String]${pandora-nodekey},
+    [String]${pandora-rpcvhosts},
+    [String]${pandora-external-ip},
     [Switch]${pandora-universal-profile-expose},
     [Switch]${pandora-unsafe-expose},
-    [String]${pandora-verbosity} = "",
-    [String]${vanguard-bootnodes} = "",
-    [String]${vanguard-p2p-priv-key} = "",
-    [String]${vanguard-external-ip} = "",
-    [String]${vanguard-p2p-host-dns} = "",
-    [String]${vanguard-rpc-host} = "",
-    [String]${vanguard-monitoring-host} = "",
-    [String]${vanguard-verbosity} = "",
-    [String]${validator-verbosity} = "",
-    [String]${cors-domain} = "",
-    [String]${external-ip} = "",
+    [String]${pandora-verbosity},
+    [String]$vanguard,
+    [String]${vanguard-bootnodes},
+    [String]${vanguard-p2p-priv-key},
+    [String]${vanguard-external-ip},
+    [String]${vanguard-p2p-host-dns},
+    [String]${vanguard-rpc-host},
+    [String]${vanguard-monitoring-host},
+    [String]${vanguard-verbosity},
+    [String]$validator,
+    [String]${validator-verbosity},
+    [String]${cors-domain},
+    [String]${external-ip},
     [Switch]${allow-respin},
     [Switch]$force
 )
@@ -55,26 +54,73 @@ param (
 # Parsing config File and setting defaults
 if ($config)
 {
-    $ConfigFile = ConvertFrom-Yaml $( cat $config )
+    $ConfigFile = ConvertFrom-Yaml $(Get-Content -Raw $config )
 }
 
+echo $orchestrator
+echo flag
 
 $orchestrator = If ($orchestrator) {$orchestrator} ElseIf ($ConfigFile.ORCHESTRATOR) {$ConfigFile.ORCHESTRATOR} Else {"default"}
+echo $orchestrator
+echo postflag
+
 ${orchestrator-verbosity} = If (${orchestrator-verbosity}) {${orchestrator-verbosity}} ElseIf ($ConfigFile.ORCHESTRATOR_VERBOSITY) {$ConfigFile.ORCHESTRATOR_VERBOSITY} Else {"info"}
-$pandora = If ($pandora) {$pandora} ElseIf ($ConfigFile.PANDORA) {$ConfigFile.PANDORA} Else {""}
 $network = If ($network) {$network} ElseIf ($ConfigFile.NETWORK) {$ConfigFile.NETWORK} Else {"l15-prod"}
 
+$deposit = If ($deposit) {$deposit} ElseIf ($ConfigFile.DEPOSIT) {$ConfigFile.DEPOSIT} Else {""}
+$eth2stats = If ($eth2stats) {$eth2stats} ElseIf ($ConfigFile.ETH2STATS) {$ConfigFile.ETH2STATS} Else {""}
+$network = If ($network) {$network} ElseIf ($ConfigFile.NETWORK) {$ConfigFile.NETWORK} Else {"l15-prod"}
+${lukso-home} = If (${lukso-home}) {${lukso-home}} ElseIf ($ConfigFile.LUKSO_HOME) {$ConfigFile.LUKSO_HOME} Else {"$HOME\.lukso"}
+$datadir = If ($datadir) {$datadir} ElseIf ($ConfigFile.DATADIR) {$ConfigFile.DATADIR} Else {"${lukso-home}\$network\datadir"}
+$logsdir = If ($logsdir) {$logsdir} ElseIf ($ConfigFile.LOGSDIR) {$ConfigFile.LOGSDIR} Else {"${lukso-home}\$network\logs"}
+${keys-dir} = If (${keys-dir}) {${keys-dir}} ElseIf ($ConfigFile.KEYS_DIR) {$ConfigFile.KEYS_DIR} Else {"${lukso-home}\validator_keys"}
+${keys-password-file} = If (${keys-password-file}) {${keys-password-file}} ElseIf ($ConfigFile.KEYS_PASSWORD_FILE) {$ConfigFile.KEYS_PASSWORD_FILE} Else {""}
+${wallet-dir} = If (${wallet-dir}) {}
+${wallet-password-file},
+${l15-prod},
+${l15-staging},
+${l15-dev},
+$coinbase,
+${node-name},
+$validate,
+${orchestrator-verbosity},
+$pandora = If ($pandora) {$pandora} ElseIf ($ConfigFile.PANDORA) {$ConfigFile.PANDORA} Else {""}
+${pandora-bootnodes} = If (${pandora-bootnodes}) {${pandora-bootnodes}} ElseIf ($ConfigFile.PANDORA_BOOTNODES) {$ConfigFile.PANDORA_BOOTNODES} Else {""}
+${pandora-http-port} = If (${pandora-http-port}) {${pandora-http-port}} ElseIf ($ConfigFile.PANDORA_HTTP_PORT) {$ConfigFile.PANDORA_HTTP_PORT} Else {"8545"}
+${pandora-metrics} = If (${pandora-metrics}) {${pandora-metrics}} ElseIf ($ConfigFile.PANDORA_METRICS) {$ConfigFile.PANDORA_METRICS} Else {""}
+${pandora-nodekey} = If (${pandora-nodekey}) {${pandora-nodekey}} ElseIf ($ConfigFile.PANDORA_NODEKEY) {$ConfigFile.PANDORA_NODEKEY} Else {""}
+${pandora-rpcvhosts} = If (${pandora-rpcvhosts}) {${pandora-rpcvhosts}} ElseIf ($ConfigFile.PANDORA_RPCVHOSTS) {$ConfigFile.PANDORA_RPCVHOSTS} Else {""}
+${pandora-external-ip} = If (${pandora-external-ip}) {${pandora-external-ip}} ElseIf ($ConfigFile.PANDORA_EXTERNAL_IP) {$ConfigFile.PANDORA_EXTERNAL_IP} Else {""}
+${pandora-universal-profile-expose} = If (${pandora-universal-profile-expose}) {${pandora-universal-profile-expose}} ElseIf ($ConfigFile.PANDORA_UNIVERSAL_PROFILE_EXPOSE) {$ConfigFile.PANDORA_UNIVERSAL_PROFILE_EXPOSE} Else {""}
+${pandora-unsafe-expose} = If (${pandora-unsafe-expose}) {${pandora-unsafe-expose}} ElseIf ($ConfigFile.PANDORA_UNSAFE_EXPOSE) {$ConfigFile.PANDORA_UNSAFE_EXPOSE} Else {""}
+${pandora-verbosity} = If (${pandora-verbosity}) {${pandora-verbosity}} ElseIf ($ConfigFile.PANDORA_VERBOSITY) {$ConfigFile.PANDORA_VERBOSITY} Else {"info"}
+$vanguard = If ($vanguard) {$vanguard} ElseIf ($ConfigFile.VANGUARD) {$ConfigFile.VANGUARD} Else {""}
+${vanguard-bootnodes} = If (${vanguard-bootnodes}) {${vanguard-bootnodes}} ElseIf ($ConfigFile.VANGUARD_BOOTNODES) {$ConfigFile.VANGUARD_BOOTNODES} Else {""}
+${vanguard-p2p-priv-key} = If (${vanguard-p2p-priv-key}) {${vanguard-p2p-priv-key}} ElseIf ($ConfigFile.VANGUARD_P2P_PRIV_KEY) {$ConfigFile.VANGUARD_P2P_PRIV_KEY} Else {""}
+${vanguard-external-ip} = If (${vanguard-external-ip}) {${vanguard-external-ip}} ElseIf ($ConfigFile.VANGUARD_EXTERNAL_IP) {$ConfigFile.VANGUARD_EXTERNAL_IP} Else {""}
+${vanguard-p2p-host-dns} = If (${vanguard-p2p-host-dns}) {${vanguard-p2p-host-dns}} ElseIf ($ConfigFile.VANGUARD_P2P_HOST_DNS) {$ConfigFile.VANGUARD_P2P_HOST_DNS} Else {""}
+${vanguard-rpc-host} = If (${vanguard-rpc-host}) {${vanguard-rpc-host}} ElseIf ($ConfigFile.VANGUARD_RPC_HOST) {$ConfigFile.VANGUARD_RPC_HOST} Else {""}
+${vanguard-monitoring-host} = If (${vanguard-monitoring-host}) {${vanguard-monitoring-host}} ElseIf ($ConfigFile.VANGUARD_MONITORING_HOST) {$ConfigFile.VANGUARD_MONITORING_HOST} Else {""}
+${vanguard-verbosity} = If (${vanguard-verbosity}) {${vanguard-verbosity}} ElseIf ($ConfigFile.VANGUARD_VERBOSITY) {$ConfigFile.VANGUARD_VERBOSITY} Else {}
+$validator = If ($validator) {$validator} ElseIf ($ConfigFile.VALIDATOR) {$ConfigFile.VALIDATOR} Else {}
+${validator-verbosity} = If (${validator-verbosity}) {${validator-verbosity}} ElseIf ($ConfigFile.VALIDATOR_VERBOSITY) {$ConfigFile.VALIDATOR_VERBOSITY} Else {"info"}
+${cors-domain} = If (${cors-domain}) {${cors-domain}} ElseIf ($ConfigFile.CORS_DOMAIN) {$ConfigFile.CORS_DOMAIN} Else {""}
+${external-ip} = If (${external-ip}) {${external-ip}} ElseIf ($ConfigFile.EXTERNAL_IP) {$ConfigFile.EXTERNAL_IP} Else {""}
+${allow-respin} = If (${allow-respin}) {${allow-respin}} ElseIf ($ConfigFile.ALLOW_RESPIN) {$ConfigFile.ALLOW_RESPIN} Else {""}
+$force = If ($force) {$force} ElseIf ($ConfigFile.FORCE) {$ConfigFile.FORCE} Else {""}
 
 
 
 $platform = "Windows"
 $architecture = "x86_64"
 $InstallDir = $Env:APPDATA + "\LUKSO";
-$NetworkConfigFile = "$InstallDir\networks\$network\config\network-config.yaml"
 
-$NetworkConfig = ConvertFrom-Yaml $(cat $NetworkConfigFile)
+$NetworkConfigFile = "$InstallDir\networks\$network\config\network-config.yaml"
+$NetworkConfig = ConvertFrom-Yaml $(Get-Content -Raw $NetworkConfigFile)
 
 $RunDate = Get-Date -Format "yyyy-m-dd__HH-mm-ss"
+
+
 
 Function download($url, $dst)
 {
@@ -106,7 +152,7 @@ Function download_binary($client, $tag)
         }
 
         eth2stats {
-            $repo = "vanguard-consensus-engine"
+            $repo = "network-vanguard-stats-client"
         }
     }
 
@@ -126,6 +172,9 @@ Function download_network_config($network)
 
 Function bind_binary($client, $tag)
 {
+    echo $tag
+    echo frombind_binary
+
     if (!(Test-Path "$InstallDir/binaries/$client/$tag/$client-$platform-$architecture.exe"))
     {
         download_binary $client $tag
@@ -139,7 +188,7 @@ Function bind_binary($client, $tag)
 
 Function bind_binaries()
 {
-    Write-Output binding
+    Write-Output Binding
 }
 
 Function pick_network($picked_network)
@@ -149,10 +198,11 @@ Function pick_network($picked_network)
     {
         download_network_config $network
     }
-    $NetworkConfig = ConvertFrom-Yaml $(cat $config)
+    $NetworkConfigFile = "$InstallDir\networks\$network\config\network-config.yaml"
+    $NetworkConfig = ConvertFrom-Yaml $(Get-Content -Raw $NetworkConfigFile)
 }
 
-function check_validator_requirements()
+Function check_validator_requirements()
 {
 
 }
@@ -182,11 +232,13 @@ Function start_orchestrator()
 
     Write-Output $arguments
 
-    Start-Process -FilePath "lukso-orchestrator" `
+    Start-Process -FilePath lukso-orchestrator `
     -ArgumentList $arguments `
     -NoNewWindow `
-    -RedirectStandardOutput "orchestrator_$runDate.out" `
-    -RedirectStandardError "orchestrator_$runDate.err"
+
+#    -RedirectStandardOutput "orchestrator_$runDate.out" `
+#    -RedirectStandardError "orchestrator_$runDate.err" `
+
 
 
 }
@@ -232,7 +284,7 @@ function start_pandora()
 
     $Arguments = New-Object System.Collections.Generic.List[System.Object]
 
-    $Arguments.Add("--datadir=$DATADIR/pandora")
+    $Arguments.Add("--datadir=$datadir/pandora")
     $Arguments.Add("--networkid=$NETWORK_ID")
     $Arguments.Add("--ethstats=${node-name}:$networkConfig.ETH1_STATS_APIKEY@$networkConfig.ETH1_STATS_URL")
     $Arguments.Add("--port=30405")
@@ -265,8 +317,10 @@ function start_pandora()
         $Arguments.Add("--nodekey=${pandora-nodekey}")
     }
 
+    Write-Output $Arguments
+
     Start-Process -FilePath "pandora" `
-    -ArgumentList $arguments `
+    -ArgumentList $Arguments `
     -NoNewWindow `
     -RedirectStandardOutput "$logsdir\pandora_$runDate.out" `
     -RedirectStandardError "$logsdir\pandora_$runDate.err"
@@ -429,7 +483,7 @@ function stop_all() {
     stop_eth2stats
 }
 
-function stop() {}
+function _stop() {}
 
 function reset_orchestrator () {
 
@@ -578,6 +632,10 @@ function _help() {
     exit
 }
 
+echo $orchestrator
+echo line637
+bind_binary lukso-orchestrator $orchestrator
+
 ##Flags action
 if ($orchestrator)
 {
@@ -615,36 +673,31 @@ if ($network) {
     pick_network $network
 }
 
-if ($config)
-{
-    $configObj = ConvertFrom-Yaml $(cat $config)
-}
 
-$NetworkConfig = ConvertFrom-Yaml $(cat $InstallDir\networks\$network\config\network-config.yaml)
 switch ($command)
 {
-    start {
+    "start" {
         _start $argument
         $KeepShell = $true
     }
 
-    stop {
+    "stop" {
         _stop $argument
     }
 
-    restart {
+    "restart" {
         _restart $argument
     }
 
-    help {
+    "help" {
         _help
     }
 
-    logs {
+    "logs" {
         logs $argument
     }
 
-    bind-binaries {
+    "bind-binaries" {
         bind_binaries
     }
 
