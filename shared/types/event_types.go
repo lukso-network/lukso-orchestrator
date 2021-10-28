@@ -9,7 +9,20 @@ import (
 
 const BLSSignatureSize = 96
 
+type Reorg struct {
+	VanParentHash []byte     `json:"van_parent_hash"`
+	PanParentHash []byte     `json:"pan_parent_hash"`
+}
+
 type MinimalEpochConsensusInfo struct {
+	Epoch            uint64        `json:"epoch"`
+	ValidatorList    []string      `json:"validatorList"`
+	EpochStartTime   uint64        `json:"epochTimeStart"`
+	SlotTimeDuration time.Duration `json:"slotTimeDuration"`
+	ReorgInfo        *Reorg        `json:"reorg_info"`
+}
+
+type MinimalEpochConsensusInfoV2 struct {
 	Epoch            uint64        `json:"epoch"`
 	ValidatorList    []string      `json:"validatorList"`
 	EpochStartTime   uint64        `json:"epochTimeStart"`
@@ -52,6 +65,15 @@ type SlotInfoWithStatus struct {
 	VanguardBlockHash common.Hash
 	PandoraHeaderHash common.Hash
 	Status
+}
+
+func (info *MinimalEpochConsensusInfo) ConvertToEpochInfoV2() *MinimalEpochConsensusInfoV2 {
+	return &MinimalEpochConsensusInfoV2{
+		Epoch: info.Epoch,
+		ValidatorList: info.ValidatorList,
+		EpochStartTime: info.EpochStartTime,
+		SlotTimeDuration: info.SlotTimeDuration,
+	}
 }
 
 // Bytes gets the byte representation of the underlying hash.

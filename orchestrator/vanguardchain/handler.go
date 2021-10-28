@@ -16,7 +16,16 @@ func (s *Service) OnNewConsensusInfo(ctx context.Context, consensusInfo *types.M
 	nsent := s.consensusInfoFeed.Send(consensusInfo)
 	log.WithField("nsent", nsent).Trace("Send consensus info to subscribers")
 
-	if err := s.orchestratorDB.SaveConsensusInfo(ctx, consensusInfo); err != nil {
+	if consensusInfo.ReorgInfo != nil {
+		// reorg happened. So remove info from database
+		err := s.orchestratorDB.RevertConsensusInfo(consensusInfo)
+		if err != nil {
+			log.WithError(err).Error("found error while reverting orchestrator database")
+			return err
+		}
+	}
+
+	if err := s.orchestratorDB.SaveConsensusInfo(ctx, consensusInfo.ConvertToEpochInfoV2()); err != nil {
 		log.WithError(err).Warn("failed to save consensus info into consensusInfoDB!")
 		return err
 	}

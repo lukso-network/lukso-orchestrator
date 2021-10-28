@@ -40,7 +40,7 @@ func (backend *Backend) SubscribeNewVerifiedSlotInfoEvent(ch chan<- *types.SlotI
 	return backend.VerifiedSlotInfoFeed.SubscribeVerifiedSlotInfoEvent(ch)
 }
 
-func (backend *Backend) ConsensusInfoByEpochRange(fromEpoch uint64) []*types.MinimalEpochConsensusInfo {
+func (backend *Backend) ConsensusInfoByEpochRange(fromEpoch uint64) []*types.MinimalEpochConsensusInfoV2 {
 	consensusInfos, err := backend.ConsensusInfoDB.ConsensusInfos(fromEpoch)
 	if err != nil {
 		return nil

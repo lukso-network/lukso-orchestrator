@@ -188,3 +188,39 @@ func (s *Store) InMemoryLatestVerifiedHeaderHash() common.Hash {
 
 	return s.latestHeaderHash
 }
+
+func (s *Store) FindVerifiedSlotNumber(info *types.SlotInfo, fromSlot uint64) uint64 {
+
+	for i := fromSlot; i > 0; i-- {
+		slotInfo, err := s.VerifiedSlotInfo(i)
+		if err != nil {
+			log.WithError(err).Error("failed to find slot info")
+			return 0
+		}
+		if slotInfo.PandoraHeaderHash == info.PandoraHeaderHash && slotInfo.VanguardBlockHash == info.VanguardBlockHash {
+			return i
+		}
+	}
+	return 0
+}
+
+func (s *Store) RemoveRangeVerifiedInfo(fromSlot, toSlot uint64) error {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
+
+	// storing latest epoch number into db
+	return s.db.Update(func(tx *bolt.Tx) error {
+		for i := fromSlot; i <= toSlot; i++ {
+			bkt := tx.Bucket(verifiedSlotInfosBucket)
+			s.verifiedSlotInfoCache.Del(i)
+			slotBytes := bytesutil.Uint64ToBytesBigEndian(i)
+
+			if err := bkt.Delete(slotBytes); err != nil {
+				return err
+			}
+
+		}
+		return nil
+	})
+}
+

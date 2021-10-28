@@ -3,19 +3,20 @@ package events
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/ethereum/go-ethereum/common"
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 	generalTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
 	"github.com/pkg/errors"
-	"time"
 )
 
 var lastSendEpoch uint64
 
 type Backend interface {
-	ConsensusInfoByEpochRange(fromEpoch uint64) []*generalTypes.MinimalEpochConsensusInfo
+	ConsensusInfoByEpochRange(fromEpoch uint64) []*generalTypes.MinimalEpochConsensusInfoV2
 	SubscribeNewEpochEvent(chan<- *generalTypes.MinimalEpochConsensusInfo) event.Subscription
 	GetSlotStatus(ctx context.Context, slot uint64, hash common.Hash, requestFrom bool) generalTypes.Status
 	LatestEpoch() uint64
@@ -154,11 +155,6 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, requestedE
 					WithField("epochStartTime", currentEpochInfo.EpochStartTime).
 					Info("Sending consensus info to subscriber")
 
-				if currentEpochInfo.Epoch < requestedEpoch {
-					log.Debug("Current epoch is old enough for pandora. So not sending the epoch info")
-					continue
-				}
-
 				if firstTime {
 					firstTime = false
 					startEpoch = endEpoch
@@ -176,6 +172,7 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, requestedE
 					ValidatorList:    currentEpochInfo.ValidatorList,
 					EpochStartTime:   currentEpochInfo.EpochStartTime,
 					SlotTimeDuration: currentEpochInfo.SlotTimeDuration,
+					ReorgInfo:        currentEpochInfo.ReorgInfo,
 				})
 				if nil != err {
 					log.WithField("epoch", currentEpochInfo.Epoch).WithError(err).Error(

@@ -12,13 +12,13 @@ import (
 var errInvalidEpoch = errors.New("invalid epoch and not found any consensusInfo for the given epoch")
 
 // ConsensusInfo
-func (s *Store) ConsensusInfo(ctx context.Context, epoch uint64) (*eventTypes.MinimalEpochConsensusInfo, error) {
+func (s *Store) ConsensusInfo(ctx context.Context, epoch uint64) (*eventTypes.MinimalEpochConsensusInfoV2, error) {
 	// Return consensus info from cache if it exists.
 	if v, ok := s.consensusInfoCache.Get(epoch); v != nil && ok {
-		return v.(*eventTypes.MinimalEpochConsensusInfo), nil
+		return v.(*eventTypes.MinimalEpochConsensusInfoV2), nil
 	}
 	// consensus info not found in cache so retrieve from db
-	var consensusInfo *eventTypes.MinimalEpochConsensusInfo
+	var consensusInfo *eventTypes.MinimalEpochConsensusInfoV2
 	err := s.db.View(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(consensusInfosBucket)
 		key := bytesutil.Uint64ToBytesBigEndian(epoch)
@@ -33,7 +33,7 @@ func (s *Store) ConsensusInfo(ctx context.Context, epoch uint64) (*eventTypes.Mi
 
 // ConsensusInfos
 func (s *Store) ConsensusInfos(fromEpoch uint64) (
-	[]*eventTypes.MinimalEpochConsensusInfo, error,
+	[]*eventTypes.MinimalEpochConsensusInfoV2, error,
 ) {
 	latestEpoch := s.LatestSavedEpoch()
 	// when requested epoch is greater than stored latest epoch
@@ -41,13 +41,13 @@ func (s *Store) ConsensusInfos(fromEpoch uint64) (
 		return nil, errors.Wrap(errInvalidEpoch, fmt.Sprintf("fromEpoch: %d", fromEpoch))
 	}
 
-	consensusInfos := make([]*eventTypes.MinimalEpochConsensusInfo, 0)
+	consensusInfos := make([]*eventTypes.MinimalEpochConsensusInfoV2, 0)
 	err := s.db.View(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(consensusInfosBucket)
 		for epoch := fromEpoch; epoch <= latestEpoch; epoch++ {
 			// fast finding into cache, if the value does not exist in cache, it starts finding into db
 			if v, _ := s.consensusInfoCache.Get(epoch); v != nil {
-				consensusInfos = append(consensusInfos, v.(*eventTypes.MinimalEpochConsensusInfo))
+				consensusInfos = append(consensusInfos, v.(*eventTypes.MinimalEpochConsensusInfoV2))
 				continue
 			}
 			// preparing key bytes for searching into db
@@ -56,7 +56,7 @@ func (s *Store) ConsensusInfos(fromEpoch uint64) (
 			if enc == nil {
 				return errors.Wrap(errInvalidEpoch, fmt.Sprintf("epoch: %d", epoch))
 			}
-			var consensusInfo *eventTypes.MinimalEpochConsensusInfo
+			var consensusInfo *eventTypes.MinimalEpochConsensusInfoV2
 			decode(enc, &consensusInfo)
 			consensusInfos = append(consensusInfos, consensusInfo)
 		}
@@ -73,7 +73,7 @@ func (s *Store) ConsensusInfos(fromEpoch uint64) (
 // SaveConsensusInfo
 func (s *Store) SaveConsensusInfo(
 	ctx context.Context,
-	consensusInfo *eventTypes.MinimalEpochConsensusInfo,
+	consensusInfo *eventTypes.MinimalEpochConsensusInfoV2,
 ) error {
 	s.Mutex.Lock()
 	defer s.Mutex.Unlock()
@@ -94,6 +94,23 @@ func (s *Store) SaveConsensusInfo(
 		}
 		// update latest epoch
 		s.latestEpoch = consensusInfo.Epoch
+		return nil
+	})
+}
+
+func (s *Store) RemoveRangeConsensusInfo(startEpoch, endEpoch uint64) error {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
+
+	return s.db.Update(func(tx *bolt.Tx) error {
+		bkt := tx.Bucket(consensusInfosBucket)
+		for i := startEpoch; i <= endEpoch; i++ {
+			s.consensusInfoCache.Del(i)
+			epochBytes := bytesutil.Uint64ToBytesBigEndian(i)
+			if err := bkt.Delete(epochBytes); err != nil {
+				return err
+			}
+		}
 		return nil
 	})
 }
