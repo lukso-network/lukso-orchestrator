@@ -69,6 +69,8 @@ PANDORA_NODEKEY=""
 PANDORA_VERBOSITY=debug
 PAN_WS_MINER_NOTIFY="ws://127.0.0.1:7878"
 PAN_HTTP_MINER_NOTIFY="http://127.0.0.1:7877"
+ETH1_STATS_URL=""
+ETH1_STATS_APIKEY=""
 CORS_DOMAIN=""
 ######
 
@@ -478,9 +480,9 @@ start_pandora() {
     ARGUMENTS=("${ARGUMENTS[@]}" "${RPCVHOSTS_FLAGS[@]}")
   fi
 
-  if [[ -n $PANDORA_ETHSTATS ]]; then
+  if [[ "$WITH_ETH1STATS" == true ]]; then
     ETHSTATS_FLAG=(
-      "--ethstats=$PANDORA_ETHSTATS"
+      "--ethstats=$NODE_NAME:$ETH1_STATS_APIKEY@$ETH1_STATS_URL"
     )
     ARGUMENTS=("${ARGUMENTS[@]}" "${ETHSTATS_FLAG[@]}")
   fi
@@ -1212,9 +1214,7 @@ while getopts "$optspec" optchar; do
       ;;
 
     pan-ethstats)
-      val="${!OPTIND}"
-      OPTIND=$(($OPTIND + 1))
-      OVERRIDE_PAN_ETHSTATS=$val
+      OVERRIDE_WITH_ETH1STATS=true
       ;;
 
     pandora-verbosity)
@@ -1488,8 +1488,8 @@ if [[ -n $OVERRIDE_PANDORA_RPCVHOSTS ]]; then
   PANDORA_RPCVHOSTS=$OVERRIDE_PANDORA_RPCVHOSTS
 fi
 
-if [[ -n $OVERRIDE_PAN_ETHSTATS ]]; then
-  PANDORA_ETHSTATS=$OVERRIDE_PAN_ETHSTATS
+if [[ -n $OVERRIDE_WITH_ETH1STATS ]]; then
+  PANDORA_ETHSTATS=$OVERRIDE_WITH_ETH1STATS
 fi
 
 if [[ -n $OVERRIDE_WITH_ETH2STATS ]]; then
