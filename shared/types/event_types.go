@@ -10,8 +10,8 @@ import (
 const BLSSignatureSize = 96
 
 type Reorg struct {
-	VanParentHash []byte     `json:"van_parent_hash"`
-	PanParentHash []byte     `json:"pan_parent_hash"`
+	VanParentHash []byte `json:"van_parent_hash"`
+	PanParentHash []byte `json:"pan_parent_hash"`
 }
 
 type MinimalEpochConsensusInfo struct {
@@ -69,10 +69,20 @@ type SlotInfoWithStatus struct {
 
 func (info *MinimalEpochConsensusInfo) ConvertToEpochInfoV2() *MinimalEpochConsensusInfoV2 {
 	return &MinimalEpochConsensusInfoV2{
-		Epoch: info.Epoch,
-		ValidatorList: info.ValidatorList,
-		EpochStartTime: info.EpochStartTime,
+		Epoch:            info.Epoch,
+		ValidatorList:    info.ValidatorList,
+		EpochStartTime:   info.EpochStartTime,
 		SlotTimeDuration: info.SlotTimeDuration,
+	}
+}
+
+func (info *MinimalEpochConsensusInfoV2) ConvertToEpochInfoV1() *MinimalEpochConsensusInfo {
+	return &MinimalEpochConsensusInfo{
+		Epoch:            info.Epoch,
+		ValidatorList:    info.ValidatorList,
+		EpochStartTime:   info.EpochStartTime,
+		SlotTimeDuration: info.SlotTimeDuration,
+		ReorgInfo:        nil,
 	}
 }
 

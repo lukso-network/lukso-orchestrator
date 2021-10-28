@@ -14,7 +14,7 @@ func (s *Store) RevertConsensusInfo(reorgInfo *types.MinimalEpochConsensusInfo) 
 			log.WithError(err).Error("failed to remove consensus info from database")
 			return err
 		}
-		if reorgInfo.Epoch - 1 >= 0 {
+		if reorgInfo.Epoch-1 >= 0 {
 			s.latestEpoch = reorgInfo.Epoch - 1
 			err := s.SaveLatestEpoch(s.ctx)
 			if err != nil {

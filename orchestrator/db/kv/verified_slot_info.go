@@ -223,4 +223,3 @@ func (s *Store) RemoveRangeVerifiedInfo(fromSlot, toSlot uint64) error {
 		return nil
 	})
 }
-

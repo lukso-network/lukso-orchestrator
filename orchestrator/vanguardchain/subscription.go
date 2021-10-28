@@ -122,6 +122,10 @@ func (s *Service) subscribeNewConsensusInfoGRPC(client client.VanguardClient) er
 					ValidatorList:    vanMinimalConsensusInfo.ValidatorList,
 					EpochStartTime:   vanMinimalConsensusInfo.EpochTimeStart,
 					SlotTimeDuration: time.Duration(vanMinimalConsensusInfo.SlotTimeDuration.Seconds),
+					ReorgInfo:        &types.Reorg{
+						VanParentHash: vanMinimalConsensusInfo.ReorgInfo.VanParentHash,
+						PanParentHash: vanMinimalConsensusInfo.ReorgInfo.PanParentHash,
+					},
 				}
 				// Only non empty check for now
 				if len(consensusInfo.ValidatorList) < 1 {
