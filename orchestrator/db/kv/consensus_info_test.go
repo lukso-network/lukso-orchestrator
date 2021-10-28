@@ -14,7 +14,7 @@ func TestStore_ConsensusInfo_RetrieveByEpoch_FromCache(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	db := setupDB(t, true)
-	totalConsensusInfos := make([]*eventTypes.MinimalEpochConsensusInfoV2, 50)
+	totalConsensusInfos := make([]*eventTypes.MinimalEpochConsensusInfo, 50)
 	for i := 0; i < 50; i++ {
 		consensusInfo := testutil.NewMinimalConsensusInfo(uint64(i))
 		epochInfoV2 := consensusInfo.ConvertToEpochInfoV2()
@@ -31,7 +31,7 @@ func TestStore_ConsensusInfo_RetrieveByEpoch_FromDB(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	db := setupDB(t, true)
-	totalConsensusInfos := make([]*eventTypes.MinimalEpochConsensusInfoV2, 2001)
+	totalConsensusInfos := make([]*eventTypes.MinimalEpochConsensusInfo, 2001)
 	for i := 1; i <= 2000; i++ {
 		consensusInfo := testutil.NewMinimalConsensusInfo(uint64(i))
 		epochInfoV2 := consensusInfo.ConvertToEpochInfoV2()
@@ -62,7 +62,7 @@ func TestStore_ConsensusInfos_RetrieveByEpoch(t *testing.T) {
 	db := setupDB(t, true)
 	db.latestEpoch = 199
 	db.SaveLatestEpoch(ctx)
-	totalConsensusInfos := make([]*eventTypes.MinimalEpochConsensusInfoV2, 200)
+	totalConsensusInfos := make([]*eventTypes.MinimalEpochConsensusInfo, 200)
 
 	for i := 0; i < 200; i++ {
 		consensusInfo := testutil.NewMinimalConsensusInfo(uint64(i))

@@ -5,7 +5,7 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 )
 
-func (s *Store) RevertConsensusInfo(reorgInfo *types.MinimalEpochConsensusInfo) error {
+func (s *Store) RevertConsensusInfo(reorgInfo *types.MinimalEpochConsensusInfoV2) error {
 	// remove minimal consensus info
 	latestEpoch := s.LatestSavedEpoch()
 	if reorgInfo.Epoch <= latestEpoch {

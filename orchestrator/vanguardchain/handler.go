@@ -12,7 +12,7 @@ import (
 // OnNewConsensusInfo :
 //	- sends the new consensus info to all subscribed pandora clients
 //  - store consensus info into cache as well as into kv consensusInfoDB
-func (s *Service) OnNewConsensusInfo(ctx context.Context, consensusInfo *types.MinimalEpochConsensusInfo) error {
+func (s *Service) OnNewConsensusInfo(ctx context.Context, consensusInfo *types.MinimalEpochConsensusInfoV2) error {
 	nsent := s.consensusInfoFeed.Send(consensusInfo)
 	log.WithField("nsent", nsent).Trace("Send consensus info to subscribers")
 

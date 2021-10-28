@@ -36,7 +36,7 @@ type subscription struct {
 	err       chan error    // closed when the filter is uninstalled
 
 	epoch         uint64 // last served epoch number
-	consensusInfo chan *types.MinimalEpochConsensusInfo
+	consensusInfo chan *types.MinimalEpochConsensusInfoV2
 	slotInfo      chan *types.SlotInfoWithStatus
 }
 
@@ -50,9 +50,9 @@ type EventSystem struct {
 	verifiedSlotInfoSub event.Subscription
 
 	// Channels
-	install         chan *subscription                    // install filter for event notification
-	uninstall       chan *subscription                    // remove filter for event notification
-	consensusInfoCh chan *types.MinimalEpochConsensusInfo // Channel to receive new new consensus info event
+	install         chan *subscription                      // install filter for event notification
+	uninstall       chan *subscription                      // remove filter for event notification
+	consensusInfoCh chan *types.MinimalEpochConsensusInfoV2 // Channel to receive new new consensus info event
 	slotInfoCh      chan *types.SlotInfoWithStatus
 }
 
@@ -67,7 +67,7 @@ func NewEventSystem(backend Backend) *EventSystem {
 		backend:         backend,
 		install:         make(chan *subscription),
 		uninstall:       make(chan *subscription),
-		consensusInfoCh: make(chan *types.MinimalEpochConsensusInfo, 1),
+		consensusInfoCh: make(chan *types.MinimalEpochConsensusInfoV2, 1),
 		slotInfoCh:      make(chan *types.SlotInfoWithStatus, 1),
 	}
 
@@ -132,7 +132,7 @@ func (es *EventSystem) subscribe(sub *subscription) *Subscription {
 
 // SubscribePendingTxs creates a subscription that writes transaction hashes for
 // transactions that enter the transaction pool.
-func (es *EventSystem) SubscribeConsensusInfo(consensusInfo chan *types.MinimalEpochConsensusInfo, epoch uint64) *Subscription {
+func (es *EventSystem) SubscribeConsensusInfo(consensusInfo chan *types.MinimalEpochConsensusInfoV2, epoch uint64) *Subscription {
 	sub := &subscription{
 		id:            rpc.NewID(),
 		typ:           MinConsensusInfoSubscription,
@@ -161,7 +161,7 @@ func (es *EventSystem) SubscribeVerifiedSlotInfo(slotInfo chan *types.SlotInfoWi
 type filterIndex map[Type]map[rpc.ID]*subscription
 
 // handleConsensusInfoEvent
-func (es *EventSystem) handleConsensusInfoEvent(filters filterIndex, ev *types.MinimalEpochConsensusInfo) {
+func (es *EventSystem) handleConsensusInfoEvent(filters filterIndex, ev *types.MinimalEpochConsensusInfoV2) {
 	for _, f := range filters[MinConsensusInfoSubscription] {
 		f.consensusInfo <- ev
 	}

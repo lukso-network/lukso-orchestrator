@@ -16,8 +16,8 @@ import (
 var lastSendEpoch uint64
 
 type Backend interface {
-	ConsensusInfoByEpochRange(fromEpoch uint64) []*generalTypes.MinimalEpochConsensusInfo
-	SubscribeNewEpochEvent(chan<- *generalTypes.MinimalEpochConsensusInfo) event.Subscription
+	ConsensusInfoByEpochRange(fromEpoch uint64) []*generalTypes.MinimalEpochConsensusInfoV2
+	SubscribeNewEpochEvent(chan<- *generalTypes.MinimalEpochConsensusInfoV2) event.Subscription
 	GetSlotStatus(ctx context.Context, slot uint64, hash common.Hash, requestFrom bool) generalTypes.Status
 	LatestEpoch() uint64
 	SubscribeNewVerifiedSlotInfoEvent(chan<- *generalTypes.SlotInfoWithStatus) event.Subscription
@@ -120,7 +120,7 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, requestedE
 		batchSender := func(start, end uint64) error {
 			epochInfos := api.backend.ConsensusInfoByEpochRange(start)
 			for _, ei := range epochInfos {
-				if err := notifier.Notify(rpcSub.ID, &generalTypes.MinimalEpochConsensusInfo{
+				if err := notifier.Notify(rpcSub.ID, &generalTypes.MinimalEpochConsensusInfoV2{
 					Epoch:            ei.Epoch,
 					ValidatorList:    ei.ValidatorList,
 					EpochStartTime:   ei.EpochStartTime,
@@ -144,7 +144,7 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, requestedE
 			}
 		}
 
-		consensusInfo := make(chan *generalTypes.MinimalEpochConsensusInfo)
+		consensusInfo := make(chan *generalTypes.MinimalEpochConsensusInfoV2)
 		consensusInfoSub := api.events.SubscribeConsensusInfo(consensusInfo, requestedEpoch)
 		firstTime := true
 
@@ -167,7 +167,7 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, requestedE
 					}
 				}
 
-				err := notifier.Notify(rpcSub.ID, &generalTypes.MinimalEpochConsensusInfo{
+				err := notifier.Notify(rpcSub.ID, &generalTypes.MinimalEpochConsensusInfoV2{
 					Epoch:            currentEpochInfo.Epoch,
 					ValidatorList:    currentEpochInfo.ValidatorList,
 					EpochStartTime:   currentEpochInfo.EpochStartTime,

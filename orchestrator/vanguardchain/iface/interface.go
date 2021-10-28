@@ -6,7 +6,7 @@ import (
 )
 
 type ConsensusInfoFeed interface {
-	SubscribeMinConsensusInfoEvent(chan<- *types.MinimalEpochConsensusInfo) event.Subscription
+	SubscribeMinConsensusInfoEvent(chan<- *types.MinimalEpochConsensusInfoV2) event.Subscription
 }
 
 type VanguardShardInfoFeed interface {

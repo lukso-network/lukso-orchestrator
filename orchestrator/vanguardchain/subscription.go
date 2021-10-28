@@ -117,7 +117,7 @@ func (s *Service) subscribeNewConsensusInfoGRPC(client client.VanguardClient) er
 					return
 				}
 
-				consensusInfo := &types.MinimalEpochConsensusInfo{
+				consensusInfo := &types.MinimalEpochConsensusInfoV2{
 					Epoch:            uint64(vanMinimalConsensusInfo.Epoch),
 					ValidatorList:    vanMinimalConsensusInfo.ValidatorList,
 					EpochStartTime:   vanMinimalConsensusInfo.EpochTimeStart,

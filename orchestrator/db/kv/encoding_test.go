@@ -14,7 +14,7 @@ func Test_EncodingDecoding_Success(t *testing.T) {
 	consensusInfoEncoded0, err := encode(consensusInfo0)
 	require.NoError(t, err)
 
-	var consensusInfoDecoded0 *types.MinimalEpochConsensusInfo
+	var consensusInfoDecoded0 *types.MinimalEpochConsensusInfoV2
 	require.NoError(t, decode(consensusInfoEncoded0, &consensusInfoDecoded0))
 	assert.DeepEqual(t, consensusInfo0, consensusInfoDecoded0)
 }

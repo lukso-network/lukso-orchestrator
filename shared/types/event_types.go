@@ -14,7 +14,7 @@ type Reorg struct {
 	PanParentHash []byte `json:"pan_parent_hash"`
 }
 
-type MinimalEpochConsensusInfo struct {
+type MinimalEpochConsensusInfoV2 struct {
 	Epoch            uint64        `json:"epoch"`
 	ValidatorList    []string      `json:"validatorList"`
 	EpochStartTime   uint64        `json:"epochTimeStart"`
@@ -22,7 +22,7 @@ type MinimalEpochConsensusInfo struct {
 	ReorgInfo        *Reorg        `json:"reorg_info"`
 }
 
-type MinimalEpochConsensusInfoV2 struct {
+type MinimalEpochConsensusInfo struct {
 	Epoch            uint64        `json:"epoch"`
 	ValidatorList    []string      `json:"validatorList"`
 	EpochStartTime   uint64        `json:"epochTimeStart"`
@@ -67,8 +67,8 @@ type SlotInfoWithStatus struct {
 	Status
 }
 
-func (info *MinimalEpochConsensusInfo) ConvertToEpochInfoV2() *MinimalEpochConsensusInfoV2 {
-	return &MinimalEpochConsensusInfoV2{
+func (info *MinimalEpochConsensusInfoV2) ConvertToEpochInfoV2() *MinimalEpochConsensusInfo {
+	return &MinimalEpochConsensusInfo{
 		Epoch:            info.Epoch,
 		ValidatorList:    info.ValidatorList,
 		EpochStartTime:   info.EpochStartTime,
@@ -76,8 +76,8 @@ func (info *MinimalEpochConsensusInfo) ConvertToEpochInfoV2() *MinimalEpochConse
 	}
 }
 
-func (info *MinimalEpochConsensusInfoV2) ConvertToEpochInfoV1() *MinimalEpochConsensusInfo {
-	return &MinimalEpochConsensusInfo{
+func (info *MinimalEpochConsensusInfo) ConvertToEpochInfoV1() *MinimalEpochConsensusInfoV2 {
+	return &MinimalEpochConsensusInfoV2{
 		Epoch:            info.Epoch,
 		ValidatorList:    info.ValidatorList,
 		EpochStartTime:   info.EpochStartTime,

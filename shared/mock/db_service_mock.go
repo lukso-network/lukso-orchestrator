@@ -35,10 +35,10 @@ func (m *MockReadOnlyDatabase) EXPECT() *MockReadOnlyDatabaseMockRecorder {
 }
 
 // ConsensusInfo mocks base method
-func (m *MockReadOnlyDatabase) ConsensusInfo(ctx context.Context, epoch uint64) (*types.MinimalEpochConsensusInfo, error) {
+func (m *MockReadOnlyDatabase) ConsensusInfo(ctx context.Context, epoch uint64) (*types.MinimalEpochConsensusInfoV2, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ConsensusInfo", ctx, epoch)
-	ret0, _ := ret[0].(*types.MinimalEpochConsensusInfo)
+	ret0, _ := ret[0].(*types.MinimalEpochConsensusInfoV2)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -50,10 +50,10 @@ func (mr *MockReadOnlyDatabaseMockRecorder) ConsensusInfo(ctx, epoch interface{}
 }
 
 // ConsensusInfos mocks base method
-func (m *MockReadOnlyDatabase) ConsensusInfos(fromEpoch uint64) ([]*types.MinimalEpochConsensusInfo, error) {
+func (m *MockReadOnlyDatabase) ConsensusInfos(fromEpoch uint64) ([]*types.MinimalEpochConsensusInfoV2, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ConsensusInfos", fromEpoch)
-	ret0, _ := ret[0].([]*types.MinimalEpochConsensusInfo)
+	ret0, _ := ret[0].([]*types.MinimalEpochConsensusInfoV2)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -117,10 +117,10 @@ func (mr *MockDatabaseMockRecorder) Close() *gomock.Call {
 }
 
 // ConsensusInfo mocks base method
-func (m *MockDatabase) ConsensusInfo(ctx context.Context, epoch uint64) (*types.MinimalEpochConsensusInfo, error) {
+func (m *MockDatabase) ConsensusInfo(ctx context.Context, epoch uint64) (*types.MinimalEpochConsensusInfoV2, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ConsensusInfo", ctx, epoch)
-	ret0, _ := ret[0].(*types.MinimalEpochConsensusInfo)
+	ret0, _ := ret[0].(*types.MinimalEpochConsensusInfoV2)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -132,10 +132,10 @@ func (mr *MockDatabaseMockRecorder) ConsensusInfo(ctx, epoch interface{}) *gomoc
 }
 
 // ConsensusInfos mocks base method
-func (m *MockDatabase) ConsensusInfos(fromEpoch uint64) ([]*types.MinimalEpochConsensusInfo, error) {
+func (m *MockDatabase) ConsensusInfos(fromEpoch uint64) ([]*types.MinimalEpochConsensusInfoV2, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ConsensusInfos", fromEpoch)
-	ret0, _ := ret[0].([]*types.MinimalEpochConsensusInfo)
+	ret0, _ := ret[0].([]*types.MinimalEpochConsensusInfoV2)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -162,7 +162,7 @@ func (mr *MockDatabaseMockRecorder) LatestSavedEpoch() *gomock.Call {
 }
 
 // SaveConsensusInfo mocks base method
-func (m *MockDatabase) SaveConsensusInfo(ctx context.Context, consensusInfo *types.MinimalEpochConsensusInfo) error {
+func (m *MockDatabase) SaveConsensusInfo(ctx context.Context, consensusInfo *types.MinimalEpochConsensusInfoV2) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SaveConsensusInfo", ctx, consensusInfo)
 	ret0, _ := ret[0].(error)
