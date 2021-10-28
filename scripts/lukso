@@ -26,6 +26,7 @@ ARCHITECTURE=$(uname -m)
 RUN_DATE=$(date '+%Y-%m-%d__%H-%M-%S')
 NETWORK="l15-prod"
 IS_VALIDATOR=false
+WITH_ETH2STATS=false
 COINBASE="0x616e6f6e796d6f75730000000000000000000000"
 
 if [[ "$PLATFORM" == "Linux" ]]; then
@@ -69,13 +70,12 @@ PANDORA_NODEKEY=""
 PANDORA_VERBOSITY=debug
 PAN_WS_MINER_NOTIFY="ws://127.0.0.1:7878"
 PAN_HTTP_MINER_NOTIFY="http://127.0.0.1:7877"
-ETH1_STATS_URL=""
 CORS_DOMAIN=""
 ######
 
 ###### Vanguard
 VANGUARD_VERBOSITY=debug
-VANGUARD_HTTP_WEB3PROVIDER=$PANDORA_RPC
+VANGUARD_HTTP_WEB3PROVIDER="http://127.0.0.1:8545"
 VANGUARD_RPC_HOST="127.0.0.1"
 VANGUARD_ORC_RPC_PROVIDER="http://127.0.0.1:7877"
 ETH2_STATS_URL=""
@@ -410,7 +410,6 @@ start_pandora() {
   ARGUMENTS=(
     "--datadir=$DATADIR/pandora"
     "--networkid=$NETWORK_ID"
-    "--ethstats=$NODE_NAME:$ETH1_STATS_APIKEY@$ETH1_STATS_URL"
     "--port=$PANDORA_PORT"
     "--http"
     "--http.addr=$PANDORA_HTTP_ADDR"
@@ -478,6 +477,13 @@ start_pandora() {
       "--http.vhosts=$PANDORA_RPCVHOSTS"
     )
     ARGUMENTS=("${ARGUMENTS[@]}" "${RPCVHOSTS_FLAGS[@]}")
+  fi
+
+  if [[ -n $PANDORA_ETHSTATS ]]; then
+    ETHSTATS_FLAG=(
+      "--ethstats=$PANDORA_ETHSTATS"
+    )
+    ARGUMENTS=("${ARGUMENTS[@]}" "${ETHSTATS_FLAG[@]}")
   fi
 
   nohup pandora \
@@ -603,9 +609,11 @@ start_all() {
     sleep 2
   fi
 
-  echo "################# Starting eth2stats_client #######################"
-  start_eth2stats_client
-  sleep 2
+  if [[ "$WITH_ETH2STATS" == true ]]; then
+    echo "################# Starting eth2stats_client #######################"
+    start_eth2stats_client
+    sleep 2
+  fi
 }
 
 start() {
@@ -1148,6 +1156,10 @@ while getopts "$optspec" optchar; do
       OVERRIDE_IS_VALIDATOR=true
       ;;
 
+    van-ethstats)
+      OVERRIDE_WITH_ETH2STATS=true
+      ;;
+
     orchestrator-verbosity)
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
@@ -1198,6 +1210,12 @@ while getopts "$optspec" optchar; do
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
       OVERRIDE_PANDORA_RPCVHOSTS=$val
+      ;;
+
+    pan-ethstats)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_PAN_ETHSTATS=$val
       ;;
 
     pandora-verbosity)
@@ -1469,6 +1487,14 @@ fi
 
 if [[ -n $OVERRIDE_PANDORA_RPCVHOSTS ]]; then
   PANDORA_RPCVHOSTS=$OVERRIDE_PANDORA_RPCVHOSTS
+fi
+
+if [[ -n $OVERRIDE_PAN_ETHSTATS ]]; then
+  PANDORA_ETHSTATS=$OVERRIDE_PAN_ETHSTATS
+fi
+
+if [[ -n $OVERRIDE_WITH_ETH2STATS ]]; then
+  WITH_ETH2STATS=$OVERRIDE_WITH_ETH2STATS
 fi
 
 if [[ -n $OVERRIDE_PANDORA_VERBOSITY ]]; then
