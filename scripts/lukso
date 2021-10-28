@@ -48,7 +48,6 @@ PANDORA_RPC="127.0.0.1:8545"
 ######
 
 ###### Orchestrator settings
-ORC_VAN_GRPC_ENDPOINT="127.0.0.1:4000"
 ORC_HTTP_ADDR="127.0.0.1"
 ORC_HTTP_PORT="7877"
 ORC_WS_ADDR="127.0.0.1"
@@ -68,19 +67,25 @@ PANDORA_WS_PORT="8546"
 PANDORA_METRICS=false
 PANDORA_NODEKEY=""
 PANDORA_VERBOSITY=debug
+PAN_WS_MINER_NOTIFY="ws://127.0.0.1:7878"
+PAN_HTTP_MINER_NOTIFY="http://127.0.0.1:7877"
 ETH1_STATS_URL=""
 CORS_DOMAIN=""
 ######
 
 ###### Vanguard
 VANGUARD_VERBOSITY=debug
-VANGUARD_HTTP_WEB3PROVIDER=$PANDORA_IPC_PATH
+VANGUARD_HTTP_WEB3PROVIDER=$PANDORA_RPC
 VANGUARD_RPC_HOST=$VANGUARD_GRPC
-VANGUARD_ORC_RPC_PROVIDER=$ORCHESTRATOR_RPC
+VANGUARD_ORC_RPC_PROVIDER="http://127.0.0.1:7877"
 ETH2_STATS_URL=""
 VANGUARD_BOOTNODES=""
 VANGUARD_P2P_PRIV_KEY=""
 VANGUARD_P2P_HOST_DNS=""
+VANGUARD_RPC_PORT="4000"
+VANGUARD_UDP_PORT="12000"
+VANGUARD_TCP_PORT="13000"
+VANGUARD_RPC_GATEWAY_PORT="3500"
 ######
 
 ###### Validator
@@ -89,7 +94,7 @@ WALLET_DIR="$LUKSO_HOME/$NETWORK/vanguard_wallet"
 VALIDATOR_PASSWORD_FILE="$WALLET_DIR/password"
 VALIDATOR_VERBOSITY=debug
 VALIDATOR_BEACON_RPC_PROVIDER=$VANGUARD_IPC_PATH
-VALIDATOR_PANDORA_HTTP_PROVIDER=$PANDORA_IPC_PATH
+VALIDATOR_PANDORA_HTTP_PROVIDER=$PANDORA_RPC
 ######
 
 ###### Eth2Stats
@@ -358,14 +363,14 @@ start_orchestrator() {
     mkdir -p $DATADIR/orchestrator
   fi
   nohup lukso-orchestrator --datadir=$DATADIR/orchestrator \
-    --vanguard-grpc-endpoint=$ORC_VAN_GRPC_ENDPOINT \
+    --vanguard-grpc-endpoint=$ORCHESTRATOR_VANGUARD_RPC_ENDPOINT \
     --http \
     --http.addr=$ORC_HTTP_ADDR \
     --http.port=$ORC_HTTP_PORT \
     --ws \
     --ws.addr=$ORC_WS_ADDR \
     --ws.port=$ORC_WS_PORT \
-    --pandora-rpc-endpoint="ws://$PANDORA_WS_ADDR:$PANDORA_WS_PORT" \
+    --pandora-rpc-endpoint=$ORCHESTRATOR_PANDORA_RPC_ENDPOINT \
     --verbosity=$ORC_VERBOSITY >|$LOGSDIR/orchestrator/orchestrator_"$RUN_DATE".log 2>&1 &
   disown
 }
@@ -415,7 +420,7 @@ start_pandora() {
     "--ws.addr=$PANDORA_WS_ADDR"
     "--ws.port=$PANDORA_WS_PORT"
     "--mine"
-    "--miner.notify=ws://$ORCHESTRATOR_WS_ADDR:$ORCHESTRATOR_WS_PORT,http://$ORCHESTRATOR_HTTP_ADDR:$ORCHESTRATOR_HTTP_PORT"
+    "--miner.notify=$PAN_WS_MINER_NOTIFY,$PAN_HTTP_MINER_NOTIFY"
     "--miner.etherbase=$COINBASE"
     "--syncmode=full"
     "--verbosity=$PANDORA_VERBOSITY"
@@ -1261,6 +1266,90 @@ while getopts "$optspec" optchar; do
       OVERRIDE_ORCHESTRATOR_PANDORA_RPC_ENDPOINT=$val
       ;;
 
+    orc-http-address)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_ORC_HTTP_ADDR=$val
+      ;;
+
+    orc-http-port)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_ORC_HTTP_PORT=$val
+      ;;
+
+    orc-ws-address)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_ORC_WS_ADDR=$val
+      ;;
+
+    orc-ws-port)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_ORC_WS_PORT=$val
+      ;;
+
+    pan-http-addr)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_PANDORA_HTTP_ADDR=$val
+      ;;
+
+    pan-http-port)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_PANDORA_HTTP_PORT=$val
+      ;;
+
+    pan-ws-addr)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_PANDORA_WS_ADDR=$val
+      ;;
+
+    pan-ws-port)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_PANDORA_WS_PORT=$val
+      ;;
+
+    pan-ws-miner-addr)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_PAN_WS_MINER_NOTIFY=$val
+      ;;
+
+    pan-http-miner-addr)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_PAN_HTTP_MINER_NOTIFY=$val
+      ;;
+
+    van-rpc-port)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_VANGUARD_RPC_PORT=$val
+      ;;
+
+    van-udp-port)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_VANGUARD_UDP_PORT=$val
+      ;;
+
+    van-tcp-port)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_VANGUARD_TCP_PORT=$val
+      ;;
+
+    van-rpc-gateway-port)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_VANGUARD_RPC_GATEWAY_PORT=$val
+      ;;
+
     validator-beacon-rpc-provider)
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
@@ -1418,38 +1507,15 @@ if [[ -n $OVERRIDE_LUKSO_HOME ]]; then
   LUKSO_HOME=$OVERRIDE_LUKSO_HOME
   DATADIR=$LUKSO_HOME/$NETWORK/datadirs
   LOGSDIR=$LUKSO_HOME/$NETWORK/logs
-  VANGUARD_IPC_PATH=$DATADIR/vanguard/vanguard.ipc
-  PANDORA_IPC_PATH=$DATADIR/pandora/geth.ipc
-  VANGUARD_HTTP_WEB3PROVIDER=$PANDORA_IPC_PATH
-  VANGUARD_RPC_HOST=$VANGUARD_IPC_PATH
-  VANGUARD_ORC_RPC_PROVIDER=$DATADIR/orchestrator/orchestrator.ipc
-  ORCHESTRATOR_VANGUARD_RPC_ENDPOINT=$VANGUARD_IPC_PATH
-  ORCHESTRATOR_PANDORA_RPC_ENDPOINT=$PANDORA_IPC_PATH
-  VALIDATOR_BEACON_RPC_PROVIDER=$VANGUARD_IPC_PATH
-  VALIDATOR_PANDORA_HTTP_PROVIDER=$PANDORA_IPC_PATH
-  ETH2STATS_BEACON_ADDR=$VANGUARD_IPC_PATH
 fi
 
 if [[ -n $OVERRIDE_DATADIR ]]; then
   DATADIR=$OVERRIDE_DATADIR
-  VANGUARD_IPC_PATH=$DATADIR/vanguard/vanguard.ipc
-  PANDORA_IPC_PATH=$DATADIR/pandora/geth.ipc
-  VANGUARD_HTTP_WEB3PROVIDER=$PANDORA_IPC_PATH
-  VANGUARD_RPC_HOST=$VANGUARD_IPC_PATH
-  VANGUARD_ORC_RPC_PROVIDER=$DATADIR/orchestrator/orchestrator.ipc
-  ORCHESTRATOR_VANGUARD_RPC_ENDPOINT=$VANGUARD_IPC_PATH
-  ORCHESTRATOR_PANDORA_RPC_ENDPOINT=$PANDORA_IPC_PATH
-  VALIDATOR_BEACON_RPC_PROVIDER=$VANGUARD_IPC_PATH
-  VALIDATOR_PANDORA_HTTP_PROVIDER=$PANDORA_IPC_PATH
-  ETH2STATS_BEACON_ADDR=$VANGUARD_IPC_PATH
 fi
 
 if [[ -n $OVERRIDE_VANGUARD_HTTP_WEB3PROVIDER ]]; then
   VANGUARD_HTTP_WEB3PROVIDER=$OVERRIDE_VANGUARD_HTTP_WEB3PROVIDER
 fi
-
-echo "OVERRIDE_VANGUARD_RPC_HOST is $OVERRIDE_VANGUARD_RPC_HOST";
-echo "VANGUARD_RPC_HOST is $VANGUARD_RPC_HOST";
 
 if [[ -n $OVERRIDE_VANGUARD_RPC_HOST ]]; then
   VANGUARD_RPC_HOST=$OVERRIDE_VANGUARD_RPC_HOST
@@ -1517,6 +1583,70 @@ fi
 
 if [[ -n $OVERRIDE_ALLOW_RESPIN ]]; then
   ALLOW_RESPIN=$OVERRIDE_ALLOW_RESPIN
+fi
+
+if [[ -n $OVERRIDE_ORC_HTTP_ADDR ]]; then
+  ORC_HTTP_ADDR=$OVERRIDE_ORC_HTTP_ADDR
+fi
+
+if [[ -n $OVERRIDE_ORC_HTTP_PORT ]]; then
+  ORC_HTTP_PORT=$OVERRIDE_ORC_HTTP_PORT
+fi
+
+if [[ -n $OVERRIDE_ORC_WS_ADDR ]]; then
+  ORC_WS_ADDR=$OVERRIDE_ORC_WS_ADDR
+fi
+
+if [[ -n $OVERRIDE_ORC_WS_PORT ]]; then
+  ORC_WS_PORT=$OVERRIDE_ORC_WS_PORT
+fi
+
+if [[ -n $OVERRIDE_PANDORA_HTTP_ADDR ]]; then
+  PANDORA_HTTP_ADDR=$OVERRIDE_PANDORA_HTTP_ADDR
+fi
+
+if [[ -n $OVERRIDE_PANDORA_HTTP_PORT ]]; then
+  PANDORA_HTTP_PORT=$OVERRIDE_PANDORA_HTTP_PORT
+fi
+
+if [[ -n $OVERRIDE_ORC_WS_ADDR ]]; then
+  ORC_WS_ADDR=$OVERRIDE_ORC_WS_ADDR
+fi
+
+if [[ -n $OVERRIDE_ORC_WS_PORT ]]; then
+  ORC_WS_PORT=$OVERRIDE_ORC_WS_PORT
+fi
+
+if [[ -n $OVERRIDE_PANDORA_WS_ADDR ]]; then
+  PANDORA_WS_ADDR=$OVERRIDE_PANDORA_WS_ADDR
+fi
+
+if [[ -n $OVERRIDE_PANDORA_WS_PORT ]]; then
+  PANDORA_WS_PORT=$OVERRIDE_PANDORA_WS_PORT
+fi
+
+if [[ -n $OVERRIDE_PAN_WS_MINER_NOTIFY ]]; then
+  PAN_WS_MINER_NOTIFY=$OVERRIDE_PAN_WS_MINER_NOTIFY
+fi
+
+if [[ -n $OVERRIDE_PAN_HTTP_MINER_NOTIFY ]]; then
+  PAN_HTTP_MINER_NOTIFY=$OVERRIDE_PAN_HTTP_MINER_NOTIFY
+fi
+
+if [[ -n $OVERRIDE_VANGUARD_RPC_PORT ]]; then
+  VANGUARD_RPC_PORT=$OVERRIDE_VANGUARD_RPC_PORT
+fi
+
+if [[ -n $OVERRIDE_VANGUARD_UDP_PORT ]]; then
+  VANGUARD_UDP_PORT=$OVERRIDE_VANGUARD_UDP_PORT
+fi
+
+if [[ -n $OVERRIDE_VANGUARD_TCP_PORT ]]; then
+  VANGUARD_TCP_PORT=$OVERRIDE_VANGUARD_TCP_PORT
+fi
+
+if [[ -n $OVERRIDE_VANGUARD_RPC_GATEWAY_PORT ]]; then
+  VANGUARD_RPC_GATEWAY_PORT=$OVERRIDE_VANGUARD_RPC_GATEWAY_PORT
 fi
 
 if [[ ! -d $DATADIR ]]; then
