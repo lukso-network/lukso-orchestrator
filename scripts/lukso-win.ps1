@@ -57,14 +57,9 @@ if ($config)
     $ConfigFile = ConvertFrom-Yaml $(Get-Content -Raw $config )
 }
 
-echo $orchestrator
-echo flag
 
-$orchestrator = If ($orchestrator) {$orchestrator} ElseIf ($ConfigFile.ORCHESTRATOR) {$ConfigFile.ORCHESTRATOR} Else {"default"}
-echo $orchestrator
-echo postflag
 
-${orchestrator-verbosity} = If (${orchestrator-verbosity}) {${orchestrator-verbosity}} ElseIf ($ConfigFile.ORCHESTRATOR_VERBOSITY) {$ConfigFile.ORCHESTRATOR_VERBOSITY} Else {"info"}
+
 $network = If ($network) {$network} ElseIf ($ConfigFile.NETWORK) {$ConfigFile.NETWORK} Else {"l15-prod"}
 
 $deposit = If ($deposit) {$deposit} ElseIf ($ConfigFile.DEPOSIT) {$ConfigFile.DEPOSIT} Else {""}
@@ -75,27 +70,28 @@ $datadir = If ($datadir) {$datadir} ElseIf ($ConfigFile.DATADIR) {$ConfigFile.DA
 $logsdir = If ($logsdir) {$logsdir} ElseIf ($ConfigFile.LOGSDIR) {$ConfigFile.LOGSDIR} Else {"${lukso-home}\$network\logs"}
 ${keys-dir} = If (${keys-dir}) {${keys-dir}} ElseIf ($ConfigFile.KEYS_DIR) {$ConfigFile.KEYS_DIR} Else {"${lukso-home}\validator_keys"}
 ${keys-password-file} = If (${keys-password-file}) {${keys-password-file}} ElseIf ($ConfigFile.KEYS_PASSWORD_FILE) {$ConfigFile.KEYS_PASSWORD_FILE} Else {""}
-${wallet-dir} = If (${wallet-dir}) {}
-${wallet-password-file},
-${l15-prod},
-${l15-staging},
-${l15-dev},
-$coinbase,
-${node-name},
-$validate,
-${orchestrator-verbosity},
+${wallet-dir} = If (${wallet-dir}) {${wallet-dir}} ElseIf ($ConfigFile.WALLET_DIR) {$ConfigFile.WALLET_DIR} Else {""}
+${wallet-password-file} = If (${wallet-password-file}) {${wallet-password-file}} ElseIf ($ConfigFile.WALLET_PASSWORD_FILE) {$ConfigFile.WALLET_PASSWORD_FILE} Else {""}
+${l15-prod} = If (${l15-prod}) {${l15-prod}} ElseIf ($ConfigFile.L15_PROD) {$ConfigFile.L15_PROD} Else {$true}
+${l15-staging} = If (${l15-staging}) {${l15-staging}} ElseIf ($ConfigFile.L15_STAGING) {$ConfigFile.L15_STAGING} Else {$false}
+${l15-dev} = If (${l15-dev}) {${l15-dev}} ElseIf ($ConfigFile.L15_DEV) {$ConfigFile.L15_DEV} Else {$false}
+$coinbase = If ($coinbase) {$coinbase} ElseIf ($ConfigFile.COINBASE) {$ConfigFile.COINBASE} Else {""}
+${node-name} = If (${node-name}) {${node-name}} ElseIf ($ConfigFile.NODE_NAME) {$ConfigFile.NODE_NAME} Else {""}
+$validate = If ($validate) {$validate} ElseIf ($ConfigFile.VALIDATE) {$ConfigFile.VALIDATE} Else {$false}
+$orchestrator = If ($orchestrator) {$orchestrator} ElseIf ($ConfigFile.ORCHESTRATOR) {$ConfigFile.ORCHESTRATOR} Else {""}
+${orchestrator-verbosity} = If (${orchestrator-verbosity}) {${orchestrator-verbosity}} ElseIf ($ConfigFile.ORCHESTRATOR_VERBOSITY) {$ConfigFile.ORCHESTRATOR_VERBOSITY} Else {"info"}
 $pandora = If ($pandora) {$pandora} ElseIf ($ConfigFile.PANDORA) {$ConfigFile.PANDORA} Else {""}
 ${pandora-bootnodes} = If (${pandora-bootnodes}) {${pandora-bootnodes}} ElseIf ($ConfigFile.PANDORA_BOOTNODES) {$ConfigFile.PANDORA_BOOTNODES} Else {""}
 ${pandora-http-port} = If (${pandora-http-port}) {${pandora-http-port}} ElseIf ($ConfigFile.PANDORA_HTTP_PORT) {$ConfigFile.PANDORA_HTTP_PORT} Else {"8545"}
-${pandora-metrics} = If (${pandora-metrics}) {${pandora-metrics}} ElseIf ($ConfigFile.PANDORA_METRICS) {$ConfigFile.PANDORA_METRICS} Else {""}
+${pandora-metrics} = If (${pandora-metrics}) {${pandora-metrics}} ElseIf ($ConfigFile.PANDORA_METRICS) {$ConfigFile.PANDORA_METRICS} Else {$false}
 ${pandora-nodekey} = If (${pandora-nodekey}) {${pandora-nodekey}} ElseIf ($ConfigFile.PANDORA_NODEKEY) {$ConfigFile.PANDORA_NODEKEY} Else {""}
 ${pandora-rpcvhosts} = If (${pandora-rpcvhosts}) {${pandora-rpcvhosts}} ElseIf ($ConfigFile.PANDORA_RPCVHOSTS) {$ConfigFile.PANDORA_RPCVHOSTS} Else {""}
 ${pandora-external-ip} = If (${pandora-external-ip}) {${pandora-external-ip}} ElseIf ($ConfigFile.PANDORA_EXTERNAL_IP) {$ConfigFile.PANDORA_EXTERNAL_IP} Else {""}
-${pandora-universal-profile-expose} = If (${pandora-universal-profile-expose}) {${pandora-universal-profile-expose}} ElseIf ($ConfigFile.PANDORA_UNIVERSAL_PROFILE_EXPOSE) {$ConfigFile.PANDORA_UNIVERSAL_PROFILE_EXPOSE} Else {""}
-${pandora-unsafe-expose} = If (${pandora-unsafe-expose}) {${pandora-unsafe-expose}} ElseIf ($ConfigFile.PANDORA_UNSAFE_EXPOSE) {$ConfigFile.PANDORA_UNSAFE_EXPOSE} Else {""}
+${pandora-universal-profile-expose} = If (${pandora-universal-profile-expose}) {${pandora-universal-profile-expose}} ElseIf ($ConfigFile.PANDORA_UNIVERSAL_PROFILE_EXPOSE) {$ConfigFile.PANDORA_UNIVERSAL_PROFILE_EXPOSE} Else {$false}
+${pandora-unsafe-expose} = If (${pandora-unsafe-expose}) {${pandora-unsafe-expose}} ElseIf ($ConfigFile.PANDORA_UNSAFE_EXPOSE) {$ConfigFile.PANDORA_UNSAFE_EXPOSE} Else {$false}
 ${pandora-verbosity} = If (${pandora-verbosity}) {${pandora-verbosity}} ElseIf ($ConfigFile.PANDORA_VERBOSITY) {$ConfigFile.PANDORA_VERBOSITY} Else {"info"}
 $vanguard = If ($vanguard) {$vanguard} ElseIf ($ConfigFile.VANGUARD) {$ConfigFile.VANGUARD} Else {""}
-${vanguard-bootnodes} = If (${vanguard-bootnodes}) {${vanguard-bootnodes}} ElseIf ($ConfigFile.VANGUARD_BOOTNODES) {$ConfigFile.VANGUARD_BOOTNODES} Else {""}
+${vanguard-bootnodes} = If (${vanguard-bootnodes}) {${vanguard-bootnodes}} ElseIf ($ConfigFile.VANGUARD_BOOTNODES) {$ConfigFile.VANGUARD_BOOTNODES} Else {$false}
 ${vanguard-p2p-priv-key} = If (${vanguard-p2p-priv-key}) {${vanguard-p2p-priv-key}} ElseIf ($ConfigFile.VANGUARD_P2P_PRIV_KEY) {$ConfigFile.VANGUARD_P2P_PRIV_KEY} Else {""}
 ${vanguard-external-ip} = If (${vanguard-external-ip}) {${vanguard-external-ip}} ElseIf ($ConfigFile.VANGUARD_EXTERNAL_IP) {$ConfigFile.VANGUARD_EXTERNAL_IP} Else {""}
 ${vanguard-p2p-host-dns} = If (${vanguard-p2p-host-dns}) {${vanguard-p2p-host-dns}} ElseIf ($ConfigFile.VANGUARD_P2P_HOST_DNS) {$ConfigFile.VANGUARD_P2P_HOST_DNS} Else {""}
@@ -106,8 +102,8 @@ $validator = If ($validator) {$validator} ElseIf ($ConfigFile.VALIDATOR) {$Confi
 ${validator-verbosity} = If (${validator-verbosity}) {${validator-verbosity}} ElseIf ($ConfigFile.VALIDATOR_VERBOSITY) {$ConfigFile.VALIDATOR_VERBOSITY} Else {"info"}
 ${cors-domain} = If (${cors-domain}) {${cors-domain}} ElseIf ($ConfigFile.CORS_DOMAIN) {$ConfigFile.CORS_DOMAIN} Else {""}
 ${external-ip} = If (${external-ip}) {${external-ip}} ElseIf ($ConfigFile.EXTERNAL_IP) {$ConfigFile.EXTERNAL_IP} Else {""}
-${allow-respin} = If (${allow-respin}) {${allow-respin}} ElseIf ($ConfigFile.ALLOW_RESPIN) {$ConfigFile.ALLOW_RESPIN} Else {""}
-$force = If ($force) {$force} ElseIf ($ConfigFile.FORCE) {$ConfigFile.FORCE} Else {""}
+${allow-respin} = If (${allow-respin}) {${allow-respin}} ElseIf ($ConfigFile.ALLOW_RESPIN) {$ConfigFile.ALLOW_RESPIN} Else {$false}
+$force = If ($force) {$force} ElseIf ($ConfigFile.FORCE) {$ConfigFile.FORCE} Else {$false}
 
 
 
@@ -172,9 +168,6 @@ Function download_network_config($network)
 
 Function bind_binary($client, $tag)
 {
-    echo $tag
-    echo frombind_binary
-
     if (!(Test-Path "$InstallDir/binaries/$client/$tag/$client-$platform-$architecture.exe"))
     {
         download_binary $client $tag
@@ -632,9 +625,6 @@ function _help() {
     exit
 }
 
-echo $orchestrator
-echo line637
-bind_binary lukso-orchestrator $orchestrator
 
 ##Flags action
 if ($orchestrator)

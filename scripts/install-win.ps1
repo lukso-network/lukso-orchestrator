@@ -10,7 +10,8 @@ Function download_network_config ($network) {
     $CDN = "https://storage.googleapis.com/l15-cdn/networks/"+$network
     $TARGET = $InstallDir+"\networks\"+$network+"\config"
     New-Item -ItemType Directory -Force -Path $TARGET
-    download $CDN"\network-config.yaml?ignoreCache=1" $TARGET"\network-config.yaml"
+    download $CDN"/network-config.yaml?ignoreCache=1" $TARGET"\network-config.yaml"
+    download $CDN"/network-config.yaml?ignoreCache=1" $TARGET"\network-config.yaml"
 }
 
 
@@ -29,12 +30,11 @@ if (Test-Path "$InstallDir\globalPath\lukso") {
     rm "$InstallDir\globalPath\lukso"
 }
 
-cmd /c mklink "$InstallDir\globalPath\lukso" "$InstallDir\lukso.ps1"
+Write-Output "powershell.exe -File $InstallDir\lukso.ps1 %*" | Out-File -Encoding ASCII -FilePath "$InstallDir\globalPath\lukso.bat"
 
 lukso bind-binaries `
 -orchestrator v0.1.0-rc.1 `
--pandora v0.1.0-beta.3 `
--vanguard v0.2.0-develop `
--validator v0.2.0-develop `
+-pandora v0.1.0-rc.1 `
+-vanguard v0.1.0-rc.1 `
+-validator v0.1.0-rc.1 `
 -eth2stats v0.1.0-develop
-
