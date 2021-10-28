@@ -480,7 +480,7 @@ start_pandora() {
     ARGUMENTS=("${ARGUMENTS[@]}" "${RPCVHOSTS_FLAGS[@]}")
   fi
 
-  if [[ "$WITH_ETH1STATS" == true ]]; then
+  if [[ "$PANDORA_ETHSTATS" == true ]]; then
     ETHSTATS_FLAG=(
       "--ethstats=$NODE_NAME:$ETH1_STATS_APIKEY@$ETH1_STATS_URL"
     )
