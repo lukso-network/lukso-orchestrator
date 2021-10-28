@@ -271,7 +271,7 @@ function start_pandora()
     Write-Output $runDate | Out-File -FilePath "$logsdir\pandora\current.tmp"
 
     pandora init $InstallDir\networks\$NETWORK\config\pandora-genesis.json --datadir $datadir/pandora
-    Copy-Item $InstallDir\networks\$NETWORK\config\pandora-nodes.json -Destination $datadir\pandora\geth
+#    Copy-Item $InstallDir\networks\$NETWORK\config\pandora-nodes.json -Destination $datadir\pandora\geth
 
     $Arguments = New-Object System.Collections.Generic.List[System.Object]
     echo $($NetworkConfig.NETWORK_ID)
