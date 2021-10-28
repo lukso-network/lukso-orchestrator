@@ -26,7 +26,8 @@ ARCHITECTURE=$(uname -m)
 RUN_DATE=$(date '+%Y-%m-%d__%H-%M-%S')
 NETWORK="l15-prod"
 IS_VALIDATOR=false
-WITH_ETH2STATS=false
+PAN_ETHSTATS=false
+VAN_ETHSTATS=false
 COINBASE="0x616e6f6e796d6f75730000000000000000000000"
 
 if [[ "$PLATFORM" == "Linux" ]]; then
@@ -480,7 +481,7 @@ start_pandora() {
     ARGUMENTS=("${ARGUMENTS[@]}" "${RPCVHOSTS_FLAGS[@]}")
   fi
 
-  if [[ "$PANDORA_ETHSTATS" == true ]]; then
+  if [[ "$PAN_ETHSTATS" == true ]]; then
     ETHSTATS_FLAG=(
       "--ethstats=$NODE_NAME:$ETH1_STATS_APIKEY@$ETH1_STATS_URL"
     )
@@ -610,7 +611,7 @@ start_all() {
     sleep 2
   fi
 
-  if [[ "$WITH_ETH2STATS" == true ]]; then
+  if [[ "$VAN_ETHSTATS" == true ]]; then
     echo "################# Starting eth2stats_client #######################"
     start_eth2stats_client
     sleep 2
@@ -1489,11 +1490,11 @@ if [[ -n $OVERRIDE_PANDORA_RPCVHOSTS ]]; then
 fi
 
 if [[ -n $OVERRIDE_WITH_ETH1STATS ]]; then
-  PANDORA_ETHSTATS=$OVERRIDE_WITH_ETH1STATS
+  PAN_ETHSTATS=$OVERRIDE_WITH_ETH1STATS
 fi
 
 if [[ -n $OVERRIDE_WITH_ETH2STATS ]]; then
-  WITH_ETH2STATS=$OVERRIDE_WITH_ETH2STATS
+  VAN_ETHSTATS=$OVERRIDE_WITH_ETH2STATS
 fi
 
 if [[ -n $OVERRIDE_PANDORA_VERBOSITY ]]; then
