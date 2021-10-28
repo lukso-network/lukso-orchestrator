@@ -11,7 +11,10 @@ Function download_network_config ($network) {
     $TARGET = $InstallDir+"\networks\"+$network+"\config"
     New-Item -ItemType Directory -Force -Path $TARGET
     download $CDN"/network-config.yaml?ignoreCache=1" $TARGET"\network-config.yaml"
-    download $CDN"/network-config.yaml?ignoreCache=1" $TARGET"\network-config.yaml"
+    download $CDN"/pandora-genesis.json?ignoreCache=1" $TARGET"\pandora-genesis.json"
+    download $CDN"/pandora-nodes.json?ignoreCache=1" $TARGET"\pandora-nodes.json"
+    download $CDN"/vanguard-config.yaml?ignoreCache=1" $TARGET"\vanguard-config.yaml"
+    download $CDN"/vanguard-genesis.ssz?ignoreCache=1" $TARGET"\vanguard-genesis.ssz"
 }
 
 

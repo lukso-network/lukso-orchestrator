@@ -228,12 +228,8 @@ Function start_orchestrator()
     Start-Process -FilePath lukso-orchestrator `
     -ArgumentList $arguments `
     -NoNewWindow `
-
-#    -RedirectStandardOutput "orchestrator_$runDate.out" `
-#    -RedirectStandardError "orchestrator_$runDate.err" `
-
-
-
+    -RedirectStandardOutput "orchestrator_$runDate.out" `
+    -RedirectStandardError "orchestrator_$runDate.err" `
 }
 
 function start_pandora()
@@ -272,21 +268,21 @@ function start_pandora()
 
     Write-Output $runDate | Out-File -FilePath "$logsdir\pandora\current.tmp"
 
-    pandora --datadir $DATADIR/pandora init $InstallDir\networks\$NETWORK\config\pandora-genesis.json
+    pandora init $InstallDir\networks\$NETWORK\config\pandora-genesis.json --datadir $datadir/pandora
     Copy-Item $InstallDir\networks\$NETWORK\config\pandora-nodes.json -Destination $datadir\pandora\geth
 
     $Arguments = New-Object System.Collections.Generic.List[System.Object]
-
+    echo $($NetworkConfig.NETWORK_ID)
     $Arguments.Add("--datadir=$datadir/pandora")
-    $Arguments.Add("--networkid=$NETWORK_ID")
-    $Arguments.Add("--ethstats=${node-name}:$networkConfig.ETH1_STATS_APIKEY@$networkConfig.ETH1_STATS_URL")
+    $Arguments.Add("--networkid=$($NetworkConfig.NETWORK_ID)")
+    $Arguments.Add("--ethstats=${node-name}:$($NetworkConfig.ETH1_STATS_APIKEY)@$($NetworkConfig.ETH1_STATS_URL)")
     $Arguments.Add("--port=30405")
     $Arguments.Add("--http")
     $Arguments.Add("--http.addr=0.0.0.0")
-    $Arguments.Add("--http.port=$pandora_http_port")
+    $Arguments.Add("--http.port=${pandora-http-port}")
     $Arguments.Add("--http.api=admin,net,eth,debug,miner,personal,txpool,web3")
     $Arguments.Add("--http.corsdomain=*")
-    $Arguments.Add("--bootnodes=$pandora_bootnodes")
+    $Arguments.Add("--bootnodes=${pandora-bootnodes}")
     $Arguments.Add("--ws")
     $Arguments.Add("--ws.port=8546")
     $Arguments.Add("--ws.api=admin,net,eth,debug,miner,personal,txpool,web3")
@@ -297,7 +293,9 @@ function start_pandora()
     $Arguments.Add("--syncmode=full")
     $Arguments.Add("--allow-insecure-unlock")
     $Arguments.Add("--verbosity=${pandora-verbosity}")
-    $Arguments.Add("--nat=extip:${pandora-external-ip}")
+    if (${pandora-external-ip}) {
+        $Arguments.Add("--nat=extip:${pandora-external-ip}")
+    }
 
     if (${pandora-metrics}) {
         $Arguments.Add("--metrics")
@@ -315,8 +313,8 @@ function start_pandora()
     Start-Process -FilePath "pandora" `
     -ArgumentList $Arguments `
     -NoNewWindow `
-    -RedirectStandardOutput "$logsdir\pandora_$runDate.out" `
-    -RedirectStandardError "$logsdir\pandora_$runDate.err"
+    -RedirectStandardOutput "$logsdir\pandora\pandora_$runDate.out" `
+    -RedirectStandardError "$logsdir\pandora\pandora_$runDate.err"
 }
 
 function start_vanguard() {
