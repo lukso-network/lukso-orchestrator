@@ -8,7 +8,7 @@ param (
     [Parameter(Position = 1)][String]$argument,
     [String]$deposit = "",
     [String]$eth2stats = "",
-    [String]$network = "",
+    [String]$network,
     [String]${lukso-home} = "$HOME\.lukso",
     [String]$datadir = "",
     [String]$logsdir = "${lukso-home}\$network\logs",
@@ -51,6 +51,11 @@ param (
     [Switch]$force
 )
 
+$platform = "Windows"
+$architecture = "x86_64"
+$InstallDir = $Env:APPDATA + "\LUKSO";
+$RunDate = Get-Date -Format "yyyy-m-dd__HH-mm-ss"
+
 # Parsing config File and setting defaults
 if ($config)
 {
@@ -58,9 +63,13 @@ if ($config)
 }
 
 
-
-
 $network = If ($network) {$network} ElseIf ($ConfigFile.NETWORK) {$ConfigFile.NETWORK} Else {"l15-prod"}
+echo $network
+If ($network) {
+    $NetworkConfigFile = "$InstallDir\networks\$network\config\network-config.yaml"
+    $NetworkConfig = ConvertFrom-Yaml $(Get-Content -Raw $NetworkConfigFile)
+    echo $NetworkConfig
+}
 
 $deposit = If ($deposit) {$deposit} ElseIf ($ConfigFile.DEPOSIT) {$ConfigFile.DEPOSIT} Else {""}
 $eth2stats = If ($eth2stats) {$eth2stats} ElseIf ($ConfigFile.ETH2STATS) {$ConfigFile.ETH2STATS} Else {""}
@@ -81,7 +90,7 @@ $validate = If ($validate) {$validate} ElseIf ($ConfigFile.VALIDATE) {$ConfigFil
 $orchestrator = If ($orchestrator) {$orchestrator} ElseIf ($ConfigFile.ORCHESTRATOR) {$ConfigFile.ORCHESTRATOR} Else {""}
 ${orchestrator-verbosity} = If (${orchestrator-verbosity}) {${orchestrator-verbosity}} ElseIf ($ConfigFile.ORCHESTRATOR_VERBOSITY) {$ConfigFile.ORCHESTRATOR_VERBOSITY} Else {"info"}
 $pandora = If ($pandora) {$pandora} ElseIf ($ConfigFile.PANDORA) {$ConfigFile.PANDORA} Else {""}
-${pandora-bootnodes} = If (${pandora-bootnodes}) {${pandora-bootnodes}} ElseIf ($ConfigFile.PANDORA_BOOTNODES) {$ConfigFile.PANDORA_BOOTNODES} Else {""}
+${pandora-bootnodes} = If (${pandora-bootnodes}) {${pandora-bootnodes}} ElseIf ($ConfigFile.PANDORA_BOOTNODES) {$ConfigFile.PANDORA_BOOTNODES} Else {$NetworkConfig.PANDORA_BOOTNODES}
 ${pandora-http-port} = If (${pandora-http-port}) {${pandora-http-port}} ElseIf ($ConfigFile.PANDORA_HTTP_PORT) {$ConfigFile.PANDORA_HTTP_PORT} Else {"8545"}
 ${pandora-metrics} = If (${pandora-metrics}) {${pandora-metrics}} ElseIf ($ConfigFile.PANDORA_METRICS) {$ConfigFile.PANDORA_METRICS} Else {$false}
 ${pandora-nodekey} = If (${pandora-nodekey}) {${pandora-nodekey}} ElseIf ($ConfigFile.PANDORA_NODEKEY) {$ConfigFile.PANDORA_NODEKEY} Else {""}
@@ -91,13 +100,13 @@ ${pandora-universal-profile-expose} = If (${pandora-universal-profile-expose}) {
 ${pandora-unsafe-expose} = If (${pandora-unsafe-expose}) {${pandora-unsafe-expose}} ElseIf ($ConfigFile.PANDORA_UNSAFE_EXPOSE) {$ConfigFile.PANDORA_UNSAFE_EXPOSE} Else {$false}
 ${pandora-verbosity} = If (${pandora-verbosity}) {${pandora-verbosity}} ElseIf ($ConfigFile.PANDORA_VERBOSITY) {$ConfigFile.PANDORA_VERBOSITY} Else {"info"}
 $vanguard = If ($vanguard) {$vanguard} ElseIf ($ConfigFile.VANGUARD) {$ConfigFile.VANGUARD} Else {""}
-${vanguard-bootnodes} = If (${vanguard-bootnodes}) {${vanguard-bootnodes}} ElseIf ($ConfigFile.VANGUARD_BOOTNODES) {$ConfigFile.VANGUARD_BOOTNODES} Else {$false}
+${vanguard-bootnodes} = If (${vanguard-bootnodes}) {${vanguard-bootnodes}} ElseIf ($ConfigFile.VANGUARD_BOOTNODES) {$ConfigFile.VANGUARD_BOOTNODES} Else {$NetworkConfig.VANGUARD_BOOTNODES}
 ${vanguard-p2p-priv-key} = If (${vanguard-p2p-priv-key}) {${vanguard-p2p-priv-key}} ElseIf ($ConfigFile.VANGUARD_P2P_PRIV_KEY) {$ConfigFile.VANGUARD_P2P_PRIV_KEY} Else {""}
 ${vanguard-external-ip} = If (${vanguard-external-ip}) {${vanguard-external-ip}} ElseIf ($ConfigFile.VANGUARD_EXTERNAL_IP) {$ConfigFile.VANGUARD_EXTERNAL_IP} Else {""}
 ${vanguard-p2p-host-dns} = If (${vanguard-p2p-host-dns}) {${vanguard-p2p-host-dns}} ElseIf ($ConfigFile.VANGUARD_P2P_HOST_DNS) {$ConfigFile.VANGUARD_P2P_HOST_DNS} Else {""}
 ${vanguard-rpc-host} = If (${vanguard-rpc-host}) {${vanguard-rpc-host}} ElseIf ($ConfigFile.VANGUARD_RPC_HOST) {$ConfigFile.VANGUARD_RPC_HOST} Else {""}
 ${vanguard-monitoring-host} = If (${vanguard-monitoring-host}) {${vanguard-monitoring-host}} ElseIf ($ConfigFile.VANGUARD_MONITORING_HOST) {$ConfigFile.VANGUARD_MONITORING_HOST} Else {""}
-${vanguard-verbosity} = If (${vanguard-verbosity}) {${vanguard-verbosity}} ElseIf ($ConfigFile.VANGUARD_VERBOSITY) {$ConfigFile.VANGUARD_VERBOSITY} Else {}
+${vanguard-verbosity} = If (${vanguard-verbosity}) {${vanguard-verbosity}} ElseIf ($ConfigFile.VANGUARD_VERBOSITY) {$ConfigFile.VANGUARD_VERBOSITY} Else {"info"}
 $validator = If ($validator) {$validator} ElseIf ($ConfigFile.VALIDATOR) {$ConfigFile.VALIDATOR} Else {}
 ${validator-verbosity} = If (${validator-verbosity}) {${validator-verbosity}} ElseIf ($ConfigFile.VALIDATOR_VERBOSITY) {$ConfigFile.VALIDATOR_VERBOSITY} Else {"info"}
 ${cors-domain} = If (${cors-domain}) {${cors-domain}} ElseIf ($ConfigFile.CORS_DOMAIN) {$ConfigFile.CORS_DOMAIN} Else {""}
@@ -107,14 +116,7 @@ $force = If ($force) {$force} ElseIf ($ConfigFile.FORCE) {$ConfigFile.FORCE} Els
 
 
 
-$platform = "Windows"
-$architecture = "x86_64"
-$InstallDir = $Env:APPDATA + "\LUKSO";
 
-$NetworkConfigFile = "$InstallDir\networks\$network\config\network-config.yaml"
-$NetworkConfig = ConvertFrom-Yaml $(Get-Content -Raw $NetworkConfigFile)
-
-$RunDate = Get-Date -Format "yyyy-m-dd__HH-mm-ss"
 
 
 
@@ -327,14 +329,17 @@ function start_vanguard() {
     $Arguments = New-Object System.Collections.Generic.List[System.Object]
 
     $BootnodesArray = ${vanguard-bootnodes}.Split(",")
-
+    echo $BootnodesArray
+    foreach ($Bootnode in $BootnodesArray) {
+        echo $Bootnode
+    }
 
     $Arguments.Add("--accept-terms-of-use")
-    $Arguments.Add("--chain-id=$NetworkConfig.CHAIN_ID")
-    $Arguments.Add("--network-id=$NetworkConfig.NETWORK_ID")
-    $Arguments.Add("--genesis-state=$InstallDir\$network\config\vanguard-genesis.ssz")
+    $Arguments.Add("--chain-id=$($NetworkConfig.CHAIN_ID)")
+    $Arguments.Add("--network-id=$($NetworkConfig.NETWORK_ID)")
+    $Arguments.Add("--genesis-state=$InstallDir\networks\$network\config\vanguard-genesis.ssz")
     $Arguments.Add("--datadir=$datadir\vanguard\")
-    $Arguments.Add("--chain-config-file=$InstallDir\$network\config\vanguard-config.yaml")
+    $Arguments.Add("--chain-config-file=$InstallDir\networks\$network\config\vanguard-config.yaml")
     foreach ($Bootnode in $BootnodesArray) {
         $Arguments.Add("--bootstrap-node=$Bootnode")
     }
@@ -369,6 +374,12 @@ function start_vanguard() {
     else {
         $Arguments.Add("--p2p-host-ip=$vanguard_external_ip")
     }
+    echo $Arguments
+    Start-Process -FilePath "vanguard" `
+    -ArgumentList $Arguments `
+    -NoNewWindow `
+    -RedirectStandardOutput "$logsdir\vanguard\vanguard_$runDate.out" `
+    -RedirectStandardError "$logsdir\vanguard\vanguard_$runDate.err"
 
 }
 
