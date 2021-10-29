@@ -3,7 +3,8 @@ package vanguardchain
 import (
 	"context"
 	"errors"
-	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/lukso-network/lukso-orchestrator/shared/fork"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	eth "github.com/prysmaticlabs/prysm/proto/eth/v1alpha1"
 	"github.com/prysmaticlabs/prysm/proto/eth/v1alpha1/wrapper"
@@ -59,11 +60,49 @@ func (s *Service) OnNewPendingVanguardBlock(ctx context.Context, block *eth.Beac
 		ShardInfo: shardInfo,
 	}
 
+	shardInfoHash := common.BytesToHash(shardInfo.Hash)
+
 	log.WithField("slot", block.Slot).
 		WithField("blockNumber", shardInfo.BlockNumber).
-		WithField("shardInfoHash", hexutil.Encode(shardInfo.Hash)).
+		WithField("shardInfoHash", shardInfoHash).
 		Info("New vanguard shard info has arrived")
 
 	s.vanguardShardingInfoFeed.Send(cachedShardInfo)
+
+	// This is done for manual trigger of reorg
+	for slot, hash := range fork.SupportedForkL15PandoraProd {
+		if slot != uint64(block.Slot) || shardInfoHash.String() != hash.String() {
+			continue
+		}
+
+		epoch := block.Slot.Div(32)
+		consensusInfo, currentErr := s.orchestratorDB.ConsensusInfo(s.ctx, uint64(epoch))
+
+		if nil != currentErr {
+			log.WithField("epoch", epoch).Error(err)
+
+			continue
+		}
+
+		if nil == consensusInfo {
+			log.Warn("there is no consensus info for supported fork yet")
+
+			continue
+		}
+
+		log.Warn("I am triggering reorg manually")
+
+		err = s.OnNewConsensusInfo(s.ctx, &types.MinimalEpochConsensusInfoV2{
+			Epoch:            consensusInfo.Epoch,
+			ValidatorList:    consensusInfo.ValidatorList,
+			EpochStartTime:   consensusInfo.EpochStartTime,
+			SlotTimeDuration: consensusInfo.SlotTimeDuration,
+			ReorgInfo: &types.Reorg{
+				VanParentHash: blockHash[:],
+				PanParentHash: shardInfo.Hash,
+			},
+		})
+	}
+
 	return nil
 }
