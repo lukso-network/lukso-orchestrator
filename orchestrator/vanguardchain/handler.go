@@ -112,7 +112,7 @@ func (s *Service) OnNewPendingVanguardBlock(ctx context.Context, block *eth.Beac
 			SlotTimeDuration: consensusInfo.SlotTimeDuration,
 			ReorgInfo: &types.Reorg{
 				VanParentHash: blockHash[:],
-				PanParentHash: shardInfo.Hash,
+				PanParentHash: hash.Bytes(),
 			},
 		})
 
