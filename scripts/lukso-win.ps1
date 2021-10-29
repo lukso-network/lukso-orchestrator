@@ -6,12 +6,12 @@
 param (
     [Parameter(Position = 0, Mandatory)][String]$command,
     [Parameter(Position = 1)][String]$argument,
-    [String]$deposit = "",
-    [String]$eth2stats = "",
+    [String]$deposit,
+    [String]$eth2stats,
     [String]$network,
-    [String]${lukso-home} = "$HOME\.lukso",
-    [String]$datadir = "",
-    [String]$logsdir = "${lukso-home}\$network\logs",
+    [String]${lukso-home},
+    [String]$datadir,
+    [String]$logsdir,
     [String]${keys-dir},
     [String]${keys-password-file},
     [String]${wallet-dir},
@@ -27,7 +27,7 @@ param (
     [String]${orchestrator-verbosity},
     [String]$pandora,
     [String]${pandora-bootnodes},
-    [String]${pandora-http-port} = "8545",
+    [String]${pandora-http-port},
     [Switch]${pandora-metrics},
     [String]${pandora-nodekey},
     [String]${pandora-rpcvhosts},
@@ -62,15 +62,34 @@ if ($config)
     $ConfigFile = ConvertFrom-Yaml $(Get-Content -Raw $config )
 }
 
+Function pick_network($picked_network)
+{
+    $network = $picked_network
+    if (!(Test-Path "$InstallDir\networks\$network"))
+    {
+        download_network_config $network
+    }
+    $NetworkConfigFile = "$InstallDir\networks\$network\config\network-config.yaml"
+    $NetworkConfig = ConvertFrom-Yaml $(Get-Content -Raw $NetworkConfigFile)
+}
 
 $network = If ($network) {$network} ElseIf ($ConfigFile.NETWORK) {$ConfigFile.NETWORK} Else {"l15-prod"}
+
+${l15-prod} = If (${l15-prod}) {${l15-prod}} ElseIf ($ConfigFile.L15_PROD) {$ConfigFile.L15_PROD} Else {$false}
+${l15-staging} = If (${l15-staging}) {${l15-staging}} ElseIf ($ConfigFile.L15_STAGING) {$ConfigFile.L15_STAGING} Else {$false}
+${l15-dev} = If (${l15-dev}) {${l15-dev}} ElseIf ($ConfigFile.L15_DEV) {$ConfigFile.L15_DEV} Else {$false}
+
+If (${l15-prod}) {$network = "l15-prod"}
+If (${l15-staging}) {$network = "l15-staging"}
+If (${l15-dev}) {$network = "l15-dev"}
+
+If ( (!${l15-prod}) -or (!${l15-staging}) -or (!${l15-dev}) ) {$network = "l15-prod"}
 
 echo "Connecting to: $network"
 
 If ($network) {
     $NetworkConfigFile = "$InstallDir\networks\$network\config\network-config.yaml"
     $NetworkConfig = ConvertFrom-Yaml $(Get-Content -Raw $NetworkConfigFile)
-    echo $NetworkConfig
 }
 
 $deposit = If ($deposit) {$deposit} ElseIf ($ConfigFile.DEPOSIT) {$ConfigFile.DEPOSIT} Else {""}
@@ -80,11 +99,9 @@ $datadir = If ($datadir) {$datadir} ElseIf ($ConfigFile.DATADIR) {$ConfigFile.DA
 $logsdir = If ($logsdir) {$logsdir} ElseIf ($ConfigFile.LOGSDIR) {$ConfigFile.LOGSDIR} Else {"${lukso-home}\$network\logs"}
 ${keys-dir} = If (${keys-dir}) {${keys-dir}} ElseIf ($ConfigFile.KEYS_DIR) {$ConfigFile.KEYS_DIR} Else {"${lukso-home}\validator_keys"}
 ${keys-password-file} = If (${keys-password-file}) {${keys-password-file}} ElseIf ($ConfigFile.KEYS_PASSWORD_FILE) {$ConfigFile.KEYS_PASSWORD_FILE} Else {""}
-${wallet-dir} = If (${wallet-dir}) {${wallet-dir}} ElseIf ($ConfigFile.WALLET_DIR) {$ConfigFile.WALLET_DIR} Else {""}
+${wallet-dir} = If (${wallet-dir}) {${wallet-dir}} ElseIf ($ConfigFile.WALLET_DIR) {$ConfigFile.WALLET_DIR} Else {"${lukso-home}\wallet"}
 ${wallet-password-file} = If (${wallet-password-file}) {${wallet-password-file}} ElseIf ($ConfigFile.WALLET_PASSWORD_FILE) {$ConfigFile.WALLET_PASSWORD_FILE} Else {""}
-${l15-prod} = If (${l15-prod}) {${l15-prod}} ElseIf ($ConfigFile.L15_PROD) {$ConfigFile.L15_PROD} Else {$true}
-${l15-staging} = If (${l15-staging}) {${l15-staging}} ElseIf ($ConfigFile.L15_STAGING) {$ConfigFile.L15_STAGING} Else {$false}
-${l15-dev} = If (${l15-dev}) {${l15-dev}} ElseIf ($ConfigFile.L15_DEV) {$ConfigFile.L15_DEV} Else {$false}
+
 $coinbase = If ($coinbase) {$coinbase} ElseIf ($ConfigFile.COINBASE) {$ConfigFile.COINBASE} Else {""}
 ${node-name} = If (${node-name}) {${node-name}} ElseIf ($ConfigFile.NODE_NAME) {$ConfigFile.NODE_NAME} Else {""}
 $validate = If ($validate) {$validate} ElseIf ($ConfigFile.VALIDATE) {$ConfigFile.VALIDATE} Else {$false}
@@ -190,20 +207,34 @@ Function bind_binaries()
     Write-Output Binding
 }
 
-Function pick_network($picked_network)
-{
-    $network = $picked_network
-        if (!(Test-Path "$InstallDir\networks\$network"))
-    {
-        download_network_config $network
-    }
-    $NetworkConfigFile = "$InstallDir\networks\$network\config\network-config.yaml"
-    $NetworkConfig = ConvertFrom-Yaml $(Get-Content -Raw $NetworkConfigFile)
-}
+
 
 Function check_validator_requirements()
 {
-  if (${wallet-password-file})
+
+  if (${wallet-dir}) {
+      echo ${wallet-dir}
+      if (!(Test-Path ${wallet-dir})) {
+          Write-Output "ERROR! Cannot Validate, wallet not found"
+          exit
+      }
+  }
+
+   if (${wallet-password-file}) {
+      if (!(Test-Path ${wallet-password-file})) {
+          Write-Output "ERROR! Cannot Validate, password file not found"
+          exit
+      }
+   }
+
+
+
+  if (!${wallet-password-file}) {
+      $securedValue = Read-Host -AsSecureString -Prompt "Enter validator password"
+      $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($securedValue)
+      $value = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
+      $value | Out-File $Env:APPDATA\LUKSO\temp_pass.txt
+  }
 }
 
 Function start_orchestrator()
@@ -427,10 +458,6 @@ function start_validator() {
     }
 
     if (!${wallet-password-file}) {
-      $securedValue = Read-Host -AsSecureString -Prompt "Enter validator password"
-      $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($securedValue)
-      $value = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
-      Write-Host | Out-File $Env:APPDATA\Lukso\temp_pass.txt
       $Arguments.Add("--wallet-password-file=$Env:APPDATA\Lukso\temp_pass.txt")
     }
 
@@ -440,9 +467,6 @@ function start_validator() {
     -RedirectStandardOutput "$logsdir\validator\validator_$runDate.out" `
     -RedirectStandardError "$logsdir\validator\validator_$runDate.err"
 
-    if (!${wallet-password-file}) {
-        Remove-Item -Path $Env:APPDATA\Lukso\temp_pass.txt
-    }
 }
 
 function start_eth2stats() {
@@ -450,6 +474,9 @@ function start_eth2stats() {
 }
 
 function start_all() {
+    if ($validate) {
+        check_validator_requirements
+    }
     start_orchestrator
     start_pandora
     start_vanguard
@@ -686,23 +713,6 @@ if ($validator)
 {
     bind_binary lukso-validator $validator
 }
-
-if ($l15) {
-    pick_network l15
-}
-
-if ($l15_staging) {
-    pick_network l15-staging
-}
-
-if ($l15_dev) {
-    pick_network l15-dev
-}
-
-if ($network) {
-    pick_network $network
-}
-
 
 switch ($command)
 {
