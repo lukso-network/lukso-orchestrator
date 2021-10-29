@@ -7,6 +7,7 @@ import (
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/lukso-network/lukso-orchestrator/shared/fork"
 	generalTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
 	"github.com/pkg/errors"
 	"time"
@@ -80,6 +81,13 @@ func (api *PublicFilterAPI) ConfirmPanBlockHashes(
 			log.WithField("slot", supportedForkSlot).Warn("I am restoring to 0xd5aa hash")
 			status = generalTypes.Verified
 		}
+
+		err := fork.GuardAllUnsupportedPandoraForks(req.Hash, req.Slot)
+
+		if nil != err {
+			status = generalTypes.Invalid
+		}
+
 		res = append(res, &BlockStatus{
 			BlockHash: BlockHash{
 				Slot: req.Slot,

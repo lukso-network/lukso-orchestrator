@@ -3,10 +3,10 @@ package kv
 import (
 	"context"
 	"fmt"
-
 	"github.com/boltdb/bolt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/lukso-network/lukso-orchestrator/shared/bytesutil"
+	"github.com/lukso-network/lukso-orchestrator/shared/fork"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	"github.com/pkg/errors"
 )
@@ -29,7 +29,23 @@ func (s *Store) VerifiedSlotInfo(slot uint64) (*types.SlotInfo, error) {
 		if value == nil {
 			return nil
 		}
-		return decode(value, &slotInfo)
+		err := decode(value, &slotInfo)
+
+		if nil != err {
+			return err
+		}
+
+		err = fork.GuardAllUnsupportedPandoraForks(slotInfo.PandoraHeaderHash, slot)
+
+		if nil != err {
+			log.WithField("store", "unsupported fork").
+				WithField("hash", slotInfo.PandoraHeaderHash).
+				WithField("slot", slot).
+				Warn("Fork detected")
+
+		}
+
+		return err
 	})
 	return slotInfo, err
 }
@@ -58,8 +74,21 @@ func (s *Store) VerifiedSlotInfos(fromSlot uint64) (map[uint64]*types.SlotInfo, 
 				// no data found for the associated slot. So just find for other slot
 				continue
 			}
+
 			var slotInfo *types.SlotInfo
 			decode(enc, &slotInfo)
+
+			err := fork.GuardAllUnsupportedPandoraForks(slotInfo.PandoraHeaderHash, slot)
+
+			if nil != err {
+				log.WithField("store", "unsupported fork").
+					WithField("hash", slotInfo.PandoraHeaderHash).
+					WithField("slot", slot).
+					Warn("Fork detected")
+
+				continue
+			}
+
 			slotInfos[slot] = slotInfo
 		}
 		return nil
