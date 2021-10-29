@@ -63,12 +63,23 @@ func (api *PublicFilterAPI) ConfirmPanBlockHashes(
 		err := fmt.Errorf("invalid request")
 		return nil, err
 	}
+
+	supportedForkHash := common.HexToHash("0xd5aa89dff5365a87d6ed489a58c4e9d570e90bce327c2d51449f9e9e2917f588").String()
+	supportedForkSlot := uint64(5280)
+
 	res := make([]*BlockStatus, 0)
 	for _, req := range requests {
 		status := api.backend.GetSlotStatus(ctx, req.Slot, req.Hash, true)
 		log.WithField("slot", req.Slot).WithField("status", status).WithField(
-			"api", "ConfirmPanBlockHashes").Debug("status of the requested slot")
+			"api", "ConfirmPanBlockHashes").WithField("hash", req.Hash).Error("status of the requested slot")
 		hash := req.Hash
+		// Solve network stall
+		log.WithField("fromHex", supportedForkHash).WithField("reqHash", req.Hash).WithField("reqSlot", req.Slot).Warn("This is supported comparison")
+
+		if req.Slot == supportedForkSlot && req.Hash.String() == common.HexToHash("0xd5aa89dff5365a87d6ed489a58c4e9d570e90bce327c2d51449f9e9e2917f588").String() {
+			log.WithField("slot", supportedForkSlot).Warn("I am restoring to 0xd5aa hash")
+			status = generalTypes.Verified
+		}
 		res = append(res, &BlockStatus{
 			BlockHash: BlockHash{
 				Slot: req.Slot,
