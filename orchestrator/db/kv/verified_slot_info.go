@@ -23,6 +23,9 @@ func (s *Store) VerifiedSlotInfo(slot uint64) (*types.SlotInfo, error) {
 		err := fork.GuardAllUnsupportedPandoraForks(slotInfo.PandoraHeaderHash, slot)
 
 		if nil != err {
+			log.Warn("I am deleting a fork slot")
+			_ = s.DeleteVerifiedSlotInfo(slot)
+
 			return nil, err
 		}
 
@@ -50,13 +53,33 @@ func (s *Store) VerifiedSlotInfo(slot uint64) (*types.SlotInfo, error) {
 				WithField("hash", slotInfo.PandoraHeaderHash).
 				WithField("slot", slot).
 				Warn("Fork detected")
+			log.Warn("I am deleting a fork slot")
 
+			_ = s.DeleteVerifiedSlotInfo(slot)
 			slotInfo = nil
 		}
 
 		return err
 	})
 	return slotInfo, err
+}
+
+func (s *Store) DeleteVerifiedSlotInfo(slot uint64) (err error) {
+	s.verifiedSlotInfoCache.Del(slot)
+
+	err = s.db.Update(func(tx *bolt.Tx) (dbErr error) {
+		bucket := tx.Bucket(verifiedSlotInfosBucket)
+		slotBytes := bytesutil.Uint64ToBytesBigEndian(slot)
+		dbErr = bucket.Delete(slotBytes)
+
+		if nil != dbErr {
+			err = dbErr
+		}
+
+		return
+	})
+
+	return
 }
 
 // ConsensusInfos
@@ -81,6 +104,7 @@ func (s *Store) VerifiedSlotInfos(fromSlot uint64) (map[uint64]*types.SlotInfo, 
 						WithField("hash", slotInfo.PandoraHeaderHash).
 						WithField("slot", slot).
 						Warn("Fork detected")
+					_ = s.DeleteVerifiedSlotInfo(slot)
 
 					continue
 				}
@@ -106,6 +130,7 @@ func (s *Store) VerifiedSlotInfos(fromSlot uint64) (map[uint64]*types.SlotInfo, 
 					WithField("hash", slotInfo.PandoraHeaderHash).
 					WithField("slot", slot).
 					Warn("Fork detected")
+				_ = s.DeleteVerifiedSlotInfo(slot)
 
 				continue
 			}

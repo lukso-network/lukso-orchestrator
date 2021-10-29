@@ -28,6 +28,31 @@ func TestStore_VerifiedSlotInfo(t *testing.T) {
 	assert.DeepEqual(t, slotInfos[0], retrievedSlotInfo)
 }
 
+func TestStore_DeleteVerifiedSlotInfo(t *testing.T) {
+	db := setupDB(t, true)
+	slotInfos := make([]*types.SlotInfo, 50)
+
+	for i := 0; i < len(slotInfos); i++ {
+		slotInfo := new(types.SlotInfo)
+		slotInfo.VanguardBlockHash = eth1Types.EmptyRootHash
+		slotInfo.PandoraHeaderHash = eth1Types.EmptyRootHash
+		slotInfos[i] = slotInfo
+
+		require.NoError(t, db.SaveVerifiedSlotInfo(uint64(i), slotInfo))
+	}
+
+	for i := 0; i < len(slotInfos); i++ {
+		presentSlot, err := db.VerifiedSlotInfo(uint64(i))
+		require.NoError(t, err)
+		assert.DeepEqual(t, slotInfos[i], presentSlot)
+		require.NoError(t, db.DeleteVerifiedSlotInfo(uint64(i)))
+
+		slotAfterDelete, err := db.VerifiedSlotInfo(uint64(i))
+		require.NoError(t, err)
+		assert.Equal(t, (*types.SlotInfo)(nil), slotAfterDelete)
+	}
+}
+
 func TestStore_VerifiedSlotInfo_ForkRestriction(t *testing.T) {
 	db := setupDB(t, true)
 	slotInfos := make([]*types.SlotInfo, 2)

@@ -5,6 +5,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/lukso-network/lukso-orchestrator/shared/fork"
 	"sync"
 
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
@@ -69,6 +70,20 @@ func (s *Service) Start() {
 		return
 	}
 	s.isRunning = true
+
+	for slot, hash := range fork.UnsupportedForkL15PandoraProd {
+		_, err := s.verifiedSlotInfoDB.VerifiedSlotInfo(slot)
+
+		if nil != err {
+			log.WithField("fix", "got error during fetch of verified slot").
+				WithField("slot", slot).
+				WithField("hash", hash.String()).
+				Error(err)
+
+			continue
+		}
+	}
+
 	go func() {
 		log.Info("Starting consensus service")
 		vanShardInfoCh := make(chan *types.VanguardShardInfo)

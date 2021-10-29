@@ -2,6 +2,8 @@ package consensus
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/lukso-network/lukso-orchestrator/shared/fork"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/require"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
@@ -18,6 +20,32 @@ func TestService_Start(t *testing.T) {
 
 	svc.Start()
 	time.Sleep(1 * time.Second)
+
+	assert.LogsDoNotContain(t, hook, "I am deleting a fork slot")
+	assert.LogsContain(t, hook, "Starting consensus service")
+	hook.Reset()
+}
+
+func TestService_Start_Fork_Detected(t *testing.T) {
+	hook := logTest.NewGlobal()
+	ctx := context.Background()
+	svc, _ := setup(ctx, t)
+	defer svc.Stop()
+
+	unsupportedLen := 0
+
+	for slot, pandoraHash := range fork.UnsupportedForkL15PandoraProd {
+		require.NoError(t, svc.verifiedSlotInfoDB.SaveVerifiedSlotInfo(slot, &types.SlotInfo{
+			VanguardBlockHash: common.Hash{},
+			PandoraHeaderHash: pandoraHash,
+		}))
+		unsupportedLen++
+	}
+
+	svc.Start()
+	time.Sleep(1 * time.Second)
+
+	assert.LogsContainNTimes(t, hook, "I am deleting a fork slot", uint64(unsupportedLen))
 	assert.LogsContain(t, hook, "Starting consensus service")
 	hook.Reset()
 }

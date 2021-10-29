@@ -38,6 +38,7 @@ type VerifiedSlotDatabase interface {
 	SaveVerifiedSlotInfo(slot uint64, slotInfo *types.SlotInfo) error
 	SaveLatestVerifiedSlot(ctx context.Context) error
 	SaveLatestVerifiedHeaderHash() error
+	DeleteVerifiedSlotInfo(slot uint64) error
 }
 
 type ReadOnlyInvalidSlotInfoDatabase interface {
