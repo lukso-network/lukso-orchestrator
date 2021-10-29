@@ -2,7 +2,6 @@ package events
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
@@ -123,28 +122,6 @@ func (api *PublicFilterAPI) ConfirmVanBlockHashes(
 		})
 	}
 	return res, nil
-}
-
-// FirstAid is providing information about header, whom can fix the pandoraChain
-func (api *PublicFilterAPI) FirstAid(
-	ctx context.Context,
-	headerHash common.Hash,
-	slot uint64,
-) (response *eth1Types.Header, err error) {
-	forkErr := fork.GuardAllUnsupportedPandoraForks(headerHash, slot)
-
-	if nil == forkErr {
-		return
-	}
-
-	response = &eth1Types.Header{}
-
-	for _, jsonBytes := range fork.SupportedL15HeadersJson {
-		err = json.Unmarshal(jsonBytes, response)
-		break
-	}
-
-	return
 }
 
 // MinimalConsensusInfo

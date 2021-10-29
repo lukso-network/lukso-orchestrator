@@ -21,7 +21,7 @@ func TestService_Start(t *testing.T) {
 	svc.Start()
 	time.Sleep(1 * time.Second)
 
-	assert.LogsDoNotContain(t, hook, "I am deleting a fork slot")
+	assert.LogsDoNotContain(t, hook, "Deleting a fork slot")
 	assert.LogsContain(t, hook, "Starting consensus service")
 	hook.Reset()
 }
@@ -45,7 +45,7 @@ func TestService_Start_Fork_Detected(t *testing.T) {
 	svc.Start()
 	time.Sleep(1 * time.Second)
 
-	assert.LogsContainNTimes(t, hook, "I am deleting a fork slot", uint64(unsupportedLen))
+	assert.LogsContainNTimes(t, hook, "Deleting a fork slot", uint64(unsupportedLen))
 	assert.LogsContain(t, hook, "Starting consensus service")
 	hook.Reset()
 }
