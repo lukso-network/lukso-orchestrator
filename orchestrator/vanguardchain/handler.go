@@ -71,7 +71,19 @@ func (s *Service) OnNewPendingVanguardBlock(ctx context.Context, block *eth.Beac
 
 	// This is done for manual trigger of reorg
 	for slot, hash := range fork.SupportedForkL15PandoraProd {
-		if slot != uint64(block.Slot) || shardInfoHash.String() != hash.String() {
+		triggerred := false
+
+		for invalidSlot, invalidHash := range fork.UnsupportedForkL15PandoraProd {
+			if invalidSlot == uint64(block.Slot) && shardInfoHash.String() == invalidHash.String() {
+				triggerred = true
+			}
+		}
+
+		if slot == uint64(block.Slot) && shardInfoHash.String() == hash.String() {
+			triggerred = true
+		}
+
+		if !triggerred {
 			continue
 		}
 
