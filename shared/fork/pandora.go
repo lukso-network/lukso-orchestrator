@@ -15,6 +15,9 @@ var (
 		5278: common.HexToHash("0xcbd44e37125c599ff218b966658d720665e1dfa9fd3db0230ad8743e754495d5"),
 		5279: common.HexToHash("0x0acf03ae123dc232e181d3273114b4fc1ae570f469c64655ccb7bc8c6b6aaa28"),
 	}
+	SupportedForkL15PandoraProd = map[uint64]common.Hash{
+		5280: common.HexToHash("0xd5aa89dff5365a87d6ed489a58c4e9d570e90bce327c2d51449f9e9e2917f588"),
+	}
 )
 
 func GuardAllUnsupportedPandoraForks(headerHash common.Hash, receivedSlot uint64) (err error) {

@@ -1,9 +1,13 @@
 package events
 
 import (
+	"context"
+	"github.com/lukso-network/lukso-orchestrator/shared/fork"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
+	"github.com/lukso-network/lukso-orchestrator/shared/testutil/require"
 	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
+	generalTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
 	"testing"
 	"time"
 )
@@ -24,7 +28,7 @@ func setup(t *testing.T) (*MockBackend, *PublicFilterAPI) {
 	return backend, eventApi
 }
 
-func subscribe(
+func subscribeMinimalConsensusInfo(
 	t *testing.T,
 	eventApi *PublicFilterAPI,
 	fromEpoch uint64,
@@ -52,7 +56,7 @@ func subscribe(
 func Test_MinimalConsensusInfo_One_Subscriber_Success(t *testing.T) {
 	backend, eventApi := setup(t)
 	fromEpoch := uint64(0)
-	subscriber := subscribe(t, eventApi, fromEpoch)
+	subscriber := subscribeMinimalConsensusInfo(t, eventApi, fromEpoch)
 
 	time.Sleep(1 * time.Second)
 	consensusInfo := testutil.NewMinimalConsensusInfo(5)
@@ -62,17 +66,17 @@ func Test_MinimalConsensusInfo_One_Subscriber_Success(t *testing.T) {
 }
 
 // Test_MinimalConsensusInfo_Multiple_Subscriber_Success test the consensusInfo subscription event.
-// Test config: In this test, multiple subscribers subscribe for consensus info from different epochs and backend service
+// Test config: In this test, multiple subscribers subscribeMinimalConsensusInfo for consensus info from different epochs and backend service
 // has already 5 epoch consensus information in memory.
 // Expected behaviour is that - subscribers will get expected consensus info
 func Test_MinimalConsensusInfo_Multiple_Subscriber_Success(t *testing.T) {
 	backend, eventApi := setup(t)
 
 	fromEpoch0 := uint64(0)
-	subscriber0 := subscribe(t, eventApi, fromEpoch0)
+	subscriber0 := subscribeMinimalConsensusInfo(t, eventApi, fromEpoch0)
 
 	fromEpoch1 := uint64(0)
-	subscriber1 := subscribe(t, eventApi, fromEpoch1)
+	subscriber1 := subscribeMinimalConsensusInfo(t, eventApi, fromEpoch1)
 
 	time.Sleep(1 * time.Second)
 	consensusInfo := testutil.NewMinimalConsensusInfo(5)
@@ -86,7 +90,7 @@ func Test_MinimalConsensusInfo_Multiple_Subscriber_Success(t *testing.T) {
 func Test_MinimalConsensusInfo_With_Future_Epoch(t *testing.T) {
 	backend, eventApi := setup(t)
 	fromEpoch := uint64(20) // 20 is the future epoch
-	subscriber := subscribe(t, eventApi, fromEpoch)
+	subscriber := subscribeMinimalConsensusInfo(t, eventApi, fromEpoch)
 
 	time.Sleep(1 * time.Second)
 
@@ -95,4 +99,64 @@ func Test_MinimalConsensusInfo_With_Future_Epoch(t *testing.T) {
 	backend.ConsensusInfoFeed.Send(consensusInfo)
 
 	<-subscriber.Err()
+}
+
+func Test_ConfirmPanBlockHashes_Fork(t *testing.T) {
+	_, eventApi := setup(t)
+	ctx := context.Background()
+	require.Equal(t, true, len(fork.UnsupportedForkL15PandoraProd) > 0)
+
+	t.Run("should restrict fork", func(t *testing.T) {
+		request := make([]*BlockHash, 0)
+
+		var (
+			chosenSlot uint64
+			chosenHash BlockHash
+		)
+
+		for slot, hash := range fork.UnsupportedForkL15PandoraProd {
+			chosenSlot = slot
+			chosenHash = BlockHash{Slot: chosenSlot, Hash: hash}
+			request = append(request, &chosenHash)
+			break
+		}
+
+		blockStatuses, err := eventApi.ConfirmPanBlockHashes(ctx, request)
+		require.NoError(t, err)
+
+		expectedBlockStatuses := make([]*BlockStatus, 1)
+		expectedBlockStatuses[0] = &BlockStatus{
+			BlockHash: chosenHash,
+			Status:    generalTypes.Invalid,
+		}
+
+		require.DeepEqual(t, expectedBlockStatuses, blockStatuses)
+	})
+
+	t.Run("should return desired fork", func(t *testing.T) {
+		request := make([]*BlockHash, 0)
+
+		var (
+			chosenSlot uint64
+			chosenHash BlockHash
+		)
+
+		for slot, hash := range fork.SupportedForkL15PandoraProd {
+			chosenSlot = slot
+			chosenHash = BlockHash{Slot: chosenSlot, Hash: hash}
+			request = append(request, &chosenHash)
+			break
+		}
+
+		blockStatuses, err := eventApi.ConfirmPanBlockHashes(ctx, request)
+		require.NoError(t, err)
+
+		expectedBlockStatuses := make([]*BlockStatus, 1)
+		expectedBlockStatuses[0] = &BlockStatus{
+			BlockHash: chosenHash,
+			Status:    generalTypes.Verified,
+		}
+
+		require.DeepEqual(t, expectedBlockStatuses, blockStatuses)
+	})
 }

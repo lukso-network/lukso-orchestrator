@@ -39,6 +39,7 @@ type BlockHash struct {
 	Hash common.Hash `json:"hash"`
 }
 
+// TODO: change to *Blockhash
 type BlockStatus struct {
 	BlockHash
 	Status generalTypes.Status
@@ -65,7 +66,7 @@ func (api *PublicFilterAPI) ConfirmPanBlockHashes(
 		return nil, err
 	}
 
-	supportedForkHash := common.HexToHash("0xd5aa89dff5365a87d6ed489a58c4e9d570e90bce327c2d51449f9e9e2917f588").String()
+	supportedForkHash := common.HexToHash("0xd5aa89dff5365a87d6ed489a58c4e9d570e90bce327c2d51449f9e9e2917f588")
 	supportedForkSlot := uint64(5280)
 
 	res := make([]*BlockStatus, 0)
@@ -74,10 +75,8 @@ func (api *PublicFilterAPI) ConfirmPanBlockHashes(
 		log.WithField("slot", req.Slot).WithField("status", status).WithField(
 			"api", "ConfirmPanBlockHashes").WithField("hash", req.Hash).Error("status of the requested slot")
 		hash := req.Hash
-		// Solve network stall
-		log.WithField("fromHex", supportedForkHash).WithField("reqHash", req.Hash).WithField("reqSlot", req.Slot).Warn("This is supported comparison")
 
-		if req.Slot == supportedForkSlot && req.Hash.String() == common.HexToHash("0xd5aa89dff5365a87d6ed489a58c4e9d570e90bce327c2d51449f9e9e2917f588").String() {
+		if req.Slot == supportedForkSlot && req.Hash.String() == supportedForkHash.String() {
 			log.WithField("slot", supportedForkSlot).Warn("I am restoring to 0xd5aa hash")
 			status = generalTypes.Verified
 		}
