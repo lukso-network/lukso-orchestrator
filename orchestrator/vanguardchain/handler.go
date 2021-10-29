@@ -19,6 +19,7 @@ func (s *Service) OnNewConsensusInfo(ctx context.Context, consensusInfo *types.M
 
 	if consensusInfo.ReorgInfo != nil {
 		// reorg happened. So remove info from database
+		log.Info("reorg has been triggered")
 		err := s.orchestratorDB.RevertConsensusInfo(consensusInfo)
 		if err != nil {
 			log.WithError(err).Error("found error while reverting orchestrator database")

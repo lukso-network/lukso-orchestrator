@@ -272,7 +272,7 @@ func (s *Store) FindVerifiedSlotNumber(info *types.SlotInfo, fromSlot uint64) ui
 			log.WithError(err).Error("failed to find slot info")
 			return 0
 		}
-		if slotInfo.PandoraHeaderHash == info.PandoraHeaderHash && slotInfo.VanguardBlockHash == info.VanguardBlockHash {
+		if slotInfo != nil && slotInfo.PandoraHeaderHash == info.PandoraHeaderHash && slotInfo.VanguardBlockHash == info.VanguardBlockHash {
 			return i
 		}
 	}
