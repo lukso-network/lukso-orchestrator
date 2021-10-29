@@ -67,7 +67,7 @@ type SlotInfoWithStatus struct {
 	Status
 }
 
-func (info *MinimalEpochConsensusInfoV2) ConvertToEpochInfoV2() *MinimalEpochConsensusInfo {
+func (info *MinimalEpochConsensusInfoV2) ConvertToEpochInfo() *MinimalEpochConsensusInfo {
 	return &MinimalEpochConsensusInfo{
 		Epoch:            info.Epoch,
 		ValidatorList:    info.ValidatorList,
@@ -76,7 +76,7 @@ func (info *MinimalEpochConsensusInfoV2) ConvertToEpochInfoV2() *MinimalEpochCon
 	}
 }
 
-func (info *MinimalEpochConsensusInfo) ConvertToEpochInfoV1() *MinimalEpochConsensusInfoV2 {
+func (info *MinimalEpochConsensusInfo) ConvertToEpochInfoV2() *MinimalEpochConsensusInfoV2 {
 	return &MinimalEpochConsensusInfoV2{
 		Epoch:            info.Epoch,
 		ValidatorList:    info.ValidatorList,

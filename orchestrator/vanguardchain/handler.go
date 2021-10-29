@@ -25,7 +25,7 @@ func (s *Service) OnNewConsensusInfo(ctx context.Context, consensusInfo *types.M
 		}
 	}
 
-	if err := s.orchestratorDB.SaveConsensusInfo(ctx, consensusInfo.ConvertToEpochInfoV2()); err != nil {
+	if err := s.orchestratorDB.SaveConsensusInfo(ctx, consensusInfo.ConvertToEpochInfo()); err != nil {
 		log.WithError(err).Warn("failed to save consensus info into consensusInfoDB!")
 		return err
 	}

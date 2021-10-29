@@ -48,7 +48,7 @@ func (backend *Backend) ConsensusInfoByEpochRange(fromEpoch uint64) []*types.Min
 
 	epochInfos := make([]*types.MinimalEpochConsensusInfoV2, len(consensusInfosV2))
 	for i, epochInfo := range consensusInfosV2 {
-		epochInfoV1 := epochInfo.ConvertToEpochInfoV1()
+		epochInfoV1 := epochInfo.ConvertToEpochInfoV2()
 		epochInfos[i] = epochInfoV1
 	}
 	return epochInfos
