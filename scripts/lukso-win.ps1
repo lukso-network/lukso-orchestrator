@@ -160,12 +160,15 @@ Function download_binary($client, $tag)
 
 }
 
-Function download_network_config($network)
-{
-    $CDN = "https://storage.googleapis.com/l15-cdn/networks/" + $network
-    $Target = $InstallDir + "\networks\" + $network + "\config"
-    New-Item -ItemType Directory -Force -Path $Target
-    download $CDN"\network-config.yaml?ignoreCache=1" $Target"\network-config.yaml"
+Function download_network_config ($network) {
+    $CDN = "https://storage.googleapis.com/l15-cdn/networks/"+$network
+    $TARGET = $InstallDir+"\networks\"+$network+"\config"
+    New-Item -ItemType Directory -Force -Path $TARGET
+    download $CDN"/network-config.yaml?ignoreCache=1" $TARGET"\network-config.yaml"
+    download $CDN"/pandora-genesis.json?ignoreCache=1" $TARGET"\pandora-genesis.json"
+    download $CDN"/pandora-nodes.json?ignoreCache=1" $TARGET"\pandora-nodes.json"
+    download $CDN"/vanguard-config.yaml?ignoreCache=1" $TARGET"\vanguard-config.yaml"
+    download $CDN"/vanguard-genesis.ssz?ignoreCache=1" $TARGET"\vanguard-genesis.ssz"
 }
 
 Function bind_binary($client, $tag)
@@ -270,12 +273,27 @@ function start_pandora()
 
     Write-Output $runDate | Out-File -FilePath "$logsdir\pandora\current.tmp"
 
-    pandora init $InstallDir\networks\$NETWORK\config\pandora-genesis.json --datadir $datadir/pandora
+#    pandora init $InstallDir\networks\$NETWORK\config\pandora-genesis.json --datadir $datadir\pandora
+#    echo $InstallDir\networks\$NETWORK\config\pandora-genesis.json
+#    echo $datadir\pandora
+
+    $Arguments = New-Object System.Collections.Generic.List[System.Object]
+    $Arguments.Add("init")
+    $Arguments.Add("$InstallDir\networks\$NETWORK\config\pandora-genesis.json")
+    $Arguments.Add("--datadir=$datadir\pandora")
+    Start-Process -Wait -FilePath "pandora" `
+    -ArgumentList $Arguments `
+    -NoNewWindow `
+    -RedirectStandardOutput "$logsdir\pandora\init_pandora_$runDate.out" `
+    -RedirectStandardError "$logsdir\pandora\init_pandora_$runDate.err"
+    echo $Arguments
+
+
 #    Copy-Item $InstallDir\networks\$NETWORK\config\pandora-nodes.json -Destination $datadir\pandora\geth
 
     $Arguments = New-Object System.Collections.Generic.List[System.Object]
     echo $($NetworkConfig.NETWORK_ID)
-    $Arguments.Add("--datadir=$datadir/pandora")
+    $Arguments.Add("--datadir=$datadir\pandora")
     $Arguments.Add("--networkid=$($NetworkConfig.NETWORK_ID)")
     $Arguments.Add("--ethstats=${node-name}:$($NetworkConfig.ETH1_STATS_APIKEY)@$($NetworkConfig.ETH1_STATS_URL)")
     $Arguments.Add("--port=30405")

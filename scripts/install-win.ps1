@@ -19,7 +19,6 @@ Function download_network_config ($network) {
 
 
 New-Item -ItemType Directory -Force -Path $InstallDir
-New-Item -ItemType Directory -Force -Path $InstallDir/tmp
 New-Item -ItemType Directory -Force -Path $InstallDir/binaries
 New-Item -ItemType Directory -Force -Path $InstallDir/networks
 New-Item -ItemType Directory -Force -Path $InstallDir/globalPath
