@@ -85,12 +85,12 @@ func (s *Service) OnNewPendingVanguardBlock(ctx context.Context, block *eth.Beac
 		}
 
 		if nil == consensusInfo {
-			log.Warn("there is no consensus info for supported fork yet")
+			log.Warn("no consensus info for supported fork")
 
 			continue
 		}
 
-		log.Warn("I am triggering reorg manually")
+		log.Warn("forced trigger of reorg")
 
 		err = s.OnNewConsensusInfo(s.ctx, &types.MinimalEpochConsensusInfoV2{
 			Epoch:            consensusInfo.Epoch,
@@ -102,6 +102,10 @@ func (s *Service) OnNewPendingVanguardBlock(ctx context.Context, block *eth.Beac
 				PanParentHash: shardInfo.Hash,
 			},
 		})
+
+		if nil != err {
+			return err
+		}
 	}
 
 	return nil
