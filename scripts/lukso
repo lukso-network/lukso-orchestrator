@@ -88,6 +88,8 @@ VANGUARD_RPC_PORT="4000"
 VANGUARD_UDP_PORT="12000"
 VANGUARD_TCP_PORT="13000"
 VANGUARD_RPC_GATEWAY_PORT="3500"
+VAN_MIN_SYNC_PEERS="2"
+VAN_MAX_P2P_PEERS="50"
 ######
 
 ###### Validator
@@ -516,8 +518,8 @@ start_vanguard() {
     "--rpc-host=$VANGUARD_RPC_HOST"
     "--monitoring-host=$VANGUARD_MONITORING_HOST"
     "--verbosity=$VANGUARD_VERBOSITY"
-    "--min-sync-peers=2"
-    "--p2p-max-peers=50"
+    "--min-sync-peers=$VAN_MIN_SYNC_PEERS"
+    "--p2p-max-peers=$VAN_MAX_P2P_PEERS"
     "--orc-http-provider=$VANGUARD_ORC_RPC_PROVIDER"
     "--rpc-port=$VANGUARD_RPC_PORT"
     "--p2p-udp-port=$VANGUARD_UDP_PORT"
@@ -1272,6 +1274,18 @@ while getopts "$optspec" optchar; do
       OVERRIDE_VANGUARD_ORC_RPC_PROVIDER=$val
       ;;
 
+    van-min-sync-peers)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_VAN_MIN_SYNC_PEERS="$val"
+      ;;
+
+    van-max-p2p-peers)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_VAN_VAN_MAX_P2P_PEERS=$val
+      ;;
+
     orchestrator-vanguard-rpc-endpoint)
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
@@ -1673,6 +1687,14 @@ fi
 
 if [[ -n $OVERRIDE_VANGUARD_RPC_GATEWAY_PORT ]]; then
   VANGUARD_RPC_GATEWAY_PORT=$OVERRIDE_VANGUARD_RPC_GATEWAY_PORT
+fi
+
+if [[ -n $OVERRIDE_VAN_MIN_SYNC_PEERS ]]; then
+  VAN_MIN_SYNC_PEERS=$OVERRIDE_VAN_MIN_SYNC_PEERS
+fi
+
+if [[ -n $OVERRIDE_VAN_VAN_MAX_P2P_PEERS ]]; then
+  VAN_MAX_P2P_PEERS=$OVERRIDE_VAN_VAN_MAX_P2P_PEERS
 fi
 
 if [[ ! -d $DATADIR ]]; then
