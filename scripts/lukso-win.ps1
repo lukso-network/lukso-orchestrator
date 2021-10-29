@@ -64,7 +64,9 @@ if ($config)
 
 
 $network = If ($network) {$network} ElseIf ($ConfigFile.NETWORK) {$ConfigFile.NETWORK} Else {"l15-prod"}
-echo $network
+
+echo "Connecting to: $network"
+
 If ($network) {
     $NetworkConfigFile = "$InstallDir\networks\$network\config\network-config.yaml"
     $NetworkConfig = ConvertFrom-Yaml $(Get-Content -Raw $NetworkConfigFile)
@@ -73,7 +75,6 @@ If ($network) {
 
 $deposit = If ($deposit) {$deposit} ElseIf ($ConfigFile.DEPOSIT) {$ConfigFile.DEPOSIT} Else {""}
 $eth2stats = If ($eth2stats) {$eth2stats} ElseIf ($ConfigFile.ETH2STATS) {$ConfigFile.ETH2STATS} Else {""}
-$network = If ($network) {$network} ElseIf ($ConfigFile.NETWORK) {$ConfigFile.NETWORK} Else {"l15-prod"}
 ${lukso-home} = If (${lukso-home}) {${lukso-home}} ElseIf ($ConfigFile.LUKSO_HOME) {$ConfigFile.LUKSO_HOME} Else {"$HOME\.lukso"}
 $datadir = If ($datadir) {$datadir} ElseIf ($ConfigFile.DATADIR) {$ConfigFile.DATADIR} Else {"${lukso-home}\$network\datadir"}
 $logsdir = If ($logsdir) {$logsdir} ElseIf ($ConfigFile.LOGSDIR) {$ConfigFile.LOGSDIR} Else {"${lukso-home}\$network\logs"}
@@ -202,7 +203,7 @@ Function pick_network($picked_network)
 
 Function check_validator_requirements()
 {
-
+  if (${wallet-password-file})
 }
 
 Function start_orchestrator()
@@ -415,8 +416,8 @@ function start_validator() {
     $Arguments.Add("--accept-terms-of-use")
     $Arguments.Add("--beacon-rpc-provider=localhost:4000")
     $Arguments.Add("--chain-config-file=$InstallDir\networks\$network\config\vanguard-config.yaml")
-    $Arguments.Add("--verbosity=${validator-verbosity}")
-    $Arguments.Add("--wallet-dir=${wallet-dir}")
+    $Arguments.Add("--verbosity=$(${validator-verbosity})")
+    $Arguments.Add("--wallet-dir=$(${wallet-dir})")
     $Arguments.Add("--rpc")
     $Arguments.Add("--log-file=$logsdir\validator\validator_$runDate.log")
     $Arguments.Add("--lukso-network")
@@ -425,11 +426,23 @@ function start_validator() {
       $Arguments.Add("--wallet-password-file=${wallet-password-file}")
     }
 
+    if (!${wallet-password-file}) {
+      $securedValue = Read-Host -AsSecureString -Prompt "Enter validator password"
+      $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($securedValue)
+      $value = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
+      Write-Host | Out-File $Env:APPDATA\Lukso\temp_pass.txt
+      $Arguments.Add("--wallet-password-file=$Env:APPDATA\Lukso\temp_pass.txt")
+    }
+
     Start-Process -FilePath "lukso-validator" `
     -ArgumentList $arguments `
     -NoNewWindow `
     -RedirectStandardOutput "$logsdir\validator\validator_$runDate.out" `
     -RedirectStandardError "$logsdir\validator\validator_$runDate.err"
+
+    if (!${wallet-password-file}) {
+        Remove-Item -Path $Env:APPDATA\Lukso\temp_pass.txt
+    }
 }
 
 function start_eth2stats() {
