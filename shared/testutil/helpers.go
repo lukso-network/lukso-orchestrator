@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func NewMinimalConsensusInfo(epoch uint64) *types.MinimalEpochConsensusInfo {
+func NewMinimalConsensusInfo(epoch uint64) *types.MinimalEpochConsensusInfoV2 {
 	validatorList := make([]string, 32)
 
 	for idx := 0; idx < 32; idx++ {
@@ -22,7 +22,7 @@ func NewMinimalConsensusInfo(epoch uint64) *types.MinimalEpochConsensusInfo {
 
 	var validatorList32 [32]string
 	copy(validatorList32[:], validatorList)
-	return &types.MinimalEpochConsensusInfo{
+	return &types.MinimalEpochConsensusInfoV2{
 		Epoch:            epoch,
 		ValidatorList:    validatorList32[:],
 		EpochStartTime:   765544433,

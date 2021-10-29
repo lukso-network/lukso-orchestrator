@@ -21,6 +21,7 @@ type ConsensusInfoAccessDatabase interface {
 
 	SaveConsensusInfo(ctx context.Context, consensusInfo *types.MinimalEpochConsensusInfo) error
 	SaveLatestEpoch(ctx context.Context) error
+	RevertConsensusInfo(reorgInfo *types.MinimalEpochConsensusInfoV2) error
 }
 
 type ReadOnlyVerifiedSlotInfoDatabase interface {

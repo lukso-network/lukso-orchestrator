@@ -14,7 +14,7 @@ import (
 
 // setup
 func setup(t *testing.T) (*MockBackend, *PublicFilterAPI) {
-	consensusInfos := make([]*eventTypes.MinimalEpochConsensusInfo, 0)
+	consensusInfos := make([]*eventTypes.MinimalEpochConsensusInfoV2, 0)
 	for i := 0; i < 5; i++ {
 		consensusInfos = append(consensusInfos, testutil.NewMinimalConsensusInfo(uint64(i)))
 	}
@@ -34,7 +34,7 @@ func subscribeMinimalConsensusInfo(
 	fromEpoch uint64,
 ) *Subscription {
 
-	receiverChan := make(chan *eventTypes.MinimalEpochConsensusInfo)
+	receiverChan := make(chan *eventTypes.MinimalEpochConsensusInfoV2)
 	subscriber := eventApi.events.SubscribeConsensusInfo(receiverChan, fromEpoch)
 	expectedConInfo := testutil.NewMinimalConsensusInfo(5)
 
