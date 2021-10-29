@@ -31,6 +31,10 @@ if [[ $PLATFORM == "Linux" ]]; then
   unzip -y;
 fi
 
+if [[ ! -d "/usr/local/bin" ]]; then
+  sudo mkdir -p /usr/local/bin;
+fi
+
 download() {
   URL="$1";
   LOCATION="$2";
