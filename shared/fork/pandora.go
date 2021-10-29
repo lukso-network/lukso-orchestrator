@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	unsupportedForkL15PandoraProd = map[uint64]common.Hash{
+	UnsupportedForkL15PandoraProd = map[uint64]common.Hash{
 		5273: common.HexToHash("0x92dd18789abb7fbb3a9b7e7b2eee3ee99f6717068a9db6da2f18327f75b10304"),
 		5274: common.HexToHash("0x479088bbb0f4a1577f2528fbea41ff3d99373f323769375888ac0bdf9fe506e8"),
 		5275: common.HexToHash("0x138d937d02c386e1c47d5550a87deff8652f20683dfd771afa39e3553f596490"),
@@ -18,7 +18,7 @@ var (
 )
 
 func GuardAllUnsupportedPandoraForks(headerHash common.Hash, receivedSlot uint64) (err error) {
-	err = guardUnsupportedForks(headerHash, receivedSlot, unsupportedForkL15PandoraProd)
+	err = guardUnsupportedForks(headerHash, receivedSlot, UnsupportedForkL15PandoraProd)
 
 	return
 }

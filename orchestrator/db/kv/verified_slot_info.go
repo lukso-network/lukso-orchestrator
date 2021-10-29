@@ -19,7 +19,14 @@ var (
 // VerifiedSlotInfo
 func (s *Store) VerifiedSlotInfo(slot uint64) (*types.SlotInfo, error) {
 	if v, ok := s.verifiedSlotInfoCache.Get(slot); v != nil && ok {
-		return v.(*types.SlotInfo), nil
+		slotInfo := v.(*types.SlotInfo)
+		err := fork.GuardAllUnsupportedPandoraForks(slotInfo.PandoraHeaderHash, slot)
+
+		if nil != err {
+			return nil, err
+		}
+
+		return slotInfo, nil
 	}
 	var slotInfo *types.SlotInfo
 	err := s.db.View(func(tx *bolt.Tx) error {
@@ -32,6 +39,7 @@ func (s *Store) VerifiedSlotInfo(slot uint64) (*types.SlotInfo, error) {
 		err := decode(value, &slotInfo)
 
 		if nil != err {
+			slotInfo = nil
 			return err
 		}
 
@@ -43,6 +51,7 @@ func (s *Store) VerifiedSlotInfo(slot uint64) (*types.SlotInfo, error) {
 				WithField("slot", slot).
 				Warn("Fork detected")
 
+			slotInfo = nil
 		}
 
 		return err
@@ -64,6 +73,18 @@ func (s *Store) VerifiedSlotInfos(fromSlot uint64) (map[uint64]*types.SlotInfo, 
 		for slot := fromSlot; slot <= latestVerifiedSlot; slot++ {
 			// fast finding into cache, if the value does not exist in cache, it starts finding into db
 			if v, _ := s.verifiedSlotInfoCache.Get(slot); v != nil {
+				slotInfo := v.(*types.SlotInfo)
+				err := fork.GuardAllUnsupportedPandoraForks(slotInfo.PandoraHeaderHash, slot)
+
+				if nil != err {
+					log.WithField("store", "unsupported fork").
+						WithField("hash", slotInfo.PandoraHeaderHash).
+						WithField("slot", slot).
+						Warn("Fork detected")
+
+					continue
+				}
+
 				slotInfos[slot] = v.(*types.SlotInfo)
 				continue
 			}

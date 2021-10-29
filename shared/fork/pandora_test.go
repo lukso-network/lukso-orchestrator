@@ -13,9 +13,9 @@ func TestGuardAllUnsupportedPandoraForks(t *testing.T) {
 	})
 
 	t.Run("should return error when blacklisted", func(t *testing.T) {
-		assert.Greater(t, len(unsupportedForkL15PandoraProd), 1)
+		assert.Greater(t, len(UnsupportedForkL15PandoraProd), 1)
 
-		for slot, hash := range unsupportedForkL15PandoraProd {
+		for slot, hash := range UnsupportedForkL15PandoraProd {
 			assert.Error(t, GuardAllUnsupportedPandoraForks(hash, slot))
 		}
 	})
