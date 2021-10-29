@@ -12,10 +12,11 @@ builds:
     goos:
       - linux
     goarch:
-      - arm64
+      - amd64
 archives:
   - replacements:
       linux: Linux
+      amd64: x86_64
     format: binary  
     name_template: "{{ .Binary }}-{{ .Os }}-{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}-{{ .Mips }}{{ end }}"
 checksum:
