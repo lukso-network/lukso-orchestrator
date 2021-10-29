@@ -39,4 +39,5 @@ lukso bind-binaries `
 -pandora v0.1.0-rc.1 `
 -vanguard v0.1.0-rc.1 `
 -validator v0.1.0-rc.1 `
--eth2stats v0.1.0-develop
+-eth2stats v0.1.0-develop `
+-deposit v1.2.6-LUKSO

@@ -92,7 +92,7 @@ If ($network) {
     $NetworkConfig = ConvertFrom-Yaml $(Get-Content -Raw $NetworkConfigFile)
 }
 
-$deposit = If ($deposit) {$deposit} ElseIf ($ConfigFile.DEPOSIT) {$ConfigFile.DEPOSIT} Else {""}
+$deposit = If ($deposit) {$deposit} ElseIf ($ConfigFile.DEPOSIT) {$ConfigFile.DEPOSIT} Else {"v1.2.6-LUKSO"}
 $eth2stats = If ($eth2stats) {$eth2stats} ElseIf ($ConfigFile.ETH2STATS) {$ConfigFile.ETH2STATS} Else {""}
 ${lukso-home} = If (${lukso-home}) {${lukso-home}} ElseIf ($ConfigFile.LUKSO_HOME) {$ConfigFile.LUKSO_HOME} Else {"$HOME\.lukso"}
 $datadir = If ($datadir) {$datadir} ElseIf ($ConfigFile.DATADIR) {$ConfigFile.DATADIR} Else {"${lukso-home}\$network\datadir"}
@@ -167,6 +167,10 @@ Function download_binary($client, $tag)
             $repo = "vanguard-consensus-engine"
         }
 
+        lukso-deposit-cli {
+            $repo = "network-deposit-cli"
+        }
+
         eth2stats {
             $repo = "network-vanguard-stats-client"
         }
@@ -207,6 +211,36 @@ Function bind_binaries()
     Write-Output Binding
 }
 
+Function generate_keys()
+{
+  Write-Output ${keys-dir}
+
+  If (!(Test-Path ${keys-dir})) {
+      New-Item -ItemType Directory -Force -Path ${keys-dir}
+  }
+  $PathArray = ${keys-dir}.Split("\")
+#  echo $PathArray[-1]
+#  echo $PathArray[0..($PathArray.length-1)]
+  $PathArray = ${keys-dir}.Split("\")
+  If ($PathArray[-1] -eq "validator_keys") {
+      ${keys-dir} = [system.String]::Join("\", $PathArray[0..($PathArray.length-2)])
+  }
+
+  $ValidatorsNumber = Read-Host -Prompt "How many validators? (Cost for 1 validator = 32 LYXt)"
+
+  $Arguments = New-Object System.Collections.Generic.List[System.Object]
+  $Arguments.Add("new-mnemonic")
+  $Arguments.Add("--chain $network")
+  $Arguments.Add("--mnemonic_language english")
+  $Arguments.Add("--folder $(${keys-dir})")
+  $Arguments.Add("--num_validators $ValidatorsNumber")
+
+  powershell.exe -command $("$InstallDir\binaries\lukso-deposit-cli\$deposit\lukso-deposit-cli-Windows-x86_64.exe $Arguments")
+}
+
+Function import_accounts() {
+
+}
 
 
 Function check_validator_requirements()
@@ -714,6 +748,18 @@ if ($validator)
     bind_binary lukso-validator $validator
 }
 
+if ($eth2stats)
+{
+    bind_binary eth2stats $eth2stats
+}
+
+if ($deposit)
+{
+    bind_binary lukso-deposit-cli $deposit
+}
+
+
+
 switch ($command)
 {
     "start" {
@@ -735,6 +781,14 @@ switch ($command)
 
     "logs" {
         logs $argument
+    }
+
+    "keygen" {
+        generate_keys
+    }
+
+    "wallet" {
+        import_accounts
     }
 
     "bind-binaries" {
