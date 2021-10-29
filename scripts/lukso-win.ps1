@@ -73,17 +73,31 @@ Function pick_network($picked_network)
     $NetworkConfig = ConvertFrom-Yaml $(Get-Content -Raw $NetworkConfigFile)
 }
 
-$network = If ($network) {$network} ElseIf ($ConfigFile.NETWORK) {$ConfigFile.NETWORK} Else {"l15-prod"}
+$network = If ($network) {$network} ElseIf ($ConfigFile.NETWORK) {$ConfigFile.NETWORK} Else {""}
 
 ${l15-prod} = If (${l15-prod}) {${l15-prod}} ElseIf ($ConfigFile.L15_PROD) {$ConfigFile.L15_PROD} Else {$false}
 ${l15-staging} = If (${l15-staging}) {${l15-staging}} ElseIf ($ConfigFile.L15_STAGING) {$ConfigFile.L15_STAGING} Else {$false}
 ${l15-dev} = If (${l15-dev}) {${l15-dev}} ElseIf ($ConfigFile.L15_DEV) {$ConfigFile.L15_DEV} Else {$false}
 
+# NOTE:
+$NetworkFlagPresent = $fale
+If ($network) {
+    $NetworkFlagPresent = $true
+}
+$NetworkAmountCheck = ($NetworkFlagPresent) + (${l15-prod}.IsPresent) + (${l15-staging}.IsPresent) + (${l15-dev}.IsPresent)
+
+if ($NetworkAmountCheck -gt 1) {
+    Write-Output "You cannot connect to multiple networks, please specify just one"
+    exit
+}
+
 If (${l15-prod}) {$network = "l15-prod"}
 If (${l15-staging}) {$network = "l15-staging"}
 If (${l15-dev}) {$network = "l15-dev"}
 
-If ( (!${l15-prod}) -or (!${l15-staging}) -or (!${l15-dev}) ) {$network = "l15-prod"}
+if ($NetworkAmountCheck -eq 0) {
+    $network = "l15-prod"
+}
 
 echo "Connecting to: $network"
 
@@ -277,6 +291,11 @@ Function start_orchestrator()
     if (!(Test-Path "$datadir\orchestrator"))
     {
         New-Item -ItemType Directory -Force -Path $datadir\orchestrator
+    }
+
+    if (!(Test-Path "$logsdir\orchestrator"))
+    {
+        New-Item -ItemType Directory -Force -Path $logsdir\orchestrator
     }
 
     Write-Output $runDate | Out-File -FilePath "$logsdir\orchestrator\current.tmp"
@@ -510,11 +529,11 @@ function start_eth2stats() {
 function start_all() {
     if ($validate) {
         check_validator_requirements
+        start_validator
     }
     start_orchestrator
     start_pandora
     start_vanguard
-    start_validator
     start_eth2stats
 }
 
