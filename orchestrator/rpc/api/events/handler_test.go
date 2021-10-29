@@ -2,6 +2,7 @@ package events
 
 import (
 	"context"
+	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/lukso-network/lukso-orchestrator/shared/fork"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
@@ -84,6 +85,25 @@ func Test_MinimalConsensusInfo_Multiple_Subscriber_Success(t *testing.T) {
 
 	<-subscriber0.Err()
 	<-subscriber1.Err()
+}
+
+func Test_PublicFilterApi_FirstAid(t *testing.T) {
+	_, eventApi := setup(t)
+
+	t.Run("should return aid for invalid hash", func(t *testing.T) {
+		for slot, hash := range fork.UnsupportedForkL15PandoraProd {
+			healHeader, err := eventApi.FirstAid(context.Background(), hash, slot)
+			assert.NoError(t, err)
+			assert.NotNil(t, healHeader)
+		}
+	})
+
+	t.Run("should return no information for unkown hashes", func(t *testing.T) {
+		healHeader, err := eventApi.FirstAid(context.Background(), eth1Types.EmptyUncleHash, 25)
+		assert.NoError(t, err)
+		assert.Equal(t, (*eth1Types.Header)(nil), healHeader)
+	})
+
 }
 
 // Test_MinimalConsensusInfo_With_Future_Epoch checks when subscriber subscribes from future epoch
