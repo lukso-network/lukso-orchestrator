@@ -21,7 +21,9 @@ func (s *Service) OnNewPendingHeader(ctx context.Context, header *eth1Types.Head
 	err := fork.GuardAllUnsupportedPandoraForks(header.Hash(), panExtraDataWithSig.Slot)
 
 	if nil != err {
-		return err
+		log.Error(err)
+		// Fallback to nil because it will close the connection of the stream, which shouldn't happen
+		return nil
 	}
 
 	log.WithField("slot", panExtraDataWithSig.Slot).

@@ -6,6 +6,7 @@ import (
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/require"
+	logTest "github.com/sirupsen/logrus/hooks/test"
 	"testing"
 )
 
@@ -45,8 +46,10 @@ func Test_PandoraSvc_OnNewPendingHeader(t *testing.T) {
 	require.NoError(t, panSvc.OnNewPendingHeader(ctx, newPanHeader))
 
 	t.Run("should return error when unsupported fork happens", func(t *testing.T) {
+		hook := logTest.NewGlobal()
 		forkedPanHeader := &eth1Types.Header{}
 		require.NoError(t, json.Unmarshal([]byte(pandoraForkedBlockStub), forkedPanHeader))
-		require.ErrorContains(t, "", panSvc.OnNewPendingHeader(ctx, forkedPanHeader))
+		require.NoError(t, panSvc.OnNewPendingHeader(ctx, forkedPanHeader))
+		require.LogsContain(t, hook, "unsupported fork pair. Hash: 0x0acf03ae123dc232e181d3273114b4fc1ae570f469c64655ccb7bc8c6b6aaa28, slot: 5279")
 	})
 }
