@@ -3,6 +3,7 @@ package events
 import (
 	"context"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -171,6 +172,7 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, requestedE
 			case currentEpochInfo := <-consensusInfo:
 				log.WithField("epoch", currentEpochInfo.Epoch).
 					WithField("epochStartTime", currentEpochInfo.EpochStartTime).
+					WithField("reorgPandoraParentHash", hexutil.Encode(currentEpochInfo.ReorgInfo.PanParentHash)).
 					Info("Sending consensus info to subscriber")
 
 				if firstTime {
@@ -185,7 +187,23 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, requestedE
 					}
 				}
 
-				err := notifier.Notify(rpcSub.ID, &generalTypes.MinimalEpochConsensusInfoV2{
+				var err error
+
+				// Pandora might not have previous epoch information in cache, so try to fill it beforehand
+				// Try to give it a little bit delay to let pandora accomplish write to cache and db
+				if nil != currentEpochInfo.ReorgInfo && currentEpochInfo.Epoch > 2 {
+					log.Info("I am sending previous two epochs to fill pandora cache due to the reorg")
+					err = batchSender(currentEpochInfo.Epoch-2, currentEpochInfo.Epoch-1)
+					time.Sleep(time.Millisecond * 50)
+				}
+
+				// Do not die here, its a fallback mechanism
+				if nil != err {
+					log.WithField("epoch", currentEpochInfo.Epoch).WithError(err).Error(
+						"Failed to notify previous consensus info during reorg")
+				}
+
+				err = notifier.Notify(rpcSub.ID, &generalTypes.MinimalEpochConsensusInfoV2{
 					Epoch:            currentEpochInfo.Epoch,
 					ValidatorList:    currentEpochInfo.ValidatorList,
 					EpochStartTime:   currentEpochInfo.EpochStartTime,

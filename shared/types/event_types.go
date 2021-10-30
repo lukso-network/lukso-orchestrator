@@ -19,7 +19,7 @@ type MinimalEpochConsensusInfoV2 struct {
 	ValidatorList    []string      `json:"validatorList"`
 	EpochStartTime   uint64        `json:"epochTimeStart"`
 	SlotTimeDuration time.Duration `json:"slotTimeDuration"`
-	ReorgInfo        *Reorg        `json:"reorg_info"`
+	ReorgInfo        *Reorg        `json:"reorg_info,omitempty"`
 }
 
 type MinimalEpochConsensusInfo struct {
