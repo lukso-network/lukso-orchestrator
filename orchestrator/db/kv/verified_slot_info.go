@@ -218,7 +218,6 @@ func (s *Store) RemoveRangeVerifiedInfo(fromSlot, toSlot uint64) error {
 			if err := bkt.Delete(slotBytes); err != nil {
 				return err
 			}
-
 		}
 		return nil
 	})

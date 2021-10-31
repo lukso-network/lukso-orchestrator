@@ -114,6 +114,11 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 	// Retrieve initial data from DB
 	kv.initLatestDataFromDB()
 
+	// TODO(Atif): This method should be removed after l15 production testnet resume.
+	if err := kv.RemoveForkedL15ProdSlots(); err != nil {
+		log.WithError(err).Warn("Failed to remove l15 production forked slots")
+	}
+
 	return kv, err
 }
 
