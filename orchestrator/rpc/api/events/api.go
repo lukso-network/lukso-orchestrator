@@ -3,7 +3,6 @@ package events
 import (
 	"context"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -172,7 +171,6 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, requestedE
 			case currentEpochInfo := <-consensusInfo:
 				log.WithField("epoch", currentEpochInfo.Epoch).
 					WithField("epochStartTime", currentEpochInfo.EpochStartTime).
-					WithField("reorgPandoraParentHash", hexutil.Encode(currentEpochInfo.ReorgInfo.PanParentHash)).
 					Info("Sending consensus info to subscriber")
 
 				if firstTime {
