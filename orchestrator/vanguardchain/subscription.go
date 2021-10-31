@@ -70,6 +70,11 @@ func (s *Service) subscribeVanNewPendingBlockHash(
 					}
 				}
 
+				if vanBlock.Slot >= 5272 && vanBlock.Slot <= 5279 {
+					log.Debug("Skipped blocks from 5272 to 5279")
+					continue
+				}
+
 				if err := s.OnNewPendingVanguardBlock(s.ctx, vanBlock); err != nil {
 					log.WithError(err).Error("Failed to process the pending vanguard shardInfo")
 					s.conInfoSubErrCh <- errShardInfoProcess
