@@ -90,6 +90,7 @@ VANGUARD_TCP_PORT="13000"
 VANGUARD_GRPC_GATEWAY_PORT="3500"
 VAN_MIN_SYNC_PEERS="2"
 VAN_MAX_P2P_PEERS="50"
+VAN_ETHSTATS_METRICS="http://127.0.0.1:8080/metrics"
 ######
 
 ###### Validator
@@ -583,7 +584,7 @@ start_eth2stats_client() {
   nohup eth2stats-client run \
     --beacon.type="prysm" \
     --beacon.addr="$ETH2STATS_BEACON_ADDR" \
-    --beacon.metrics-addr="http://127.0.0.1:8080/metrics" \
+    --beacon.metrics-addr="$VAN_ETHSTATS_METRICS" \
     --data.folder=$DATADIR/eth2stats-client \
     --eth2stats.node-name="$NODE_NAME" \
     --eth2stats.addr="$ETH2_STATS_URL" \
@@ -1036,6 +1037,8 @@ help() {
   echo "--van-min-sync-peers                  The required number of valid Vanguard peers to connect with before syncing. (default: 2)"
   echo
   echo "--van-max-p2p-peers                   The max number of Vanguard p2p peers to maintain. (default: 50)"
+  echo
+  echo "--van-ethstats-metrics                The metrics address for Vanguard eth2stats-client service (default: http://127.0.0.1:8080/metrics)"
 
   exit
 }
@@ -1342,7 +1345,13 @@ while getopts "$optspec" optchar; do
     van-max-p2p-peers)
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
-      OVERRIDE_VAN_VAN_MAX_P2P_PEERS=$val
+      OVERRIDE_VAN_MAX_P2P_PEERS=$val
+      ;;
+
+    van-ethstats-metrics)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_VAN_ETHSTATS_METRICS=$val
       ;;
 
     orchestrator-vanguard-rpc-endpoint)
@@ -1758,8 +1767,12 @@ if [[ -n $OVERRIDE_VAN_MIN_SYNC_PEERS ]]; then
   VAN_MIN_SYNC_PEERS=$OVERRIDE_VAN_MIN_SYNC_PEERS
 fi
 
-if [[ -n $OVERRIDE_VAN_VAN_MAX_P2P_PEERS ]]; then
-  VAN_MAX_P2P_PEERS=$OVERRIDE_VAN_VAN_MAX_P2P_PEERS
+if [[ -n $OVERRIDE_VAN_MAX_P2P_PEERS ]]; then
+  VAN_MAX_P2P_PEERS=$OVERRIDE_VAN_MAX_P2P_PEERS
+fi
+
+if [[ -n $OVERRIDE_VAN_ETHSTATS_METRICS ]]; then
+  VAN_ETHSTATS_METRICS=$OVERRIDE_VAN_ETHSTATS_METRICS
 fi
 
 if [[ ! -d $DATADIR ]]; then
