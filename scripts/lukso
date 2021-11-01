@@ -26,6 +26,8 @@ ARCHITECTURE=$(uname -m)
 RUN_DATE=$(date '+%Y-%m-%d__%H-%M-%S')
 NETWORK="l15-prod"
 IS_VALIDATOR=false
+PAN_ETHSTATS=false
+VAN_ETHSTATS=false
 COINBASE="0x616e6f6e796d6f75730000000000000000000000"
 
 if [[ "$PLATFORM" == "Linux" ]]; then
@@ -41,29 +43,54 @@ LOGSDIR="$LUKSO_HOME/$NETWORK/logs"
 NODE_NAME="$(LC_CTYPE=C LANG=C tr -dc A-F0-9 </dev/urandom | head -c 8)"
 EXTERNAL_IP=$(curl -s ident.me)
 
+###### General variables
+VANGUARD_RPC="127.0.0.1:4000"
+ORC_PANDORA_RPC="ws://127.0.0.1:8546"
+######
 
 ###### Orchestrator settings
-ORCHESTRATOR_VERBOSITY=debug
+ORC_HTTP_ADDR="127.0.0.1"
+ORC_HTTP_PORT="7877"
+ORC_WS_ADDR="127.0.0.1"
+ORC_WS_PORT="7878"
+ORC_VERBOSITY=debug
+ORCHESTRATOR_VANGUARD_RPC_ENDPOINT=$VANGUARD_RPC
+ORCHESTRATOR_PANDORA_RPC_ENDPOINT=$ORC_PANDORA_RPC
 ######
 
 ###### Pandora settings
+PANDORA_PORT="30405"
 PANDORA_BOOTNODES=""
+PANDORA_HTTP_ADDR="127.0.0.1"
 PANDORA_HTTP_PORT="8545"
+PANDORA_WS_ADDR="127.0.0.1"
+PANDORA_WS_PORT="8546"
 PANDORA_METRICS=false
 PANDORA_NODEKEY=""
 PANDORA_VERBOSITY=debug
+PAN_WS_MINER_NOTIFY="ws://127.0.0.1:7878"
+PAN_HTTP_MINER_NOTIFY="http://127.0.0.1:7877"
 ETH1_STATS_URL=""
+ETH1_STATS_APIKEY=""
 CORS_DOMAIN=""
 ######
 
 ###### Vanguard
 VANGUARD_VERBOSITY=debug
+VANGUARD_HTTP_WEB3PROVIDER="http://127.0.0.1:8545"
 VANGUARD_RPC_HOST="127.0.0.1"
-VANGUARD_MONITORING_HOST="127.0.0.1"
-VANGUARD_BOOTNODES=""
+VANGUARD_ORC_RPC_PROVIDER="http://127.0.0.1:7877"
 ETH2_STATS_URL=""
+VANGUARD_BOOTNODES=""
 VANGUARD_P2P_PRIV_KEY=""
 VANGUARD_P2P_HOST_DNS=""
+VANGUARD_RPC_PORT="4000"
+VANGUARD_UDP_PORT="12000"
+VANGUARD_TCP_PORT="13000"
+VANGUARD_GRPC_GATEWAY_PORT="3500"
+VAN_MIN_SYNC_PEERS="2"
+VAN_MAX_P2P_PEERS="50"
+VAN_ETHSTATS_METRICS="http://127.0.0.1:8080/metrics"
 ######
 
 ###### Validator
@@ -71,8 +98,13 @@ KEYS_DIR="$LUKSO_HOME/$NETWORK"
 WALLET_DIR="$LUKSO_HOME/$NETWORK/vanguard_wallet"
 VALIDATOR_PASSWORD_FILE="$WALLET_DIR/password"
 VALIDATOR_VERBOSITY=debug
+VALIDATOR_BEACON_RPC_PROVIDER=$VANGUARD_RPC
+VALIDATOR_PANDORA_HTTP_PROVIDER="http://127.0.0.1:8545"
 ######
 
+###### Eth2Stats
+ETH2STATS_BEACON_ADDR=$VANGUARD_RPC
+######
 
 ###### for config tool
 CONFIG_DATA=()
@@ -152,6 +184,14 @@ download_binary() {
   sudo chmod +x /opt/lukso/binaries/$CLIENT/$TAG/$CLIENT-$PLATFORM-$ARCHITECTURE
 }
 
+download_eth2stats_binary() {
+  TAG="$1"
+
+  mkdir -p /opt/lukso/binaries/eth2stats-client/$TAG
+  download https://github.com/lukso-network/network-vanguard-stats-client/releases/download/$TAG/eth2stats-client /opt/lukso/binaries/eth2stats-client/$TAG/eth2stats-client
+  sudo chmod +x /opt/lukso/binaries/eth2stats-client/$TAG/eth2stats-client
+}
+
 bind_binary() {
   CLIENT="$1"
   TAG="$2"
@@ -160,6 +200,15 @@ bind_binary() {
   fi
 
   sudo ln -sf "/opt/lukso/binaries/$CLIENT/$TAG/$CLIENT-$PLATFORM-$ARCHITECTURE" /usr/local/bin/$CLIENT
+}
+
+bind_eth2stats_binary() {
+  TAG="$1"
+  if [[ ! -f /opt/lukso/binaries/eth2stats-client/$TAG/eth2stats-client ]]; then
+    download_eth2stats_binary $TAG
+  fi
+
+  sudo ln -sf "/opt/lukso/binaries/eth2stats-client/$TAG/eth2stats-client" /usr/local/bin/eth2stats-client
 }
 
 bind_binaries() {
@@ -319,15 +368,15 @@ start_orchestrator() {
     mkdir -p $DATADIR/orchestrator
   fi
   nohup lukso-orchestrator --datadir=$DATADIR/orchestrator \
-    --vanguard-grpc-endpoint=127.0.0.1:4000 \
+    --vanguard-grpc-endpoint=$ORCHESTRATOR_VANGUARD_RPC_ENDPOINT \
     --http \
-    --http.addr=127.0.0.1 \
-    --http.port=7877 \
+    --http.addr=$ORC_HTTP_ADDR \
+    --http.port=$ORC_HTTP_PORT \
     --ws \
-    --ws.addr=127.0.0.1 \
-    --ws.port=7878 \
-    --pandora-rpc-endpoint=ws://127.0.0.1:8546 \
-    --verbosity=$ORCHESTRATOR_VERBOSITY >|$LOGSDIR/orchestrator/orchestrator_"$RUN_DATE".log 2>&1 &
+    --ws.addr=$ORC_WS_ADDR \
+    --ws.port=$ORC_WS_PORT \
+    --pandora-rpc-endpoint=$ORCHESTRATOR_PANDORA_RPC_ENDPOINT \
+    --verbosity=$ORC_VERBOSITY >|$LOGSDIR/orchestrator/orchestrator_"$RUN_DATE".log 2>&1 &
   disown
 }
 
@@ -366,17 +415,16 @@ start_pandora() {
   ARGUMENTS=(
     "--datadir=$DATADIR/pandora"
     "--networkid=$NETWORK_ID"
-    "--ethstats=$NODE_NAME:$ETH1_STATS_APIKEY@$ETH1_STATS_URL"
-    "--port=30405"
+    "--port=$PANDORA_PORT"
     "--http"
-    "--http.addr=127.0.0.1"
+    "--http.addr=$PANDORA_HTTP_ADDR"
     "--bootnodes=$PANDORA_BOOTNODES"
     "--http.port=$PANDORA_HTTP_PORT"
     "--ws"
-    "--ws.addr=127.0.0.1"
-    "--ws.port=8546"
+    "--ws.addr=$PANDORA_WS_ADDR"
+    "--ws.port=$PANDORA_WS_PORT"
     "--mine"
-    "--miner.notify=ws://127.0.0.1:7878,http://127.0.0.1:7877"
+    "--miner.notify=$PAN_WS_MINER_NOTIFY,$PAN_HTTP_MINER_NOTIFY"
     "--miner.etherbase=$COINBASE"
     "--miner.gaslimit=80000000"
     "--syncmode=full"
@@ -432,9 +480,16 @@ start_pandora() {
 
   if [[ -n $PANDORA_RPCVHOSTS ]]; then
     RPCVHOSTS_FLAGS=(
-      "--rpcvhosts=$PANDORA_RPCVHOSTS"
+      "--http.vhosts=$PANDORA_RPCVHOSTS"
     )
     ARGUMENTS=("${ARGUMENTS[@]}" "${RPCVHOSTS_FLAGS[@]}")
+  fi
+
+  if [[ "$PAN_ETHSTATS" == true ]]; then
+    ETHSTATS_FLAG=(
+      "--ethstats=$NODE_NAME:$ETH1_STATS_APIKEY@$ETH1_STATS_URL"
+    )
+    ARGUMENTS=("${ARGUMENTS[@]}" "${ETHSTATS_FLAG[@]}")
   fi
 
   nohup pandora \
@@ -459,19 +514,19 @@ start_vanguard() {
     "--datadir=$DATADIR/vanguard/"
     "--chain-config-file=/opt/lukso/networks/$NETWORK/config/vanguard-config.yaml"
     "${BOOTNODES_ARGS[@]}"
-    "--http-web3provider=http://127.0.0.1:8545"
+    "--http-web3provider=$VANGUARD_HTTP_WEB3PROVIDER"
     "--deposit-contract=0x000000000000000000000000000000000000cafe"
     "--contract-deployment-block=0"
     "--rpc-host=$VANGUARD_RPC_HOST"
     "--monitoring-host=$VANGUARD_MONITORING_HOST"
     "--verbosity=$VANGUARD_VERBOSITY"
-    "--min-sync-peers=2"
-    "--p2p-max-peers=50"
-    "--orc-http-provider=http://127.0.0.1:7877"
-    "--rpc-port=4000"
-    "--p2p-udp-port=12000"
-    "--p2p-tcp-port=13000"
-    "--grpc-gateway-port=3500"
+    "--min-sync-peers=$VAN_MIN_SYNC_PEERS"
+    "--p2p-max-peers=$VAN_MAX_P2P_PEERS"
+    "--orc-http-provider=$VANGUARD_ORC_RPC_PROVIDER"
+    "--rpc-port=$VANGUARD_RPC_PORT"
+    "--p2p-udp-port=$VANGUARD_UDP_PORT"
+    "--p2p-tcp-port=$VANGUARD_TCP_PORT"
+    "--grpc-gateway-port=$VANGUARD_GRPC_GATEWAY_PORT"
     "--update-head-timely"
     "--lukso-network"
   )
@@ -502,10 +557,10 @@ start_validator() {
   ARGUMENTS=(
     "--datadir=$DATADIR/validator/"
     "--accept-terms-of-use"
-    "--beacon-rpc-provider=localhost:4000"
+    "--beacon-rpc-provider=$VALIDATOR_BEACON_RPC_PROVIDER"
     "--chain-config-file=/opt/lukso/networks/$NETWORK/config/vanguard-config.yaml"
     "--verbosity=$VALIDATOR_VERBOSITY"
-    "--pandora-http-provider=http://127.0.0.1:8545"
+    "--pandora-http-provider=$VALIDATOR_PANDORA_HTTP_PROVIDER"
     "--wallet-dir=$WALLET_DIR"
     "--rpc"
     "--log-file=$LOGSDIR/validator/validator_$RUN_DATE.log"
@@ -528,8 +583,8 @@ start_eth2stats_client() {
 
   nohup eth2stats-client run \
     --beacon.type="prysm" \
-    --beacon.addr="127.0.0.1:4000" \
-    --beacon.metrics-addr="http://127.0.0.1:8080/metrics" \
+    --beacon.addr="$ETH2STATS_BEACON_ADDR" \
+    --beacon.metrics-addr="$VAN_ETHSTATS_METRICS" \
     --data.folder=$DATADIR/eth2stats-client \
     --eth2stats.node-name="$NODE_NAME" \
     --eth2stats.addr="$ETH2_STATS_URL" \
@@ -560,9 +615,11 @@ start_all() {
     sleep 2
   fi
 
-  echo "################# Starting eth2stats_client #######################"
-  start_eth2stats_client
-  sleep 2
+  if [[ "$VAN_ETHSTATS" == true ]]; then
+    echo "################# Starting eth2stats_client #######################"
+    start_eth2stats_client
+    sleep 2
+  fi
 }
 
 start() {
@@ -897,9 +954,6 @@ help() {
   echo "--vanguard-p2p-host-dns Sets host DNS vanguard (overrides --external-ip AND --vanguard-external-ip if present)"
   echo "                       [72.122.32.234]"
   echo
-  echo "--vanguard-rpc-host    Sets vanguard RPC listening interface"
-  echo "                       [IP, ex. 127.0.0.1]"
-  echo
   echo "--vanguard-monitoring-host Sets vanguard monitoring listening interface"
   echo "                       [IP, ex. 127.0.0.1]"
   echo
@@ -929,6 +983,62 @@ help() {
   echo "--allow-respin         Deletes all datadirs IF network config changed (based on genesis time)"
   echo
   echo "--force                Enables force mode for stopping"
+  echo
+  echo "--vanguard-http-web3provider          An eth1 web3 provider string http endpoint or IPC socket path. (default: http://127.0.0.1:8545)"
+  echo
+  echo "--vanguard-rpc-host                   Host on which the RPC server should listen. (default: 127.0.0.1)"
+  echo
+  echo "--van-rpc-port                        Port on which the RPC server should listen. (default: 4000)"
+  echo
+  echo "--van-udp-port                        Vanguard beacon chain client UDP port. The port used by discv5. (default: 12000)"
+  echo
+  echo "--van-tcp-port                        Vanguard beacon chain client TCP port. The port used by libp2p. (default: 13000)"
+  echo
+  echo "--van-grpc-gateway-port               Vanguard gRPC gateway port. The port on which the gateway server runs on (default: 3500)"
+  echo
+  echo "--vanguard-orc-rpc-provider           A orchestrator string rpc endpoint. This is our orchestrator client http endpoint or socket path. (default: http://127.0.0.1:7877)"
+  echo
+  echo "--validator-beacon-rpc-provider       Beacon node (vanguard) RPC provider endpoint. (default: $VANGUARD_RPC)"
+  echo
+  echo "--validator-pandora-http-provider     A pandora string rpc endpoint. This is our pandora client http endpoint. (default: http://127.0.0.1:8545)"
+  echo
+  echo "--orchestrator-vanguard-rpc-endpoint  Enables Vanguard node RPC provider endpoint. (default: $VANGUARD_RPC)"
+  echo
+  echo "--orchestrator-pandora-rpc-endpoint   Pandora node RP provider endpoint. (default: $ORC_PANDORA_RPC)"
+  echo
+  echo "--eth2stats-beacon-addr               Beacon node endpoint address for eth2stats-client. (default: $VANGUARD_RPC)"
+  echo
+  echo "--orc-http-port                       Orchestrator HTTP port exposed. (default:  7877)"
+  echo
+  echo "--orc-http-addr                       Orchestrator HTTP address exposed. (default:  127.0.0.1)"
+  echo
+  echo "--orc-ws-port                         Orchestrator websocket port exposed. (default:  7878)"
+  echo
+  echo "--orc-ws-addr                         Orchestrator websocket address exposed. (default:  127.0.0.1)"
+  echo
+  echo "--pan-port                            Pandora client TCP/UDP port exposed. (default:  30405)"
+  echo
+  echo "--pan-http-addr                       Pandora client http address exposed. (default:  127.0.0.1)"
+  echo
+  echo "--pan-http-port                       Pandora client http port exposed. (default:  8545)"
+  echo
+  echo "--pan-ws-addr                         Pandora client websocket address exposed. (default:  127.0.0.1)"
+  echo
+  echo "--pan-ws-port                         Pandora client websocket port exposed. (default:  8546)"
+  echo
+  echo "--pan-http-miner-addr                 Pandora HTTP URL to notify of new work packages. (default:  http://127.0.0.1:7877)"
+  echo
+  echo "--pan-ws-miner-addr                   Pandora Websocket URL to notify of new work packages. (default:  ws://127.0.0.1:7878)"
+  echo
+  echo "--pan-ethstats                        Pandora flag to activate ethstats listing on remote dashboard. It's disabled by default. If enabled you should see your node by your node name provided via --node-name flag or lukso config."
+  echo
+  echo "--van-ethstats                        Vanguard flag fo activate eth2stats listing on remote dashboard. It's disabled by default. If enabled you should see your node by your node name provided via --node-name flag or lukso config."
+  echo
+  echo "--van-min-sync-peers                  The required number of valid Vanguard peers to connect with before syncing. (default: 2)"
+  echo
+  echo "--van-max-p2p-peers                   The max number of Vanguard p2p peers to maintain. (default: 50)"
+  echo
+  echo "--van-ethstats-metrics                The metrics address for Vanguard eth2stats-client service (default: http://127.0.0.1:8080/metrics)"
 
   exit
 }
@@ -1112,6 +1222,10 @@ while getopts "$optspec" optchar; do
       OVERRIDE_IS_VALIDATOR=true
       ;;
 
+    van-ethstats)
+      OVERRIDE_WITH_ETH2STATS=true
+      ;;
+
     orchestrator-verbosity)
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
@@ -1164,6 +1278,10 @@ while getopts "$optspec" optchar; do
       OVERRIDE_PANDORA_RPCVHOSTS=$val
       ;;
 
+    pan-ethstats)
+      OVERRIDE_WITH_ETH1STATS=true
+      ;;
+
     pandora-verbosity)
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
@@ -1200,10 +1318,160 @@ while getopts "$optspec" optchar; do
       OVERRIDE_VANGUARD_VERBOSITY=$val
       ;;
 
+    vanguard-http-web3provider)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_VANGUARD_HTTP_WEB3PROVIDER=$val
+      ;;
+
     vanguard-rpc-host)
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
       OVERRIDE_VANGUARD_RPC_HOST="$val"
+      ;;
+
+    vanguard-orc-rpc-provider)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_VANGUARD_ORC_RPC_PROVIDER=$val
+      ;;
+
+    van-min-sync-peers)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_VAN_MIN_SYNC_PEERS="$val"
+      ;;
+
+    van-max-p2p-peers)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_VAN_MAX_P2P_PEERS=$val
+      ;;
+
+    van-ethstats-metrics)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_VAN_ETHSTATS_METRICS=$val
+      ;;
+
+    orchestrator-vanguard-rpc-endpoint)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_ORCHESTRATOR_VANGUARD_RPC_ENDPOINT=$val
+      ;;
+
+    orchestrator-pandora-rpc-endpoint)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_ORCHESTRATOR_PANDORA_RPC_ENDPOINT=$val
+      ;;
+
+    orc-http-address)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_ORC_HTTP_ADDR=$val
+      ;;
+
+    orc-http-port)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_ORC_HTTP_PORT=$val
+      ;;
+
+    orc-ws-address)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_ORC_WS_ADDR=$val
+      ;;
+
+    orc-ws-port)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_ORC_WS_PORT=$val
+      ;;
+
+    pan-port)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_PANDORA_PORT=$val
+      ;;
+
+    pan-http-addr)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_PANDORA_HTTP_ADDR=$val
+      ;;
+
+    pan-http-port)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_PANDORA_HTTP_PORT=$val
+      ;;
+
+    pan-ws-addr)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_PANDORA_WS_ADDR=$val
+      ;;
+
+    pan-ws-port)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_PANDORA_WS_PORT=$val
+      ;;
+
+    pan-ws-miner-addr)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_PAN_WS_MINER_NOTIFY=$val
+      ;;
+
+    pan-http-miner-addr)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_PAN_HTTP_MINER_NOTIFY=$val
+      ;;
+
+    van-rpc-port)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_VANGUARD_RPC_PORT=$val
+      ;;
+
+    van-udp-port)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_VANGUARD_UDP_PORT=$val
+      ;;
+
+    van-tcp-port)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_VANGUARD_TCP_PORT=$val
+      ;;
+
+    van-grpc-gateway-port)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_VANGUARD_GRPC_GATEWAY_PORT=$val
+      ;;
+
+    validator-beacon-rpc-provider)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_VALIDATOR_BEACON_RPC_PROVIDER=$val
+      ;;
+
+    validator-pandora-http-provider)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_VALIDATOR_PANDORA_HTTP_PROVIDER=$val
+      ;;
+
+    eth2stats-beacon-addr)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_ETH2STATS_BEACON_ADDR=$val
       ;;
 
     vanguard-monitoring-host)
@@ -1274,7 +1542,7 @@ if [[ -n $OVERRIDE_IS_VALIDATOR ]]; then
 fi
 
 if [[ -n $OVERRIDE_ORCHESTRATOR_VERBOSITY ]]; then
-  ORCHESTRATOR_VERBOSITY=$OVERRIDE_ORCHESTRATOR_VERBOSITY
+  ORC_VERBOSITY=$OVERRIDE_ORCHESTRATOR_VERBOSITY
 fi
 
 if [[ -n $OVERRIDE_PANDORA_BOOTNODES ]]; then
@@ -1307,6 +1575,14 @@ fi
 
 if [[ -n $OVERRIDE_PANDORA_RPCVHOSTS ]]; then
   PANDORA_RPCVHOSTS=$OVERRIDE_PANDORA_RPCVHOSTS
+fi
+
+if [[ -n $OVERRIDE_WITH_ETH1STATS ]]; then
+  PAN_ETHSTATS=$OVERRIDE_WITH_ETH1STATS
+fi
+
+if [[ -n $OVERRIDE_WITH_ETH2STATS ]]; then
+  VAN_ETHSTATS=$OVERRIDE_WITH_ETH2STATS
 fi
 
 if [[ -n $OVERRIDE_PANDORA_VERBOSITY ]]; then
@@ -1351,12 +1627,44 @@ if [[ -n $OVERRIDE_DATADIR ]]; then
   DATADIR=$OVERRIDE_DATADIR
 fi
 
+if [[ -n $OVERRIDE_VANGUARD_HTTP_WEB3PROVIDER ]]; then
+  VANGUARD_HTTP_WEB3PROVIDER=$OVERRIDE_VANGUARD_HTTP_WEB3PROVIDER
+fi
+
 if [[ -n $OVERRIDE_VANGUARD_RPC_HOST ]]; then
   VANGUARD_RPC_HOST=$OVERRIDE_VANGUARD_RPC_HOST
 fi
 
+if [[ -n $OVERRIDE_VANGUARD_ORC_RPC_PROVIDER ]]; then
+  VANGUARD_ORC_RPC_PROVIDER=$OVERRIDE_VANGUARD_ORC_RPC_PROVIDER
+fi
+
+if [[ -n $OVERRIDE_ORCHESTRATOR_VANGUARD_RPC_ENDPOINT ]]; then
+  ORCHESTRATOR_VANGUARD_RPC_ENDPOINT=$OVERRIDE_ORCHESTRATOR_VANGUARD_RPC_ENDPOINT
+fi
+
+if [[ -n $OVERRIDE_ORCHESTRATOR_PANDORA_RPC_ENDPOINT ]]; then
+  ORCHESTRATOR_PANDORA_RPC_ENDPOINT=$OVERRIDE_ORCHESTRATOR_PANDORA_RPC_ENDPOINT
+fi
+
+if [[ -n $OVERRIDE_VALIDATOR_BEACON_RPC_PROVIDER ]]; then
+  VALIDATOR_BEACON_RPC_PROVIDER=$OVERRIDE_VALIDATOR_BEACON_RPC_PROVIDER
+fi
+
+if [[ -n $OVERRIDE_VALIDATOR_PANDORA_HTTP_PROVIDER ]]; then
+  VALIDATOR_PANDORA_HTTP_PROVIDER=$OVERRIDE_VALIDATOR_PANDORA_HTTP_PROVIDER
+fi
+
+if [[ -n $OVERRIDE_ETH2STATS_BEACON_ADDR ]]; then
+  ETH2STATS_BEACON_ADDR=$OVERRIDE_ETH2STATS_BEACON_ADDR
+fi
+
 if [[ -n $OVERRIDE_VANGUARD_MONITORING_HOST ]]; then
   VANGUARD_MONITORING_HOST=$OVERRIDE_VANGUARD_MONITORING_HOST
+fi
+
+if [[ -n $OVERRIDE_EXTERNAL_IP ]]; then
+  EXTERNAL_IP=$OVERRIDE_EXTERNAL_IP
 fi
 
 if [[ -n $OVERRIDE_LOGSDIR ]]; then
@@ -1385,6 +1693,86 @@ fi
 
 if [[ -n $OVERRIDE_ALLOW_RESPIN ]]; then
   ALLOW_RESPIN=$OVERRIDE_ALLOW_RESPIN
+fi
+
+if [[ -n $OVERRIDE_ORC_HTTP_ADDR ]]; then
+  ORC_HTTP_ADDR=$OVERRIDE_ORC_HTTP_ADDR
+fi
+
+if [[ -n $OVERRIDE_ORC_HTTP_PORT ]]; then
+  ORC_HTTP_PORT=$OVERRIDE_ORC_HTTP_PORT
+fi
+
+if [[ -n $OVERRIDE_ORC_WS_ADDR ]]; then
+  ORC_WS_ADDR=$OVERRIDE_ORC_WS_ADDR
+fi
+
+if [[ -n $OVERRIDE_ORC_WS_PORT ]]; then
+  ORC_WS_PORT=$OVERRIDE_ORC_WS_PORT
+fi
+
+if [[ -n $OVERRIDE_PANDORA_PORT ]]; then
+  PANDORA_PORT=$OVERRIDE_PANDORA_PORT
+fi
+
+if [[ -n $OVERRIDE_PANDORA_HTTP_ADDR ]]; then
+  PANDORA_HTTP_ADDR=$OVERRIDE_PANDORA_HTTP_ADDR
+fi
+
+if [[ -n $OVERRIDE_PANDORA_HTTP_PORT ]]; then
+  PANDORA_HTTP_PORT=$OVERRIDE_PANDORA_HTTP_PORT
+fi
+
+if [[ -n $OVERRIDE_ORC_WS_ADDR ]]; then
+  ORC_WS_ADDR=$OVERRIDE_ORC_WS_ADDR
+fi
+
+if [[ -n $OVERRIDE_ORC_WS_PORT ]]; then
+  ORC_WS_PORT=$OVERRIDE_ORC_WS_PORT
+fi
+
+if [[ -n $OVERRIDE_PANDORA_WS_ADDR ]]; then
+  PANDORA_WS_ADDR=$OVERRIDE_PANDORA_WS_ADDR
+fi
+
+if [[ -n $OVERRIDE_PANDORA_WS_PORT ]]; then
+  PANDORA_WS_PORT=$OVERRIDE_PANDORA_WS_PORT
+fi
+
+if [[ -n $OVERRIDE_PAN_WS_MINER_NOTIFY ]]; then
+  PAN_WS_MINER_NOTIFY=$OVERRIDE_PAN_WS_MINER_NOTIFY
+fi
+
+if [[ -n $OVERRIDE_PAN_HTTP_MINER_NOTIFY ]]; then
+  PAN_HTTP_MINER_NOTIFY=$OVERRIDE_PAN_HTTP_MINER_NOTIFY
+fi
+
+if [[ -n $OVERRIDE_VANGUARD_RPC_PORT ]]; then
+  VANGUARD_RPC_PORT=$OVERRIDE_VANGUARD_RPC_PORT
+fi
+
+if [[ -n $OVERRIDE_VANGUARD_UDP_PORT ]]; then
+  VANGUARD_UDP_PORT=$OVERRIDE_VANGUARD_UDP_PORT
+fi
+
+if [[ -n $OVERRIDE_VANGUARD_TCP_PORT ]]; then
+  VANGUARD_TCP_PORT=$OVERRIDE_VANGUARD_TCP_PORT
+fi
+
+if [[ -n $OVERRIDE_VANGUARD_GRPC_GATEWAY_PORT ]]; then
+  VANGUARD_GRPC_GATEWAY_PORT=$OVERRIDE_VANGUARD_GRPC_GATEWAY_PORT
+fi
+
+if [[ -n $OVERRIDE_VAN_MIN_SYNC_PEERS ]]; then
+  VAN_MIN_SYNC_PEERS=$OVERRIDE_VAN_MIN_SYNC_PEERS
+fi
+
+if [[ -n $OVERRIDE_VAN_MAX_P2P_PEERS ]]; then
+  VAN_MAX_P2P_PEERS=$OVERRIDE_VAN_MAX_P2P_PEERS
+fi
+
+if [[ -n $OVERRIDE_VAN_ETHSTATS_METRICS ]]; then
+  VAN_ETHSTATS_METRICS=$OVERRIDE_VAN_ETHSTATS_METRICS
 fi
 
 if [[ ! -d $DATADIR ]]; then
