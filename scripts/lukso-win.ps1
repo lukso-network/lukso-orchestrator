@@ -1,42 +1,52 @@
+# Note: Don't put default values here.
+# The hierachy must be Flag THEN ConfigFile THEN Default value
+# If you set it here, they will overwrite config file
+
+# Flags declaration
 param (
     [Parameter(Position = 0, Mandatory)][String]$command,
     [Parameter(Position = 1)][String]$argument,
-
-    [String]$orchestrator = "",
-    [String]${orchestrator-verbosity} = "",
-    [String]$pandora = "",
-    [String]$vanguard = "",
-    [String]$validator = "",
-    [String]$deposit = "",
-    [String]$eth2stats = "",
-    [String]$network = "l15",
-    [String]${lukso-home} = "$HOME\.lukso",
-    [String]$datadir = "${lukso-home}\$network\datadir",
-    [String]$logsdir = "${lukso-home}\$network\logs",
-    [String]${keys-dir} = "",
-    [String]${keys-password-file} = "",
-    [String]${wallet-dir} = "",
-    [String]${wallet-password-file} = "",
-    [Switch]$l15,
+    [String]$deposit,
+    [String]$eth2stats,
+    [String]$network,
+    [String]${lukso-home},
+    [String]$datadir,
+    [String]$logsdir,
+    [String]${keys-dir},
+    [String]${keys-password-file},
+    [String]${wallet-dir},
+    [String]${wallet-password-file},
+    [Switch]${l15-prod},
     [Switch]${l15-staging},
     [Switch]${l15-dev},
-    [String]$config = "",
-    [String]$coinbase = "0x616e6f6e796d6f75730000000000000000000000",
-    [String]${node-name} = "",
+    [String]$config,
+    [String]$coinbase,
+    [String]${node-name},
     [Switch]$validate,
-    [String]${pandora-bootnodes} = "",
-    [String]${pandora-http-port} = "8545",
+    [String]$orchestrator,
+    [String]${orchestrator-verbosity},
+    [String]$pandora,
+    [String]${pandora-bootnodes},
+    [String]${pandora-http-port},
     [Switch]${pandora-metrics},
-    [String]${pandora-nodekey} = "",
-    [String]${pandora-external-ip} = "",
-    [String]${pandora-verbosity} = "",
-    [String]${vanguard-bootnodes} = "",
-    [String]${vanguard-p2p-priv-key} = "",
-    [String]${vanguard-external-ip} = "",
-    [String]${vanguard-p2p-host-dns} = "",
-    [String]${vanguard-verbosity} = "",
-    [String]${validator-verbosity} = "",
-    [String]${external-ip} = "",
+    [String]${pandora-nodekey},
+    [String]${pandora-rpcvhosts},
+    [String]${pandora-external-ip},
+    [Switch]${pandora-universal-profile-expose},
+    [Switch]${pandora-unsafe-expose},
+    [String]${pandora-verbosity},
+    [String]$vanguard,
+    [String]${vanguard-bootnodes},
+    [String]${vanguard-p2p-priv-key},
+    [String]${vanguard-external-ip},
+    [String]${vanguard-p2p-host-dns},
+    [String]${vanguard-rpc-host},
+    [String]${vanguard-monitoring-host},
+    [String]${vanguard-verbosity},
+    [String]$validator,
+    [String]${validator-verbosity},
+    [String]${cors-domain},
+    [String]${external-ip},
     [Switch]${allow-respin},
     [Switch]$force
 )
@@ -44,9 +54,103 @@ param (
 $platform = "Windows"
 $architecture = "x86_64"
 $InstallDir = $Env:APPDATA + "\LUKSO";
-$NetworkConfig = "$InstallDir\networks\$network\config\network-config.yaml"
-
 $RunDate = Get-Date -Format "yyyy-m-dd__HH-mm-ss"
+
+# Parsing config File and setting defaults
+if ($config)
+{
+    $ConfigFile = ConvertFrom-Yaml $(Get-Content -Raw $config )
+}
+
+Function pick_network($picked_network)
+{
+    $network = $picked_network
+    if (!(Test-Path "$InstallDir\networks\$network"))
+    {
+        download_network_config $network
+    }
+    $NetworkConfigFile = "$InstallDir\networks\$network\config\network-config.yaml"
+    $NetworkConfig = ConvertFrom-Yaml $(Get-Content -Raw $NetworkConfigFile)
+}
+
+$network = If ($network) {$network} ElseIf ($ConfigFile.NETWORK) {$ConfigFile.NETWORK} Else {""}
+
+${l15-prod} = If (${l15-prod}) {${l15-prod}} ElseIf ($ConfigFile.L15_PROD) {$ConfigFile.L15_PROD} Else {$false}
+${l15-staging} = If (${l15-staging}) {${l15-staging}} ElseIf ($ConfigFile.L15_STAGING) {$ConfigFile.L15_STAGING} Else {$false}
+${l15-dev} = If (${l15-dev}) {${l15-dev}} ElseIf ($ConfigFile.L15_DEV) {$ConfigFile.L15_DEV} Else {$false}
+
+# NOTE:
+$NetworkFlagPresent = $fale
+If ($network) {
+    $NetworkFlagPresent = $true
+}
+$NetworkAmountCheck = ($NetworkFlagPresent) + (${l15-prod}.IsPresent) + (${l15-staging}.IsPresent) + (${l15-dev}.IsPresent)
+
+if ($NetworkAmountCheck -gt 1) {
+    Write-Output "You cannot connect to multiple networks, please specify just one"
+    exit
+}
+
+If (${l15-prod}) {$network = "l15-prod"}
+If (${l15-staging}) {$network = "l15-staging"}
+If (${l15-dev}) {$network = "l15-dev"}
+
+if ($NetworkAmountCheck -eq 0) {
+    $network = "l15-prod"
+}
+
+echo "Connecting to: $network"
+
+If ($network) {
+    $NetworkConfigFile = "$InstallDir\networks\$network\config\network-config.yaml"
+    $NetworkConfig = ConvertFrom-Yaml $(Get-Content -Raw $NetworkConfigFile)
+}
+
+$deposit = If ($deposit) {$deposit} ElseIf ($ConfigFile.DEPOSIT) {$ConfigFile.DEPOSIT} Else {"v1.2.6-LUKSO"}
+$eth2stats = If ($eth2stats) {$eth2stats} ElseIf ($ConfigFile.ETH2STATS) {$ConfigFile.ETH2STATS} Else {""}
+${lukso-home} = If (${lukso-home}) {${lukso-home}} ElseIf ($ConfigFile.LUKSO_HOME) {$ConfigFile.LUKSO_HOME} Else {"$HOME\.lukso"}
+$datadir = If ($datadir) {$datadir} ElseIf ($ConfigFile.DATADIR) {$ConfigFile.DATADIR} Else {"${lukso-home}\$network\datadir"}
+$logsdir = If ($logsdir) {$logsdir} ElseIf ($ConfigFile.LOGSDIR) {$ConfigFile.LOGSDIR} Else {"${lukso-home}\$network\logs"}
+${keys-dir} = If (${keys-dir}) {${keys-dir}} ElseIf ($ConfigFile.KEYS_DIR) {$ConfigFile.KEYS_DIR} Else {"${lukso-home}\validator_keys"}
+${keys-password-file} = If (${keys-password-file}) {${keys-password-file}} ElseIf ($ConfigFile.KEYS_PASSWORD_FILE) {$ConfigFile.KEYS_PASSWORD_FILE} Else {""}
+${wallet-dir} = If (${wallet-dir}) {${wallet-dir}} ElseIf ($ConfigFile.WALLET_DIR) {$ConfigFile.WALLET_DIR} Else {"${lukso-home}\wallet"}
+${wallet-password-file} = If (${wallet-password-file}) {${wallet-password-file}} ElseIf ($ConfigFile.WALLET_PASSWORD_FILE) {$ConfigFile.WALLET_PASSWORD_FILE} Else {""}
+
+$coinbase = If ($coinbase) {$coinbase} ElseIf ($ConfigFile.COINBASE) {$ConfigFile.COINBASE} Else {""}
+${node-name} = If (${node-name}) {${node-name}} ElseIf ($ConfigFile.NODE_NAME) {$ConfigFile.NODE_NAME} Else {""}
+$validate = If ($validate) {$validate} ElseIf ($ConfigFile.VALIDATE) {$ConfigFile.VALIDATE} Else {$false}
+$orchestrator = If ($orchestrator) {$orchestrator} ElseIf ($ConfigFile.ORCHESTRATOR) {$ConfigFile.ORCHESTRATOR} Else {""}
+${orchestrator-verbosity} = If (${orchestrator-verbosity}) {${orchestrator-verbosity}} ElseIf ($ConfigFile.ORCHESTRATOR_VERBOSITY) {$ConfigFile.ORCHESTRATOR_VERBOSITY} Else {"info"}
+$pandora = If ($pandora) {$pandora} ElseIf ($ConfigFile.PANDORA) {$ConfigFile.PANDORA} Else {""}
+${pandora-bootnodes} = If (${pandora-bootnodes}) {${pandora-bootnodes}} ElseIf ($ConfigFile.PANDORA_BOOTNODES) {$ConfigFile.PANDORA_BOOTNODES} Else {$NetworkConfig.PANDORA_BOOTNODES}
+${pandora-http-port} = If (${pandora-http-port}) {${pandora-http-port}} ElseIf ($ConfigFile.PANDORA_HTTP_PORT) {$ConfigFile.PANDORA_HTTP_PORT} Else {"8545"}
+${pandora-metrics} = If (${pandora-metrics}) {${pandora-metrics}} ElseIf ($ConfigFile.PANDORA_METRICS) {$ConfigFile.PANDORA_METRICS} Else {$false}
+${pandora-nodekey} = If (${pandora-nodekey}) {${pandora-nodekey}} ElseIf ($ConfigFile.PANDORA_NODEKEY) {$ConfigFile.PANDORA_NODEKEY} Else {""}
+${pandora-rpcvhosts} = If (${pandora-rpcvhosts}) {${pandora-rpcvhosts}} ElseIf ($ConfigFile.PANDORA_RPCVHOSTS) {$ConfigFile.PANDORA_RPCVHOSTS} Else {""}
+${pandora-external-ip} = If (${pandora-external-ip}) {${pandora-external-ip}} ElseIf ($ConfigFile.PANDORA_EXTERNAL_IP) {$ConfigFile.PANDORA_EXTERNAL_IP} Else {""}
+${pandora-universal-profile-expose} = If (${pandora-universal-profile-expose}) {${pandora-universal-profile-expose}} ElseIf ($ConfigFile.PANDORA_UNIVERSAL_PROFILE_EXPOSE) {$ConfigFile.PANDORA_UNIVERSAL_PROFILE_EXPOSE} Else {$false}
+${pandora-unsafe-expose} = If (${pandora-unsafe-expose}) {${pandora-unsafe-expose}} ElseIf ($ConfigFile.PANDORA_UNSAFE_EXPOSE) {$ConfigFile.PANDORA_UNSAFE_EXPOSE} Else {$false}
+${pandora-verbosity} = If (${pandora-verbosity}) {${pandora-verbosity}} ElseIf ($ConfigFile.PANDORA_VERBOSITY) {$ConfigFile.PANDORA_VERBOSITY} Else {"info"}
+$vanguard = If ($vanguard) {$vanguard} ElseIf ($ConfigFile.VANGUARD) {$ConfigFile.VANGUARD} Else {""}
+${vanguard-bootnodes} = If (${vanguard-bootnodes}) {${vanguard-bootnodes}} ElseIf ($ConfigFile.VANGUARD_BOOTNODES) {$ConfigFile.VANGUARD_BOOTNODES} Else {$NetworkConfig.VANGUARD_BOOTNODES}
+${vanguard-p2p-priv-key} = If (${vanguard-p2p-priv-key}) {${vanguard-p2p-priv-key}} ElseIf ($ConfigFile.VANGUARD_P2P_PRIV_KEY) {$ConfigFile.VANGUARD_P2P_PRIV_KEY} Else {""}
+${vanguard-external-ip} = If (${vanguard-external-ip}) {${vanguard-external-ip}} ElseIf ($ConfigFile.VANGUARD_EXTERNAL_IP) {$ConfigFile.VANGUARD_EXTERNAL_IP} Else {""}
+${vanguard-p2p-host-dns} = If (${vanguard-p2p-host-dns}) {${vanguard-p2p-host-dns}} ElseIf ($ConfigFile.VANGUARD_P2P_HOST_DNS) {$ConfigFile.VANGUARD_P2P_HOST_DNS} Else {""}
+${vanguard-rpc-host} = If (${vanguard-rpc-host}) {${vanguard-rpc-host}} ElseIf ($ConfigFile.VANGUARD_RPC_HOST) {$ConfigFile.VANGUARD_RPC_HOST} Else {""}
+${vanguard-monitoring-host} = If (${vanguard-monitoring-host}) {${vanguard-monitoring-host}} ElseIf ($ConfigFile.VANGUARD_MONITORING_HOST) {$ConfigFile.VANGUARD_MONITORING_HOST} Else {""}
+${vanguard-verbosity} = If (${vanguard-verbosity}) {${vanguard-verbosity}} ElseIf ($ConfigFile.VANGUARD_VERBOSITY) {$ConfigFile.VANGUARD_VERBOSITY} Else {"info"}
+$validator = If ($validator) {$validator} ElseIf ($ConfigFile.VALIDATOR) {$ConfigFile.VALIDATOR} Else {}
+${validator-verbosity} = If (${validator-verbosity}) {${validator-verbosity}} ElseIf ($ConfigFile.VALIDATOR_VERBOSITY) {$ConfigFile.VALIDATOR_VERBOSITY} Else {"info"}
+${cors-domain} = If (${cors-domain}) {${cors-domain}} ElseIf ($ConfigFile.CORS_DOMAIN) {$ConfigFile.CORS_DOMAIN} Else {""}
+${external-ip} = If (${external-ip}) {${external-ip}} ElseIf ($ConfigFile.EXTERNAL_IP) {$ConfigFile.EXTERNAL_IP} Else {""}
+${allow-respin} = If (${allow-respin}) {${allow-respin}} ElseIf ($ConfigFile.ALLOW_RESPIN) {$ConfigFile.ALLOW_RESPIN} Else {$false}
+$force = If ($force) {$force} ElseIf ($ConfigFile.FORCE) {$ConfigFile.FORCE} Else {$false}
+
+
+
+
+
+
 
 Function download($url, $dst)
 {
@@ -77,8 +181,12 @@ Function download_binary($client, $tag)
             $repo = "vanguard-consensus-engine"
         }
 
+        lukso-deposit-cli {
+            $repo = "network-deposit-cli"
+        }
+
         eth2stats {
-            $repo = "vanguard-consensus-engine"
+            $repo = "network-vanguard-stats-client"
         }
     }
 
@@ -88,12 +196,15 @@ Function download_binary($client, $tag)
 
 }
 
-Function download_network_config($network)
-{
-    $CDN = "https://storage.googleapis.com/l15-cdn/networks/" + $network
-    $Target = $InstallDir + "\networks\" + $network + "\config"
-    New-Item -ItemType Directory -Force -Path $Target
-    download $CDN"\network-config.yaml?ignoreCache=1" $Target"\network-config.yaml"
+Function download_network_config ($network) {
+    $CDN = "https://storage.googleapis.com/l15-cdn/networks/"+$network
+    $TARGET = $InstallDir+"\networks\"+$network+"\config"
+    New-Item -ItemType Directory -Force -Path $TARGET
+    download $CDN"/network-config.yaml?ignoreCache=1" $TARGET"\network-config.yaml"
+    download $CDN"/pandora-genesis.json?ignoreCache=1" $TARGET"\pandora-genesis.json"
+    download $CDN"/pandora-nodes.json?ignoreCache=1" $TARGET"\pandora-nodes.json"
+    download $CDN"/vanguard-config.yaml?ignoreCache=1" $TARGET"\vanguard-config.yaml"
+    download $CDN"/vanguard-genesis.ssz?ignoreCache=1" $TARGET"\vanguard-genesis.ssz"
 }
 
 Function bind_binary($client, $tag)
@@ -111,22 +222,67 @@ Function bind_binary($client, $tag)
 
 Function bind_binaries()
 {
-    Write-Output binding
+    Write-Output Binding
 }
 
-Function pick_network($picked_network)
+Function generate_keys()
 {
-    $network = $picked_network
-        if (!(Test-Path "$InstallDir\networks\$network"))
-    {
-        download_network_config $network
-    }
-    $NetworkConfig = ConvertFrom-Yaml $(cat $config)
+  Write-Output ${keys-dir}
+
+  If (!(Test-Path ${keys-dir})) {
+      New-Item -ItemType Directory -Force -Path ${keys-dir}
+  }
+  $PathArray = ${keys-dir}.Split("\")
+#  echo $PathArray[-1]
+#  echo $PathArray[0..($PathArray.length-1)]
+  $PathArray = ${keys-dir}.Split("\")
+  If ($PathArray[-1] -eq "validator_keys") {
+      ${keys-dir} = [system.String]::Join("\", $PathArray[0..($PathArray.length-2)])
+  }
+
+  $ValidatorsNumber = Read-Host -Prompt "How many validators? (Cost for 1 validator = 32 LYXt)"
+
+  $Arguments = New-Object System.Collections.Generic.List[System.Object]
+  $Arguments.Add("new-mnemonic")
+  $Arguments.Add("--chain $network")
+  $Arguments.Add("--mnemonic_language english")
+  $Arguments.Add("--folder $(${keys-dir})")
+  $Arguments.Add("--num_validators $ValidatorsNumber")
+
+  powershell.exe -command $("$InstallDir\binaries\lukso-deposit-cli\$deposit\lukso-deposit-cli-Windows-x86_64.exe $Arguments")
 }
 
-function check_validator_requirements()
+Function import_accounts() {
+
+}
+
+
+Function check_validator_requirements()
 {
 
+  if (${wallet-dir}) {
+      echo ${wallet-dir}
+      if (!(Test-Path ${wallet-dir})) {
+          Write-Output "ERROR! Cannot Validate, wallet not found"
+          exit
+      }
+  }
+
+   if (${wallet-password-file}) {
+      if (!(Test-Path ${wallet-password-file})) {
+          Write-Output "ERROR! Cannot Validate, password file not found"
+          exit
+      }
+   }
+
+
+
+  if (!${wallet-password-file}) {
+      $securedValue = Read-Host -AsSecureString -Prompt "Enter validator password"
+      $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($securedValue)
+      $value = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
+      $value | Out-File $Env:APPDATA\LUKSO\temp_pass.txt
+  }
 }
 
 Function start_orchestrator()
@@ -135,6 +291,11 @@ Function start_orchestrator()
     if (!(Test-Path "$datadir\orchestrator"))
     {
         New-Item -ItemType Directory -Force -Path $datadir\orchestrator
+    }
+
+    if (!(Test-Path "$logsdir\orchestrator"))
+    {
+        New-Item -ItemType Directory -Force -Path $logsdir\orchestrator
     }
 
     Write-Output $runDate | Out-File -FilePath "$logsdir\orchestrator\current.tmp"
@@ -154,13 +315,11 @@ Function start_orchestrator()
 
     Write-Output $arguments
 
-    Start-Process -FilePath "lukso-orchestrator" `
+    Start-Process -FilePath lukso-orchestrator `
     -ArgumentList $arguments `
     -NoNewWindow `
     -RedirectStandardOutput "orchestrator_$runDate.out" `
-    -RedirectStandardError "orchestrator_$runDate.err"
-
-
+    -RedirectStandardError "orchestrator_$runDate.err" `
 }
 
 function start_pandora()
@@ -199,21 +358,36 @@ function start_pandora()
 
     Write-Output $runDate | Out-File -FilePath "$logsdir\pandora\current.tmp"
 
-    pandora --datadir $DATADIR/pandora init $InstallDir\networks\$NETWORK\config\pandora-genesis.json
-    Copy-Item $InstallDir\networks\$NETWORK\config\pandora-nodes.json -Destination $datadir\pandora\geth
+#    pandora init $InstallDir\networks\$NETWORK\config\pandora-genesis.json --datadir $datadir\pandora
+#    echo $InstallDir\networks\$NETWORK\config\pandora-genesis.json
+#    echo $datadir\pandora
 
     $Arguments = New-Object System.Collections.Generic.List[System.Object]
+    $Arguments.Add("init")
+    $Arguments.Add("$InstallDir\networks\$NETWORK\config\pandora-genesis.json")
+    $Arguments.Add("--datadir=$datadir\pandora")
+    Start-Process -Wait -FilePath "pandora" `
+    -ArgumentList $Arguments `
+    -NoNewWindow `
+    -RedirectStandardOutput "$logsdir\pandora\init_pandora_$runDate.out" `
+    -RedirectStandardError "$logsdir\pandora\init_pandora_$runDate.err"
+    echo $Arguments
 
-    $Arguments.Add("--datadir=$DATADIR/pandora")
-    $Arguments.Add("--networkid=$NETWORK_ID")
-    $Arguments.Add("--ethstats=${NODE_NAME}:$ETH1_STATS_APIKEY@$ETH1_STATS_URL")
+
+#    Copy-Item $InstallDir\networks\$NETWORK\config\pandora-nodes.json -Destination $datadir\pandora\geth
+
+    $Arguments = New-Object System.Collections.Generic.List[System.Object]
+    echo $($NetworkConfig.NETWORK_ID)
+    $Arguments.Add("--datadir=$datadir\pandora")
+    $Arguments.Add("--networkid=$($NetworkConfig.NETWORK_ID)")
+    $Arguments.Add("--ethstats=${node-name}:$($NetworkConfig.ETH1_STATS_APIKEY)@$($NetworkConfig.ETH1_STATS_URL)")
     $Arguments.Add("--port=30405")
     $Arguments.Add("--http")
     $Arguments.Add("--http.addr=0.0.0.0")
-    $Arguments.Add("--http.port=$pandora_http_port")
+    $Arguments.Add("--http.port=${pandora-http-port}")
     $Arguments.Add("--http.api=admin,net,eth,debug,miner,personal,txpool,web3")
     $Arguments.Add("--http.corsdomain=*")
-    $Arguments.Add("--bootnodes=$pandora_bootnodes")
+    $Arguments.Add("--bootnodes=${pandora-bootnodes}")
     $Arguments.Add("--ws")
     $Arguments.Add("--ws.port=8546")
     $Arguments.Add("--ws.api=admin,net,eth,debug,miner,personal,txpool,web3")
@@ -224,7 +398,9 @@ function start_pandora()
     $Arguments.Add("--syncmode=full")
     $Arguments.Add("--allow-insecure-unlock")
     $Arguments.Add("--verbosity=${pandora-verbosity}")
-    $Arguments.Add("--nat=extip:${pandora-external-ip}")
+    if (${pandora-external-ip}) {
+        $Arguments.Add("--nat=extip:${pandora-external-ip}")
+    }
 
     if (${pandora-metrics}) {
         $Arguments.Add("--metrics")
@@ -237,11 +413,13 @@ function start_pandora()
         $Arguments.Add("--nodekey=${pandora-nodekey}")
     }
 
+    Write-Output $Arguments
+
     Start-Process -FilePath "pandora" `
-    -ArgumentList $arguments `
+    -ArgumentList $Arguments `
     -NoNewWindow `
-    -RedirectStandardOutput "$logsdir\pandora_$runDate.out" `
-    -RedirectStandardError "$logsdir\pandora_$runDate.err"
+    -RedirectStandardOutput "$logsdir\pandora\pandora_$runDate.out" `
+    -RedirectStandardError "$logsdir\pandora\pandora_$runDate.err"
 }
 
 function start_vanguard() {
@@ -254,14 +432,17 @@ function start_vanguard() {
     $Arguments = New-Object System.Collections.Generic.List[System.Object]
 
     $BootnodesArray = ${vanguard-bootnodes}.Split(",")
-
+    echo $BootnodesArray
+    foreach ($Bootnode in $BootnodesArray) {
+        echo $Bootnode
+    }
 
     $Arguments.Add("--accept-terms-of-use")
-    $Arguments.Add("--chain-id=$NetworkConfig.CHAIN_ID")
-    $Arguments.Add("--network-id=$NetworkConfig.NETWORK_ID")
-    $Arguments.Add("--genesis-state=$InstallDir\$network\config\vanguard-genesis.ssz")
+    $Arguments.Add("--chain-id=$($NetworkConfig.CHAIN_ID)")
+    $Arguments.Add("--network-id=$($NetworkConfig.NETWORK_ID)")
+    $Arguments.Add("--genesis-state=$InstallDir\networks\$network\config\vanguard-genesis.ssz")
     $Arguments.Add("--datadir=$datadir\vanguard\")
-    $Arguments.Add("--chain-config-file=$InstallDir\$network\config\vanguard-config.yaml")
+    $Arguments.Add("--chain-config-file=$InstallDir\networks\$network\config\vanguard-config.yaml")
     foreach ($Bootnode in $BootnodesArray) {
         $Arguments.Add("--bootstrap-node=$Bootnode")
     }
@@ -296,14 +477,65 @@ function start_vanguard() {
     else {
         $Arguments.Add("--p2p-host-ip=$vanguard_external_ip")
     }
+    echo $Arguments
+    Start-Process -FilePath "vanguard" `
+    -ArgumentList $Arguments `
+    -NoNewWindow `
+    -RedirectStandardOutput "$logsdir\vanguard\vanguard_$runDate.out" `
+    -RedirectStandardError "$logsdir\vanguard\vanguard_$runDate.err"
 
 }
 
-function start_validator() {}
+function start_validator() {
+    check_validator_requirements
+    if (!(Test-Path $logsdir\validator))
+    {
+        New-Item -ItemType Directory -Force -Path $logsdir\validator
+    }
 
-function start_eth2stats() {}
+    Write-Output $runDate | Out-File -FilePath "$logsdir\validator\current.tmp"
 
-function start_all() {}
+    $Arguments = New-Object System.Collections.Generic.List[System.Object]
+    $Arguments.Add("--datadir=$datadir\validator")
+    $Arguments.Add("--accept-terms-of-use")
+    $Arguments.Add("--beacon-rpc-provider=localhost:4000")
+    $Arguments.Add("--chain-config-file=$InstallDir\networks\$network\config\vanguard-config.yaml")
+    $Arguments.Add("--verbosity=$(${validator-verbosity})")
+    $Arguments.Add("--wallet-dir=$(${wallet-dir})")
+    $Arguments.Add("--rpc")
+    $Arguments.Add("--log-file=$logsdir\validator\validator_$runDate.log")
+    $Arguments.Add("--lukso-network")
+
+    if (${wallet-password-file}) {
+      $Arguments.Add("--wallet-password-file=${wallet-password-file}")
+    }
+
+    if (!${wallet-password-file}) {
+      $Arguments.Add("--wallet-password-file=$Env:APPDATA\Lukso\temp_pass.txt")
+    }
+
+    Start-Process -FilePath "lukso-validator" `
+    -ArgumentList $arguments `
+    -NoNewWindow `
+    -RedirectStandardOutput "$logsdir\validator\validator_$runDate.out" `
+    -RedirectStandardError "$logsdir\validator\validator_$runDate.err"
+
+}
+
+function start_eth2stats() {
+
+}
+
+function start_all() {
+    if ($validate) {
+        check_validator_requirements
+        start_validator
+    }
+    start_orchestrator
+    start_pandora
+    start_vanguard
+    start_eth2stats
+}
 
 # "start" is a reserved keyword in PowerShell
 function _start($client)
@@ -326,8 +558,12 @@ function _start($client)
             start_validator
         }
 
+        all {
+            start_all
+        }
+
         Default {
-            Write-Output none
+            start_all
         }
     }
 }
@@ -336,17 +572,31 @@ function stop_orchestrator() {
     Stop-Process -ProcessName "lukso-orchestrator"
 }
 
-function stop_pandora() {}
+function stop_pandora() {
+    Stop-Process -ProcessName "pandora"
+}
 
-function stop_vanguard() {}
+function stop_vanguard() {
+    Stop-Process -ProcessName "vanguard"
+}
 
-function stop_validator() {}
+function stop_validator() {
+    Stop-Process -ProcessName "lukso-validator"
+}
 
-function stop_eth2stats() {}
+function stop_eth2stats() {
+    Stop-Process -ProcessName "eth2stats"
+}
 
-function stop_all() {}
+function stop_all() {
+    stop_orchestrator
+    stop_pandora
+    stop_vanguard
+    stop_validator
+    stop_eth2stats
+}
 
-function stop() {}
+function _stop() {}
 
 function reset_orchestrator () {
 
@@ -495,6 +745,7 @@ function _help() {
     exit
 }
 
+
 ##Flags action
 if ($orchestrator)
 {
@@ -516,51 +767,50 @@ if ($validator)
     bind_binary lukso-validator $validator
 }
 
-if ($l15) {
-    pick_network l15
-}
-
-if ($l15_staging) {
-    pick_network l15-staging
-}
-
-if ($l15_dev) {
-    pick_network l15-dev
-}
-
-if ($network) {
-    pick_network $network
-}
-
-if ($config)
+if ($eth2stats)
 {
-    $configObj = ConvertFrom-Yaml $(cat $config)
+    bind_binary eth2stats $eth2stats
 }
+
+if ($deposit)
+{
+    bind_binary lukso-deposit-cli $deposit
+}
+
+
 
 switch ($command)
 {
-    start {
+    "start" {
         _start $argument
         $KeepShell = $true
     }
 
-    stop {
+    "stop" {
         _stop $argument
     }
 
-    restart {
+    "restart" {
         _restart $argument
     }
 
-    help {
+    "help" {
         _help
     }
 
-    logs {
+    "logs" {
         logs $argument
     }
 
-    bind-binaries {
+    "keygen" {
+        generate_keys
+    }
+
+    "wallet" {
+        import_accounts
+    }
+
+    "bind-binaries" {
         bind_binaries
     }
 
