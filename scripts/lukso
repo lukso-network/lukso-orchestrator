@@ -984,55 +984,55 @@ help() {
   echo
   echo "--force                Enables force mode for stopping"
   echo
-  echo "--vanguard-http-web3provider          An eth1 web3 provider string http endpoint or IPC socket path. Example: --vanguard-http-web3provider http://192.168.0.1:8545 || Default is: http://127.0.0.1:8545"
+  echo "--vanguard-http-web3provider          An eth1 web3 provider string http endpoint or IPC socket path. (default: http://127.0.0.1:8545)"
   echo
-  echo "--vanguard-rpc-host                   Host on which the RPC server should listen. Example: --vanguard-rpc-host 0.0.0.0 || Default is: 127.0.0.1"
+  echo "--vanguard-rpc-host                   Host on which the RPC server should listen. (default: 127.0.0.1)"
   echo
-  echo "--van-rpc-port                        Port on which the RPC server should listen. Example: --vanguard-rpc-port 4000 (default: 4000)"
+  echo "--van-rpc-port                        Port on which the RPC server should listen. (default: 4000)"
   echo
-  echo "--van-udp-port                        Vanguard beacon chain client UDP port. The port used by discv5. Example: --van-upd-port 12000 (default: 12000)"
+  echo "--van-udp-port                        Vanguard beacon chain client UDP port. The port used by discv5. (default: 12000)"
   echo
-  echo "--van-tcp-port                        Vanguard beacon chain client TCP port. The port used by libp2p. Example: --van-tcp-port 13000 (default: 13000)"
+  echo "--van-tcp-port                        Vanguard beacon chain client TCP port. The port used by libp2p. (default: 13000)"
   echo
   echo "--van-grpc-gateway-port               Vanguard gRPC gateway port. The port on which the gateway server runs on (default: 3500)"
   echo
-  echo "--vanguard-orc-rpc-provider           A orchestrator string rpc endpoint. This is our orchestrator client http endpoint or socket path. Example: --vanguard-orc-rpc-provider http://192.168.0.1:7877 || Default is: http://127.0.0.1:7877"
+  echo "--vanguard-orc-rpc-provider           A orchestrator string rpc endpoint. This is our orchestrator client http endpoint or socket path. (default: http://127.0.0.1:7877)"
   echo
-  echo "--validator-beacon-rpc-provider       Beacon node (vanguard) RPC provider endpoint. Example: --validator-beacon-rpc-provider 192.168.0.1:4000 || Default is: $VANGUARD_RPC"
+  echo "--validator-beacon-rpc-provider       Beacon node (vanguard) RPC provider endpoint. (default: $VANGUARD_RPC)"
   echo
-  echo "--validator-pandora-http-provider     A pandora string rpc endpoint. This is our pandora client http endpoint. Example: --validator-pandora-http-provider http://192.168.0.1:8545 || Default is: http://127.0.0.1:8545"
+  echo "--validator-pandora-http-provider     A pandora string rpc endpoint. This is our pandora client http endpoint. (default: http://127.0.0.1:8545)"
   echo
-  echo "--orchestrator-vanguard-rpc-endpoint  Enables Vanguard node RPC provider endpoint. Example: --orchestrator-vanguard-rpc-endpoint 192.168.0.1:4000 || Default is: $VANGUARD_RPC"
+  echo "--orchestrator-vanguard-rpc-endpoint  Enables Vanguard node RPC provider endpoint. (default: $VANGUARD_RPC)"
   echo
-  echo "--orchestrator-pandora-rpc-endpoint   Pandora node RP provider endpoint. Example: --orchestrator-pandora-rpc-endpoint ws://192.168.0.1:8546 || Default is: $ORC_PANDORA_RPC"
+  echo "--orchestrator-pandora-rpc-endpoint   Pandora node RP provider endpoint. (default: $ORC_PANDORA_RPC)"
   echo
-  echo "--eth2stats-beacon-addr               Beacon node endpoint address for eth2stats-client. Example: --eth2stats-beacon-addr 127.0.0.1:4000 || Default is: $VANGUARD_RPC"
+  echo "--eth2stats-beacon-addr               Beacon node endpoint address for eth2stats-client. (default: $VANGUARD_RPC)"
   echo
-  echo "--orc-http-port                       Orchestrator's HTTP port exposed. Default is: 7877"
+  echo "--orc-http-port                       Orchestrator HTTP port exposed. (default:  7877)"
   echo
-  echo "--orc-http-addr                       Orchestrator's HTTP address exposed. Default is: 127.0.0.1"
+  echo "--orc-http-addr                       Orchestrator HTTP address exposed. (default:  127.0.0.1)"
   echo
-  echo "--orc-ws-port                         Orchestrator's websocket port exposed. Default is: 7878"
+  echo "--orc-ws-port                         Orchestrator websocket port exposed. (default:  7878)"
   echo
-  echo "--orc-ws-addr                         Orchestrator's websocket address exposed. Default is: 127.0.0.1"
+  echo "--orc-ws-addr                         Orchestrator websocket address exposed. (default:  127.0.0.1)"
   echo
-  echo "--pan-port                            Pandora client's TCP/UDP port exposed. Default is: 30405"
+  echo "--pan-port                            Pandora client TCP/UDP port exposed. (default:  30405)"
   echo
-  echo "--pan-http-addr                       Pandora client's http address exposed. Default is: 127.0.0.1"
+  echo "--pan-http-addr                       Pandora client http address exposed. (default:  127.0.0.1)"
   echo
-  echo "--pan-http-port                       Pandora client's http port exposed. Default is: 8545"
+  echo "--pan-http-port                       Pandora client http port exposed. (default:  8545)"
   echo
-  echo "--pan-ws-addr                         Pandora client's websocket address exposed. Default is: 127.0.0.1"
+  echo "--pan-ws-addr                         Pandora client websocket address exposed. (default:  127.0.0.1)"
   echo
-  echo "--pan-ws-port                         Pandora client's websocket port exposed. Default is: 8546"
+  echo "--pan-ws-port                         Pandora client websocket port exposed. (default:  8546)"
   echo
-  echo "--pan-http-miner-addr                 Pandora's HTTP URL to notify of new work packages. Default is: http://127.0.0.1:7877"
+  echo "--pan-http-miner-addr                 Pandora HTTP URL to notify of new work packages. (default:  http://127.0.0.1:7877)"
   echo
-  echo "--pan-ws-miner-addr                   Pandora's Websocket URL to notify of new work packages. Default is: ws://127.0.0.1:7878"
+  echo "--pan-ws-miner-addr                   Pandora Websocket URL to notify of new work packages. (default:  ws://127.0.0.1:7878)"
   echo
-  echo "--pan-ethstats                        Pandora's flag to activate ethstats listing on remote dashboard. It's disabled by default. If enabled you should see your node by your node name provided via --node-name flag or lukso config."
+  echo "--pan-ethstats                        Pandora flag to activate ethstats listing on remote dashboard. It's disabled by default. If enabled you should see your node by your node name provided via --node-name flag or lukso config."
   echo
-  echo "--van-ethstats                        Vanguard's flag fo activate eth2stats listing on remote dashboard. It's disabled by default. If enabled you should see your node by your node name provided via --node-name flag or lukso config."
+  echo "--van-ethstats                        Vanguard flag fo activate eth2stats listing on remote dashboard. It's disabled by default. If enabled you should see your node by your node name provided via --node-name flag or lukso config."
   echo
   echo "--van-min-sync-peers                  The required number of valid Vanguard peers to connect with before syncing. (default: 2)"
   echo
