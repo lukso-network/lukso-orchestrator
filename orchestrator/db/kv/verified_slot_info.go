@@ -204,19 +204,29 @@ func (s *Store) FindVerifiedSlotNumber(info *types.SlotInfo, fromSlot uint64) ui
 	return 0
 }
 
-func (s *Store) RemoveRangeVerifiedInfo(fromSlot, toSlot uint64) error {
+func (s *Store) RemoveRangeVerifiedInfo(fromSlot, skipSlot uint64) error {
 	s.Mutex.Lock()
 	defer s.Mutex.Unlock()
 
 	// storing latest epoch number into db
 	return s.db.Update(func(tx *bolt.Tx) error {
-		for i := fromSlot; i <= toSlot; i++ {
-			bkt := tx.Bucket(verifiedSlotInfosBucket)
-			s.verifiedSlotInfoCache.Del(i)
-			slotBytes := bytesutil.Uint64ToBytesBigEndian(i)
+		bkt := tx.Bucket(verifiedSlotInfosBucket)
+		cursor := bkt.Cursor()
+		for key, val := cursor.Last(); key != nil && val != nil; key, val = cursor.Prev() {
+			if string(key) == string(latestHeaderHashKey) || string(key) == string(latestSavedVerifiedSlotKey) {
+				continue
+			}
+			slotNumber := bytesutil.BytesToUint64BigEndian(key)
+			if slotNumber != skipSlot {
+				s.verifiedSlotInfoCache.Del(slotNumber)
 
-			if err := bkt.Delete(slotBytes); err != nil {
-				return err
+				err := cursor.Delete()
+				if err != nil {
+					return err
+				}
+			}
+			if slotNumber == fromSlot {
+				return nil
 			}
 
 		}
