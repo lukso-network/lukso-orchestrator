@@ -953,9 +953,6 @@ help() {
   echo "--vanguard-p2p-host-dns Sets host DNS vanguard (overrides --external-ip AND --vanguard-external-ip if present)"
   echo "                       [72.122.32.234]"
   echo
-  echo "--vanguard-rpc-host    Sets vanguard RPC listening interface"
-  echo "                       [IP, ex. 127.0.0.1]"
-  echo
   echo "--vanguard-monitoring-host Sets vanguard monitoring listening interface"
   echo "                       [IP, ex. 127.0.0.1]"
   echo
@@ -986,21 +983,21 @@ help() {
   echo
   echo "--force                Enables force mode for stopping"
   echo
-  echo "--vanguard-http-web3provider An eth1 web3 provider string http endpoint or IPC socket path. Example: --http-web3provider=http://127.0.0.1:8545 || Default is: $DATADIR/pandora/geth.ipc"
+  echo "--vanguard-http-web3provider          An eth1 web3 provider string http endpoint or IPC socket path. Example: --http-web3provider http://192.168.0.1:8545 || Default is: http://127.0.0.1:8545"
   echo
-  echo "--vanguard-rpc-host Host on which the RPC server should listen. Example: --vanguard-rpc-host=0.0.0.0 || Default is: $DATADIR/vanguard/vanguard.ipc"
+  echo "--vanguard-rpc-host                   Host on which the RPC server should listen. Example: --vanguard-rpc-host 0.0.0.0 || Default is: 127.0.0.1"
   echo
-  echo "--vanguard-orc-rpc-provider A orchestrator string rpc endpoint. This is our orchestrator client http endpoint or socket path. Example: --vanguard-orc-rpc-provider=http://127.0.0.1:7877 || Default is: $DATADIR/orchestrator/orchestrator.ipc"
+  echo "--vanguard-orc-rpc-provider           A orchestrator string rpc endpoint. This is our orchestrator client http endpoint or socket path. Example: --vanguard-orc-rpc-provider http://192.168.0.1:7877 || Default is: http://127.0.0.1:7877"
   echo
-  echo "--validator-beacon-rpc-provider Beacon node (vanguard) RPC provider endpoint. Example: --validator-beacon-rpc-provider=localhost:4000 || Default is: $DATADIR/vanguard/vanguard.ipc"
+  echo "--validator-beacon-rpc-provider       Beacon node (vanguard) RPC provider endpoint. Example: --validator-beacon-rpc-provider 192.168.0.1:4000 || Default is: $VANGUARD_RPC"
   echo
-  echo "--validator-pandora-http-provider A pandora string rpc endpoint. This is our pandora client http endpoint. Example: --validator-pandora-http-provider=http://127.0.0.1:8545 || Default is: $DATADIR/pandora/geth.ipc"
+  echo "--validator-pandora-http-provider     A pandora string rpc endpoint. This is our pandora client http endpoint. Example: --validator-pandora-http-provider http://192.168.0.1:8545 || Default is: http://127.0.0.1:8545"
   echo
-  echo "--orchestrator-vanguard-rpc-endpoint Enables Vanguard node RPC provider endpoint. Example: --orchestrator-vanguard-rpc-endpoint=127.0.0.1:4000 || Default is: $DATADIR/vanguard/vanguard.ipc"
+  echo "--orchestrator-vanguard-rpc-endpoint  Enables Vanguard node RPC provider endpoint. Example: --orchestrator-vanguard-rpc-endpoint 192.168.0.1:4000 || Default is: $VANGUARD_RPC"
   echo
-  echo "--orchestrator-pandora-rpc-endpoint Pandora node RP provider endpoint. Example: --orchestrator-pandora-rpc-endpoint=http://127.0.0.1:8545 || Default is: $DATADIR/pandora/geth.ipc"
+  echo "--orchestrator-pandora-rpc-endpoint   Pandora node RP provider endpoint. Example: --orchestrator-pandora-rpc-endpoint ws://192.168.0.1:8546 || Default is: $ORC_PANDORA_RPC"
   echo
-  echo "--eth2stats-beacon-addr Beacon node endpoint address for eth2stats-client. Example: --eth2stats-beacon-addr=127.0.0.1:4000 || Default is: $DATADIR/vanguard/vanguard.ipc"
+  echo "--eth2stats-beacon-addr               Beacon node endpoint address for eth2stats-client. Example: --eth2stats-beacon-addr 127.0.0.1:4000 || Default is: $VANGUARD_RPC"
 
   exit
 }
@@ -1492,7 +1489,7 @@ if [[ -n $OVERRIDE_IS_VALIDATOR ]]; then
 fi
 
 if [[ -n $OVERRIDE_ORCHESTRATOR_VERBOSITY ]]; then
-  ORCHESTRATOR_VERBOSITY=$OVERRIDE_ORCHESTRATOR_VERBOSITY
+  ORC_VERBOSITY=$OVERRIDE_ORCHESTRATOR_VERBOSITY
 fi
 
 if [[ -n $OVERRIDE_PANDORA_BOOTNODES ]]; then
@@ -1607,10 +1604,6 @@ fi
 
 if [[ -n $OVERRIDE_ETH2STATS_BEACON_ADDR ]]; then
   ETH2STATS_BEACON_ADDR=$OVERRIDE_ETH2STATS_BEACON_ADDR
-fi
-
-if [[ -n $OVERRIDE_VALIDATOR_VERBOSITY ]]; then
-  VALIDATOR_VERBOSITY=$OVERRIDE_VALIDATOR_VERBOSITY
 fi
 
 if [[ -n $OVERRIDE_VANGUARD_MONITORING_HOST ]]; then
