@@ -67,7 +67,7 @@ sudo mkdir \
 /opt/lukso/networks/"$NETWORK" \
 /opt/lukso/networks/"$NETWORK"/config;
 
-download https://raw.githubusercontent.com/lukso-network/lukso-orchestrator/feature/dehardcode-flags/scripts/lukso /opt/lukso/lukso;
+download https://raw.githubusercontent.com/lukso-network/lukso-orchestrator/feature/l15-setup/scripts/lukso /opt/lukso/lukso;
 
 sudo chmod +x /opt/lukso/lukso;
 sudo ln -sfn /opt/lukso/lukso /usr/local/bin/lukso;
