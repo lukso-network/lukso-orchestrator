@@ -1245,7 +1245,6 @@ while getopts "$optspec" optchar; do
       ;;
 
     pandora-metrics)
-      OPTIND=$(($OPTIND + 1))
       OVERRIDE_PANDORA_METRICS=true
       ;;
 
