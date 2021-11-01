@@ -190,7 +190,6 @@ func (s *Store) InMemoryLatestVerifiedHeaderHash() common.Hash {
 }
 
 func (s *Store) FindVerifiedSlotNumber(info *types.SlotInfo, fromSlot uint64) uint64 {
-
 	for i := fromSlot; i > 0; i-- {
 		slotInfo, err := s.VerifiedSlotInfo(i)
 		if err != nil {

@@ -41,25 +41,6 @@ func (s *Store) RevertConsensusInfo(reorgInfo *types.MinimalEpochConsensusInfoV2
 			log.WithError(err).Error("failed to remove verified information")
 			return err
 		}
-		//s.latestVerifiedSlot = slotIndex
-		//info, err := s.VerifiedSlotInfo(slotIndex)
-		//if err != nil {
-		//	log.WithError(err).Error("failed to retrieve verified slot info")
-		//	return err
-		//}
-		//s.latestHeaderHash = info.PandoraHeaderHash
-		//
-		//err = s.SaveLatestVerifiedSlot(s.ctx)
-		//if err != nil {
-		//	log.WithError(err).Error("failed to save latest verified slot info")
-		//	return err
-		//}
-		//
-		//err = s.SaveLatestVerifiedHeaderHash()
-		//if err != nil {
-		//	log.WithError(err).Error("failed to save latest verified header hash")
-		//	return err
-		//}
 	}
 
 	return nil
