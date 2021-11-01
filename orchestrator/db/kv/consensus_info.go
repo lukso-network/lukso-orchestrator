@@ -98,6 +98,23 @@ func (s *Store) SaveConsensusInfo(
 	})
 }
 
+func (s *Store) RemoveRangeConsensusInfo(startEpoch, endEpoch uint64) error {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
+
+	return s.db.Update(func(tx *bolt.Tx) error {
+		bkt := tx.Bucket(consensusInfosBucket)
+		for i := startEpoch; i <= endEpoch; i++ {
+			s.consensusInfoCache.Del(i)
+			epochBytes := bytesutil.Uint64ToBytesBigEndian(i)
+			if err := bkt.Delete(epochBytes); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
 // LatestSavedEpoch
 func (s *Store) LatestSavedEpoch() uint64 {
 	var latestSavedEpoch uint64

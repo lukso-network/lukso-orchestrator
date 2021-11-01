@@ -208,7 +208,7 @@ func (s *Service) retryVanguardNode(err error) {
 }
 
 // SubscribeMinConsensusInfoEvent registers a subscription of ChainHeadEvent.
-func (s *Service) SubscribeMinConsensusInfoEvent(ch chan<- *types.MinimalEpochConsensusInfo) event.Subscription {
+func (s *Service) SubscribeMinConsensusInfoEvent(ch chan<- *types.MinimalEpochConsensusInfoV2) event.Subscription {
 	return s.scope.Track(s.consensusInfoFeed.Subscribe(ch))
 }
 

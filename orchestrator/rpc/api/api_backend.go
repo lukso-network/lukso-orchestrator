@@ -32,7 +32,7 @@ type Backend struct {
 	PandoraPendingHeaderCache    cache.PandoraHeaderCache
 }
 
-func (backend *Backend) SubscribeNewEpochEvent(ch chan<- *types.MinimalEpochConsensusInfo) event.Subscription {
+func (backend *Backend) SubscribeNewEpochEvent(ch chan<- *types.MinimalEpochConsensusInfoV2) event.Subscription {
 	return backend.ConsensusInfoFeed.SubscribeMinConsensusInfoEvent(ch)
 }
 
@@ -40,12 +40,18 @@ func (backend *Backend) SubscribeNewVerifiedSlotInfoEvent(ch chan<- *types.SlotI
 	return backend.VerifiedSlotInfoFeed.SubscribeVerifiedSlotInfoEvent(ch)
 }
 
-func (backend *Backend) ConsensusInfoByEpochRange(fromEpoch uint64) []*types.MinimalEpochConsensusInfo {
-	consensusInfos, err := backend.ConsensusInfoDB.ConsensusInfos(fromEpoch)
+func (backend *Backend) ConsensusInfoByEpochRange(fromEpoch uint64) []*types.MinimalEpochConsensusInfoV2 {
+	consensusInfosV2, err := backend.ConsensusInfoDB.ConsensusInfos(fromEpoch)
 	if err != nil {
 		return nil
 	}
-	return consensusInfos
+
+	epochInfos := make([]*types.MinimalEpochConsensusInfoV2, len(consensusInfosV2))
+	for i, epochInfo := range consensusInfosV2 {
+		epochInfoV1 := epochInfo.ConvertToEpochInfoV2()
+		epochInfos[i] = epochInfoV1
+	}
+	return epochInfos
 }
 
 func (backend *Backend) VerifiedSlotInfos(fromSlot uint64) map[uint64]*types.SlotInfo {

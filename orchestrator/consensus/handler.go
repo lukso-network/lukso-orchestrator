@@ -41,7 +41,7 @@ func (s *Service) verifyShardingInfo(slot uint64, vanShardInfo *types.VanguardSh
 		PandoraHeaderHash: header.Hash(),
 		VanguardBlockHash: common.BytesToHash(vanShardInfo.BlockHash[:]),
 	}
-	if !status{
+	if !status {
 		// store invalid slot info into invalid slot info bucket
 		if err := s.invalidSlotInfoDB.SaveInvalidSlotInfo(slot, slotInfo); err != nil {
 			log.WithField("slot", slot).WithField(

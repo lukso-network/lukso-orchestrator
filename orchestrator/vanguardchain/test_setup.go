@@ -149,7 +149,7 @@ func GRPCFunc(endpoint string) (client.VanguardClient, error) {
 // SetupInProcServer prepares in process server with defined api. Here, this method mocks
 // vanguard client's endpoint as well as backend. Use in-memory to mock the
 func SetupInProcServer(t *testing.T) (*rpc.Server, *events.MockBackend) {
-	consensusInfos := make([]*eventTypes.MinimalEpochConsensusInfo, 0)
+	consensusInfos := make([]*eventTypes.MinimalEpochConsensusInfoV2, 0)
 	for i := 0; i < 5; i++ {
 		consensusInfos = append(consensusInfos, testutil.NewMinimalConsensusInfo(uint64(i)))
 	}
