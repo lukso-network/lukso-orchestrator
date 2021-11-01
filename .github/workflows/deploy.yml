@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-18.04
 
     steps:
-      - name: Sleep for 10 seconds
+      - name: Sleep
         run: sleep 20s
         shell: bash
 
