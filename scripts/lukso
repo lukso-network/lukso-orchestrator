@@ -27,7 +27,7 @@ RUN_DATE=$(date '+%Y-%m-%d__%H-%M-%S')
 NETWORK="l15-prod"
 IS_VALIDATOR=false
 PAN_ETHSTATS="$ETH1_STATS_APIKEY@$ETH1_STATS_URL"
-VAN_ETHSTATS=false
+VAN_ETHSTATS=""
 COINBASE="0x616e6f6e796d6f75730000000000000000000000"
 
 if [[ "$PLATFORM" == "Linux" ]]; then
@@ -80,7 +80,6 @@ VANGUARD_VERBOSITY=debug
 VANGUARD_HTTP_WEB3PROVIDER="http://127.0.0.1:8545"
 VANGUARD_RPC_HOST="127.0.0.1"
 VANGUARD_ORC_RPC_PROVIDER="http://127.0.0.1:7877"
-ETH2_STATS_URL=""
 VANGUARD_BOOTNODES=""
 VANGUARD_P2P_PRIV_KEY=""
 VANGUARD_P2P_HOST_DNS=""
@@ -587,7 +586,7 @@ start_eth2stats_client() {
     --beacon.metrics-addr="$VAN_ETHSTATS_METRICS" \
     --data.folder=$DATADIR/eth2stats-client \
     --eth2stats.node-name="$NODE_NAME" \
-    --eth2stats.addr="$ETH2_STATS_URL" \
+    --eth2stats.addr="$VAN_ETHSTATS" \
     --eth2stats.tls="false" >|"$LOGSDIR"/eth2stats/eth2stats_"$RUN_DATE".log 2>&1 &
   disown
 }
@@ -615,7 +614,7 @@ start_all() {
     sleep 2
   fi
 
-  if [[ "$VAN_ETHSTATS" == true ]]; then
+  if [[ -n $VAN_ETHSTATS ]]; then
     echo "################# Starting eth2stats_client #######################"
     start_eth2stats_client
     sleep 2
@@ -1032,7 +1031,7 @@ help() {
   echo
   echo "--pan-ethstats                        Pandora flag to activate ethstats listing on remote dashboard. If enabled you should see your node by your node name provided via --node-name flag or lukso config. Example: --pan-ethstats token123@stats.example.com. (default:  disabled)"
   echo
-  echo "--van-ethstats                        Vanguard flag fo activate eth2stats listing on remote dashboard. It's disabled by default. If enabled you should see your node by your node name provided via --node-name flag or lukso config."
+  echo "--van-ethstats                        Vanguard flag fo activate eth2stats listing on remote dashboard. If enabled you should see your node by your node name provided via --node-name flag or lukso config. Example: --van-ethstats 192.168.0.1:9090. (default:  disabled)"
   echo
   echo "--van-min-sync-peers                  The required number of valid Vanguard peers to connect with before syncing. (default: 2)"
   echo
@@ -1223,7 +1222,9 @@ while getopts "$optspec" optchar; do
       ;;
 
     van-ethstats)
-      OVERRIDE_WITH_ETH2STATS=true
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_WITH_ETH2STATS=$val
       ;;
 
     orchestrator-verbosity)
