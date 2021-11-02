@@ -79,10 +79,10 @@ download_network_config l15-dev;
 sudo rm -rf /opt/lukso/tmp;
 
 sudo lukso bind-binaries \
---orchestrator v0.1.0-rc.1 \
---pandora v0.1.0-rc.1 \
---vanguard v0.1.0-rc.1 \
---validator v0.1.0-rc.1 \
+--orchestrator v0.2.0-rc.1 \
+--pandora v0.2.0-rc.1 \
+--vanguard v0.2.0-rc.1 \
+--validator v0.2.0-rc.1 \
 --deposit v1.2.6-LUKSO \
 --eth2stats v0.1.0-rc.1;
 
