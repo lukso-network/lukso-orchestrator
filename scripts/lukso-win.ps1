@@ -99,7 +99,10 @@ if ($NetworkAmountCheck -eq 0) {
     $network = "l15-prod"
 }
 
-echo "Connecting to: $network"
+if ($command -eq "Start")
+{
+    Write-Host "Connecting to: $network"
+}
 
 If ($network) {
     $NetworkConfigFile = "$InstallDir\networks\$network\config\network-config.yaml"
@@ -113,7 +116,7 @@ $datadir = If ($datadir) {$datadir} ElseIf ($ConfigFile.DATADIR) {$ConfigFile.DA
 $logsdir = If ($logsdir) {$logsdir} ElseIf ($ConfigFile.LOGSDIR) {$ConfigFile.LOGSDIR} Else {"${lukso-home}\$network\logs"}
 ${keys-dir} = If (${keys-dir}) {${keys-dir}} ElseIf ($ConfigFile.KEYS_DIR) {$ConfigFile.KEYS_DIR} Else {"${lukso-home}\validator_keys"}
 ${keys-password-file} = If (${keys-password-file}) {${keys-password-file}} ElseIf ($ConfigFile.KEYS_PASSWORD_FILE) {$ConfigFile.KEYS_PASSWORD_FILE} Else {""}
-${wallet-dir} = If (${wallet-dir}) {${wallet-dir}} ElseIf ($ConfigFile.WALLET_DIR) {$ConfigFile.WALLET_DIR} Else {"${lukso-home}\wallet"}
+${wallet-dir} = If (${wallet-dir}) {${wallet-dir}} ElseIf ($ConfigFile.WALLET_DIR) {$ConfigFile.WALLET_DIR} Else {"${lukso-home}\vanguard_wallet"}
 ${wallet-password-file} = If (${wallet-password-file}) {${wallet-password-file}} ElseIf ($ConfigFile.WALLET_PASSWORD_FILE) {$ConfigFile.WALLET_PASSWORD_FILE} Else {""}
 
 $coinbase = If ($coinbase) {$coinbase} ElseIf ($ConfigFile.COINBASE) {$ConfigFile.COINBASE} Else {""}
@@ -139,7 +142,7 @@ ${vanguard-p2p-host-dns} = If (${vanguard-p2p-host-dns}) {${vanguard-p2p-host-dn
 ${vanguard-rpc-host} = If (${vanguard-rpc-host}) {${vanguard-rpc-host}} ElseIf ($ConfigFile.VANGUARD_RPC_HOST) {$ConfigFile.VANGUARD_RPC_HOST} Else {""}
 ${vanguard-monitoring-host} = If (${vanguard-monitoring-host}) {${vanguard-monitoring-host}} ElseIf ($ConfigFile.VANGUARD_MONITORING_HOST) {$ConfigFile.VANGUARD_MONITORING_HOST} Else {""}
 ${vanguard-verbosity} = If (${vanguard-verbosity}) {${vanguard-verbosity}} ElseIf ($ConfigFile.VANGUARD_VERBOSITY) {$ConfigFile.VANGUARD_VERBOSITY} Else {"info"}
-$validator = If ($validator) {$validator} ElseIf ($ConfigFile.VALIDATOR) {$ConfigFile.VALIDATOR} Else {}
+$validator = If ($validator) {$validator} ElseIf ($ConfigFile.VALIDATOR) {$ConfigFile.VALIDATOR} Else {"v0.2.0-rc.1"}
 ${validator-verbosity} = If (${validator-verbosity}) {${validator-verbosity}} ElseIf ($ConfigFile.VALIDATOR_VERBOSITY) {$ConfigFile.VALIDATOR_VERBOSITY} Else {"info"}
 ${cors-domain} = If (${cors-domain}) {${cors-domain}} ElseIf ($ConfigFile.CORS_DOMAIN) {$ConfigFile.CORS_DOMAIN} Else {""}
 ${external-ip} = If (${external-ip}) {${external-ip}} ElseIf ($ConfigFile.EXTERNAL_IP) {$ConfigFile.EXTERNAL_IP} Else {""}
@@ -253,7 +256,22 @@ Function generate_keys()
 }
 
 Function import_accounts() {
+    if (!(Test-Path ${wallet-dir})) {
+        New-Item -ItemType Directory -Force -Path ${wallet-dir}
+    }
 
+    if (!(Test-Path ${keys-dir})) {
+        Write-Output "No keys directory found. Please run lukso keygen first"
+        exit
+    }
+
+    $Arguments = New-Object System.Collections.Generic.List[System.Object]
+    $Arguments.Add("accounts")
+    $Arguments.Add("import")
+    $Arguments.Add("--keys-dir=$(${keys-dir})")
+    $Arguments.Add("--wallet-dir=$(${wallet-dir})")
+
+    powershell.exe -command $("$InstallDir\binaries\lukso-validator\$validator\lukso-validator-Windows-x86_64.exe $Arguments")
 }
 
 
@@ -569,23 +587,23 @@ function _start($client)
 }
 
 function stop_orchestrator() {
-    Stop-Process -ProcessName "lukso-orchestrator"
+    Stop-Process -ProcessName "lukso-orchestrator-Windows-x86_64"
 }
 
 function stop_pandora() {
-    Stop-Process -ProcessName "pandora"
+    Stop-Process -ProcessName "pandora-Windows-x86_64"
 }
 
 function stop_vanguard() {
-    Stop-Process -ProcessName "vanguard"
+    Stop-Process -ProcessName "vanguard-Windows-x86_64"
 }
 
 function stop_validator() {
-    Stop-Process -ProcessName "lukso-validator"
+    Stop-Process -ProcessName "lukso-validator-Windows-x86_64"
 }
 
 function stop_eth2stats() {
-    Stop-Process -ProcessName "eth2stats"
+    Stop-Process -ProcessName "eth2stats-Windows-x86_64"
 }
 
 function stop_all() {
@@ -596,7 +614,7 @@ function stop_all() {
     stop_eth2stats
 }
 
-function _stop() {
+function _stop($client) {
     switch ($client)
     {
         orchestrator {
@@ -626,31 +644,60 @@ function _stop() {
 }
 
 function reset_orchestrator () {
-
+    Remove-Item -Recurse -Path $datadir\orchestrator
 }
 
 function reset_pandora() {
-
+    Remove-Item -Recurse -Path $datadir\pandora
 }
 
 function reset_vanguard() {
-
+    Remove-Item -Recurse -Path $datadir\vanguard
 }
 
 function reset_validator() {
-
+    Remove-Item -Recurse -Path $datadir\validator
 }
 
 function reset_eth2stats() {
-
+    Remove-Item -Recurse -Path $datadir\eth2stats
 }
 
 function reset_all() {
-
+    reset_orchestrator
+    reset_pandora
+    reset_vanguard
+    reset_validator
+    reset_eth2stats
 }
 
-function reset() {
+function _reset($client) {
+    switch ($client)
+    {
+        orchestrator {
+            reset_orchestrator
+        }
 
+        pandora {
+            reset_pandora
+        }
+
+        vanguard {
+            reset_vanguard
+        }
+
+        validator {
+            reset_validator
+        }
+
+        all {
+            reset_all
+        }
+
+        Default {
+            Write-Output "Choose a client: [orchestrator, pandora, vanguard, validator, all]"
+        }
+    }
 }
 
 function _help() {
@@ -817,8 +864,8 @@ switch ($command)
         _stop $argument
     }
 
-    "restart" {
-        _restart $argument
+    "reset" {
+        _reset $argument
     }
 
     "help" {
