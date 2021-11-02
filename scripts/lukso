@@ -844,27 +844,31 @@ help() {
   echo "lukso <command> [argument] [--flags]"
   echo
   echo "Available commands with arguments:"
-  echo "start)         Starts up all or specific client(s)"
+  echo "start         Starts up all or specific client(s)"
   echo "               [orchestrator, pandora, vanguard, validator, eth2stats-client, all]"
   echo
-  echo "stop)          Stops all or specific client(s)"
+  echo "stop          Stops all or specific client(s)"
   echo "               [orchestrator, pandora, vanguard, validator, eth2stats-client, all]"
   echo
-  echo "reset)         Clears client(s) datadirs (this also removes chain-data) 	"
+  echo "reset         Clears client(s) datadirs (this also removes chain-data) 	"
   echo "               [orchestrator, pandora, vanguard, validator, all, none]"
   echo
-  echo "config)        Interactive tool for creating config file"
+  echo "config        Interactive tool for creating config file"
   echo
-  echo "keygen)        Runs lukso-deposit-cli"
+  echo "keygen        Runs lukso-deposit-cli"
   echo
-  echo "wallet)        Imports lukso-deposit-cli keys"
+  echo "wallet        Imports lukso-deposit-cli keys"
   echo
-  echo "logs)          Shows logs"
+  echo "logs          Shows logs"
   echo "               [orchestrator, pandora, vanguard, validator, eth2stats-client]"
   echo
-  echo "attach)        Attaches to pandora console via IPC socket (use with --datadir if not default). You cannot reach remote HTTP or WS via this command"
+  echo "attach        Attaches to pandora console via IPC socket (use with --datadir if not default). You cannot reach remote HTTP or WS via this command"
   echo
-  echo "bind-binaries) sets client(s) to desired version, use with flags for setting tag: --orchestrator v0.2.0-rc.1, --pandora v0.2.0-rc.1, --vanguard v0.2.0-rc.1, --validator v0.2.0-rc.1"
+  echo "bind-binaries sets client(s) to desired version, use with flags for setting tag: --orchestrator v0.2.0-rc.1, --pandora v0.2.0-rc.1, --vanguard v0.2.0-rc.1, --validator v0.2.0-rc.1"
+  echo
+  echo
+  echo "Available commands without arguments:"
+  echo "version        Shows the LUKSO script version"
   echo
   echo
   echo "Available flags:"
