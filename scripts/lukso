@@ -26,7 +26,7 @@ ARCHITECTURE=$(uname -m)
 RUN_DATE=$(date '+%Y-%m-%d__%H-%M-%S')
 NETWORK="l15-prod"
 IS_VALIDATOR=false
-PAN_ETHSTATS=false
+PAN_ETHSTATS="$ETH1_STATS_APIKEY@$ETH1_STATS_URL"
 VAN_ETHSTATS=false
 COINBASE="0x616e6f6e796d6f75730000000000000000000000"
 
@@ -485,9 +485,9 @@ start_pandora() {
     ARGUMENTS=("${ARGUMENTS[@]}" "${RPCVHOSTS_FLAGS[@]}")
   fi
 
-  if [[ "$PAN_ETHSTATS" == true ]]; then
+  if [[ -n $PAN_ETHSTATS ]]; then
     ETHSTATS_FLAG=(
-      "--ethstats=$NODE_NAME:$ETH1_STATS_APIKEY@$ETH1_STATS_URL"
+      "--ethstats=$NODE_NAME:$PAN_ETHSTATS"
     )
     ARGUMENTS=("${ARGUMENTS[@]}" "${ETHSTATS_FLAG[@]}")
   fi
@@ -1278,7 +1278,9 @@ while getopts "$optspec" optchar; do
       ;;
 
     pan-ethstats)
-      OVERRIDE_WITH_ETH1STATS=true
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+      OVERRIDE_WITH_ETH1STATS=$val
       ;;
 
     pandora-verbosity)
