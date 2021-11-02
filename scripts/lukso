@@ -22,6 +22,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 fi
 
 ARCHITECTURE=$(uname -m)
+LUKSO_SCRIPT_VERSION="v1.2"
 
 RUN_DATE=$(date '+%Y-%m-%d__%H-%M-%S')
 NETWORK="l15-prod"
@@ -1815,6 +1816,9 @@ wallet)
   ;;
 logs)
   logs "$COMMAND_ARG"
+  ;;
+version)
+  echo "$LUKSO_SCRIPT_VERSION"
   ;;
 attach)
   pandora attach $DATADIR/pandora/geth.ipc

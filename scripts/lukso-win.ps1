@@ -596,7 +596,34 @@ function stop_all() {
     stop_eth2stats
 }
 
-function _stop() {}
+function _stop() {
+    switch ($client)
+    {
+        orchestrator {
+            stop_orchestrator
+        }
+
+        pandora {
+            stop_pandora
+        }
+
+        vanguard {
+            stop_vanguard
+        }
+
+        validator {
+            stop_validator
+        }
+
+        all {
+            stop_all
+        }
+
+        Default {
+            stop_all
+        }
+    }
+}
 
 function reset_orchestrator () {
 
