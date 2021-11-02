@@ -1,6 +1,9 @@
 package main
 
-import "log"
+import (
+	"fmt"
+	"log"
+)
 
 type pandoraCanonicalHead struct {
 	blockHash   string
@@ -15,7 +18,14 @@ func main() {
 		"0xabc",
 		[]uint64{0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19},
 	)
-	log.Fatal(statesAfter)
+
+	errs := verifyExperiment(statesAfter, "0xabc3")
+
+	for node, err := range errs {
+		if nil != err {
+			log.Printf("Err counter: %d received data loss err: %s", node, err.Error())
+		}
+	}
 }
 
 func processHeadsWithReorg(
@@ -46,6 +56,34 @@ func processHeadsWithReorg(
 				statesAfterReorg[node][slot] = newState
 			}
 		}
+	}
+
+	return
+}
+
+func verifyExperiment(
+	statesAfterReorg map[uint64]map[uint64]pandoraCanonicalHead,
+	seekForLoss string,
+) (errs map[uint64]error) {
+	errs = map[uint64]error{}
+
+	for node, pandoraHead := range statesAfterReorg {
+		exists := false
+
+	blockHashLoop:
+		for _, head := range pandoraHead {
+			if seekForLoss != head.blockHash {
+				continue
+			}
+
+			exists = true
+			break blockHashLoop
+		}
+
+		if !exists {
+			errs[node] = fmt.Errorf("%s block hash not found in node: %d tree", seekForLoss, node)
+		}
+
 	}
 
 	return
