@@ -22,7 +22,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 fi
 
 ARCHITECTURE=$(uname -m)
-LUKSO_SCRIPT_VERSION="v1.2"
+LUKSO_SCRIPT_VERSION="v1.3"
 
 RUN_DATE=$(date '+%Y-%m-%d__%H-%M-%S')
 NETWORK="l15-prod"
