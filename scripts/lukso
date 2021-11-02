@@ -1030,7 +1030,7 @@ help() {
   echo
   echo "--pan-ws-miner-addr                   Pandora Websocket URL to notify of new work packages. (default:  ws://127.0.0.1:7878)"
   echo
-  echo "--pan-ethstats                        Pandora flag to activate ethstats listing on remote dashboard. It's disabled by default. If enabled you should see your node by your node name provided via --node-name flag or lukso config."
+  echo "--pan-ethstats                        Pandora flag to activate ethstats listing on remote dashboard. If enabled you should see your node by your node name provided via --node-name flag or lukso config. Example: --pan-ethstats token123@stats.example.com. (default:  disabled)"
   echo
   echo "--van-ethstats                        Vanguard flag fo activate eth2stats listing on remote dashboard. It's disabled by default. If enabled you should see your node by your node name provided via --node-name flag or lukso config."
   echo
