@@ -299,7 +299,7 @@ Function check_validator_requirements()
       $securedValue = Read-Host -AsSecureString -Prompt "Enter validator password"
       $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($securedValue)
       $value = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
-      $value | Out-File $Env:APPDATA\LUKSO\temp_pass.txt
+      $value | Out-File -Encoding utf8 -NoNewline $Env:APPDATA\LUKSO\temp_pass.txt
   }
 }
 
@@ -505,7 +505,6 @@ function start_vanguard() {
 }
 
 function start_validator() {
-    check_validator_requirements
     if (!(Test-Path $logsdir\validator))
     {
         New-Item -ItemType Directory -Force -Path $logsdir\validator
@@ -529,8 +528,9 @@ function start_validator() {
     }
 
     if (!${wallet-password-file}) {
-      $Arguments.Add("--wallet-password-file=$Env:APPDATA\Lukso\temp_pass.txt")
+      $Arguments.Add("--wallet-password-file=$Env:APPDATA\LUKSO\temp_pass.txt")
     }
+    echo $Arguments
 
     Start-Process -FilePath "lukso-validator" `
     -ArgumentList $arguments `
@@ -573,6 +573,7 @@ function _start($client)
         }
 
         validator {
+            check_validator_requirements
             start_validator
         }
 
