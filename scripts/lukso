@@ -22,13 +22,11 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 fi
 
 ARCHITECTURE=$(uname -m)
-LUKSO_SCRIPT_VERSION="v1.2"
+LUKSO_SCRIPT_VERSION="v1.3"
 
 RUN_DATE=$(date '+%Y-%m-%d__%H-%M-%S')
 NETWORK="l15-prod"
 IS_VALIDATOR=false
-PAN_ETHSTATS=""
-VAN_ETHSTATS=""
 COINBASE="0x616e6f6e796d6f75730000000000000000000000"
 
 if [[ "$PLATFORM" == "Linux" ]]; then
@@ -71,8 +69,6 @@ PANDORA_NODEKEY=""
 PANDORA_VERBOSITY=debug
 PAN_WS_MINER_NOTIFY="ws://127.0.0.1:7878"
 PAN_HTTP_MINER_NOTIFY="http://127.0.0.1:7877"
-ETH1_STATS_URL=""
-ETH1_STATS_APIKEY=""
 CORS_DOMAIN=""
 ######
 
@@ -429,6 +425,7 @@ start_pandora() {
     "--miner.gaslimit=80000000"
     "--syncmode=full"
     "--verbosity=$PANDORA_VERBOSITY"
+    "--ethstats=$NODE_NAME:6Tcpc53R5V763Aur9LgD@stats.pandora.l15.lukso.network"
   )
 
   if [[ $PANDORA_UNIVERSAL_PROFILE_EXPOSE ]] && [[ ! $PANDORA_UNSAFE_EXPOSE ]]; then
@@ -483,13 +480,6 @@ start_pandora() {
       "--http.vhosts=$PANDORA_RPCVHOSTS"
     )
     ARGUMENTS=("${ARGUMENTS[@]}" "${RPCVHOSTS_FLAGS[@]}")
-  fi
-
-  if [[ -n $PAN_ETHSTATS ]]; then
-    ETHSTATS_FLAG=(
-      "--ethstats=$NODE_NAME:$PAN_ETHSTATS"
-    )
-    ARGUMENTS=("${ARGUMENTS[@]}" "${ETHSTATS_FLAG[@]}")
   fi
 
   nohup pandora \
@@ -587,7 +577,7 @@ start_eth2stats_client() {
     --beacon.metrics-addr="$VAN_ETHSTATS_METRICS" \
     --data.folder=$DATADIR/eth2stats-client \
     --eth2stats.node-name="$NODE_NAME" \
-    --eth2stats.addr="$VAN_ETHSTATS" \
+    --eth2stats.addr="34.141.156.125:9090" \
     --eth2stats.tls="false" >|"$LOGSDIR"/eth2stats/eth2stats_"$RUN_DATE".log 2>&1 &
   disown
 }
@@ -615,11 +605,9 @@ start_all() {
     sleep 2
   fi
 
-  if [[ -n $VAN_ETHSTATS ]]; then
-    echo "################# Starting eth2stats_client #######################"
-    start_eth2stats_client
-    sleep 2
-  fi
+  echo "################# Starting eth2stats_client #######################"
+  start_eth2stats_client
+  sleep 2
 }
 
 start() {
@@ -1034,10 +1022,6 @@ help() {
   echo
   echo "--pan-ws-miner-addr                   Pandora Websocket URL to notify of new work packages. (default:  ws://127.0.0.1:7878)"
   echo
-  echo "--pan-ethstats                        Pandora flag to activate ethstats listing on remote dashboard. If enabled you should see your node by your node name provided via --node-name flag or lukso config. Example: --pan-ethstats token123@stats.example.com. (default:  disabled)"
-  echo
-  echo "--van-ethstats                        Vanguard flag fo activate eth2stats listing on remote dashboard. If enabled you should see your node by your node name provided via --node-name flag or lukso config. Example: --van-ethstats 192.168.0.1:9090. (default:  disabled)"
-  echo
   echo "--van-min-sync-peers                  The required number of valid Vanguard peers to connect with before syncing. (default: 2)"
   echo
   echo "--van-max-p2p-peers                   The max number of Vanguard p2p peers to maintain. (default: 50)"
@@ -1226,12 +1210,6 @@ while getopts "$optspec" optchar; do
       OVERRIDE_IS_VALIDATOR=true
       ;;
 
-    van-ethstats)
-      val="${!OPTIND}"
-      OPTIND=$(($OPTIND + 1))
-      OVERRIDE_WITH_ETH2STATS=$val
-      ;;
-
     orchestrator-verbosity)
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
@@ -1281,12 +1259,6 @@ while getopts "$optspec" optchar; do
       val="${!OPTIND}"
       OPTIND=$(($OPTIND + 1))
       OVERRIDE_PANDORA_RPCVHOSTS=$val
-      ;;
-
-    pan-ethstats)
-      val="${!OPTIND}"
-      OPTIND=$(($OPTIND + 1))
-      OVERRIDE_WITH_ETH1STATS=$val
       ;;
 
     pandora-verbosity)
@@ -1582,14 +1554,6 @@ fi
 
 if [[ -n $OVERRIDE_PANDORA_RPCVHOSTS ]]; then
   PANDORA_RPCVHOSTS=$OVERRIDE_PANDORA_RPCVHOSTS
-fi
-
-if [[ -n $OVERRIDE_WITH_ETH1STATS ]]; then
-  PAN_ETHSTATS=$OVERRIDE_WITH_ETH1STATS
-fi
-
-if [[ -n $OVERRIDE_WITH_ETH2STATS ]]; then
-  VAN_ETHSTATS=$OVERRIDE_WITH_ETH2STATS
 fi
 
 if [[ -n $OVERRIDE_PANDORA_VERBOSITY ]]; then
