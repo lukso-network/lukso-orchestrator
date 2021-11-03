@@ -595,6 +595,17 @@ start_eth2stats_client() {
   disown
 }
 
+start_lukso_status() {
+  mkdir -p "$LOGSDIR"/lukso-status
+  echo -n $RUN_DATE >|"$LOGSDIR"/lukso-status/current.tmp
+
+  ARGUMENTS=()
+  nohup lukso-status \
+    "${ARGUMENTS[@]}" \
+    >|$LOGSDIR/lukso-status/lukso-status"$RUN_DATE".log 2>&1 &
+  disown
+}
+
 start_all() {
   if [[ "$IS_VALIDATOR" == true ]]; then
     check_validator_requirements
@@ -621,6 +632,12 @@ start_all() {
   if [[ -n $VAN_ETHSTATS ]]; then
     echo "################# Starting eth2stats_client #######################"
     start_eth2stats_client
+    sleep 2
+  fi
+
+  if [[ "$PANDORA_METRICS" = true ]]; then
+    echo "################# Starting lukso status #######################"
+    start_lukso_status
     sleep 2
   fi
 }
@@ -654,6 +671,10 @@ start() {
   eth2stats)
     echo "eth2stats client"
     start_eth2stats_client
+    ;;
+  lukso-status)
+    echo "lukso-status client"
+    start_lukso_status
     ;;
   *)
     echo "ALL clients"
@@ -736,12 +757,26 @@ stop_eth2stats_client() {
   fi
 }
 
+stop_lukso_status() {
+  echo -n "Stopping lukso-status ... "
+  if [[ "$FORCE" == true ]]; then
+    echo "[FORCE]"
+    sudo pkill -9 "lukso-status*"
+    sleep 1
+  else
+    echo
+    sudo pkill "lukso-status*"
+    sleep 1
+  fi
+}
+
 stop_all() {
   stop_validator &
   stop_vanguard &
   stop_pandora &
   stop_orchestrator &
-  stop_eth2stats_client
+  stop_eth2stats_client &
+  stop_lukso_status
 }
 
 stop() {
@@ -774,6 +809,9 @@ stop() {
     ;;
   eth2stats)
     stop_eth2stats_client
+    ;;
+  lukso-status)
+    stop_lukso_status
     ;;
   *)
     stop_all
@@ -1143,6 +1181,27 @@ while getopts "$optspec" optchar; do
 
       chmod +x /opt/lukso/binaries/eth2stats-client/$val/eth2stats-client
       ln -sf /opt/lukso/binaries/eth2stats-client/$val/eth2stats-client /usr/local/bin/eth2stats-client
+
+      ;;
+
+    lukso-status)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+
+      mkdir -p /opt/lukso/binaries/lukso-status/$val
+
+      if [[ $PLATFORM == "Linux" ]]; then
+        download https://github.com/rryter/node-status/releases/download/$val/lukso-status-$val-linux-amd64.tar.gz /opt/lukso/binaries/lukso-status/$val/lukso-status-$val-linux-amd64.tar.gz
+        tar -xf /opt/lukso/binaries/lukso-status/$val/lukso-status-$val-linux-amd64.tar.gz -C /opt/lukso/binaries/lukso-status/$val/
+      fi
+
+      if [[ $PLATFORM == "Darwin" ]]; then
+        download https://github.com/rryter/node-status/releases/download/$val/lukso-status-$val-darwin-amd64.tar.gz /opt/lukso/binaries/lukso-status/$val/lukso-status-$val-darwin-amd64.tar.gz
+        tar -xf /opt/lukso/binaries/lukso-status/$val/lukso-status-$val-darwin-amd64.tar.gz -C /opt/lukso/binaries/lukso-status/$val/
+      fi
+
+      chmod +x /opt/lukso/binaries/lukso-status/$val/lukso-status
+      ln -sf /opt/lukso/binaries/lukso-status/$val/lukso-status /usr/local/bin/lukso-status
 
       ;;
 
