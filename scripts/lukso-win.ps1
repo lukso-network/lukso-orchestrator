@@ -243,6 +243,7 @@ Function generate_keys()
   }
 
   $ValidatorsNumber = Read-Host -Prompt "How many validators? (Cost for 1 validator = 32 LYXt)"
+  Write-Output "Running lukso-deposit-cli..."
 
   $Arguments = New-Object System.Collections.Generic.List[System.Object]
   $Arguments.Add("new-mnemonic")

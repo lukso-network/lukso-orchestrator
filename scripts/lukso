@@ -222,7 +222,7 @@ generate_keys() {
   fi
   eval KEYS_DIR=$KEYS_DIR
   mkdir -p $KEYS_DIR
-  read -p "How many validators? " VALIDATORS_NUMBER
+  read -p "How many validators? (Cost for 1 validator = 32 LYXt): " VALIDATORS_NUMBER
   echo "Running lukso-deposit-cli..."
 
   lukso-deposit-cli new-mnemonic \
@@ -253,11 +253,6 @@ import_accounts() {
 
       read -r -p "Enter your password " -s PASSWORD
 
-      while [[ ! $PASSWORD =~ ^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?\&]{8,}$ ]]; do
-        echo
-        echo "Password does not meet requirements"
-        read -r -p "Enter your password " -s PASSWORD
-      done
 
       echo
       echo $PASSWORD > "$WALLET_DIR/password"
