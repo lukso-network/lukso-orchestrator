@@ -80,7 +80,7 @@ ${l15-staging} = If (${l15-staging}) {${l15-staging}} ElseIf ($ConfigFile.L15_ST
 ${l15-dev} = If (${l15-dev}) {${l15-dev}} ElseIf ($ConfigFile.L15_DEV) {$ConfigFile.L15_DEV} Else {$false}
 
 # NOTE:
-$NetworkFlagPresent = $fale
+$NetworkFlagPresent = $false
 If ($network) {
     $NetworkFlagPresent = $true
 }
@@ -299,7 +299,8 @@ Function check_validator_requirements()
       $securedValue = Read-Host -AsSecureString -Prompt "Enter validator password"
       $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($securedValue)
       $value = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
-      $value | Out-File -Encoding utf8 -NoNewline $Env:APPDATA\LUKSO\temp_pass.txt
+      $filename = "$Env:APPDATA\LUKSO\temp_pass.txt"
+      [IO.File]::WriteAllLines($filename, $value)
   }
 }
 
