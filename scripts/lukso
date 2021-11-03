@@ -235,8 +235,11 @@ import_accounts() {
   fi
 
   if [[ ! -f $VALIDATOR_PASSWORD_FILE ]]; then
-    read -r -p "No password file found do you want to create it? (Y/n) " INPUT
-    if [[ $INPUT == "Y" ]]; then
+    while [[ ! $INPUT =~ ^(n|N|y|Y)$ ]] ; do
+      read -r -p "No password file found do you want to create it? (Y/n) " INPUT
+    done
+
+    if [[ $INPUT =~ ^(y|Y)$ ]]; then
       read -r -p "Enter your password " -s PASSWORD
       echo
       echo $PASSWORD > "$WALLET_DIR/password"
