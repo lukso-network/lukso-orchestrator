@@ -636,6 +636,7 @@ start_all() {
 
   if [[ "$RUN_LUKSO_STATUS" = true ]]; then
     echo "################# Starting lukso status #######################"
+    sleep 10
     start_lukso_status
     sleep 2
   fi
@@ -1087,7 +1088,7 @@ help() {
   echo
   echo "--van-ethstats-metrics                The metrics address for Vanguard eth2stats-client service (default: http://127.0.0.1:8080/metrics)"
   echo
-  echo "--status-page                         This flag is for lukso-status activation. With this service you can check you node status over web browser. (default address: http://127.0.0.1:8111)"
+  echo "--status-page                         This flag is for lukso-status activation. With this service you can check your node status over web browser (default: disabled). Default web address is: http://127.0.0.1:8111"
 
   exit
 }
