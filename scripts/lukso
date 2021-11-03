@@ -886,10 +886,10 @@ help() {
   echo
   echo "Available commands with arguments:"
   echo "start         Starts up all or specific client(s)"
-  echo "               [orchestrator, pandora, vanguard, validator, eth2stats-client, all]"
+  echo "               [orchestrator, pandora, vanguard, validator, eth2stats-client, lukso-status, all]"
   echo
   echo "stop          Stops all or specific client(s)"
-  echo "               [orchestrator, pandora, vanguard, validator, eth2stats-client, all]"
+  echo "               [orchestrator, pandora, vanguard, validator, eth2stats-client, lukso-status, all]"
   echo
   echo "reset         Clears client(s) datadirs (this also removes chain-data) 	"
   echo "               [orchestrator, pandora, vanguard, validator, all, none]"
@@ -901,7 +901,7 @@ help() {
   echo "wallet        Imports lukso-deposit-cli keys"
   echo
   echo "logs          Shows logs"
-  echo "               [orchestrator, pandora, vanguard, validator, eth2stats-client]"
+  echo "               [orchestrator, pandora, vanguard, validator, eth2stats-client, lukso-status]"
   echo
   echo "attach        Attaches to pandora console via IPC socket (use with --datadir if not default). You cannot reach remote HTTP or WS via this command"
   echo
@@ -946,6 +946,9 @@ help() {
   echo "                       [Tag name ex. v0.2.0-rc.1]"
   echo
   echo "--eth2stats            Sets eth2stats tag to be used"
+  echo "                       [Tag name ex. v0.2.0-rc.1]"
+  echo
+  echo "--lukso-status         Sets lukso-status tag to be used"
   echo "                       [Tag name ex. v0.2.0-rc.1]"
   echo
   echo "--orchestrator         Sets orchestrator tag to be used"
@@ -1103,6 +1106,9 @@ logs() {
     CLIENT="validator"
     ;;
   eth2stats)
+    CLIENT="eth2stats"
+    ;;
+  lukso-status)
     CLIENT="eth2stats"
     ;;
   *)
