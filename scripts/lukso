@@ -22,11 +22,12 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 fi
 
 ARCHITECTURE=$(uname -m)
-LUKSO_SCRIPT_VERSION="v1.5"
+LUKSO_SCRIPT_VERSION="v1.6"
 
 RUN_DATE=$(date '+%Y-%m-%d__%H-%M-%S')
 NETWORK="l15-prod"
 IS_VALIDATOR=false
+RUN_LUKSO_STATUS=false
 PAN_ETHSTATS=""
 VAN_ETHSTATS=""
 COINBASE="0x616e6f6e796d6f75730000000000000000000000"
@@ -462,7 +463,7 @@ start_pandora() {
     ARGUMENTS=("${ARGUMENTS[@]}" "--nat=extip:$EXTERNAL_IP")
   fi
 
-  if $PANDORA_METRICS; then
+  if $PANDORA_METRICS || $RUN_LUKSO_STATUS; then
     METRICS_FLAGS=(
       "--metrics"
       "--metrics.expensive"
@@ -633,7 +634,7 @@ start_all() {
     sleep 2
   fi
 
-  if [[ "$PANDORA_METRICS" = true ]]; then
+  if [[ "$RUN_LUKSO_STATUS" = true ]]; then
     echo "################# Starting lukso status #######################"
     start_lukso_status
     sleep 2
@@ -1078,13 +1079,15 @@ help() {
   echo
   echo "--pan-ethstats                        Pandora flag to activate ethstats listing on remote dashboard. If enabled you should see your node by your node name provided via --node-name flag or lukso config. Example: --pan-ethstats token123@stats.example.com. (default:  disabled)"
   echo
-  echo "--van-ethstats                        Vanguard flag fo activate eth2stats listing on remote dashboard. If enabled you should see your node by your node name provided via --node-name flag or lukso config. Example: --van-ethstats 192.168.0.1:9090. (default:  disabled)"
+  echo "--van-ethstats                        Vanguard flag to activate eth2stats listing on remote dashboard. If enabled you should see your node by your node name provided via --node-name flag or lukso config. Example: --van-ethstats 192.168.0.1:9090. (default:  disabled)"
   echo
   echo "--van-min-sync-peers                  The required number of valid Vanguard peers to connect with before syncing. (default: 2)"
   echo
   echo "--van-max-p2p-peers                   The max number of Vanguard p2p peers to maintain. (default: 50)"
   echo
   echo "--van-ethstats-metrics                The metrics address for Vanguard eth2stats-client service (default: http://127.0.0.1:8080/metrics)"
+  echo
+  echo "--status-page                         This flag is for lukso-status activation. With this service you can check you node status over web browser. (default address: http://127.0.0.1:8111)"
 
   exit
 }
@@ -1107,7 +1110,7 @@ logs() {
     CLIENT="eth2stats"
     ;;
   lukso-status)
-    CLIENT="eth2stats"
+    CLIENT="lukso-status"
     ;;
   *)
     echo "SELECT one of the clients ex. pandora"
@@ -1575,6 +1578,10 @@ while getopts "$optspec" optchar; do
       OVERRIDE_ALLOW_RESPIN=true
       ;;
 
+    status-page)
+      OVERRIDE_RUN_LUKSO_STATUS=true
+      ;;
+
     force)
       FORCE=true
       ;;
@@ -1846,6 +1853,10 @@ fi
 
 if [[ -n $OVERRIDE_VAN_ETHSTATS_METRICS ]]; then
   VAN_ETHSTATS_METRICS=$OVERRIDE_VAN_ETHSTATS_METRICS
+fi
+
+if [[ -n $OVERRIDE_RUN_LUKSO_STATUS ]]; then
+  RUN_LUKSO_STATUS=$OVERRIDE_RUN_LUKSO_STATUS
 fi
 
 if [[ ! -d $DATADIR ]]; then

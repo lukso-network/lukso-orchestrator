@@ -84,6 +84,7 @@ sudo lukso bind-binaries \
 --vanguard v0.2.0-rc.1 \
 --validator v0.2.0-rc.1 \
 --deposit v1.2.6-LUKSO \
---eth2stats v0.1.0-rc.1;
+--eth2stats v0.1.0-rc.1 \
+--lukso-status v0.0.1-alpha.9;
 
 echo "Ready! type lukso to start the node!";
