@@ -22,11 +22,12 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 fi
 
 ARCHITECTURE=$(uname -m)
-LUKSO_SCRIPT_VERSION="v1.5"
+LUKSO_SCRIPT_VERSION="v1.6"
 
 RUN_DATE=$(date '+%Y-%m-%d__%H-%M-%S')
 NETWORK="l15-prod"
 IS_VALIDATOR=false
+RUN_LUKSO_STATUS=false
 PAN_ETHSTATS=""
 VAN_ETHSTATS=""
 COINBASE="0x616e6f6e796d6f75730000000000000000000000"
@@ -462,7 +463,7 @@ start_pandora() {
     ARGUMENTS=("${ARGUMENTS[@]}" "--nat=extip:$EXTERNAL_IP")
   fi
 
-  if $PANDORA_METRICS; then
+  if $PANDORA_METRICS || $RUN_LUKSO_STATUS; then
     METRICS_FLAGS=(
       "--metrics"
       "--metrics.expensive"
@@ -593,6 +594,17 @@ start_eth2stats_client() {
   disown
 }
 
+start_lukso_status() {
+  mkdir -p "$LOGSDIR"/lukso-status
+  echo -n $RUN_DATE >|"$LOGSDIR"/lukso-status/current.tmp
+
+  ARGUMENTS=()
+  nohup lukso-status \
+    "${ARGUMENTS[@]}" \
+    >|$LOGSDIR/lukso-status/lukso-status"$RUN_DATE".log 2>&1 &
+  disown
+}
+
 start_all() {
   if [[ "$IS_VALIDATOR" == true ]]; then
     check_validator_requirements
@@ -619,6 +631,13 @@ start_all() {
   if [[ -n $VAN_ETHSTATS ]]; then
     echo "################# Starting eth2stats_client #######################"
     start_eth2stats_client
+    sleep 2
+  fi
+
+  if [[ "$RUN_LUKSO_STATUS" = true ]]; then
+    echo "################# Starting lukso status #######################"
+    sleep 10
+    start_lukso_status
     sleep 2
   fi
 }
@@ -652,6 +671,10 @@ start() {
   eth2stats)
     echo "eth2stats client"
     start_eth2stats_client
+    ;;
+  lukso-status)
+    echo "lukso-status client"
+    start_lukso_status
     ;;
   *)
     echo "ALL clients"
@@ -734,12 +757,26 @@ stop_eth2stats_client() {
   fi
 }
 
+stop_lukso_status() {
+  echo -n "Stopping lukso-status ... "
+  if [[ "$FORCE" == true ]]; then
+    echo "[FORCE]"
+    sudo pkill -9 "lukso-status*"
+    sleep 1
+  else
+    echo
+    sudo pkill "lukso-status*"
+    sleep 1
+  fi
+}
+
 stop_all() {
   stop_validator &
   stop_vanguard &
   stop_pandora &
   stop_orchestrator &
-  stop_eth2stats_client
+  stop_eth2stats_client &
+  stop_lukso_status
 }
 
 stop() {
@@ -772,6 +809,9 @@ stop() {
     ;;
   eth2stats)
     stop_eth2stats_client
+    ;;
+  lukso-status)
+    stop_lukso_status
     ;;
   *)
     stop_all
@@ -846,10 +886,10 @@ help() {
   echo
   echo "Available commands with arguments:"
   echo "start         Starts up all or specific client(s)"
-  echo "               [orchestrator, pandora, vanguard, validator, eth2stats-client, all]"
+  echo "               [orchestrator, pandora, vanguard, validator, eth2stats-client, lukso-status, all]"
   echo
   echo "stop          Stops all or specific client(s)"
-  echo "               [orchestrator, pandora, vanguard, validator, eth2stats-client, all]"
+  echo "               [orchestrator, pandora, vanguard, validator, eth2stats-client, lukso-status, all]"
   echo
   echo "reset         Clears client(s) datadirs (this also removes chain-data) 	"
   echo "               [orchestrator, pandora, vanguard, validator, all, none]"
@@ -861,7 +901,7 @@ help() {
   echo "wallet        Imports lukso-deposit-cli keys"
   echo
   echo "logs          Shows logs"
-  echo "               [orchestrator, pandora, vanguard, validator, eth2stats-client]"
+  echo "               [orchestrator, pandora, vanguard, validator, eth2stats-client, lukso-status]"
   echo
   echo "attach        Attaches to pandora console via IPC socket (use with --datadir if not default). You cannot reach remote HTTP or WS via this command"
   echo
@@ -906,6 +946,9 @@ help() {
   echo "                       [Tag name ex. v0.2.0-rc.1]"
   echo
   echo "--eth2stats            Sets eth2stats tag to be used"
+  echo "                       [Tag name ex. v0.2.0-rc.1]"
+  echo
+  echo "--lukso-status         Sets lukso-status tag to be used"
   echo "                       [Tag name ex. v0.2.0-rc.1]"
   echo
   echo "--orchestrator         Sets orchestrator tag to be used"
@@ -1037,13 +1080,15 @@ help() {
   echo
   echo "--pan-ethstats                        Pandora flag to activate ethstats listing on remote dashboard. If enabled you should see your node by your node name provided via --node-name flag or lukso config. Example: --pan-ethstats token123@stats.example.com. (default:  disabled)"
   echo
-  echo "--van-ethstats                        Vanguard flag fo activate eth2stats listing on remote dashboard. If enabled you should see your node by your node name provided via --node-name flag or lukso config. Example: --van-ethstats 192.168.0.1:9090. (default:  disabled)"
+  echo "--van-ethstats                        Vanguard flag to activate eth2stats listing on remote dashboard. If enabled you should see your node by your node name provided via --node-name flag or lukso config. Example: --van-ethstats 192.168.0.1:9090. (default:  disabled)"
   echo
   echo "--van-min-sync-peers                  The required number of valid Vanguard peers to connect with before syncing. (default: 2)"
   echo
   echo "--van-max-p2p-peers                   The max number of Vanguard p2p peers to maintain. (default: 50)"
   echo
   echo "--van-ethstats-metrics                The metrics address for Vanguard eth2stats-client service (default: http://127.0.0.1:8080/metrics)"
+  echo
+  echo "--status-page                         This flag is for lukso-status activation. With this service you can check your node status over web browser (default: disabled). Default web address is: http://127.0.0.1:8111"
 
   exit
 }
@@ -1064,6 +1109,9 @@ logs() {
     ;;
   eth2stats)
     CLIENT="eth2stats"
+    ;;
+  lukso-status)
+    CLIENT="lukso-status"
     ;;
   *)
     echo "SELECT one of the clients ex. pandora"
@@ -1141,6 +1189,27 @@ while getopts "$optspec" optchar; do
 
       chmod +x /opt/lukso/binaries/eth2stats-client/$val/eth2stats-client
       ln -sf /opt/lukso/binaries/eth2stats-client/$val/eth2stats-client /usr/local/bin/eth2stats-client
+
+      ;;
+
+    lukso-status)
+      val="${!OPTIND}"
+      OPTIND=$(($OPTIND + 1))
+
+      mkdir -p /opt/lukso/binaries/lukso-status/$val
+
+      if [[ $PLATFORM == "Linux" ]]; then
+        download https://github.com/rryter/node-status/releases/download/$val/lukso-status-$val-linux-amd64.tar.gz /opt/lukso/binaries/lukso-status/$val/lukso-status-$val-linux-amd64.tar.gz
+        tar -xf /opt/lukso/binaries/lukso-status/$val/lukso-status-$val-linux-amd64.tar.gz -C /opt/lukso/binaries/lukso-status/$val/
+      fi
+
+      if [[ $PLATFORM == "Darwin" ]]; then
+        download https://github.com/rryter/node-status/releases/download/$val/lukso-status-$val-darwin-amd64.tar.gz /opt/lukso/binaries/lukso-status/$val/lukso-status-$val-darwin-amd64.tar.gz
+        tar -xf /opt/lukso/binaries/lukso-status/$val/lukso-status-$val-darwin-amd64.tar.gz -C /opt/lukso/binaries/lukso-status/$val/
+      fi
+
+      chmod +x /opt/lukso/binaries/lukso-status/$val/lukso-status
+      ln -sf /opt/lukso/binaries/lukso-status/$val/lukso-status /usr/local/bin/lukso-status
 
       ;;
 
@@ -1510,6 +1579,10 @@ while getopts "$optspec" optchar; do
       OVERRIDE_ALLOW_RESPIN=true
       ;;
 
+    status-page)
+      OVERRIDE_RUN_LUKSO_STATUS=true
+      ;;
+
     force)
       FORCE=true
       ;;
@@ -1781,6 +1854,10 @@ fi
 
 if [[ -n $OVERRIDE_VAN_ETHSTATS_METRICS ]]; then
   VAN_ETHSTATS_METRICS=$OVERRIDE_VAN_ETHSTATS_METRICS
+fi
+
+if [[ -n $OVERRIDE_RUN_LUKSO_STATUS ]]; then
+  RUN_LUKSO_STATUS=$OVERRIDE_RUN_LUKSO_STATUS
 fi
 
 if [[ ! -d $DATADIR ]]; then
