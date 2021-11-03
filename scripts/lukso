@@ -244,7 +244,21 @@ import_accounts() {
     done
 
     if [[ $INPUT =~ ^(y|Y)$ ]]; then
+      echo "Password requirements:"
+      echo "  - at least 8 characters"
+      echo "  - at least 1 alphabetical character"
+      echo "  - at least 1 unicode symbol"
+      echo "  - at least 1 number"
+      echo
+
       read -r -p "Enter your password " -s PASSWORD
+
+      while [[ ! $PASSWORD =~ ^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?\&]{8,}$ ]]; do
+        echo
+        echo "Password does not meet requirements"
+        read -r -p "Enter your password " -s PASSWORD
+      done
+
       echo
       echo $PASSWORD > "$WALLET_DIR/password"
       echo "Saved to $WALLET_DIR/password"

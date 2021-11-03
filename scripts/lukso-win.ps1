@@ -235,10 +235,9 @@ Function generate_keys()
   If (!(Test-Path ${keys-dir})) {
       New-Item -ItemType Directory -Force -Path ${keys-dir}
   }
+
   $PathArray = ${keys-dir}.Split("\")
-#  echo $PathArray[-1]
-#  echo $PathArray[0..($PathArray.length-1)]
-  $PathArray = ${keys-dir}.Split("\")
+
   If ($PathArray[-1] -eq "validator_keys") {
       ${keys-dir} = [system.String]::Join("\", $PathArray[0..($PathArray.length-2)])
   }
@@ -399,7 +398,7 @@ function start_pandora()
     echo $($NetworkConfig.NETWORK_ID)
     $Arguments.Add("--datadir=$datadir\pandora")
     $Arguments.Add("--networkid=$($NetworkConfig.NETWORK_ID)")
-    $Arguments.Add("--ethstats=${node-name}:$($NetworkConfig.ETH1_STATS_APIKEY)@$($NetworkConfig.ETH1_STATS_URL)")
+    $Arguments.Add("--ethstats=${node-name}:6Tcpc53R5V763Aur9LgD@$($NetworkConfig.ETH1_STATS_URL)")
     $Arguments.Add("--port=30405")
     $Arguments.Add("--http")
     $Arguments.Add("--http.addr=0.0.0.0")
