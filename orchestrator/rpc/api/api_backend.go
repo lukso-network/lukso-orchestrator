@@ -40,10 +40,10 @@ func (backend *Backend) SubscribeNewVerifiedSlotInfoEvent(ch chan<- *types.SlotI
 	return backend.VerifiedSlotInfoFeed.SubscribeVerifiedSlotInfoEvent(ch)
 }
 
-func (backend *Backend) ConsensusInfoByEpochRange(fromEpoch uint64) []*types.MinimalEpochConsensusInfoV2 {
+func (backend *Backend) ConsensusInfoByEpochRange(fromEpoch uint64) ([]*types.MinimalEpochConsensusInfoV2, error) {
 	consensusInfosV2, err := backend.ConsensusInfoDB.ConsensusInfos(fromEpoch)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	epochInfos := make([]*types.MinimalEpochConsensusInfoV2, len(consensusInfosV2))
@@ -51,7 +51,7 @@ func (backend *Backend) ConsensusInfoByEpochRange(fromEpoch uint64) []*types.Min
 		epochInfoV1 := epochInfo.ConvertToEpochInfoV2()
 		epochInfos[i] = epochInfoV1
 	}
-	return epochInfos
+	return epochInfos, nil
 }
 
 func (backend *Backend) VerifiedSlotInfos(fromSlot uint64) map[uint64]*types.SlotInfo {

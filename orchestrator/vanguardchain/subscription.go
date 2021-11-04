@@ -105,7 +105,7 @@ func (s *Service) subscribeNewConsensusInfoGRPC(client client.VanguardClient) er
 	log.WithField("fromEpoch", fromEpoch).Debug("requesting from value subscribeNewConsensusInfoGRPC")
 	stream, err := client.StreamMinimalConsensusInfo(fromEpoch)
 	if nil != err {
-		log.WithError(err).Error("Failed to subscribe to stream of new pending blocks")
+		log.WithError(err).Error("Failed to subscribe to stream of new consensus info")
 		return err
 	}
 

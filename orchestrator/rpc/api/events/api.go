@@ -16,7 +16,7 @@ import (
 var lastSendEpoch uint64
 
 type Backend interface {
-	ConsensusInfoByEpochRange(fromEpoch uint64) []*generalTypes.MinimalEpochConsensusInfoV2
+	ConsensusInfoByEpochRange(fromEpoch uint64) ([]*generalTypes.MinimalEpochConsensusInfoV2, error)
 	SubscribeNewEpochEvent(chan<- *generalTypes.MinimalEpochConsensusInfoV2) event.Subscription
 	GetSlotStatus(ctx context.Context, slot uint64, hash common.Hash, requestFrom bool) generalTypes.Status
 	LatestEpoch() uint64
@@ -118,7 +118,11 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, requestedE
 	go func() {
 
 		batchSender := func(start, end uint64) error {
-			epochInfos := api.backend.ConsensusInfoByEpochRange(start)
+			epochInfos, err := api.backend.ConsensusInfoByEpochRange(start)
+			if err != nil {
+				log.WithError(err).Error("Some epoch infos are missing in db.")
+				return errors.Wrap(err, "Missing epoch infos in db. Could not send over stream.")
+			}
 			for _, ei := range epochInfos {
 				if err := notifier.Notify(rpcSub.ID, &generalTypes.MinimalEpochConsensusInfoV2{
 					Epoch:            ei.Epoch,
@@ -132,6 +136,7 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, requestedE
 						Error("Failed to send epoch info. Could not send over stream.")
 					return errors.Wrap(err, "Failed to send epoch info. Could not send over stream.")
 				}
+				log.WithField("epoch", ei.Epoch).Info("published epoch info to pandora")
 			}
 			return nil
 		}
@@ -139,6 +144,7 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, requestedE
 		startEpoch := requestedEpoch
 		endEpoch := api.backend.LatestEpoch()
 		if startEpoch <= endEpoch {
+			log.WithField("startEpoch", startEpoch).WithField("endEpoch", endEpoch).Debug("Sending previous epoch infos to pandora")
 			if err := batchSender(startEpoch, endEpoch); err != nil {
 				return
 			}
@@ -161,10 +167,13 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, requestedE
 					endEpoch = api.backend.LatestEpoch()
 
 					if startEpoch+1 < endEpoch {
+						log.WithField("startEpoch", startEpoch).WithField("endEpoch", endEpoch).
+							Debug("successfully published left over epoch infos")
 						if err := batchSender(startEpoch, endEpoch); err != nil {
 							return
 						}
 					}
+					log.WithField("liveSyncEpoch", endEpoch+1).Debug("start publishing live epoch info to pandora")
 				}
 
 				err := notifier.Notify(rpcSub.ID, &generalTypes.MinimalEpochConsensusInfoV2{
