@@ -89,17 +89,20 @@ func (s *Service) subscribeVanNewPendingBlockHash(
 // subscribeNewConsensusInfoGRPC
 func (s *Service) subscribeNewConsensusInfoGRPC(client client.VanguardClient) error {
 	fromEpoch := s.orchestratorDB.LatestSavedEpoch()
+	log.WithField("fromEpoch", fromEpoch).Debug("initial from value subscribeNewConsensusInfoGRPC")
 	for i := s.orchestratorDB.LatestSavedEpoch(); i >= 0; {
 		epochInfo, _ := s.orchestratorDB.ConsensusInfo(s.ctx, i)
 		if epochInfo == nil {
 			// epoch info is missing. so subscribe from here. maybe db operation was wrong
 			fromEpoch = i
+			log.WithField("fromEpoch", fromEpoch).Debug("setting from Epoch inside subscribeNewConsensusInfoGRPC")
 		}
 		if i == 0 {
 			break
 		}
 		i--
 	}
+	log.WithField("fromEpoch", fromEpoch).Debug("requesting from value subscribeNewConsensusInfoGRPC")
 	stream, err := client.StreamMinimalConsensusInfo(fromEpoch)
 	if nil != err {
 		log.WithError(err).Error("Failed to subscribe to stream of new pending blocks")
