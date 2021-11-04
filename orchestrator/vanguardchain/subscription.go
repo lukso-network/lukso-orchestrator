@@ -42,6 +42,11 @@ func (s *Service) subscribeVanNewPendingBlockHash(
 		latestVerifiedSlot = latestVerifiedSlot + 1
 	}
 
+	// subscribe from a safe location.
+	if latestVerifiedSlot > 32 {
+		latestVerifiedSlot -= 32
+	}
+
 	stream, err := client.StreamNewPendingBlocks(blockRoot, eth2Types.Slot(latestVerifiedSlot))
 	if nil != err {
 		log.WithError(err).Error("Failed to subscribe to stream of new pending blocks")
@@ -84,6 +89,13 @@ func (s *Service) subscribeVanNewPendingBlockHash(
 // subscribeNewConsensusInfoGRPC
 func (s *Service) subscribeNewConsensusInfoGRPC(client client.VanguardClient) error {
 	fromEpoch := s.orchestratorDB.LatestSavedEpoch()
+	for i := s.orchestratorDB.LatestSavedEpoch(); i >= 0; i-- {
+		epochInfo, _ := s.orchestratorDB.ConsensusInfo(s.ctx, i)
+		if epochInfo == nil {
+			// epoch info is missing. so subscribe from here. maybe db operation was wrong
+			fromEpoch = i
+		}
+	}
 	stream, err := client.StreamMinimalConsensusInfo(fromEpoch)
 	if nil != err {
 		log.WithError(err).Error("Failed to subscribe to stream of new pending blocks")

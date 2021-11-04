@@ -34,9 +34,9 @@ func (s *Store) RevertConsensusInfo(reorgInfo *types.MinimalEpochConsensusInfoV2
 
 	slotIndex := s.FindVerifiedSlotNumber(slotInfo, latestVerifiedSlot)
 	if slotIndex > 0 {
-		log.WithField("from", slotIndex+1).WithField("to", latestVerifiedSlot).Debug("removing consensus info")
+		log.WithField("from", slotIndex+1).WithField("skip", reorgInfo.ReorgInfo.NewSlot).Debug("removing verified info")
 		// remove from the dB
-		err := s.RemoveRangeVerifiedInfo(slotIndex+1, latestVerifiedSlot)
+		err := s.RemoveRangeVerifiedInfo(slotIndex+1, reorgInfo.ReorgInfo.NewSlot)
 		if err != nil {
 			log.WithError(err).Error("failed to remove verified information")
 			return err
