@@ -27,7 +27,7 @@ download_network_config("l15-prod")
 download_network_config("l15-staging")
 download_network_config("l15-dev")
 
-Invoke-WebRequest -Uri http://192.168.0.112:8080/script -OutFile $InstallDir\lukso.ps1
+Invoke-WebRequest -Uri https://raw.githubusercontent.com/lukso-network/lukso-orchestrator/feature/l15-setup/scripts/lukso-win.ps1 -OutFile $InstallDir\lukso.ps1
 if (Test-Path "$InstallDir\globalPath\lukso") {
     rm "$InstallDir\globalPath\lukso"
 }

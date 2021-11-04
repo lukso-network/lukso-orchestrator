@@ -233,6 +233,7 @@ generate_keys() {
 import_accounts() {
 
   if [[ ! -d $WALLET_DIR ]]; then
+    echo "Creating new wallet"
     mkdir -p $WALLET_DIR
   fi
 
@@ -251,6 +252,10 @@ import_accounts() {
 
       read -r -p "Enter your password " -s PASSWORD
 
+#      if [[ "$PASSWORD" =~ ^(?=.*?[A-Z])(?=(.*[a-z]){1,})(?=(.*[\d]){1,})(?=(.*[\W]){1,})(?!.*\s).{8,}$ ]]; then
+#        echo "Password does not meet requirements"
+#        exit
+#      fi
 
       echo
       echo $PASSWORD > "$WALLET_DIR/password"

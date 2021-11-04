@@ -220,7 +220,7 @@ Function bind_binary($client, $tag)
         rm "$InstallDir\globalPath\$client"
     }
 
-    cmd /c mklink "$InstallDir\globalPath\$client" "$InstallDir\binaries\$client\$tag\$client-$platform-$architecture.exe"
+    cmd /c mklink "$InstallDir\globalPath\$client" "$InstallDir\binaries\$client\$tag\$client-$platform-$architecture.exe" | Out-Null
 }
 
 Function bind_binaries()
@@ -279,7 +279,6 @@ Function check_validator_requirements()
 {
 
   if (${wallet-dir}) {
-      echo ${wallet-dir}
       if (!(Test-Path ${wallet-dir})) {
           Write-Output "ERROR! Cannot Validate, wallet not found"
           exit
@@ -332,7 +331,6 @@ Function start_orchestrator()
     "--verbosity=trace"
     )
 
-    Write-Output $arguments
 
     Start-Process -FilePath lukso-orchestrator `
     -ArgumentList $arguments `
@@ -368,18 +366,16 @@ function start_pandora()
         }
     }
 
-    New-Item -ItemType Directory -Force -Path $logsdir/pandora
-
+    if (!(Test-Path $logsdir/pandora))
+    {
+        New-Item -ItemType Directory -Force -Path $logsdir/pandora
+    }
 
     if (!(Test-Path $datadir/pandora)) {
         New-Item -ItemType Directory -Force -Path $datadir/pandora
     }
 
     Write-Output $runDate | Out-File -FilePath "$logsdir\pandora\current.tmp"
-
-#    pandora init $InstallDir\networks\$NETWORK\config\pandora-genesis.json --datadir $datadir\pandora
-#    echo $InstallDir\networks\$NETWORK\config\pandora-genesis.json
-#    echo $datadir\pandora
 
     $Arguments = New-Object System.Collections.Generic.List[System.Object]
     $Arguments.Add("init")
@@ -390,16 +386,16 @@ function start_pandora()
     -NoNewWindow `
     -RedirectStandardOutput "$logsdir\pandora\init_pandora_$runDate.out" `
     -RedirectStandardError "$logsdir\pandora\init_pandora_$runDate.err"
-    echo $Arguments
 
 
 #    Copy-Item $InstallDir\networks\$NETWORK\config\pandora-nodes.json -Destination $datadir\pandora\geth
 
     $Arguments = New-Object System.Collections.Generic.List[System.Object]
-    echo $($NetworkConfig.NETWORK_ID)
     $Arguments.Add("--datadir=$datadir\pandora")
     $Arguments.Add("--networkid=$($NetworkConfig.NETWORK_ID)")
-    $Arguments.Add("--ethstats=${node-name}:6Tcpc53R5V763Aur9LgD@$($NetworkConfig.ETH1_STATS_URL)")
+    if (${pan-ethstats}) {
+        $Arguments.Add("--ethstats=$(${node-name}):@$(${pan-ethstats})")
+    }
     $Arguments.Add("--port=30405")
     $Arguments.Add("--http")
     $Arguments.Add("--http.addr=0.0.0.0")
@@ -432,7 +428,6 @@ function start_pandora()
         $Arguments.Add("--nodekey=${pandora-nodekey}")
     }
 
-    Write-Output $Arguments
 
     Start-Process -FilePath "pandora" `
     -ArgumentList $Arguments `
@@ -451,10 +446,6 @@ function start_vanguard() {
     $Arguments = New-Object System.Collections.Generic.List[System.Object]
 
     $BootnodesArray = ${vanguard-bootnodes}.Split(",")
-    echo $BootnodesArray
-    foreach ($Bootnode in $BootnodesArray) {
-        echo $Bootnode
-    }
 
     $Arguments.Add("--accept-terms-of-use")
     $Arguments.Add("--chain-id=$($NetworkConfig.CHAIN_ID)")
@@ -496,7 +487,7 @@ function start_vanguard() {
     else {
         $Arguments.Add("--p2p-host-ip=$vanguard_external_ip")
     }
-    echo $Arguments
+
     Start-Process -FilePath "vanguard" `
     -ArgumentList $Arguments `
     -NoNewWindow `
@@ -531,7 +522,6 @@ function start_validator() {
     if (!${wallet-password-file}) {
       $Arguments.Add("--wallet-password-file=$Env:APPDATA\LUKSO\temp_pass.txt")
     }
-    echo $Arguments
 
     Start-Process -FilePath "lukso-validator" `
     -ArgumentList $arguments `
@@ -870,13 +860,14 @@ switch ($command)
         _reset $argument
     }
 
+    "config" {
+        Write-Output "Not available yet"
+    }
+
     "help" {
         _help
     }
 
-    "logs" {
-        logs $argument
-    }
 
     "keygen" {
         generate_keys
@@ -884,6 +875,15 @@ switch ($command)
 
     "wallet" {
         import_accounts
+    }
+
+    "logs" {
+        Write-Output "Work in progress. To get the logs go to $USER\.lukso\$network\logs\<client>"
+#        logs $argument
+    }
+
+    "attach" {
+        pandora attach ipc:\\.\pipe\geth.ipc
     }
 
     "bind-binaries" {
