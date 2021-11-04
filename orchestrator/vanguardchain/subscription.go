@@ -89,12 +89,16 @@ func (s *Service) subscribeVanNewPendingBlockHash(
 // subscribeNewConsensusInfoGRPC
 func (s *Service) subscribeNewConsensusInfoGRPC(client client.VanguardClient) error {
 	fromEpoch := s.orchestratorDB.LatestSavedEpoch()
-	for i := s.orchestratorDB.LatestSavedEpoch(); i >= 0; i-- {
+	for i := s.orchestratorDB.LatestSavedEpoch(); i >= 0; {
 		epochInfo, _ := s.orchestratorDB.ConsensusInfo(s.ctx, i)
 		if epochInfo == nil {
 			// epoch info is missing. so subscribe from here. maybe db operation was wrong
 			fromEpoch = i
 		}
+		if i == 0 {
+			break
+		}
+		i--
 	}
 	stream, err := client.StreamMinimalConsensusInfo(fromEpoch)
 	if nil != err {
