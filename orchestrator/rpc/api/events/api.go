@@ -143,18 +143,16 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, requestedE
 
 		startEpoch := requestedEpoch
 		endEpoch := api.backend.LatestEpoch()
-		consensusInfo := make(chan *generalTypes.MinimalEpochConsensusInfoV2)
-		consensusInfoSub := api.events.SubscribeConsensusInfo(consensusInfo, requestedEpoch)
-		firstTime := true
-
 		if startEpoch <= endEpoch {
 			log.WithField("startEpoch", startEpoch).WithField("endEpoch", endEpoch).Debug("Sending previous epoch infos to pandora")
 			if err := batchSender(startEpoch, endEpoch); err != nil {
-				log.WithError(err).Warn("Could not send previous epoch infos to pandora so unsubscribing subscriber")
-				consensusInfoSub.Unsubscribe()
 				return
 			}
 		}
+
+		consensusInfo := make(chan *generalTypes.MinimalEpochConsensusInfoV2)
+		consensusInfoSub := api.events.SubscribeConsensusInfo(consensusInfo, requestedEpoch)
+		firstTime := true
 
 		for {
 			select {

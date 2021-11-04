@@ -54,7 +54,7 @@ func (s *Store) ConsensusInfos(fromEpoch uint64) (
 			key := bytesutil.Uint64ToBytesBigEndian(epoch)
 			enc := bkt.Get(key[:])
 			if enc == nil {
-				return errors.Wrap(errInvalidEpoch, fmt.Sprintf("epoch: %d", epoch))
+				return nil
 			}
 			var consensusInfo *eventTypes.MinimalEpochConsensusInfo
 			decode(enc, &consensusInfo)
