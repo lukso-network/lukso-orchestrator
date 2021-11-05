@@ -347,6 +347,14 @@ check_validator_requirements() {
     exit
   fi
 
+  if [[ $COMMAND_ARG == "validator" ]] && [[ ! -n $COINBASE ]]; then
+    if [[ ! $(pandora attach $DATADIR/pandora/geth.ipc --exec "eth.coinbase") =~ ^\"0x[a-fA-F0-9]{40}\"$ ]]; then
+      echo "ERROR: Coinbase is not set on already running pandora. Please provide it using:"
+      echo "--coinbase 0x<ETH1_ADDRESS>"
+      CAN_VALIDATE=false
+    fi
+  fi
+
   if [[ ! -d $WALLET_DIR ]]; then
     echo "Cannot validate, wallet not found. Under $WALLET_DIR"
     echo "Create new wallet using \"lukso wallet\" "
@@ -359,16 +367,23 @@ check_validator_requirements() {
     CAN_VALIDATE=false
   fi
 
-   if [[ ! -n $VALIDATOR_PASSWORD_FILE ]]; then
-    read -p "Enter validator password: " -s INPUT
-    echo
-    TEMPPASSFILE=$(mktemp)
-    echo -n $INPUT > $TEMPPASSFILE
-    ARGUMENTS=("${ARGUMENTS[@]}" "--wallet-password-file=$TEMPPASSFILE")
-  fi
-
   if [[ "$CAN_VALIDATE" == "false" ]]; then
     exit 1
+  fi
+
+   if [[ ! -n $VALIDATOR_PASSWORD_FILE ]]; then
+    PASSWORD_CHECK=1
+    while [[ $PASSWORD_CHECK != 0 ]]; do
+      read -p "Enter validator password: " -s INPUT
+      echo
+      TEMPPASSFILE=$(mktemp)
+      echo -n $INPUT > $TEMPPASSFILE
+      lukso-validator accounts list --wallet-dir=$WALLET_DIR --wallet-password-file=$TEMPPASSFILE &> /dev/null
+      PASSWORD_CHECK=$?
+      if [[ $PASSWORD_CHECK != 0 ]]; then
+        echo "WRONG PASSWORD for wallet in $WALLET_DIR"
+      fi
+    done
   fi
 
 }
@@ -570,8 +585,8 @@ start_vanguard() {
 start_validator() {
 
   if [[ $COMMAND_ARG == "validator" ]] && [[ $COINBASE ]]; then
-    echo $COINBASE
-    echo $(pandora attach $DATADIR/pandora/geth.ipc --exec "miner.setEtherbase(\"$COINBASE\")")
+    pandora attach $DATADIR/pandora/geth.ipc --exec "miner.start()"
+    pandora attach $DATADIR/pandora/geth.ipc --exec "miner.setEtherbase(\"$COINBASE\")"
   fi
 
   mkdir -p "$LOGSDIR"/validator
