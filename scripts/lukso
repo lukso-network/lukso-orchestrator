@@ -585,8 +585,8 @@ start_vanguard() {
 start_validator() {
 
   if [[ $COMMAND_ARG == "validator" ]] && [[ $COINBASE ]]; then
-    pandora attach $DATADIR/pandora/geth.ipc --exec "miner.start()"
     pandora attach $DATADIR/pandora/geth.ipc --exec "miner.setEtherbase(\"$COINBASE\")"
+    pandora attach $DATADIR/pandora/geth.ipc --exec "miner.start()"
   fi
 
   mkdir -p "$LOGSDIR"/validator
