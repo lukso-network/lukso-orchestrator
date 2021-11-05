@@ -898,7 +898,7 @@ switch ($command)
 
 if ($KeepShell)
 {
-    Write-Output "LUKSO clients are working do not close this shell"
+    Write-Output "LUKSO clients are working, do not close this shell"
 }
 
 while ($KeepShell)
