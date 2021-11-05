@@ -30,7 +30,7 @@ IS_VALIDATOR=false
 RUN_LUKSO_STATUS=false
 PAN_ETHSTATS="6Tcpc53R5V763Aur9LgD@stats.pandora.l15.lukso.network"
 VAN_ETHSTATS="34.141.156.125:9090"
-COINBASE="0x616e6f6e796d6f75730000000000000000000000"
+COINBASE=""
 
 if [[ "$PLATFORM" == "Linux" ]]; then
   LUKSO_HOME="$HOME/.lukso"
@@ -69,7 +69,7 @@ PANDORA_WS_ADDR="127.0.0.1"
 PANDORA_WS_PORT="8546"
 PANDORA_METRICS=false
 PANDORA_NODEKEY=""
-PANDORA_VERBOSITY=debug
+PANDORA_VERBOSITY=info
 PAN_WS_MINER_NOTIFY="ws://127.0.0.1:7878"
 PAN_HTTP_MINER_NOTIFY="http://127.0.0.1:7877"
 CORS_DOMAIN=""
@@ -95,7 +95,7 @@ VAN_ETHSTATS_METRICS="http://127.0.0.1:8080/metrics"
 ###### Validator
 KEYS_DIR="$LUKSO_HOME/$NETWORK"
 WALLET_DIR="$LUKSO_HOME/$NETWORK/vanguard_wallet"
-VALIDATOR_PASSWORD_FILE="$WALLET_DIR/password"
+VALIDATOR_PASSWORD_FILE=""
 VALIDATOR_VERBOSITY=debug
 VALIDATOR_BEACON_RPC_PROVIDER=$VANGUARD_RPC
 VALIDATOR_PANDORA_HTTP_PROVIDER="http://127.0.0.1:8545"
@@ -238,33 +238,6 @@ import_accounts() {
     mkdir -p $WALLET_DIR
   fi
 
-  if [[ ! -f $VALIDATOR_PASSWORD_FILE ]]; then
-    while [[ ! $INPUT =~ ^(n|N|y|Y)$ ]] ; do
-      read -r -p "No password file found do you want to create it? (Y/n) " INPUT
-    done
-
-    if [[ $INPUT =~ ^(y|Y)$ ]]; then
-      echo "Password requirements:"
-      echo "  - at least 8 characters"
-      echo "  - at least 1 alphabetical character"
-      echo "  - at least 1 unicode symbol"
-      echo "  - at least 1 number"
-      echo
-
-      read -r -p "Enter your password " -s PASSWORD
-
-#      if [[ "$PASSWORD" =~ ^(?=.*?[A-Z])(?=(.*[a-z]){1,})(?=(.*[\d]){1,})(?=(.*[\W]){1,})(?!.*\s).{8,}$ ]]; then
-#        echo "Password does not meet requirements"
-#        exit
-#      fi
-
-      echo
-      echo $PASSWORD > "$WALLET_DIR/password"
-      echo "Saved to $WALLET_DIR/password"
-    fi
-
-  fi
-
   if [[ -z $OVERRIDE_KEYS_DIR ]]; then
     KEYS_DIR="$KEYS_DIR/validator_keys"
     read -p "Where do you have deposit keys? Default: [$KEYS_DIR] " INPUT
@@ -272,6 +245,12 @@ import_accounts() {
       if [[ -n "$INPUT" ]]; then
         KEYS_DIR=$INPUT
       fi
+  fi
+
+  if [[ ! -d $KEYS_DIR ]]; then
+    echo "Keys directory not found. Make sure to run \"lukso keygen\" first"
+    mkdir -p $WALLET_DIR
+    exit
   fi
 
   if [[ -z $OVERRIDE_WALLET_DIR ]]; then
@@ -361,14 +340,31 @@ pick_network() {
 
 check_validator_requirements() {
   CAN_VALIDATE=true
+  eval WALLET_DIR="$WALLET_DIR"
+
+  if [[ $COMMAND_ARG != "validator" ]] && [[ ! -n $COINBASE ]]; then
+    echo "Please provide coinbase: --coinbase 0x<ETH1_ADDRESS>"
+    exit
+  fi
+
   if [[ ! -d $WALLET_DIR ]]; then
-    echo "Cannot validate, wallet not found"
+    echo "Cannot validate, wallet not found. Under $WALLET_DIR"
+    echo "Create new wallet using \"lukso wallet\" "
     CAN_VALIDATE=false
+    exit
   fi
 
   if [[ -n $VALIDATOR_PASSWORD_FILE ]] && [[ ! -f $VALIDATOR_PASSWORD_FILE ]]; then
     echo "Cannot validate, password file not found"
     CAN_VALIDATE=false
+  fi
+
+   if [[ ! -n $VALIDATOR_PASSWORD_FILE ]]; then
+    read -p "Enter validator password: " -s INPUT
+    echo
+    TEMPPASSFILE=$(mktemp)
+    echo -n $INPUT > $TEMPPASSFILE
+    ARGUMENTS=("${ARGUMENTS[@]}" "--wallet-password-file=$TEMPPASSFILE")
   fi
 
   if [[ "$CAN_VALIDATE" == "false" ]]; then
@@ -439,13 +435,19 @@ start_pandora() {
     "--ws"
     "--ws.addr=$PANDORA_WS_ADDR"
     "--ws.port=$PANDORA_WS_PORT"
-    "--mine"
     "--miner.notify=$PAN_WS_MINER_NOTIFY,$PAN_HTTP_MINER_NOTIFY"
-    "--miner.etherbase=$COINBASE"
     "--miner.gaslimit=80000000"
     "--syncmode=full"
     "--verbosity=$PANDORA_VERBOSITY"
   )
+
+  if [[ $COINBASE ]]; then
+    MINER_ARGUMENTS=(
+      "--mine"
+      "--miner.etherbase=$COINBASE"
+    )
+    ARGUMENTS=("${ARGUMENTS[@]}" "${MINER_ARGUMENTS[@]}")
+  fi
 
   if [[ $PANDORA_UNIVERSAL_PROFILE_EXPOSE ]] && [[ ! $PANDORA_UNSAFE_EXPOSE ]]; then
     API_ARGUMENTS=(
@@ -566,7 +568,12 @@ start_vanguard() {
 }
 
 start_validator() {
-  check_validator_requirements
+
+  if [[ $COMMAND_ARG == "validator" ]] && [[ $COINBASE ]]; then
+    echo $COINBASE
+    echo $(pandora attach $DATADIR/pandora/geth.ipc --exec "miner.setEtherbase(\"$COINBASE\")")
+  fi
+
   mkdir -p "$LOGSDIR"/validator
   echo -n $RUN_DATE >|"$LOGSDIR"/validator/current.tmp
 
@@ -587,10 +594,28 @@ start_validator() {
     ARGUMENTS=("${ARGUMENTS[@]}" "--wallet-password-file=$VALIDATOR_PASSWORD_FILE")
   fi
 
+  if [[ -n $TEMPPASSFILE ]]; then
+    ARGUMENTS=("${ARGUMENTS[@]}" "--wallet-password-file=$TEMPPASSFILE")
+  fi
+
   nohup lukso-validator \
     "${ARGUMENTS[@]}" \
     >|$LOGSDIR/validator/validator_"$RUN_DATE".log 2>&1 &
   disown
+
+  if [[ -n $TEMPPASSFILE ]]; then
+    # Wait until validator starts
+    TRIES=0
+    while [[ ! $(lsof -t -i:7000) ]]; do
+      sleep 1
+      if [[ $TRIES -ge 10 ]]; then
+        echo "ERROR: Cannot start validator"
+        break;
+      fi
+      TRIES=$((TRIES+1))
+    done
+    rm $TEMPPASSFILE
+  fi
 }
 
 start_eth2stats_client() {
@@ -623,7 +648,6 @@ start_all() {
   if [[ "$IS_VALIDATOR" == true ]]; then
     check_validator_requirements
   fi
-
   echo "################# Starting orchestrator #################"
   start_orchestrator
   sleep 2
@@ -680,6 +704,7 @@ start() {
     ;;
   validator)
     echo "validator client"
+    check_validator_requirements
     start_validator
     ;;
   eth2stats)
