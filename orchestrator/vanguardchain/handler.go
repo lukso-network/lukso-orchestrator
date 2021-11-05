@@ -24,8 +24,6 @@ func (s *Service) OnNewConsensusInfo(ctx context.Context, consensusInfo *types.M
 			log.WithError(err).Error("found error while reverting orchestrator database")
 			return err
 		}
-
-		return nil
 	}
 
 	if err := s.orchestratorDB.SaveConsensusInfo(ctx, consensusInfo.ConvertToEpochInfo()); err != nil {

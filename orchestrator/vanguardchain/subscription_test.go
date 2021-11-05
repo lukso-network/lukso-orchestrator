@@ -102,12 +102,11 @@ func TestService_OnNewConsensusInfo(t *testing.T) {
 
 		require.NoError(t, vanSvc.OnNewConsensusInfo(ctx, reorgInfoEpoch2))
 
-		consensusInfoErrMsg := "invalid epoch and not found any consensusInfo for the given epoch"
 		consensusInfos, currentErr = newTestDB.ConsensusInfos(reorgInfoEpoch2.Epoch)
-		require.ErrorContains(t, consensusInfoErrMsg, currentErr)
-		require.Equal(t, true, len(consensusInfos) == 0)
+		require.NoError(t, currentErr)
+		require.Equal(t, true, len(consensusInfos) == 1)
 
-		require.Equal(t, reorgInfoEpoch2.Epoch-1, newTestDB.LatestSavedEpoch())
+		require.Equal(t, reorgInfoEpoch2.Epoch, newTestDB.LatestSavedEpoch())
 		fetchedConsensus, currentErr := newTestDB.ConsensusInfo(ctx, nonReorgInfo.Epoch)
 		require.NoError(t, currentErr)
 		require.Equal(t, true, nil == fetchedConsensus)
