@@ -63,7 +63,7 @@ func TestService_OnNewConsensusInfo(t *testing.T) {
 	require.Equal(t, nonReorgInfo.Epoch, fetchedConsensusInfo.Epoch)
 	require.Equal(t, nonReorgInfo.Epoch, newTestDB.LatestSavedEpoch())
 
-	t.Run("should revert to slot 1", func(t *testing.T) {
+	t.Run("should revert to epoch 1", func(t *testing.T) {
 		nonReorgInfoEpoch1 := &types.MinimalEpochConsensusInfoV2{Epoch: 1}
 		require.NoError(t, vanSvc.OnNewConsensusInfo(ctx, nonReorgInfoEpoch1))
 		require.Equal(t, nonReorgInfoEpoch1.Epoch, newTestDB.LatestSavedEpoch())
@@ -99,14 +99,13 @@ func TestService_OnNewConsensusInfo(t *testing.T) {
 		consensusInfos, currentErr := newTestDB.ConsensusInfos(reorgInfoEpoch2.Epoch)
 		require.NoError(t, currentErr)
 		require.Equal(t, true, len(consensusInfos) == int(nonReorgInfo.Epoch-reorgInfoEpoch2.Epoch)+1)
-
 		require.NoError(t, vanSvc.OnNewConsensusInfo(ctx, reorgInfoEpoch2))
 
 		consensusInfos, currentErr = newTestDB.ConsensusInfos(reorgInfoEpoch2.Epoch)
 		require.NoError(t, currentErr)
 		require.Equal(t, true, len(consensusInfos) == 1)
-
 		require.Equal(t, reorgInfoEpoch2.Epoch, newTestDB.LatestSavedEpoch())
+
 		fetchedConsensus, currentErr := newTestDB.ConsensusInfo(ctx, nonReorgInfo.Epoch)
 		require.NoError(t, currentErr)
 		require.Equal(t, true, nil == fetchedConsensus)
