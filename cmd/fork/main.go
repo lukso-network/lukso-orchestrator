@@ -81,9 +81,8 @@ func verifyExperiment(
 		}
 
 		if !exists {
-			errs[node] = fmt.Errorf("%s block hash not found in node: %d tree", seekForLoss, node)
+			errs[node] = fmt.Errorf("%s block hash not found in node: %d", seekForLoss, node)
 		}
-
 	}
 
 	return
