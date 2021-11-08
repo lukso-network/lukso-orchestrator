@@ -53,7 +53,8 @@ param (
 
 $platform = "Windows"
 $architecture = "x86_64"
-$InstallDir = $Env:APPDATA + "\LUKSO";
+$InstallDir = $Env:APPDATA + "\LUKSO"
+$LuksoScriptVersion = "v1.7"
 $RunDate = Get-Date -Format "yyyy-m-dd__HH-mm-ss"
 
 # Parsing config File and setting defaults
@@ -880,6 +881,10 @@ switch ($command)
     "logs" {
         Write-Output "Work in progress. To get the logs go to $USER\.lukso\$network\logs\<client>"
 #        logs $argument
+    }
+
+    "version" {
+        Write-Output $LuksoScriptVersion
     }
 
     "attach" {
