@@ -72,7 +72,8 @@ func (s *Store) VerifiedSlotInfos(fromSlot uint64) (map[uint64]*types.SlotInfo, 
 	return slotInfos, nil
 }
 
-// SaveVerifiedSlotInfo
+// SaveVerifiedSlotInfo will insert slot information to particular slot to db and cache
+// After save operations you must call SaveLatestVerifiedSlot to push in memory slot height to db
 func (s *Store) SaveVerifiedSlotInfo(slot uint64, slotInfo *types.SlotInfo) error {
 	s.Mutex.Lock()
 	defer s.Mutex.Unlock()
@@ -203,8 +204,6 @@ func (s *Store) FindVerifiedSlotNumber(info *types.SlotInfo, fromSlot uint64) ui
 	return 0
 }
 
-// RemoveRangeVerifiedInfo MUST BE TESTED IN ORDER TO BE SURE THAT IMPLEMENTATION IS VALID
-// Right now we do not have tests for this behavior except TestService_OnNewConsensusInfo
 func (s *Store) RemoveRangeVerifiedInfo(fromSlot, skipSlot uint64) error {
 	s.Mutex.Lock()
 	defer s.Mutex.Unlock()
@@ -229,7 +228,6 @@ func (s *Store) RemoveRangeVerifiedInfo(fromSlot, skipSlot uint64) error {
 			if slotNumber == fromSlot {
 				return nil
 			}
-
 		}
 		return nil
 	})
