@@ -2,6 +2,7 @@ package kv
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum/common"
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/require"
@@ -11,10 +12,73 @@ import (
 
 func TestStore_VerifiedSlotInfo(t *testing.T) {
 	db := setupDB(t, true)
-	slotInfos := createAndSaveEmptySlotInfos(t, 256, db)
+	slotInfosLen := 32
+	slotInfos := createAndSaveEmptySlotInfos(t, slotInfosLen, db)
 	retrievedSlotInfo, err := db.VerifiedSlotInfo(0)
 	require.NoError(t, err)
 	assert.DeepEqual(t, slotInfos[0], retrievedSlotInfo)
+}
+
+func TestStore_VerifiedSlotInfos(t *testing.T) {
+	db := setupDB(t, true)
+	slotInfosLen := 64
+	slotInfos := createAndSaveEmptySlotInfos(t, slotInfosLen, db)
+	retrievedSlotInfos, err := db.VerifiedSlotInfos(0)
+	require.NoError(t, err)
+	require.Equal(t, slotInfosLen, len(retrievedSlotInfos))
+	assert.DeepEqual(t, slotInfos[0], retrievedSlotInfos[0])
+}
+
+func TestStore_LatestVerifiedSuite(t *testing.T) {
+	db := setupDB(t, true)
+	ctx := context.Background()
+	createAndSaveEmptySlotInfos(t, 64, db)
+	customSlotInfoHeight := uint64(64)
+	customSlotInfo := &types.SlotInfo{
+		VanguardBlockHash: common.HexToHash("0x6f701e4e8b260f38a43cdc0d97cfdc7f0cd33f58ef26bbc6c327ac87d76304d2"),
+		PandoraHeaderHash: common.HexToHash("0x0846da512db0a6888a59aa5f7235b741e36a9dcacc9dad33ee2a228878aefa74"),
+	}
+
+	require.NoError(t, db.SaveVerifiedSlotInfo(customSlotInfoHeight, customSlotInfo))
+	require.NoError(t, db.SaveLatestVerifiedSlot(ctx))
+	require.Equal(t, customSlotInfoHeight, db.InMemoryLatestVerifiedSlot())
+	// this is failing, implementation is wrong
+	require.Equal(t, customSlotInfoHeight, db.InMemoryLatestVerifiedSlot())
+	require.Equal(t, customSlotInfo.PandoraHeaderHash, db.InMemoryLatestVerifiedHeaderHash())
+	require.NoError(t, db.SaveLatestVerifiedHeaderHash())
+	require.Equal(t, customSlotInfo.PandoraHeaderHash, db.LatestVerifiedHeaderHash())
+}
+
+func TestStore_FindVerifiedSlotNumber(t *testing.T) {
+	db := setupDB(t, true)
+	ctx := context.Background()
+	slotInfos := createAndSaveEmptySlotInfos(t, 64, db)
+	customSlotInfoHeight := uint64(64)
+	customSlotInfo := &types.SlotInfo{
+		VanguardBlockHash: common.HexToHash("0x6f701e4e8b260f38a43cdc0d97cfdc7f0cd33f58ef26bbc6c327ac87d76304d2"),
+		PandoraHeaderHash: common.HexToHash("0x0846da512db0a6888a59aa5f7235b741e36a9dcacc9dad33ee2a228878aefa74"),
+	}
+	require.NoError(t, db.SaveVerifiedSlotInfo(customSlotInfoHeight, customSlotInfo))
+	require.NoError(t, db.SaveLatestVerifiedSlot(ctx))
+	// This is not working properly in my opinion, this by design should be highestVerifiedSlot, not latestVerifiedSlot
+	require.Equal(t, customSlotInfoHeight, db.InMemoryLatestVerifiedSlot())
+
+	t.Run("should find verified slot with matching slot", func(t *testing.T) {
+		slotNumber := db.FindVerifiedSlotNumber(customSlotInfo, customSlotInfoHeight)
+		require.Equal(t, customSlotInfoHeight, slotNumber)
+		require.NotEqual(t, slotInfos[customSlotInfoHeight-1], customSlotInfo)
+	})
+
+	t.Run("should find verified slot with slot higher than present in db", func(t *testing.T) {
+		slotNumber := db.FindVerifiedSlotNumber(customSlotInfo, customSlotInfoHeight+50)
+		require.Equal(t, customSlotInfoHeight, slotNumber)
+		require.NotEqual(t, slotInfos[customSlotInfoHeight-1], customSlotInfo)
+	})
+
+	t.Run("should not find verified slot", func(t *testing.T) {
+		slotInfo := db.FindVerifiedSlotNumber(customSlotInfo, 4)
+		require.Equal(t, uint64(0), slotInfo)
+	})
 }
 
 func TestStore_RemoveRangeVerifiedInfo(t *testing.T) {

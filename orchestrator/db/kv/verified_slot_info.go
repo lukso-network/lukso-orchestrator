@@ -161,7 +161,8 @@ func (s *Store) SaveLatestVerifiedHeaderHash() error {
 	})
 }
 
-// LatestSavedEpoch
+// LatestVerifiedHeaderHash should return latest verified header hash but I really dont know which (pandora or vanguard?)
+// It should say explicitly which hash its returning, it looks like its pandora hash
 func (s *Store) LatestVerifiedHeaderHash() common.Hash {
 	var latestHeaderHash common.Hash
 	// Db is not prepared yet. Retrieve latest saved epoch number from db
@@ -190,6 +191,9 @@ func (s *Store) InMemoryLatestVerifiedHeaderHash() common.Hash {
 	return s.latestHeaderHash
 }
 
+// FindVerifiedSlotNumber will try to find matching of verified slot info
+// fromSlot must be higher or equal slot number that is present in db
+// TODO: consider not returning 0 when slot was not found, instead extend this function with multiple return
 func (s *Store) FindVerifiedSlotNumber(info *types.SlotInfo, fromSlot uint64) uint64 {
 	for i := fromSlot; i > 0; i-- {
 		slotInfo, err := s.VerifiedSlotInfo(i)
