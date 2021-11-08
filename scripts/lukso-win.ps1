@@ -189,7 +189,7 @@ Function download_binary($client, $tag)
             $repo = "network-deposit-cli"
         }
 
-        eth2stats {
+        eth2stats-client {
             $repo = "network-vanguard-stats-client"
         }
     }
@@ -275,6 +275,10 @@ Function import_accounts() {
     powershell.exe -command $("$InstallDir\binaries\lukso-validator\$validator\lukso-validator-Windows-x86_64.exe $Arguments")
 }
 
+Function setup_config()
+{
+    ConvertTo-Yaml
+}
 
 Function check_validator_requirements()
 {
@@ -532,7 +536,31 @@ function start_validator() {
 
 }
 
-function start_eth2stats() {
+function start_eth2stats_client() {
+    if (!(Test-Path $logsdir\eth2stats))
+    {
+        New-Item -ItemType Directory -Force -Path $logsdir\eth2stats
+    }
+
+    Write-Output $runDate | Out-File -FilePath "$logsdir\eth2stats\current.tmp"
+
+    $Arguments = New-Object System.Collections.Generic.List[System.Object]
+
+    $Arguments.Add("--beacon.type=`"prysm`"")
+    $Arguments.Add("--beacon.addr=`"$ETH2STATS_BEACON_ADDR`"")
+    $Arguments.Add("--beacon.metrics-addr=`"$VAN_ETHSTATS_METRICS`"")
+    $Arguments.Add("--data.folder=$DATADIR\eth2stats-client")
+    $Arguments.Add("--eth2stats.node-name=`"$NODE_NAME`"")
+    $Arguments.Add("--eth2stats.addr=`"$VAN_ETHSTATS`"")
+    $Arguments.Add("--eth2stats.tls=`"false`"")
+
+
+
+    Start-Process -FilePath "eth2stats-client" `
+    -ArgumentList $Arguments `
+    -NoNewWindow `
+    -RedirectStandardOutput "$logsdir\eth2stats\eth2stats_$runDate.out" `
+    -RedirectStandardError "$logsdir\eth2stats\eth2stats_$runDate.err"
 
 }
 
@@ -693,6 +721,10 @@ function _reset($client) {
     }
 }
 
+Function _logs() {
+
+}
+
 function _help() {
     Write-Output "USAGE:"
     Write-Output "lukso <command> [argument] [--flags]"
@@ -836,7 +868,7 @@ if ($validator)
 
 if ($eth2stats)
 {
-    bind_binary eth2stats $eth2stats
+    bind_binary eth2stats-client $eth2stats
 }
 
 if ($deposit)
