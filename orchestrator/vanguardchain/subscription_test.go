@@ -88,6 +88,7 @@ func TestService_OnNewConsensusInfo(t *testing.T) {
 			ReorgInfo: &types.Reorg{
 				VanParentHash: vanBlockHash.Bytes(),
 				PanParentHash: panBlockHash.Bytes(),
+				NewSlot: uint64(66),
 			},
 		}
 		require.NoError(t, newTestDB.SaveVerifiedSlotInfo(reorgInfoEpoch2.Epoch*32, &types.SlotInfo{
@@ -108,6 +109,6 @@ func TestService_OnNewConsensusInfo(t *testing.T) {
 
 		fetchedConsensus, currentErr := newTestDB.ConsensusInfo(ctx, nonReorgInfo.Epoch)
 		require.NoError(t, currentErr)
-		require.Equal(t, true, nil == fetchedConsensus)
+		require.Equal(t, false, nil == fetchedConsensus)
 	})
 }
