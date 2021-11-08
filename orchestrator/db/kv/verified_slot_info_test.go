@@ -23,6 +23,7 @@ func TestStore_VerifiedSlotInfos(t *testing.T) {
 	db := setupDB(t, true)
 	slotInfosLen := 64
 	slotInfos := createAndSaveEmptySlotInfos(t, slotInfosLen, db)
+	require.NoError(t, db.SaveLatestVerifiedSlot(context.Background()))
 	retrievedSlotInfos, err := db.VerifiedSlotInfos(0)
 	require.NoError(t, err)
 	require.Equal(t, slotInfosLen, len(retrievedSlotInfos))
