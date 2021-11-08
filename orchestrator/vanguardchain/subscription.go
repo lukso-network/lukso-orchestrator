@@ -147,6 +147,7 @@ func (s *Service) subscribeNewConsensusInfoGRPC(client client.VanguardClient) er
 					reorgInfo := &types.Reorg{
 						VanParentHash: vanMinimalConsensusInfo.ReorgInfo.VanParentHash,
 						PanParentHash: vanMinimalConsensusInfo.ReorgInfo.PanParentHash,
+						NewSlot: uint64(vanMinimalConsensusInfo.ReorgInfo.NewSlot),
 					}
 					consensusInfo.ReorgInfo = reorgInfo
 				}

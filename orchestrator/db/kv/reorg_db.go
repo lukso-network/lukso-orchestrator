@@ -6,25 +6,6 @@ import (
 )
 
 func (s *Store) RevertConsensusInfo(reorgInfo *types.MinimalEpochConsensusInfoV2) error {
-	// remove minimal consensus info
-	latestEpoch := s.LatestSavedEpoch()
-	if reorgInfo.Epoch <= latestEpoch {
-		log.WithField("from", reorgInfo.Epoch).WithField("to", latestEpoch).Debug("removing consensus info")
-		err := s.RemoveRangeConsensusInfo(reorgInfo.Epoch, latestEpoch)
-		if err != nil {
-			log.WithError(err).Error("failed to remove consensus info from database")
-			return err
-		}
-		if reorgInfo.Epoch-1 >= 0 {
-			s.latestEpoch = reorgInfo.Epoch - 1
-			err := s.SaveLatestEpoch(s.ctx)
-			if err != nil {
-				log.WithError(err).Error("failed to save latest epoch info")
-				return err
-			}
-		}
-	}
-
 	// remove from verified database
 	slotInfo := &types.SlotInfo{
 		PandoraHeaderHash: common.BytesToHash(reorgInfo.ReorgInfo.PanParentHash),
