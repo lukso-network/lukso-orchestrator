@@ -49,3 +49,8 @@ func LogsContain(tb assertions.AssertionTestingTB, hook *test.Hook, want string,
 func LogsDoNotContain(tb assertions.AssertionTestingTB, hook *test.Hook, want string, msg ...interface{}) {
 	assertions.LogsContain(tb.Errorf, hook, want, false, msg...)
 }
+
+// LogsContainNTimes checks that the desired string is a subset of the current log output with specific number of times.
+func LogsContainNTimes(tb assertions.AssertionTestingTB, hook *test.Hook, want string, times uint64, msg ...interface{}) {
+	assertions.LogsContainNTimes(tb.Errorf, hook, want, times, true, msg...)
+}

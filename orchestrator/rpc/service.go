@@ -3,20 +3,25 @@ package rpc
 import (
 	"context"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/epochextractor"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
+	conIface "github.com/lukso-network/lukso-orchestrator/orchestrator/consensus/iface"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/iface"
 	"sync"
 	"time"
 )
 
 // Config
 type Config struct {
-	EpochExpractor epochextractor.EpochExtractor
-
+	ConsensusInfoFeed            iface.ConsensusInfoFeed
+	VerifiedSlotInfoFeed         conIface.VerifiedSlotInfoFeed
+	Db                           db.Database
+	VanguardPendingShardingCache cache.VanguardShardCache
+	PandoraPendingHeaderCache    cache.PandoraHeaderCache
 	// ipc config
 	IPCPath string
-
 	// http config
 	HTTPEnable       bool
 	HTTPHost         string
@@ -26,7 +31,6 @@ type Config struct {
 	HTTPModules      []string
 	HTTPTimeouts     rpc.HTTPTimeouts
 	HTTPPathPrefix   string
-
 	// WebSocket config
 	WSEnable     bool
 	WSHost       string
@@ -35,7 +39,7 @@ type Config struct {
 	WSOrigins    []string
 }
 
-// Service
+// Service defining an RPC server for a orchestrator node.
 type Service struct {
 	isRunning      bool
 	processingLock sync.RWMutex
@@ -44,7 +48,7 @@ type Service struct {
 	runError       error
 	stop           chan struct{} // Channel to wait for termination notifications
 
-	backend       *api.APIBackend
+	backend       *api.Backend
 	config        *Config
 	rpcAPIs       []rpc.API   // List of APIs currently provided by the node
 	http          *httpServer //
@@ -53,6 +57,8 @@ type Service struct {
 	inprocHandler *rpc.Server // In-process RPC request handler to process the API requests
 }
 
+// NewService instantiates a new RPC service instance that will
+// be registered into a running orchestrator node.
 func NewService(ctx context.Context, cfg *Config) (*Service, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	_ = cancel // govet fix for lost cancel. Cancel is handled in service.Stop()
@@ -62,7 +68,15 @@ func NewService(ctx context.Context, cfg *Config) (*Service, error) {
 		cancel:        cancel,
 		config:        cfg,
 		inprocHandler: rpc.NewServer(),
-		backend:       &api.APIBackend{EpochExtractor: cfg.EpochExpractor},
+		backend: &api.Backend{
+			ConsensusInfoFeed:            cfg.ConsensusInfoFeed,
+			ConsensusInfoDB:              cfg.Db,
+			VerifiedSlotInfoDB:           cfg.Db,
+			InvalidSlotInfoDB:            cfg.Db,
+			PandoraPendingHeaderCache:    cfg.PandoraPendingHeaderCache,
+			VanguardPendingShardingCache: cfg.VanguardPendingShardingCache,
+			VerifiedSlotInfoFeed:         cfg.VerifiedSlotInfoFeed,
+		},
 	}
 	// Configure RPC servers.
 	service.rpcAPIs = service.APIs()
@@ -86,7 +100,7 @@ func (s *Service) Start() {
 		if err != nil {
 			s.stopRPC()
 			s.runError = err
-			log.Errorf("Could not serve gRPC: %v", err)
+			log.WithError(err).Error("Could not start rpc serve")
 		}
 	}()
 }

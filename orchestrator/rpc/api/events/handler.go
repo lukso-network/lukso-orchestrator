@@ -5,7 +5,6 @@ import (
 	ethLog "github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
-	eth2Types "github.com/prysmaticlabs/eth2-types"
 	"sync"
 	"time"
 )
@@ -21,6 +20,9 @@ const (
 	// MinConsensusInfoSubscription
 	MinConsensusInfoSubscription
 
+	// VerifiedSlotInfoSubscription triggers when new slot is verified
+	VerifiedSlotInfoSubscription
+
 	// LastSubscription keeps track of the last index
 	LastIndexSubscription
 )
@@ -33,24 +35,25 @@ type subscription struct {
 	installed chan struct{} // closed when the filter is installed
 	err       chan error    // closed when the filter is uninstalled
 
-	isNew         bool
-	epoch         eth2Types.Epoch // last served epoch number
-	consensusInfo chan *types.MinimalEpochConsensusInfo
+	epoch         uint64 // last served epoch number
+	consensusInfo chan *types.MinimalEpochConsensusInfoV2
+	slotInfo      chan *types.SlotInfoWithStatus
 }
 
 // EventSystem creates subscriptions, processes events and broadcasts them to the
 // subscription which match the subscription criteria.
 type EventSystem struct {
-	backend   Backend
-	lastEpoch *eth2Types.Epoch
+	backend Backend
 
 	// Subscriptions
-	consensusInfoSub event.Subscription // Subscription for new epoch validator list
+	consensusInfoSub    event.Subscription // Subscription for new epoch validator list
+	verifiedSlotInfoSub event.Subscription
 
 	// Channels
-	install         chan *subscription                    // install filter for event notification
-	uninstall       chan *subscription                    // remove filter for event notification
-	consensusInfoCh chan *types.MinimalEpochConsensusInfo // Channel to receive new new consensus info event
+	install         chan *subscription                      // install filter for event notification
+	uninstall       chan *subscription                      // remove filter for event notification
+	consensusInfoCh chan *types.MinimalEpochConsensusInfoV2 // Channel to receive new new consensus info event
+	slotInfoCh      chan *types.SlotInfoWithStatus
 }
 
 // NewEventSystem creates a new manager that listens for event on the given mux,
@@ -64,15 +67,20 @@ func NewEventSystem(backend Backend) *EventSystem {
 		backend:         backend,
 		install:         make(chan *subscription),
 		uninstall:       make(chan *subscription),
-		consensusInfoCh: make(chan *types.MinimalEpochConsensusInfo, 1),
+		consensusInfoCh: make(chan *types.MinimalEpochConsensusInfoV2, 1),
+		slotInfoCh:      make(chan *types.SlotInfoWithStatus, 1),
 	}
 
 	// Subscribe events
 	m.consensusInfoSub = m.backend.SubscribeNewEpochEvent(m.consensusInfoCh)
-
 	// Make sure none of the subscriptions are empty
 	if m.consensusInfoSub == nil {
-		ethLog.Crit("Subscribe for event system failed")
+		ethLog.Crit("Subscribe for minimal consensus info event system failed")
+	}
+	m.verifiedSlotInfoSub = m.backend.SubscribeNewVerifiedSlotInfoEvent(m.slotInfoCh)
+	// Make sure none of the subscriptions are empty
+	if m.consensusInfoSub == nil {
+		ethLog.Crit("Subscribe for verified slot info event system failed")
 	}
 
 	go m.eventLoop()
@@ -124,12 +132,11 @@ func (es *EventSystem) subscribe(sub *subscription) *Subscription {
 
 // SubscribePendingTxs creates a subscription that writes transaction hashes for
 // transactions that enter the transaction pool.
-func (es *EventSystem) SubscribeConsensusInfo(consensusInfo chan *types.MinimalEpochConsensusInfo, epoch eth2Types.Epoch) *Subscription {
+func (es *EventSystem) SubscribeConsensusInfo(consensusInfo chan *types.MinimalEpochConsensusInfoV2, epoch uint64) *Subscription {
 	sub := &subscription{
 		id:            rpc.NewID(),
 		typ:           MinConsensusInfoSubscription,
 		created:       time.Now(),
-		isNew:         true,
 		epoch:         epoch,
 		consensusInfo: consensusInfo,
 		installed:     make(chan struct{}),
@@ -138,17 +145,32 @@ func (es *EventSystem) SubscribeConsensusInfo(consensusInfo chan *types.MinimalE
 	return es.subscribe(sub)
 }
 
+// SubscribeVerifiedSlotInfo
+func (es *EventSystem) SubscribeVerifiedSlotInfo(slotInfo chan *types.SlotInfoWithStatus) *Subscription {
+	sub := &subscription{
+		id:        rpc.NewID(),
+		typ:       VerifiedSlotInfoSubscription,
+		created:   time.Now(),
+		installed: make(chan struct{}),
+		err:       make(chan error),
+		slotInfo:  slotInfo,
+	}
+	return es.subscribe(sub)
+}
+
 type filterIndex map[Type]map[rpc.ID]*subscription
 
 // handleConsensusInfoEvent
-func (es *EventSystem) handleConsensusInfoEvent(filters filterIndex, ev *types.MinimalEpochConsensusInfo) {
+func (es *EventSystem) handleConsensusInfoEvent(filters filterIndex, ev *types.MinimalEpochConsensusInfoV2) {
 	for _, f := range filters[MinConsensusInfoSubscription] {
-		if f.isNew {
-			es.sendConsensusInfo(f, ev)
-			f.isNew = false
-			continue
-		}
 		f.consensusInfo <- ev
+	}
+}
+
+// handleVerifiedSlotInfoEvent
+func (es *EventSystem) handleVerifiedSlotInfoEvent(filters filterIndex, si *types.SlotInfoWithStatus) {
+	for _, f := range filters[VerifiedSlotInfoSubscription] {
+		f.slotInfo <- si
 	}
 }
 
@@ -168,6 +190,8 @@ func (es *EventSystem) eventLoop() {
 		select {
 		case ev := <-es.consensusInfoCh:
 			es.handleConsensusInfoEvent(index, ev)
+		case si := <-es.slotInfoCh:
+			es.handleVerifiedSlotInfoEvent(index, si)
 		case f := <-es.install:
 			index[f.typ][f.id] = f
 			close(f.installed)
@@ -178,32 +202,6 @@ func (es *EventSystem) eventLoop() {
 		// System stopped
 		case <-es.consensusInfoSub.Err():
 			return
-		}
-	}
-}
-
-// sendConsensusInfo
-func (es *EventSystem) sendConsensusInfo(f *subscription, ev *types.MinimalEpochConsensusInfo) {
-	curEpoch := es.backend.CurrentEpoch()
-	log.WithField("curEpoch", curEpoch).Debug("current epoch in epoch extractor")
-	log.WithField("f.epoch", f.epoch).Debug("subscriber's epoch status")
-
-	// when requested from epoch is greater or equal than current epoch.
-	if f.epoch >= curEpoch {
-		log.WithField("consensusInfo", ev).Debug("Sending consensus info to subscriber")
-		f.consensusInfo <- ev
-		return
-	}
-
-	consensusInfos := es.backend.ConsensusInfoByEpochRange(f.epoch, curEpoch)
-	log.WithField("consensusInfos", consensusInfos).Debug("start sending consensus infos")
-
-	// sending previous epoch consensus infos
-	for epoch := f.epoch; epoch <= curEpoch; epoch++ {
-		consensusInfo := consensusInfos[epoch]
-		if consensusInfo != nil {
-			log.WithField("consensusInfo", consensusInfo).Debug("Sending consensus info to subscriber")
-			f.consensusInfo <- consensusInfo
 		}
 	}
 }

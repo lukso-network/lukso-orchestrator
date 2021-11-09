@@ -1,9 +1,11 @@
 package events
 
 import (
+	"context"
+	"github.com/ethereum/go-ethereum/common"
+	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
-	types "github.com/prysmaticlabs/eth2-types"
 	"time"
 )
 
@@ -13,27 +15,51 @@ var (
 
 type MockBackend struct {
 	ConsensusInfoFeed    event.Feed
-	ConsensusInfoMapping map[types.Epoch]*eventTypes.MinimalEpochConsensusInfo
-	CurEpoch             types.Epoch
+	verifiedSlotInfoFeed event.Feed
+
+	ConsensusInfos    []*eventTypes.MinimalEpochConsensusInfoV2
+	verifiedSlotInfos map[uint64]*eventTypes.SlotInfo
+	CurEpoch          uint64
 }
 
-func (backend *MockBackend) CurrentEpoch() types.Epoch {
-	return backend.CurEpoch
-}
+var _ Backend = &MockBackend{}
 
-func (backend *MockBackend) ConsensusInfoByEpochRange(fromEpoch, toEpoch types.Epoch,
-) map[types.Epoch]*eventTypes.MinimalEpochConsensusInfo {
-
-	consensusInfoMapping := make(map[types.Epoch]*eventTypes.MinimalEpochConsensusInfo)
-	for epoch := fromEpoch; epoch <= toEpoch; epoch++ {
-		item, exists := backend.ConsensusInfoMapping[epoch]
-		if exists && item != nil {
-			consensusInfoMapping[epoch] = item
-		}
+func (b *MockBackend) ConsensusInfoByEpochRange(fromEpoch uint64) []*eventTypes.MinimalEpochConsensusInfoV2 {
+	consensusInfos := make([]*eventTypes.MinimalEpochConsensusInfoV2, 0)
+	for _, consensusInfo := range b.ConsensusInfos {
+		consensusInfos = append(consensusInfos, consensusInfo)
 	}
-	return consensusInfoMapping
+	return consensusInfos
 }
 
-func (b *MockBackend) SubscribeNewEpochEvent(ch chan<- *eventTypes.MinimalEpochConsensusInfo) event.Subscription {
+func (b *MockBackend) SubscribeNewEpochEvent(ch chan<- *eventTypes.MinimalEpochConsensusInfoV2) event.Subscription {
 	return b.ConsensusInfoFeed.Subscribe(ch)
+}
+
+func (b *MockBackend) SubscribeNewVerifiedSlotInfoEvent(ch chan<- *eventTypes.SlotInfoWithStatus) event.Subscription {
+	return b.verifiedSlotInfoFeed.Subscribe(ch)
+}
+
+func (mb *MockBackend) GetSlotStatus(ctx context.Context, slot uint64, hash common.Hash, requestType bool) eventTypes.Status {
+	return eventTypes.Pending
+}
+
+func (mb *MockBackend) LatestEpoch() uint64 {
+	return 100
+}
+
+func (mb *MockBackend) PendingPandoraHeaders() []*eth1Types.Header {
+	return nil
+}
+
+func (mb *MockBackend) VerifiedSlotInfos(fromSlot uint64) map[uint64]*eventTypes.SlotInfo {
+	slotInfos := make(map[uint64]*eventTypes.SlotInfo)
+	for slot, slotInfo := range mb.verifiedSlotInfos {
+		slotInfos[slot] = slotInfo
+	}
+	return slotInfos
+}
+
+func (mb *MockBackend) LatestVerifiedSlot() uint64 {
+	return 100
 }

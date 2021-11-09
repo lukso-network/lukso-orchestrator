@@ -2,7 +2,10 @@ package rpc
 
 import (
 	"context"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/epochextractor"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/consensus"
+	testDB "github.com/lukso-network/lukso-orchestrator/orchestrator/db/testing"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain"
 	"github.com/lukso-network/lukso-orchestrator/shared/cmd"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/require"
@@ -10,30 +13,50 @@ import (
 	"testing"
 )
 
-func setup() (*Config, error) {
-	epochExtractor, err := epochextractor.NewService(context.Background(),
-		cmd.DefaultVanguardRPCEndpoint, cmd.DefaultPandoraRPCEndpoint, 13434434)
-
+func setup(t *testing.T) (*Config, error) {
+	orchestratorDB := testDB.SetupDB(t)
+	consensusInfoFeed, err := vanguardchain.NewService(
+		context.Background(),
+		cmd.DefaultVanguardGRPCEndpoint,
+		orchestratorDB,
+		cache.NewVanShardInfoCache(1<<10),
+		vanguardchain.GRPCFunc,
+	)
 	if err != nil {
 		return nil, err
 	}
+
+	consensusSvr := consensus.New(
+		context.Background(),
+		&consensus.Config{
+			orchestratorDB,
+			orchestratorDB,
+			cache.NewVanShardInfoCache(1 << 10),
+			cache.NewPanHeaderCache(),
+			nil,
+			nil,
+		})
+
 	return &Config{
-		EpochExpractor: epochExtractor,
-		IPCPath:        cmd.DefaultIpcPath,
-		HTTPEnable:     true,
-		HTTPHost:       cmd.DefaultHTTPHost,
-		HTTPPort:       cmd.DefaultHTTPPort,
-		WSEnable:       true,
-		WSHost:         cmd.DefaultWSHost,
-		WSPort:         cmd.DefaultWSPort,
+		ConsensusInfoFeed:    consensusInfoFeed,
+		VerifiedSlotInfoFeed: consensusSvr,
+		Db:                   orchestratorDB,
+		IPCPath:              cmd.DefaultIpcPath,
+		HTTPEnable:           true,
+		HTTPHost:             cmd.DefaultHTTPHost,
+		HTTPPort:             9874,
+		WSEnable:             true,
+		WSHost:               cmd.DefaultWSHost,
+		WSPort:               9875,
 	}, nil
 }
 
+// TODO- Need to implement more integration test cases
 // TestServerStart_Success
 func TestServerStart_Success(t *testing.T) {
 	hook := logTest.NewGlobal()
 	ctx := context.Background()
-	config, err := setup()
+	config, err := setup(t)
 	require.NoError(t, err)
 
 	rpcService, err := NewService(ctx, config)
