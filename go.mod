@@ -31,4 +31,4 @@ require (
 	google.golang.org/protobuf v1.26.0
 )
 
-replace github.com/prysmaticlabs/prysm => github.com/lukso-network/vanguard-consensus-engine v0.1.0-rc.1.0.20211028122737-885e3bcd83f1
+replace github.com/prysmaticlabs/prysm => github.com/lukso-network/vanguard-consensus-engine v0.5.1-develop.0.20211108134132-fdc1dc776e66
