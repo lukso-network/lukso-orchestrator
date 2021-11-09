@@ -35,6 +35,7 @@ param (
     [Switch]${pandora-universal-profile-expose},
     [Switch]${pandora-unsafe-expose},
     [String]${pandora-verbosity},
+    [String]${pan-ethstats},
     [String]$vanguard,
     [String]${vanguard-bootnodes},
     [String]${vanguard-p2p-priv-key},
@@ -135,6 +136,7 @@ ${pandora-external-ip} = If (${pandora-external-ip}) {${pandora-external-ip}} El
 ${pandora-universal-profile-expose} = If (${pandora-universal-profile-expose}) {${pandora-universal-profile-expose}} ElseIf ($ConfigFile.PANDORA_UNIVERSAL_PROFILE_EXPOSE) {$ConfigFile.PANDORA_UNIVERSAL_PROFILE_EXPOSE} Else {$false}
 ${pandora-unsafe-expose} = If (${pandora-unsafe-expose}) {${pandora-unsafe-expose}} ElseIf ($ConfigFile.PANDORA_UNSAFE_EXPOSE) {$ConfigFile.PANDORA_UNSAFE_EXPOSE} Else {$false}
 ${pandora-verbosity} = If (${pandora-verbosity}) {${pandora-verbosity}} ElseIf ($ConfigFile.PANDORA_VERBOSITY) {$ConfigFile.PANDORA_VERBOSITY} Else {"info"}
+${pan-ethstats} = If (${pan-ethstats}) {${pan-ethstats}} ElseIf ($ConfigFile.PANDORA_ETHSTATS) {$ConfigFile.PANDORA_ETHSTATS} Else {"6Tcpc53R5V763Aur9LgD@stats.pandora.l15.lukso.network"}
 $vanguard = If ($vanguard) {$vanguard} ElseIf ($ConfigFile.VANGUARD) {$ConfigFile.VANGUARD} Else {""}
 ${vanguard-bootnodes} = If (${vanguard-bootnodes}) {${vanguard-bootnodes}} ElseIf ($ConfigFile.VANGUARD_BOOTNODES) {$ConfigFile.VANGUARD_BOOTNODES} Else {$NetworkConfig.VANGUARD_BOOTNODES}
 ${vanguard-p2p-priv-key} = If (${vanguard-p2p-priv-key}) {${vanguard-p2p-priv-key}} ElseIf ($ConfigFile.VANGUARD_P2P_PRIV_KEY) {$ConfigFile.VANGUARD_P2P_PRIV_KEY} Else {""}
@@ -549,8 +551,8 @@ function start_eth2stats_client() {
     $Arguments.Add("--beacon.type=`"prysm`"")
     $Arguments.Add("--beacon.addr=`"$ETH2STATS_BEACON_ADDR`"")
     $Arguments.Add("--beacon.metrics-addr=`"$VAN_ETHSTATS_METRICS`"")
-    $Arguments.Add("--data.folder=$DATADIR\eth2stats-client")
-    $Arguments.Add("--eth2stats.node-name=`"$NODE_NAME`"")
+    $Arguments.Add("--data.folder=$datadir\eth2stats-client")
+    $Arguments.Add("--eth2stats.node-name=`"$(${node-name})`"")
     $Arguments.Add("--eth2stats.addr=`"$VAN_ETHSTATS`"")
     $Arguments.Add("--eth2stats.tls=`"false`"")
 
