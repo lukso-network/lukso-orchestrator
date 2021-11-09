@@ -44,6 +44,7 @@ param (
     [String]${vanguard-rpc-host},
     [String]${vanguard-monitoring-host},
     [String]${vanguard-verbosity},
+    [String]${van-ethstats-metrics},
     [String]$validator,
     [String]${validator-verbosity},
     [String]${cors-domain},
@@ -145,6 +146,7 @@ ${vanguard-p2p-host-dns} = If (${vanguard-p2p-host-dns}) {${vanguard-p2p-host-dn
 ${vanguard-rpc-host} = If (${vanguard-rpc-host}) {${vanguard-rpc-host}} ElseIf ($ConfigFile.VANGUARD_RPC_HOST) {$ConfigFile.VANGUARD_RPC_HOST} Else {""}
 ${vanguard-monitoring-host} = If (${vanguard-monitoring-host}) {${vanguard-monitoring-host}} ElseIf ($ConfigFile.VANGUARD_MONITORING_HOST) {$ConfigFile.VANGUARD_MONITORING_HOST} Else {""}
 ${vanguard-verbosity} = If (${vanguard-verbosity}) {${vanguard-verbosity}} ElseIf ($ConfigFile.VANGUARD_VERBOSITY) {$ConfigFile.VANGUARD_VERBOSITY} Else {"info"}
+${van-ethstats-metrics} = If (${van-ethstats-metrics}) {${van-ethstats-metrics}} ElseIf ($ConfigFile.VANGUARD_ETHSTATS_METRICS) {$ConfigFile.VANGUARD_ETHSTATS_METRICS} Else {"http://127.0.0.1:8080/metrics"}
 $validator = If ($validator) {$validator} ElseIf ($ConfigFile.VALIDATOR) {$ConfigFile.VALIDATOR} Else {"v0.2.0-rc.1"}
 ${validator-verbosity} = If (${validator-verbosity}) {${validator-verbosity}} ElseIf ($ConfigFile.VALIDATOR_VERBOSITY) {$ConfigFile.VALIDATOR_VERBOSITY} Else {"info"}
 ${cors-domain} = If (${cors-domain}) {${cors-domain}} ElseIf ($ConfigFile.CORS_DOMAIN) {$ConfigFile.CORS_DOMAIN} Else {""}
@@ -550,7 +552,7 @@ function start_eth2stats_client() {
 
     $Arguments.Add("--beacon.type=`"prysm`"")
     $Arguments.Add("--beacon.addr=`"$ETH2STATS_BEACON_ADDR`"")
-    $Arguments.Add("--beacon.metrics-addr=`"$VAN_ETHSTATS_METRICS`"")
+    $Arguments.Add("--beacon.metrics-addr=`"$(${van-ethstats-metrics})"")
     $Arguments.Add("--data.folder=$datadir\eth2stats-client")
     $Arguments.Add("--eth2stats.node-name=`"$(${node-name})`"")
     $Arguments.Add("--eth2stats.addr=`"$VAN_ETHSTATS`"")
