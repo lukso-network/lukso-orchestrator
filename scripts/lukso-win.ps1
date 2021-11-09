@@ -45,6 +45,10 @@ param (
     [String]${vanguard-monitoring-host},
     [String]${vanguard-verbosity},
     [String]${van-ethstats-metrics},
+    [String]${van-rpc-port},
+    [String]${van-udp-port},
+    [String]${van-tcp-port},
+    [String]${van-grpc-gateway-port},
     [String]$validator,
     [String]${validator-verbosity},
     [String]${cors-domain},
@@ -147,6 +151,10 @@ ${vanguard-rpc-host} = If (${vanguard-rpc-host}) {${vanguard-rpc-host}} ElseIf (
 ${vanguard-monitoring-host} = If (${vanguard-monitoring-host}) {${vanguard-monitoring-host}} ElseIf ($ConfigFile.VANGUARD_MONITORING_HOST) {$ConfigFile.VANGUARD_MONITORING_HOST} Else {""}
 ${vanguard-verbosity} = If (${vanguard-verbosity}) {${vanguard-verbosity}} ElseIf ($ConfigFile.VANGUARD_VERBOSITY) {$ConfigFile.VANGUARD_VERBOSITY} Else {"info"}
 ${van-ethstats-metrics} = If (${van-ethstats-metrics}) {${van-ethstats-metrics}} ElseIf ($ConfigFile.VANGUARD_ETHSTATS_METRICS) {$ConfigFile.VANGUARD_ETHSTATS_METRICS} Else {"http://127.0.0.1:8080/metrics"}
+${van-rpc-port} = If (${van-rpc-port}) {${van-rpc-port}} ElseIf ($ConfigFile.VANGUARD_RPC_PORT) {$ConfigFile.VANGUARD_RPC_PORT} Else {"4000"}
+${van-udp-port} = If (${van-udp-port}) {${van-udp-port}} ElseIf ($ConfigFile.VANGUARD_UDP_PORT) {$ConfigFile.VANGUARD_UDP_PORT} Else {"12000"}
+${van-tcp-port} = If (${van-tcp-port}) {${van-tcp-port}} ElseIf ($ConfigFile.VANGUARD_TCP_PORT) {$ConfigFile.VANGUARD_TCP_PORT} Else {"13000"}
+${van-grpc-gateway-port} = If (${van-grpc-gateway-port}) {${van-grpc-gateway-port}} ElseIf ($ConfigFile.VANGUARD_GRPC_GATEWAY_PORT) {$ConfigFile.VANGUARD_GRPC_GATEWAY_PORT} Else {"3500"}
 $validator = If ($validator) {$validator} ElseIf ($ConfigFile.VALIDATOR) {$ConfigFile.VALIDATOR} Else {"v0.2.0-rc.1"}
 ${validator-verbosity} = If (${validator-verbosity}) {${validator-verbosity}} ElseIf ($ConfigFile.VALIDATOR_VERBOSITY) {$ConfigFile.VALIDATOR_VERBOSITY} Else {"info"}
 ${cors-domain} = If (${cors-domain}) {${cors-domain}} ElseIf ($ConfigFile.CORS_DOMAIN) {$ConfigFile.CORS_DOMAIN} Else {""}
@@ -474,10 +482,10 @@ function start_vanguard() {
     $Arguments.Add("--min-sync-peers=2")
     $Arguments.Add("--p2p-max-peers=50")
     $Arguments.Add("--orc-http-provider=http://127.0.0.1:7877")
-    $Arguments.Add("--rpc-port=4000")
-    $Arguments.Add("--p2p-udp-port=12000")
-    $Arguments.Add("--p2p-tcp-port=13000")
-    $Arguments.Add("--grpc-gateway-port=3500")
+    $Arguments.Add("--rpc-port=$(${van-rpc-port})")
+    $Arguments.Add("--p2p-udp-port=$(${van-udp-port})")
+    $Arguments.Add("--p2p-tcp-port=$(${van-tcp-port})")
+    $Arguments.Add("--grpc-gateway-port=$(${van-grpc-gateway-port})")
     $Arguments.Add("--update-head-timely")
     $Arguments.Add("--lukso-network")
 
@@ -552,7 +560,7 @@ function start_eth2stats_client() {
 
     $Arguments.Add("--beacon.type=`"prysm`"")
     $Arguments.Add("--beacon.addr=`"$ETH2STATS_BEACON_ADDR`"")
-    $Arguments.Add("--beacon.metrics-addr=`"$(${van-ethstats-metrics})"")
+    $Arguments.Add("--beacon.metrics-addr=`"$(${van-ethstats-metrics})`"")
     $Arguments.Add("--data.folder=$datadir\eth2stats-client")
     $Arguments.Add("--eth2stats.node-name=`"$(${node-name})`"")
     $Arguments.Add("--eth2stats.addr=`"$VAN_ETHSTATS`"")
