@@ -356,7 +356,7 @@ check_validator_requirements() {
   fi
 
   if [[ ! -d $WALLET_DIR ]]; then
-    echo "Cannot validate, wallet not found. Under $WALLET_DIR"
+    echo "Cannot validate, wallet not found. Your wallet directory is: $WALLET_DIR"
     echo "Create new wallet using \"lukso wallet\" "
     CAN_VALIDATE=false
     exit
