@@ -72,7 +72,8 @@ func (s *Store) VerifiedSlotInfos(fromSlot uint64) (map[uint64]*types.SlotInfo, 
 	return slotInfos, nil
 }
 
-// SaveVerifiedSlotInfo
+// SaveVerifiedSlotInfo will insert slot information to particular slot to db and cache
+// After save operations you must call SaveLatestVerifiedSlot to push in memory slot height to db
 func (s *Store) SaveVerifiedSlotInfo(slot uint64, slotInfo *types.SlotInfo) error {
 	s.Mutex.Lock()
 	defer s.Mutex.Unlock()
@@ -160,7 +161,8 @@ func (s *Store) SaveLatestVerifiedHeaderHash() error {
 	})
 }
 
-// LatestSavedEpoch
+// LatestVerifiedHeaderHash should return latest verified header hash but I really dont know which (pandora or vanguard?)
+// It should say explicitly which hash its returning, it looks like its pandora hash
 func (s *Store) LatestVerifiedHeaderHash() common.Hash {
 	var latestHeaderHash common.Hash
 	// Db is not prepared yet. Retrieve latest saved epoch number from db
@@ -187,4 +189,50 @@ func (s *Store) InMemoryLatestVerifiedHeaderHash() common.Hash {
 	defer s.Mutex.Unlock()
 
 	return s.latestHeaderHash
+}
+
+// FindVerifiedSlotNumber will try to find matching of verified slot info
+// fromSlot must be higher or equal slot number that is present in db
+// TODO: consider not returning 0 when slot was not found, instead extend this function with multiple return
+func (s *Store) FindVerifiedSlotNumber(info *types.SlotInfo, fromSlot uint64) uint64 {
+	for i := fromSlot; i > 0; i-- {
+		slotInfo, err := s.VerifiedSlotInfo(i)
+		if err != nil {
+			log.WithError(err).Error("failed to find slot info")
+			return 0
+		}
+		if slotInfo != nil && slotInfo.PandoraHeaderHash == info.PandoraHeaderHash && slotInfo.VanguardBlockHash == info.VanguardBlockHash {
+			return i
+		}
+	}
+	return 0
+}
+
+func (s *Store) RemoveRangeVerifiedInfo(fromSlot, skipSlot uint64) error {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
+
+	// storing latest epoch number into db
+	return s.db.Update(func(tx *bolt.Tx) error {
+		bkt := tx.Bucket(verifiedSlotInfosBucket)
+		cursor := bkt.Cursor()
+		for key, val := cursor.Last(); key != nil && val != nil; key, val = cursor.Prev() {
+			if string(key) == string(latestHeaderHashKey) || string(key) == string(latestSavedVerifiedSlotKey) {
+				continue
+			}
+			slotNumber := bytesutil.BytesToUint64BigEndian(key)
+			if slotNumber != skipSlot {
+				s.verifiedSlotInfoCache.Del(slotNumber)
+
+				err := cursor.Delete()
+				if err != nil {
+					return err
+				}
+			}
+			if slotNumber == fromSlot {
+				return nil
+			}
+		}
+		return nil
+	})
 }

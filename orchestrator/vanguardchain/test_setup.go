@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
 	testDB "github.com/lukso-network/lukso-orchestrator/orchestrator/db/testing"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/client"
@@ -149,7 +150,7 @@ func GRPCFunc(endpoint string) (client.VanguardClient, error) {
 // SetupInProcServer prepares in process server with defined api. Here, this method mocks
 // vanguard client's endpoint as well as backend. Use in-memory to mock the
 func SetupInProcServer(t *testing.T) (*rpc.Server, *events.MockBackend) {
-	consensusInfos := make([]*eventTypes.MinimalEpochConsensusInfo, 0)
+	consensusInfos := make([]*eventTypes.MinimalEpochConsensusInfoV2, 0)
 	for i := 0; i < 5; i++ {
 		consensusInfos = append(consensusInfos, testutil.NewMinimalConsensusInfo(uint64(i)))
 	}
@@ -180,17 +181,17 @@ func SetupVanguardSvc(
 	ctx context.Context,
 	t *testing.T,
 	dialGRPCFn DIALGRPCFn,
-) (*Service, *mocks) {
+) (*Service, db.Database) {
 	level, err := logrus.ParseLevel("trace")
 	assert.NoError(t, err)
 	logrus.SetLevel(level)
 
-	db := testDB.SetupDB(t)
+	newTestDB := testDB.SetupDB(t)
 
 	vanguardClientService, err := NewService(
 		ctx,
 		"127.0.0.1:4000",
-		db,
+		newTestDB,
 		cache.NewVanShardInfoCache(1<<10),
 		dialGRPCFn,
 	)
@@ -198,5 +199,5 @@ func SetupVanguardSvc(
 		t.Fatalf("failed to create protocol stack: %v", err)
 	}
 
-	return vanguardClientService, nil
+	return vanguardClientService, newTestDB
 }

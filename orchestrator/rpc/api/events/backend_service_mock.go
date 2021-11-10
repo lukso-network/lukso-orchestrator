@@ -17,22 +17,22 @@ type MockBackend struct {
 	ConsensusInfoFeed    event.Feed
 	verifiedSlotInfoFeed event.Feed
 
-	ConsensusInfos    []*eventTypes.MinimalEpochConsensusInfo
+	ConsensusInfos    []*eventTypes.MinimalEpochConsensusInfoV2
 	verifiedSlotInfos map[uint64]*eventTypes.SlotInfo
 	CurEpoch          uint64
 }
 
 var _ Backend = &MockBackend{}
 
-func (b *MockBackend) ConsensusInfoByEpochRange(fromEpoch uint64) []*eventTypes.MinimalEpochConsensusInfo {
-	consensusInfos := make([]*eventTypes.MinimalEpochConsensusInfo, 0)
+func (b *MockBackend) ConsensusInfoByEpochRange(fromEpoch uint64) ([]*eventTypes.MinimalEpochConsensusInfoV2, error) {
+	consensusInfos := make([]*eventTypes.MinimalEpochConsensusInfoV2, 0)
 	for _, consensusInfo := range b.ConsensusInfos {
 		consensusInfos = append(consensusInfos, consensusInfo)
 	}
-	return consensusInfos
+	return consensusInfos, nil
 }
 
-func (b *MockBackend) SubscribeNewEpochEvent(ch chan<- *eventTypes.MinimalEpochConsensusInfo) event.Subscription {
+func (b *MockBackend) SubscribeNewEpochEvent(ch chan<- *eventTypes.MinimalEpochConsensusInfoV2) event.Subscription {
 	return b.ConsensusInfoFeed.Subscribe(ch)
 }
 

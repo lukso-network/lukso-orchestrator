@@ -54,7 +54,7 @@ func (s *Store) ConsensusInfos(fromEpoch uint64) (
 			key := bytesutil.Uint64ToBytesBigEndian(epoch)
 			enc := bkt.Get(key[:])
 			if enc == nil {
-				return errors.Wrap(errInvalidEpoch, fmt.Sprintf("epoch: %d", epoch))
+				return nil
 			}
 			var consensusInfo *eventTypes.MinimalEpochConsensusInfo
 			decode(enc, &consensusInfo)
@@ -94,6 +94,23 @@ func (s *Store) SaveConsensusInfo(
 		}
 		// update latest epoch
 		s.latestEpoch = consensusInfo.Epoch
+		return nil
+	})
+}
+
+func (s *Store) RemoveRangeConsensusInfo(startEpoch, endEpoch uint64) error {
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
+
+	return s.db.Update(func(tx *bolt.Tx) error {
+		bkt := tx.Bucket(consensusInfosBucket)
+		for i := startEpoch; i <= endEpoch; i++ {
+			s.consensusInfoCache.Del(i)
+			epochBytes := bytesutil.Uint64ToBytesBigEndian(i)
+			if err := bkt.Delete(epochBytes); err != nil {
+				return err
+			}
+		}
 		return nil
 	})
 }

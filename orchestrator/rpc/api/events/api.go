@@ -3,20 +3,21 @@ package events
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/ethereum/go-ethereum/common"
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 	generalTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
 	"github.com/pkg/errors"
-	"time"
 )
 
 var lastSendEpoch uint64
 
 type Backend interface {
-	ConsensusInfoByEpochRange(fromEpoch uint64) []*generalTypes.MinimalEpochConsensusInfo
-	SubscribeNewEpochEvent(chan<- *generalTypes.MinimalEpochConsensusInfo) event.Subscription
+	ConsensusInfoByEpochRange(fromEpoch uint64) ([]*generalTypes.MinimalEpochConsensusInfoV2, error)
+	SubscribeNewEpochEvent(chan<- *generalTypes.MinimalEpochConsensusInfoV2) event.Subscription
 	GetSlotStatus(ctx context.Context, slot uint64, hash common.Hash, requestFrom bool) generalTypes.Status
 	LatestEpoch() uint64
 	SubscribeNewVerifiedSlotInfoEvent(chan<- *generalTypes.SlotInfoWithStatus) event.Subscription
@@ -117,9 +118,13 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, requestedE
 	go func() {
 
 		batchSender := func(start, end uint64) error {
-			epochInfos := api.backend.ConsensusInfoByEpochRange(start)
+			epochInfos, err := api.backend.ConsensusInfoByEpochRange(start)
+			if err != nil {
+				log.WithError(err).Error("Some epoch infos are missing in db.")
+				return errors.Wrap(err, "Missing epoch infos in db. Could not send over stream.")
+			}
 			for _, ei := range epochInfos {
-				if err := notifier.Notify(rpcSub.ID, &generalTypes.MinimalEpochConsensusInfo{
+				if err := notifier.Notify(rpcSub.ID, &generalTypes.MinimalEpochConsensusInfoV2{
 					Epoch:            ei.Epoch,
 					ValidatorList:    ei.ValidatorList,
 					EpochStartTime:   ei.EpochStartTime,
@@ -131,6 +136,7 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, requestedE
 						Error("Failed to send epoch info. Could not send over stream.")
 					return errors.Wrap(err, "Failed to send epoch info. Could not send over stream.")
 				}
+				log.WithField("epoch", ei.Epoch).Info("published epoch info to pandora")
 			}
 			return nil
 		}
@@ -138,12 +144,13 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, requestedE
 		startEpoch := requestedEpoch
 		endEpoch := api.backend.LatestEpoch()
 		if startEpoch <= endEpoch {
+			log.WithField("startEpoch", startEpoch).WithField("endEpoch", endEpoch).Debug("Sending previous epoch infos to pandora")
 			if err := batchSender(startEpoch, endEpoch); err != nil {
 				return
 			}
 		}
 
-		consensusInfo := make(chan *generalTypes.MinimalEpochConsensusInfo)
+		consensusInfo := make(chan *generalTypes.MinimalEpochConsensusInfoV2)
 		consensusInfoSub := api.events.SubscribeConsensusInfo(consensusInfo, requestedEpoch)
 		firstTime := true
 
@@ -154,28 +161,27 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, requestedE
 					WithField("epochStartTime", currentEpochInfo.EpochStartTime).
 					Info("Sending consensus info to subscriber")
 
-				if currentEpochInfo.Epoch < requestedEpoch {
-					log.Debug("Current epoch is old enough for pandora. So not sending the epoch info")
-					continue
-				}
-
 				if firstTime {
 					firstTime = false
 					startEpoch = endEpoch
 					endEpoch = api.backend.LatestEpoch()
 
 					if startEpoch+1 < endEpoch {
+						log.WithField("startEpoch", startEpoch).WithField("endEpoch", endEpoch).
+							Debug("successfully published left over epoch infos")
 						if err := batchSender(startEpoch, endEpoch); err != nil {
 							return
 						}
 					}
+					log.WithField("liveSyncEpoch", endEpoch+1).Debug("start publishing live epoch info to pandora")
 				}
 
-				err := notifier.Notify(rpcSub.ID, &generalTypes.MinimalEpochConsensusInfo{
+				err := notifier.Notify(rpcSub.ID, &generalTypes.MinimalEpochConsensusInfoV2{
 					Epoch:            currentEpochInfo.Epoch,
 					ValidatorList:    currentEpochInfo.ValidatorList,
 					EpochStartTime:   currentEpochInfo.EpochStartTime,
 					SlotTimeDuration: currentEpochInfo.SlotTimeDuration,
+					ReorgInfo:        currentEpochInfo.ReorgInfo,
 				})
 				if nil != err {
 					log.WithField("epoch", currentEpochInfo.Epoch).WithError(err).Error(

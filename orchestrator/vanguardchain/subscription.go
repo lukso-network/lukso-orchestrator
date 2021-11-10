@@ -42,6 +42,11 @@ func (s *Service) subscribeVanNewPendingBlockHash(
 		latestVerifiedSlot = latestVerifiedSlot + 1
 	}
 
+	// subscribe from a safe location.
+	if latestVerifiedSlot > 32 {
+		latestVerifiedSlot -= 32
+	}
+
 	stream, err := client.StreamNewPendingBlocks(blockRoot, eth2Types.Slot(latestVerifiedSlot))
 	if nil != err {
 		log.WithError(err).Error("Failed to subscribe to stream of new pending blocks")
@@ -84,9 +89,23 @@ func (s *Service) subscribeVanNewPendingBlockHash(
 // subscribeNewConsensusInfoGRPC
 func (s *Service) subscribeNewConsensusInfoGRPC(client client.VanguardClient) error {
 	fromEpoch := s.orchestratorDB.LatestSavedEpoch()
+	log.WithField("fromEpoch", fromEpoch).Debug("initial from value subscribeNewConsensusInfoGRPC")
+	for i := s.orchestratorDB.LatestSavedEpoch(); i >= 0; {
+		epochInfo, _ := s.orchestratorDB.ConsensusInfo(s.ctx, i)
+		if epochInfo == nil {
+			// epoch info is missing. so subscribe from here. maybe db operation was wrong
+			fromEpoch = i
+			log.WithField("fromEpoch", fromEpoch).Debug("setting from Epoch inside subscribeNewConsensusInfoGRPC")
+		}
+		if i == 0 {
+			break
+		}
+		i--
+	}
+	log.WithField("fromEpoch", fromEpoch).Debug("requesting from value subscribeNewConsensusInfoGRPC")
 	stream, err := client.StreamMinimalConsensusInfo(fromEpoch)
 	if nil != err {
-		log.WithError(err).Error("Failed to subscribe to stream of new pending blocks")
+		log.WithError(err).Error("Failed to subscribe to stream of new consensus info")
 		return err
 	}
 
@@ -117,11 +136,20 @@ func (s *Service) subscribeNewConsensusInfoGRPC(client client.VanguardClient) er
 					return
 				}
 
-				consensusInfo := &types.MinimalEpochConsensusInfo{
+				consensusInfo := &types.MinimalEpochConsensusInfoV2{
 					Epoch:            uint64(vanMinimalConsensusInfo.Epoch),
 					ValidatorList:    vanMinimalConsensusInfo.ValidatorList,
 					EpochStartTime:   vanMinimalConsensusInfo.EpochTimeStart,
 					SlotTimeDuration: time.Duration(vanMinimalConsensusInfo.SlotTimeDuration.Seconds),
+				}
+				// if re-org happens then we get this info not nil
+				if vanMinimalConsensusInfo.ReorgInfo != nil {
+					reorgInfo := &types.Reorg{
+						VanParentHash: vanMinimalConsensusInfo.ReorgInfo.VanParentHash,
+						PanParentHash: vanMinimalConsensusInfo.ReorgInfo.PanParentHash,
+						NewSlot: uint64(vanMinimalConsensusInfo.ReorgInfo.NewSlot),
+					}
+					consensusInfo.ReorgInfo = reorgInfo
 				}
 				// Only non empty check for now
 				if len(consensusInfo.ValidatorList) < 1 {

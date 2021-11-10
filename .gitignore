@@ -36,3 +36,4 @@ bin
 
 # test data
 orchestrator/db/kv/test-data
+orchestrator/db/kv/testdata

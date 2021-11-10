@@ -738,8 +738,8 @@ github.com/libp2p/go-yamux v1.4.1/go.mod h1:fr7aVgmdNGJK+N1g+b6DW6VxzbRCjCOejR/h
 github.com/lightstep/lightstep-tracer-common/golang/gogo v0.0.0-20190605223551-bc2310a04743/go.mod h1:qklhhLq1aX+mtWk9cPHPzaBjWImj5ULL6C7HFJtXQMM=
 github.com/lightstep/lightstep-tracer-go v0.18.1/go.mod h1:jlF1pusYV4pidLvZ+XD0UBX0ZE6WURAspgAczcDHrL4=
 github.com/logrusorgru/aurora v2.0.3+incompatible/go.mod h1:7rIyQOR62GCctdiQpZ/zOJlFyk6y+94wXzv6RNZgaR4=
-github.com/lukso-network/vanguard-consensus-engine v0.1.0-beta.2.0.20211011100744-a9df080003bf h1:lnPpyk34ZGTlhSHsaokrD/Shd2GYlCP6JENxwHY/ZEo=
-github.com/lukso-network/vanguard-consensus-engine v0.1.0-beta.2.0.20211011100744-a9df080003bf/go.mod h1:XPdoOqtl8xGr6wKL5OYVxNHnFEPQvKORerM+rsuW4Zw=
+github.com/lukso-network/vanguard-consensus-engine v0.5.1-develop.0.20211108134132-fdc1dc776e66 h1:OPfPPpuSZ0ObW7r2xU1bpHUrmyG52DUYKA160B2BQfk=
+github.com/lukso-network/vanguard-consensus-engine v0.5.1-develop.0.20211108134132-fdc1dc776e66/go.mod h1:XPdoOqtl8xGr6wKL5OYVxNHnFEPQvKORerM+rsuW4Zw=
 github.com/lunixbochs/vtclean v0.0.0-20180621232353-2d01aacdc34a/go.mod h1:pHhQNgMf3btfWnGBVipUOjRYhoOsdGqdm/+2c2E2WMI=
 github.com/lunixbochs/vtclean v1.0.0/go.mod h1:pHhQNgMf3btfWnGBVipUOjRYhoOsdGqdm/+2c2E2WMI=
 github.com/lyft/protoc-gen-validate v0.0.13/go.mod h1:XbGvPuh87YZc5TdIa2/I4pLk0QoUACkjt2znoq26NVQ=
