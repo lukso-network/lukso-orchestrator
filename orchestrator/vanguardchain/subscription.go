@@ -2,7 +2,6 @@ package vanguardchain
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/client"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	"github.com/pkg/errors"
@@ -20,155 +19,143 @@ var (
 )
 
 // subscribeVanNewPendingBlockHash
-func (s *Service) subscribeVanNewPendingBlockHash(
-	client client.VanguardClient,
-) error {
-
-	latestVerifiedSlot := s.orchestratorDB.LatestSavedVerifiedSlot()
-	latestVerifiedSlotInfo, err := s.orchestratorDB.VerifiedSlotInfo(latestVerifiedSlot)
+func (s *Service) subscribeVanNewPendingBlockHash(client client.VanguardClient, fromSlot uint64) error {
 	var blockRoot []byte
-	if err != nil {
-		log.WithField("latestVerifiedSlot", latestVerifiedSlot).
-			WithError(err).
-			Warn("Failed to retrieve latest verified slot info for pending block subscription")
-		return err
-	}
-
-	if latestVerifiedSlotInfo != nil {
-		blockRoot = latestVerifiedSlotInfo.VanguardBlockHash.Bytes()
-	}
-
-	if latestVerifiedSlot == 0 {
-		latestVerifiedSlot = latestVerifiedSlot + 1
-	}
-
-	// subscribe from a safe location.
-	if latestVerifiedSlot > 32 {
-		latestVerifiedSlot -= 32
-	}
-
-	stream, err := client.StreamNewPendingBlocks(blockRoot, eth2Types.Slot(latestVerifiedSlot))
+	stream, err := client.StreamNewPendingBlocks(blockRoot, eth2Types.Slot(fromSlot))
 	if nil != err {
 		log.WithError(err).Error("Failed to subscribe to stream of new pending blocks")
 		return err
 	}
+	log.WithField("fromSlot", fromSlot).Info("Successfully subscribed to vanguard blocks")
+	for {
+		select {
+		case <-s.ctx.Done():
+			log.Debug("closing subscribeVanNewPendingBlockHash")
+			return nil
 
-	log.WithField("fromSlot", latestVerifiedSlot).
-		WithField("blockRoot", hexutil.Encode(blockRoot)).
-		Info("Successfully subscribed to vanguard blocks")
+		case <-s.resubscribePendingBlkCh:
+			fromSlot = s.orchestratorDB.LatestLatestFinalizedSlot()
+			stream, err = client.StreamNewPendingBlocks(blockRoot, eth2Types.Slot(fromSlot))
+			if err != nil {
+				log.WithError(err).Error("Failed to re-subscribe to new pending blocks stream")
+				return err
+			}
+			log.WithField("slot", fromSlot).Debug("Re-subscribing to new vanguard pending blocks stream")
 
-	go func() {
-		for {
-			select {
-			case <-s.ctx.Done():
-				log.Debug("closing subscribeVanNewPendingBlockHash")
-				return
-			default:
-				vanBlock, err := stream.Recv()
-
-				if e, ok := status.FromError(err); ok {
-					switch e.Code() {
-					case codes.Canceled, codes.Internal, codes.Unavailable:
-						log.WithError(err).Infof("Trying to restart connection. rpc status: %v", e.Code())
-						s.conInfoSubErrCh <- err
-						return
+		default:
+			vanBlock, err := stream.Recv()
+			if e, ok := status.FromError(err); ok {
+				switch e.Code() {
+				case codes.Canceled, codes.Internal, codes.Unavailable:
+					log.WithError(err).Infof("Trying to restart connection. rpc status: %v", e.Code())
+					s.waitForConnection()
+					stream, err = client.StreamNewPendingBlocks(blockRoot, eth2Types.Slot(fromSlot))
+					if err != nil {
+						log.WithError(err).Error("Failed to subscribe to new pending blocks stream")
+						return err
 					}
 				}
-
-				if err := s.OnNewPendingVanguardBlock(s.ctx, vanBlock); err != nil {
-					log.WithError(err).Error("Failed to process the pending vanguard shardInfo")
-					s.conInfoSubErrCh <- errShardInfoProcess
-					return
-				}
+			}
+			if err := s.OnNewPendingVanguardBlock(s.ctx, vanBlock); err != nil {
+				log.WithError(err).Error("Failed to process the pending vanguard shardInfo. Exiting vanguard pending header subscription")
+				return errConsensusInfoProcess
 			}
 		}
-	}()
+	}
 	return nil
 }
 
 // subscribeNewConsensusInfoGRPC
-func (s *Service) subscribeNewConsensusInfoGRPC(client client.VanguardClient) error {
-	fromEpoch := s.orchestratorDB.LatestSavedEpoch()
-	log.WithField("fromEpoch", fromEpoch).Debug("initial from value subscribeNewConsensusInfoGRPC")
-	for i := s.orchestratorDB.LatestSavedEpoch(); i >= 0; {
-		epochInfo, _ := s.orchestratorDB.ConsensusInfo(s.ctx, i)
-		if epochInfo == nil {
-			// epoch info is missing. so subscribe from here. maybe db operation was wrong
-			fromEpoch = i
-			log.WithField("fromEpoch", fromEpoch).Debug("setting from Epoch inside subscribeNewConsensusInfoGRPC")
-		}
-		if i == 0 {
-			break
-		}
-		i--
-	}
-	log.WithField("fromEpoch", fromEpoch).Debug("requesting from value subscribeNewConsensusInfoGRPC")
+func (s *Service) subscribeNewConsensusInfoGRPC(client client.VanguardClient, fromEpoch uint64) error {
 	stream, err := client.StreamMinimalConsensusInfo(fromEpoch)
 	if nil != err {
 		log.WithError(err).Error("Failed to subscribe to stream of new consensus info")
 		return err
 	}
+	log.WithField("fromEpoch", fromEpoch).Info("Successfully subscribed to minimal " +
+		"consensus info to vanguard client")
+	for {
+		select {
+		case <-s.ctx.Done():
+			log.Info("Received cancelled context, closing existing consensus info subscription")
+			return nil
 
-	log.WithField("fromEpoch", fromEpoch).
-		Info("Successfully subscribed to minimal consensus info to vanguard client")
+		case <-s.resubscribeEpochInfoCh:
+			latestFinalizedEpoch := s.orchestratorDB.LatestLatestFinalizedEpoch()
+			fromEpoch = latestFinalizedEpoch
 
-	go func() {
-		for {
-			select {
-			case <-s.ctx.Done():
-				log.Info("Received cancelled context, closing existing consensus info subscription")
-				return
+			// checking consensus info db
+			for i := latestFinalizedEpoch; i >= 0; {
+				epochInfo, _ := s.orchestratorDB.ConsensusInfo(s.ctx, i)
+				if epochInfo == nil {
+					// epoch info is missing. so subscribe from here. maybe db operation was wrong
+					latestFinalizedEpoch = i
+					log.WithField("epoch", fromEpoch).Debug("Found missing epoch info in db, so subscription should " +
+						"be started from this missing epoch")
+				}
+				if i == 0 {
+					break
+				}
+				i--
+			}
+			log.WithField("fromEpoch", fromEpoch).Info("Re-subscribing to new vanguard epoch info stream")
+			stream, err = client.StreamMinimalConsensusInfo(fromEpoch)
+			if nil != err {
+				log.WithError(err).Error("Failed to re-subscribe to new vanguard epoch info info stream, Exiting go routine")
+				return err
+			}
 
-			default:
-				vanMinimalConsensusInfo, err := stream.Recv()
-				if e, ok := status.FromError(err); ok {
-					switch e.Code() {
-					case codes.Canceled, codes.Internal, codes.Unavailable:
-						log.WithError(err).Infof("Trying to restart connection. rpc status: %v", e.Code())
-						s.conInfoSubErrCh <- err
-						return
+		default:
+			vanMinimalConsensusInfo, err := stream.Recv()
+			if e, ok := status.FromError(err); ok {
+				switch e.Code() {
+				case codes.Canceled, codes.Internal, codes.Unavailable:
+					log.WithError(err).Infof("Trying to restart connection. rpc status: %v", e.Code())
+					s.waitForConnection()
+					stream, err = client.StreamMinimalConsensusInfo(fromEpoch)
+					if nil != err {
+						log.WithError(err).Error("Failed to subscribe to stream of new consensus info, Exiting go routine")
+						return err
 					}
-				}
-
-				if nil == vanMinimalConsensusInfo {
-					log.Error("Received nil consensus info")
-					s.conInfoSubErrCh <- errConsensusInfoNil
-					return
-				}
-
-				consensusInfo := &types.MinimalEpochConsensusInfoV2{
-					Epoch:            uint64(vanMinimalConsensusInfo.Epoch),
-					ValidatorList:    vanMinimalConsensusInfo.ValidatorList,
-					EpochStartTime:   vanMinimalConsensusInfo.EpochTimeStart,
-					SlotTimeDuration: time.Duration(vanMinimalConsensusInfo.SlotTimeDuration.Seconds),
-				}
-				// if re-org happens then we get this info not nil
-				if vanMinimalConsensusInfo.ReorgInfo != nil {
-					reorgInfo := &types.Reorg{
-						VanParentHash: vanMinimalConsensusInfo.ReorgInfo.VanParentHash,
-						PanParentHash: vanMinimalConsensusInfo.ReorgInfo.PanParentHash,
-						NewSlot: uint64(vanMinimalConsensusInfo.ReorgInfo.NewSlot),
-					}
-					consensusInfo.ReorgInfo = reorgInfo
-				}
-				// Only non empty check for now
-				if len(consensusInfo.ValidatorList) < 1 {
-					log.WithField("consensusInfo", consensusInfo).WithField("err", err).Error(
-						"empty validator list")
-					s.conInfoSubErrCh <- errInvalidValidatorLength
-					return
-				}
-
-				log.WithField("epoch", vanMinimalConsensusInfo.Epoch).
-					WithField("epochInfo", fmt.Sprintf("%+v", vanMinimalConsensusInfo)).
-					Debug("Received new consensus info for next epoch")
-				if err := s.OnNewConsensusInfo(s.ctx, consensusInfo); err != nil {
-					s.conInfoSubErrCh <- errConsensusInfoProcess
-					return
 				}
 			}
+
+			if nil == vanMinimalConsensusInfo {
+				log.Error("Received nil consensus info, Exiting go routine")
+				return errConsensusInfoNil
+			}
+
+			// Only non empty check for now
+			if len(vanMinimalConsensusInfo.ValidatorList) < 1 {
+				log.WithField("epochInfo", fmt.Sprintf("%+v", vanMinimalConsensusInfo)).
+					Error("Incoming consensus info's validator list is invalid, Exiting go routine")
+				return errInvalidValidatorLength
+			}
+
+			consensusInfo := &types.MinimalEpochConsensusInfoV2{
+				Epoch:            uint64(vanMinimalConsensusInfo.Epoch),
+				ValidatorList:    vanMinimalConsensusInfo.ValidatorList,
+				EpochStartTime:   vanMinimalConsensusInfo.EpochTimeStart,
+				SlotTimeDuration: time.Duration(vanMinimalConsensusInfo.SlotTimeDuration.Seconds),
+			}
+			// if re-org happens then we get this info not nil
+			if vanMinimalConsensusInfo.ReorgInfo != nil {
+				reorgInfo := &types.Reorg{
+					VanParentHash: vanMinimalConsensusInfo.ReorgInfo.VanParentHash,
+					PanParentHash: vanMinimalConsensusInfo.ReorgInfo.PanParentHash,
+					NewSlot:       uint64(vanMinimalConsensusInfo.ReorgInfo.NewSlot),
+				}
+				consensusInfo.ReorgInfo = reorgInfo
+			}
+
+			log.WithField("epoch", vanMinimalConsensusInfo.Epoch).WithField("epochInfo", fmt.Sprintf("%+v", vanMinimalConsensusInfo)).
+				Debug("Received new consensus info")
+			if err := s.OnNewConsensusInfo(s.ctx, consensusInfo); err != nil {
+				log.WithError(err).Error("Closing epoch info subscription, Exiting go routine")
+				return err
+			}
 		}
-	}()
+	}
 
 	return nil
 }

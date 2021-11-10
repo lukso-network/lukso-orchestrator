@@ -201,7 +201,7 @@ func (s *Service) retryToConnectAndSubscribe(err error) {
 	s.connected = false
 	// Back off for a while before resuming dialing the pandora node.
 	time.Sleep(reConPeriod)
-	s.waitForConnection()
+	go s.waitForConnection()
 	// Reset run error in the event of a successful connection.
 	s.runError = nil
 }

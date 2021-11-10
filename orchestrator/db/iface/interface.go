@@ -31,6 +31,8 @@ type ReadOnlyVerifiedSlotInfoDatabase interface {
 	InMemoryLatestVerifiedSlot() uint64
 	LatestVerifiedHeaderHash() common.Hash
 	InMemoryLatestVerifiedHeaderHash() common.Hash
+	LatestLatestFinalizedSlot() uint64
+	LatestLatestFinalizedEpoch() uint64
 }
 
 type VerifiedSlotDatabase interface {
@@ -39,6 +41,9 @@ type VerifiedSlotDatabase interface {
 	SaveVerifiedSlotInfo(slot uint64, slotInfo *types.SlotInfo) error
 	SaveLatestVerifiedSlot(ctx context.Context) error
 	SaveLatestVerifiedHeaderHash() error
+	SaveLatestFinalizedSlot(latestFinalizedSlot uint64) error
+	SaveLatestFinalizedEpoch(latestFinalizedEpoch uint64) error
+	RemoveRangeVerifiedInfo(fromSlot, skipSlot uint64) error
 }
 
 type ReadOnlyInvalidSlotInfoDatabase interface {

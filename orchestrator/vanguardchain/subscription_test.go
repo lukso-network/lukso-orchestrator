@@ -88,7 +88,7 @@ func TestService_OnNewConsensusInfo(t *testing.T) {
 			ReorgInfo: &types.Reorg{
 				VanParentHash: vanBlockHash.Bytes(),
 				PanParentHash: panBlockHash.Bytes(),
-				NewSlot: uint64(66),
+				NewSlot:       uint64(66),
 			},
 		}
 		require.NoError(t, newTestDB.SaveVerifiedSlotInfo(reorgInfoEpoch2.Epoch*32, &types.SlotInfo{
