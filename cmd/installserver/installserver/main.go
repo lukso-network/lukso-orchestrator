@@ -13,7 +13,7 @@ func main() {
 
 // DownloadAndServe serve you l15 install script
 func DownloadAndServe(w http.ResponseWriter, r *http.Request) {
-	resp, err := http.Get("https://raw.githubusercontent.com/lukso-network/lukso-orchestrator/feature/l15-setup/scripts/install-unix.sh")
+	resp, err := http.Get("https://raw.githubusercontent.com/lukso-network/network-lukso-cli/main/shell_scripts/install-unix.sh")
 
 	if nil != err {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
