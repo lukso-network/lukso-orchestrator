@@ -2,10 +2,10 @@ package vanguardchain
 
 import (
 	"fmt"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/client"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	"github.com/pkg/errors"
 	eth2Types "github.com/prysmaticlabs/eth2-types"
+	ethpb "github.com/prysmaticlabs/prysm/proto/eth/v1alpha1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"time"
@@ -19,9 +19,13 @@ var (
 )
 
 // subscribeVanNewPendingBlockHash
-func (s *Service) subscribeVanNewPendingBlockHash(client client.VanguardClient, fromSlot uint64) error {
+func (s *Service) subscribeVanNewPendingBlockHash(fromSlot uint64) error {
 	var blockRoot []byte
-	stream, err := client.StreamNewPendingBlocks(blockRoot, eth2Types.Slot(fromSlot))
+	stream, err := s.beaconClient.StreamNewPendingBlocks(s.ctx,
+		&ethpb.StreamPendingBlocksRequest{
+			BlockRoot: blockRoot,
+			FromSlot:  eth2Types.Slot(fromSlot),
+		})
 	if nil != err {
 		log.WithError(err).Error("Failed to subscribe to stream of new pending blocks")
 		return err
@@ -35,7 +39,11 @@ func (s *Service) subscribeVanNewPendingBlockHash(client client.VanguardClient, 
 
 		case <-s.resubscribePendingBlkCh:
 			fromSlot = s.orchestratorDB.LatestLatestFinalizedSlot()
-			stream, err = client.StreamNewPendingBlocks(blockRoot, eth2Types.Slot(fromSlot))
+			stream, err = s.beaconClient.StreamNewPendingBlocks(s.ctx,
+				&ethpb.StreamPendingBlocksRequest{
+					BlockRoot: blockRoot,
+					FromSlot:  eth2Types.Slot(fromSlot),
+				})
 			if err != nil {
 				log.WithError(err).Error("Failed to re-subscribe to new pending blocks stream")
 				return err
@@ -49,7 +57,11 @@ func (s *Service) subscribeVanNewPendingBlockHash(client client.VanguardClient, 
 				case codes.Canceled, codes.Internal, codes.Unavailable:
 					log.WithError(err).Infof("Trying to restart connection. rpc status: %v", e.Code())
 					s.waitForConnection()
-					stream, err = client.StreamNewPendingBlocks(blockRoot, eth2Types.Slot(fromSlot))
+					stream, err = s.beaconClient.StreamNewPendingBlocks(s.ctx,
+						&ethpb.StreamPendingBlocksRequest{
+							BlockRoot: blockRoot,
+							FromSlot:  eth2Types.Slot(fromSlot),
+						})
 					if err != nil {
 						log.WithError(err).Error("Failed to subscribe to new pending blocks stream")
 						return err
@@ -66,8 +78,11 @@ func (s *Service) subscribeVanNewPendingBlockHash(client client.VanguardClient, 
 }
 
 // subscribeNewConsensusInfoGRPC
-func (s *Service) subscribeNewConsensusInfoGRPC(client client.VanguardClient, fromEpoch uint64) error {
-	stream, err := client.StreamMinimalConsensusInfo(fromEpoch)
+func (s *Service) subscribeNewConsensusInfoGRPC(fromEpoch uint64) error {
+	stream, err := s.beaconClient.StreamMinimalConsensusInfo(
+		s.ctx,
+		&ethpb.MinimalConsensusInfoRequest{FromEpoch: eth2Types.Epoch(fromEpoch)},
+	)
 	if nil != err {
 		log.WithError(err).Error("Failed to subscribe to stream of new consensus info")
 		return err
@@ -99,7 +114,10 @@ func (s *Service) subscribeNewConsensusInfoGRPC(client client.VanguardClient, fr
 				i--
 			}
 			log.WithField("fromEpoch", fromEpoch).Info("Re-subscribing to new vanguard epoch info stream")
-			stream, err = client.StreamMinimalConsensusInfo(fromEpoch)
+			stream, err = s.beaconClient.StreamMinimalConsensusInfo(
+				s.ctx,
+				&ethpb.MinimalConsensusInfoRequest{FromEpoch: eth2Types.Epoch(fromEpoch)},
+			)
 			if nil != err {
 				log.WithError(err).Error("Failed to re-subscribe to new vanguard epoch info info stream, Exiting go routine")
 				return err
@@ -112,7 +130,10 @@ func (s *Service) subscribeNewConsensusInfoGRPC(client client.VanguardClient, fr
 				case codes.Canceled, codes.Internal, codes.Unavailable:
 					log.WithError(err).Infof("Trying to restart connection. rpc status: %v", e.Code())
 					s.waitForConnection()
-					stream, err = client.StreamMinimalConsensusInfo(fromEpoch)
+					stream, err = s.beaconClient.StreamMinimalConsensusInfo(
+						s.ctx,
+						&ethpb.MinimalConsensusInfoRequest{FromEpoch: eth2Types.Epoch(fromEpoch)},
+					)
 					if nil != err {
 						log.WithError(err).Error("Failed to subscribe to stream of new consensus info, Exiting go routine")
 						return err

@@ -2,14 +2,18 @@ package vanguardchain
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum/event"
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
+	"github.com/lukso-network/lukso-orchestrator/shared/types"
+	ethpb "github.com/prysmaticlabs/prysm/proto/eth/v1alpha1"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/protobuf/types/known/emptypb"
+	"math"
 	"sync"
 	"time"
-
-	"github.com/ethereum/go-ethereum/event"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/client"
-	"github.com/lukso-network/lukso-orchestrator/shared/types"
 )
 
 // time to wait before trying to reconnect with the vanguard node.
@@ -17,8 +21,6 @@ var (
 	reConPeriod               = 2 * time.Second
 	syncStatusPollingInterval = 30 * time.Second
 )
-
-type DIALGRPCFn func(endpoint string) (client.VanguardClient, error)
 
 // Service
 // 	- maintains connection with vanguard chain
@@ -36,17 +38,19 @@ type Service struct {
 	// vanguard chain related attributes
 	connectedVanguard bool
 	vanGRPCEndpoint   string
-	vanGRPCClient     client.VanguardClient
-	dialGRPCFn        DIALGRPCFn
+	dialOpts          []grpc.DialOption
+	beaconClient      ethpb.BeaconChainClient
+	validatorClient   ethpb.BeaconNodeValidatorClient
+	nodeClient        ethpb.NodeClient
+	conn              *grpc.ClientConn
 
 	// subscription
 	consensusInfoFeed        event.Feed
 	scope                    event.SubscriptionScope
 	vanguardShardingInfoFeed event.Feed
-	// db support
-	orchestratorDB db.Database
-	// lru cache support
-	shardingInfoCache       cache.VanguardShardCache
+
+	orchestratorDB          db.Database              // db support
+	shardingInfoCache       cache.VanguardShardCache // lru cache support
 	resubscribePendingBlkCh chan struct{}
 	resubscribeEpochInfoCh  chan struct{}
 }
@@ -57,7 +61,6 @@ func NewService(
 	vanGRPCEndpoint string,
 	db db.Database,
 	cache cache.VanguardShardCache,
-	dialGRPCFn DIALGRPCFn,
 ) (*Service, error) {
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -66,7 +69,6 @@ func NewService(
 		ctx:                     ctx,
 		cancel:                  cancel,
 		vanGRPCEndpoint:         vanGRPCEndpoint,
-		dialGRPCFn:              dialGRPCFn,
 		orchestratorDB:          db,
 		shardingInfoCache:       cache,
 		resubscribeEpochInfoCh:  make(chan struct{}),
@@ -76,10 +78,23 @@ func NewService(
 
 // Start a consensus info fetcher service's main event loop.
 func (s *Service) Start() {
-	// Exit early if eth1 endpoint is not set.
+	// Exit early if endpoint is not set.
 	if s.vanGRPCEndpoint == "" {
 		return
 	}
+
+	dialOpts := constructDialOptions(math.MaxInt32, "", 32, time.Minute*6)
+	if dialOpts == nil {
+		log.Warn("Failed to construct dial options for vanguard client")
+		return
+	}
+
+	c, err := grpc.DialContext(s.ctx, s.vanGRPCEndpoint, dialOpts...)
+	if err != nil {
+		log.WithField("endpoint", s.vanGRPCEndpoint).WithError(err).Warn("Could not dial endpoint")
+		return
+	}
+	s.conn = c
 	go s.run()
 }
 
@@ -88,6 +103,7 @@ func (s *Service) Stop() error {
 		defer s.cancel()
 	}
 	s.scope.Close()
+	s.conn.Close()
 	return nil
 }
 
@@ -105,7 +121,7 @@ func (s *Service) Status() error {
 
 // run subscribes to all the services for the ETH1.0 chain.
 func (s *Service) run() {
-	if s.vanGRPCClient == nil {
+	if s.conn == nil {
 		log.Error("Vanguard client has not successfully initiated, exiting vanguard chain service!")
 		return
 	}
@@ -132,15 +148,15 @@ func (s *Service) run() {
 
 	latestFinalizedSlot := s.orchestratorDB.LatestLatestFinalizedSlot()
 
-	go s.subscribeNewConsensusInfoGRPC(s.vanGRPCClient, fromEpoch)
-	go s.subscribeVanNewPendingBlockHash(s.vanGRPCClient, latestFinalizedSlot)
+	go s.subscribeNewConsensusInfoGRPC(fromEpoch)
+	go s.subscribeVanNewPendingBlockHash(latestFinalizedSlot)
 	go s.syncWithVanguardHead()
 }
 
 // waitForConnection waits for a connection with vanguard chain. Until a successful with
 // vanguard chain, it retries again and again.
 func (s *Service) waitForConnection() {
-	if _, err := s.vanGRPCClient.ChainHead(); err == nil {
+	if _, err := s.beaconClient.GetChainHead(s.ctx, &emptypb.Empty{}); err == nil {
 		log.WithField("vanguardEndpoint", s.vanGRPCEndpoint).Info("Connected vanguard chain")
 		s.connectedVanguard = true
 		return
@@ -152,7 +168,7 @@ func (s *Service) waitForConnection() {
 	for {
 		select {
 		case <-ticker.C:
-			if _, err := s.vanGRPCClient.ChainHead(); err != nil {
+			if _, err := s.beaconClient.GetChainHead(s.ctx, &emptypb.Empty{}); err != nil {
 				log.WithField("vanguardEndpoint", s.vanGRPCEndpoint).Warn("Could not connect or subscribe to vanguard chain")
 				continue
 			}
@@ -174,4 +190,44 @@ func (s *Service) SubscribeMinConsensusInfoEvent(ch chan<- *types.MinimalEpochCo
 
 func (s *Service) SubscribeShardInfoEvent(ch chan<- *types.VanguardShardInfo) event.Subscription {
 	return s.scope.Track(s.vanguardShardingInfoFeed.Subscribe(ch))
+}
+
+// constructDialOptions constructs a list of grpc dial options
+func constructDialOptions(
+	maxCallRecvMsgSize int,
+	withCert string,
+	grpcRetries uint,
+	grpcRetryDelay time.Duration,
+	extraOpts ...grpc.DialOption,
+) []grpc.DialOption {
+	var transportSecurity grpc.DialOption
+	if withCert != "" {
+		creds, err := credentials.NewClientTLSFromFile(withCert, "")
+		if err != nil {
+			log.Errorf("Could not get valid credentials: %v", err)
+			return nil
+		}
+		transportSecurity = grpc.WithTransportCredentials(creds)
+	} else {
+		transportSecurity = grpc.WithInsecure()
+		log.Warn("You are using an insecure gRPC connection. If you are running your beacon node and " +
+			"validator on the same machines, you can ignore this message. If you want to know " +
+			"how to enable secure connections, see: https://docs.prylabs.network/docs/prysm-usage/secure-grpc")
+	}
+
+	if maxCallRecvMsgSize == 0 {
+		maxCallRecvMsgSize = 10 * 5 << 20 // Default 50Mb
+	}
+
+	dialOpts := []grpc.DialOption{
+		transportSecurity,
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallRecvMsgSize(maxCallRecvMsgSize),
+			grpc_retry.WithMax(grpcRetries),
+			grpc_retry.WithBackoff(grpc_retry.BackoffLinear(grpcRetryDelay)),
+		),
+	}
+
+	dialOpts = append(dialOpts, extraOpts...)
+	return dialOpts
 }
