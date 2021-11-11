@@ -28,9 +28,7 @@ type ReadOnlyVerifiedSlotInfoDatabase interface {
 	VerifiedSlotInfo(slot uint64) (*types.SlotInfo, error)
 	VerifiedSlotInfos(fromSlot uint64) (map[uint64]*types.SlotInfo, error)
 	LatestSavedVerifiedSlot() uint64
-	InMemoryLatestVerifiedSlot() uint64
 	LatestVerifiedHeaderHash() common.Hash
-	InMemoryLatestVerifiedHeaderHash() common.Hash
 	LatestLatestFinalizedSlot() uint64
 	LatestLatestFinalizedEpoch() uint64
 }

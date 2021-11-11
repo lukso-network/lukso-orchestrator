@@ -42,10 +42,10 @@ func TestStore_LatestVerifiedSuite(t *testing.T) {
 
 	require.NoError(t, db.SaveVerifiedSlotInfo(customSlotInfoHeight, customSlotInfo))
 	require.NoError(t, db.SaveLatestVerifiedSlot(ctx))
-	require.Equal(t, customSlotInfoHeight, db.InMemoryLatestVerifiedSlot())
+	require.Equal(t, customSlotInfoHeight, db.LatestSavedVerifiedSlot())
 	// this is failing, implementation is wrong
-	require.Equal(t, customSlotInfoHeight, db.InMemoryLatestVerifiedSlot())
-	require.Equal(t, customSlotInfo.PandoraHeaderHash, db.InMemoryLatestVerifiedHeaderHash())
+	require.Equal(t, customSlotInfoHeight, db.LatestSavedVerifiedSlot())
+	require.Equal(t, customSlotInfo.PandoraHeaderHash, db.LatestVerifiedHeaderHash())
 	require.NoError(t, db.SaveLatestVerifiedHeaderHash())
 	require.Equal(t, customSlotInfo.PandoraHeaderHash, db.LatestVerifiedHeaderHash())
 }
@@ -62,7 +62,7 @@ func TestStore_FindVerifiedSlotNumber(t *testing.T) {
 	require.NoError(t, db.SaveVerifiedSlotInfo(customSlotInfoHeight, customSlotInfo))
 	require.NoError(t, db.SaveLatestVerifiedSlot(ctx))
 	// This is not working properly in my opinion, this by design should be highestVerifiedSlot, not latestVerifiedSlot
-	require.Equal(t, customSlotInfoHeight, db.InMemoryLatestVerifiedSlot())
+	require.Equal(t, customSlotInfoHeight, db.LatestSavedVerifiedSlot())
 
 	t.Run("should find verified slot with matching slot", func(t *testing.T) {
 		slotNumber := db.FindVerifiedSlotNumber(customSlotInfo, customSlotInfoHeight)

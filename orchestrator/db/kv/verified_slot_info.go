@@ -107,7 +107,7 @@ func (s *Store) SaveLatestVerifiedSlot(ctx context.Context) error {
 
 	// storing latest epoch number into db
 	return s.db.Update(func(tx *bolt.Tx) error {
-		bkt := tx.Bucket(verifiedSlotInfosBucket)
+		bkt := tx.Bucket(latestInfoMarkerBucket)
 		slotBytes := bytesutil.Uint64ToBytesBigEndian(s.latestVerifiedSlot)
 		if err := bkt.Put(latestSavedVerifiedSlotKey, slotBytes); err != nil {
 			return err
@@ -122,7 +122,7 @@ func (s *Store) LatestSavedVerifiedSlot() uint64 {
 	// Db is not prepared yet. Retrieve latest saved epoch number from db
 	if !s.isRunning {
 		s.db.View(func(tx *bolt.Tx) error {
-			bkt := tx.Bucket(verifiedSlotInfosBucket)
+			bkt := tx.Bucket(latestInfoMarkerBucket)
 			slotBytes := bkt.Get(latestSavedVerifiedSlotKey[:])
 			// not found the latest epoch in db. so latest epoch will be zero
 			if slotBytes == nil {
@@ -138,13 +138,6 @@ func (s *Store) LatestSavedVerifiedSlot() uint64 {
 	return latestSavedVerifiedSlot
 }
 
-func (s *Store) InMemoryLatestVerifiedSlot() uint64 {
-	s.Mutex.Lock()
-	defer s.Mutex.Unlock()
-
-	return s.latestVerifiedSlot
-}
-
 // SaveLatestEpoch
 func (s *Store) SaveLatestVerifiedHeaderHash() error {
 	s.Mutex.Lock()
@@ -152,7 +145,7 @@ func (s *Store) SaveLatestVerifiedHeaderHash() error {
 
 	// storing latest epoch number into db
 	return s.db.Update(func(tx *bolt.Tx) error {
-		bkt := tx.Bucket(verifiedSlotInfosBucket)
+		bkt := tx.Bucket(latestInfoMarkerBucket)
 		headerHashBytes := s.latestHeaderHash.Bytes()
 		if err := bkt.Put(latestHeaderHashKey, headerHashBytes); err != nil {
 			return err
@@ -168,7 +161,7 @@ func (s *Store) LatestVerifiedHeaderHash() common.Hash {
 	// Db is not prepared yet. Retrieve latest saved epoch number from db
 	if !s.isRunning {
 		s.db.View(func(tx *bolt.Tx) error {
-			bkt := tx.Bucket(verifiedSlotInfosBucket)
+			bkt := tx.Bucket(latestInfoMarkerBucket)
 			latestHeaderHashBytes := bkt.Get(latestHeaderHashKey[:])
 			// not found the latest epoch in db. so latest epoch will be zero
 			if latestHeaderHashBytes == nil {
@@ -182,13 +175,6 @@ func (s *Store) LatestVerifiedHeaderHash() common.Hash {
 	}
 	// db is already started so latest epoch must be initialized in store
 	return latestHeaderHash
-}
-
-func (s *Store) InMemoryLatestVerifiedHeaderHash() common.Hash {
-	s.Mutex.Lock()
-	defer s.Mutex.Unlock()
-
-	return s.latestHeaderHash
 }
 
 // FindVerifiedSlotNumber will try to find matching of verified slot info
