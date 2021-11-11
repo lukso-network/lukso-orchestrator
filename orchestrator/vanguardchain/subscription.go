@@ -2,13 +2,14 @@ package vanguardchain
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	"github.com/pkg/errors"
 	eth2Types "github.com/prysmaticlabs/eth2-types"
 	ethpb "github.com/prysmaticlabs/prysm/proto/eth/v1alpha1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"time"
 )
 
 var (
@@ -34,11 +35,11 @@ func (s *Service) subscribeVanNewPendingBlockHash(fromSlot uint64) error {
 	for {
 		select {
 		case <-s.ctx.Done():
-			log.Debug("closing context, exiting vanguard pending block streaming subscription!")
+			log.Info("Received cancelled context, exiting vanguard pending block streaming subscription!")
 			return nil
 
 		case <-s.stopPendingBlkSubCh:
-			log.Debug("closing triggered by reorg, exiting vanguard pending block streaming subscription!")
+			log.Info("Received re-org event, exiting vanguard pending block streaming subscription!")
 			return nil
 
 		default:
@@ -59,7 +60,7 @@ func (s *Service) subscribeVanNewPendingBlockHash(fromSlot uint64) error {
 					}
 				}
 			}
-			if err := s.OnNewPendingVanguardBlock(s.ctx, vanBlockInfo); err != nil {
+			if err := s.onNewPendingVanguardBlock(s.ctx, vanBlockInfo); err != nil {
 				log.WithError(err).Error("Failed to process the pending vanguard shardInfo. Exiting vanguard pending header subscription")
 				return errConsensusInfoProcess
 			}
@@ -93,7 +94,9 @@ func (s *Service) subscribeNewConsensusInfoGRPC(fromEpoch uint64) error {
 				switch e.Code() {
 				case codes.Canceled, codes.Internal, codes.Unavailable:
 					log.WithError(err).Infof("Trying to restart connection. rpc status: %v", e.Code())
+
 					s.waitForConnection()
+
 					stream, err = s.beaconClient.StreamMinimalConsensusInfo(
 						s.ctx,
 						&ethpb.MinimalConsensusInfoRequest{FromEpoch: eth2Types.Epoch(fromEpoch)},
@@ -124,6 +127,7 @@ func (s *Service) subscribeNewConsensusInfoGRPC(fromEpoch uint64) error {
 				SlotTimeDuration: time.Duration(vanMinimalConsensusInfo.SlotTimeDuration.Seconds),
 				FinalizedSlot:    s.getFinalizedSlot(),
 			}
+
 			// if re-org happens then we get this info not nil
 			if vanMinimalConsensusInfo.ReorgInfo != nil {
 				reorgInfo := &types.Reorg{
@@ -136,7 +140,7 @@ func (s *Service) subscribeNewConsensusInfoGRPC(fromEpoch uint64) error {
 
 			log.WithField("epoch", vanMinimalConsensusInfo.Epoch).WithField("epochInfo", fmt.Sprintf("%+v", vanMinimalConsensusInfo)).
 				Debug("Received new consensus info")
-			if err := s.OnNewConsensusInfo(s.ctx, consensusInfo); err != nil {
+			if err := s.onNewConsensusInfo(s.ctx, consensusInfo); err != nil {
 				log.WithError(err).Error("Failed to handle consensus info. Closing epoch info subscription, Exiting go routine")
 				return err
 			}

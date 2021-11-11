@@ -10,7 +10,7 @@ package vanguardchain
 //
 //	bs := Service{
 //		ctx:            ctx,
-//		orchestratorDB: testDB,
+//		db: testDB,
 //		beaconClient:   client,
 //	}
 //	_, cancel := context.WithCancel(ctx)
@@ -68,7 +68,7 @@ package vanguardchain
 //		ReorgInfo:        nil,
 //	}
 //
-//	require.NoError(t, vanSvc.OnNewConsensusInfo(ctx, nonReorgInfo))
+//	require.NoError(t, vanSvc.onNewConsensusInfo(ctx, nonReorgInfo))
 //	require.Equal(t, nonReorgInfo.Epoch, newTestDB.LatestSavedEpoch())
 //	fetchedConsensusInfo, err := newTestDB.ConsensusInfo(ctx, nonReorgInfo.Epoch)
 //	require.NoError(t, err)
@@ -77,7 +77,7 @@ package vanguardchain
 //
 //	t.Run("should revert to epoch 1", func(t *testing.T) {
 //		nonReorgInfoEpoch1 := &types.MinimalEpochConsensusInfoV2{Epoch: 1}
-//		require.NoError(t, vanSvc.OnNewConsensusInfo(ctx, nonReorgInfoEpoch1))
+//		require.NoError(t, vanSvc.onNewConsensusInfo(ctx, nonReorgInfoEpoch1))
 //		require.Equal(t, nonReorgInfoEpoch1.Epoch, newTestDB.LatestSavedEpoch())
 //
 //		//	 PROBLEM NO 1 FOUND. CONSENSUS INFOS CAN BE INSERTED NONCONSECUTIVE
@@ -88,7 +88,7 @@ package vanguardchain
 //	t.Run("should react to reorg info", func(t *testing.T) {
 //		for epoch := uint64(0); epoch <= nonReorgInfo.Epoch; epoch++ {
 //			epochInfoRecord := &types.MinimalEpochConsensusInfoV2{Epoch: epoch}
-//			require.NoError(t, vanSvc.OnNewConsensusInfo(ctx, epochInfoRecord))
+//			require.NoError(t, vanSvc.onNewConsensusInfo(ctx, epochInfoRecord))
 //		}
 //
 //		// Missing scenario is what if ReorgInfo is not nil, but its empty
@@ -112,7 +112,7 @@ package vanguardchain
 //		consensusInfos, currentErr := newTestDB.ConsensusInfos(reorgInfoEpoch2.Epoch)
 //		require.NoError(t, currentErr)
 //		require.Equal(t, true, len(consensusInfos) == int(nonReorgInfo.Epoch-reorgInfoEpoch2.Epoch)+1)
-//		require.NoError(t, vanSvc.OnNewConsensusInfo(ctx, reorgInfoEpoch2))
+//		require.NoError(t, vanSvc.onNewConsensusInfo(ctx, reorgInfoEpoch2))
 //
 //		consensusInfos, currentErr = newTestDB.ConsensusInfos(reorgInfoEpoch2.Epoch)
 //		require.NoError(t, currentErr)

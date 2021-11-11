@@ -46,11 +46,11 @@ package vanguardchain
 //			}},
 //		},
 //	}
-//	require.NoError(t, vanSvc.OnNewPendingVanguardBlock(ctx, beaconBlock))
+//	require.NoError(t, vanSvc.onNewPendingVanguardBlock(ctx, beaconBlock))
 //	time.Sleep(100 * time.Millisecond)
 //	assert.LogsContain(t, hook, "New vanguard shard info has arrived")
 //
-//	require.NoError(t, vanSvc.OnNewPendingVanguardBlock(ctx, beaconBlock))
+//	require.NoError(t, vanSvc.onNewPendingVanguardBlock(ctx, beaconBlock))
 //
 //	time.Sleep(100 * time.Millisecond)
 //	assert.LogsContain(t, hook, "New vanguard shard info has arrived")

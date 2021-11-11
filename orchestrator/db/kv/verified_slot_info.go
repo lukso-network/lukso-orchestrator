@@ -75,9 +75,6 @@ func (s *Store) VerifiedSlotInfos(fromSlot uint64) (map[uint64]*types.SlotInfo, 
 // SaveVerifiedSlotInfo will insert slot information to particular slot to db and cache
 // After save operations you must call SaveLatestVerifiedSlot to push in memory slot height to db
 func (s *Store) SaveVerifiedSlotInfo(slot uint64, slotInfo *types.SlotInfo) error {
-	s.Mutex.Lock()
-	defer s.Mutex.Unlock()
-
 	// storing consensus info into cache and db
 	return s.db.Update(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(verifiedSlotInfosBucket)
@@ -98,9 +95,6 @@ func (s *Store) SaveVerifiedSlotInfo(slot uint64, slotInfo *types.SlotInfo) erro
 
 // SaveLatestEpoch
 func (s *Store) SaveLatestVerifiedSlot(ctx context.Context, slot uint64) error {
-	s.Mutex.Lock()
-	defer s.Mutex.Unlock()
-
 	// storing latest epoch number into db
 	return s.db.Update(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(latestInfoMarkerBucket)
@@ -136,9 +130,6 @@ func (s *Store) LatestSavedVerifiedSlot() uint64 {
 
 // SaveLatestEpoch
 func (s *Store) SaveLatestVerifiedHeaderHash(hash common.Hash) error {
-	s.Mutex.Lock()
-	defer s.Mutex.Unlock()
-
 	// storing latest epoch number into db
 	return s.db.Update(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(latestInfoMarkerBucket)
@@ -190,28 +181,24 @@ func (s *Store) FindVerifiedSlotNumber(info *types.SlotInfo, fromSlot uint64) ui
 	return 0
 }
 
+// RemoveRangeVerifiedInfo method deletes [fromSlot, latestVerifiedSlot]
 func (s *Store) RemoveRangeVerifiedInfo(fromSlot, skipSlot uint64) error {
-	s.Mutex.Lock()
-	defer s.Mutex.Unlock()
-
 	// storing latest epoch number into db
 	return s.db.Update(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(verifiedSlotInfosBucket)
 		cursor := bkt.Cursor()
 		for key, val := cursor.Last(); key != nil && val != nil; key, val = cursor.Prev() {
-			if string(key) == string(latestHeaderHashKey) || string(key) == string(latestSavedVerifiedSlotKey) {
-				continue
-			}
 			slotNumber := bytesutil.BytesToUint64BigEndian(key)
 			if slotNumber != skipSlot {
 				s.verifiedSlotInfoCache.Del(slotNumber)
-
-				err := cursor.Delete()
-				if err != nil {
-					return err
+				if slotNumber >= fromSlot {
+					if err := cursor.Delete(); err != nil {
+						return err
+					}
+					log.WithField("slot", slotNumber).Warn("Removed verified slot info!")
 				}
 			}
-			if slotNumber == fromSlot {
+			if slotNumber <= fromSlot {
 				return nil
 			}
 		}

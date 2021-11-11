@@ -2,6 +2,10 @@ package vanguardchain
 
 import (
 	"context"
+	"math"
+	"sync"
+	"time"
+
 	"github.com/ethereum/go-ethereum/event"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
@@ -11,9 +15,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/types/known/emptypb"
-	"math"
-	"sync"
-	"time"
 )
 
 // time to wait before trying to reconnect with the vanguard node.
@@ -49,7 +50,7 @@ type Service struct {
 	scope                    event.SubscriptionScope
 	vanguardShardingInfoFeed event.Feed
 
-	orchestratorDB      db.Database              // db support
+	db                  db.Database              // db support
 	shardingInfoCache   cache.VanguardShardCache // lru cache support
 	stopPendingBlkSubCh chan struct{}
 	finalizedSlot       uint64
@@ -74,7 +75,7 @@ func NewService(
 		ctx:                 ctx,
 		cancel:              cancel,
 		vanGRPCEndpoint:     vanGRPCEndpoint,
-		orchestratorDB:      db,
+		db:                  db,
 		shardingInfoCache:   cache,
 		stopPendingBlkSubCh: make(chan struct{}),
 		finalizedSlot:       finalizedSlotInDB,
@@ -144,10 +145,10 @@ func (s *Service) run() {
 
 	// checking consensus info db
 	for i := latestFinalizedEpoch; i >= 0; {
-		epochInfo, _ := s.orchestratorDB.ConsensusInfo(s.ctx, i)
+		epochInfo, _ := s.db.ConsensusInfo(s.ctx, i)
 		if epochInfo == nil {
 			// epoch info is missing. so subscribe from here. maybe db operation was wrong
-			latestFinalizedEpoch = i
+			fromEpoch = i
 			log.WithField("epoch", fromEpoch).Debug("Found missing epoch info in db, so subscription should " +
 				"be started from this missing epoch")
 		}

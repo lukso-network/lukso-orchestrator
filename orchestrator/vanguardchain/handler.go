@@ -3,57 +3,57 @@ package vanguardchain
 import (
 	"context"
 	"errors"
+
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	eth "github.com/prysmaticlabs/prysm/proto/eth/v1alpha1"
 	"github.com/prysmaticlabs/prysm/proto/eth/v1alpha1/wrapper"
 )
 
-// OnNewConsensusInfo :
+// onNewConsensusInfo :
 //	- sends the new consensus info to all subscribed pandora clients
 //  - store consensus info into cache as well as into kv consensusInfoDB
-func (s *Service) OnNewConsensusInfo(ctx context.Context, consensusInfo *types.MinimalEpochConsensusInfoV2) error {
+func (s *Service) onNewConsensusInfo(ctx context.Context, consensusInfo *types.MinimalEpochConsensusInfoV2) error {
 	nsent := s.consensusInfoFeed.Send(consensusInfo)
 	log.WithField("nsent", nsent).Trace("Send consensus info to subscribers")
 
 	if consensusInfo.ReorgInfo != nil {
+		// Stop subscription of vanguard new pending blocks
+		s.stopSubscription()
+		// TODO- Stop pandora pending block subscription
+
 		// reorg happened. So remove info from database
 		revertSlot := s.getFinalizedSlot()
-		if revertSlot > 0 {
-			revertSlot = revertSlot + 1
-		}
 
 		log.WithField("curSlot", consensusInfo.ReorgInfo.NewSlot).WithField("revertSlot", revertSlot).
 			Warn("Stop subscription and reverting orchestrator db on live")
 
-		// Stop subscription of vanguard new pending blocks
-		s.stopSubscription()
-
 		// Removing slot infos from verified slot info db
-		err := s.orchestratorDB.RemoveRangeVerifiedInfo(revertSlot, 0)
-		if err != nil {
-			log.WithError(err).Error("found error while reverting orchestrator database")
+		if err := s.reorgDB(revertSlot); err != nil {
+			log.WithError(err).Warn("Failed to revert verified info db")
 			return err
+
 		}
 
 		// Re-subscribe vanguard new pending blocks
 		go s.subscribeVanNewPendingBlockHash(revertSlot)
+		//TODO- start pandora pending block subscription
 	}
 
-	if err := s.orchestratorDB.SaveConsensusInfo(ctx, consensusInfo.ConvertToEpochInfo()); err != nil {
+	if err := s.db.SaveConsensusInfo(ctx, consensusInfo.ConvertToEpochInfo()); err != nil {
 		log.WithError(err).Warn("failed to save consensus info into consensusInfoDB!")
 		return err
 	}
 
-	if err := s.orchestratorDB.SaveLatestEpoch(ctx, consensusInfo.Epoch); err != nil {
+	if err := s.db.SaveLatestEpoch(ctx, consensusInfo.Epoch); err != nil {
 		log.WithError(err).Warn("failed to save latest epoch into consensusInfoDB!")
 		return err
 	}
 	return nil
 }
 
-// OnNewPendingVanguardBlock
-func (s *Service) OnNewPendingVanguardBlock(ctx context.Context, blockInfo *eth.StreamPendingBlockInfo) error {
+// onNewPendingVanguardBlock
+func (s *Service) onNewPendingVanguardBlock(ctx context.Context, blockInfo *eth.StreamPendingBlockInfo) error {
 	block := blockInfo.Block
 	blockHash, err := block.HashTreeRoot()
 	if nil != err {
@@ -69,7 +69,7 @@ func (s *Service) OnNewPendingVanguardBlock(ctx context.Context, blockInfo *eth.
 	}
 
 	// If current orchestrator's finalize epoch is less than incoming finalized epoch, then update into db and in-memory
-	if s.finalizedEpoch < uint64(blockInfo.FinalizedEpoch) {
+	if s.getFinalizedEpoch() < uint64(blockInfo.FinalizedEpoch) {
 		newFS := uint64(blockInfo.FinalizedSlot)
 		newFE := uint64(blockInfo.FinalizedEpoch)
 
