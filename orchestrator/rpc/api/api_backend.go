@@ -84,7 +84,7 @@ func (backend *Backend) GetSlotStatus(ctx context.Context, slot uint64, hash com
 	status := types.Pending
 
 	//when requested slot is greater than latest verified slot
-	latestVerifiedSlot := backend.VerifiedSlotInfoDB.InMemoryLatestVerifiedSlot()
+	latestVerifiedSlot := backend.VerifiedSlotInfoDB.LatestSavedVerifiedSlot()
 	var slotInfo *types.SlotInfo
 
 	logPrinter := func(stat types.Status) {
