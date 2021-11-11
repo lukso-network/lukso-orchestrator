@@ -6,6 +6,7 @@ import (
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
+	eth2Types "github.com/prysmaticlabs/eth2-types"
 	ethpb "github.com/prysmaticlabs/prysm/proto/eth/v1alpha1"
 	"golang.org/x/crypto/sha3"
 	"math/big"
@@ -111,5 +112,28 @@ func NewPandoraShard(panHeader *eth1Types.Header) *ethpb.PandoraShard {
 		TxHash:      panHeader.TxHash.Bytes(),
 		ReceiptHash: panHeader.ReceiptHash.Bytes(),
 		Signature:   []byte("df7284286281db4c0bea60b338a62ddfde0d34736ad2657f2bea159fc8c6675cd5bbb68373e9f3d4bba017a82ed0d9b9"),
+	}
+}
+
+// NewBeaconBlock creates a beacon block with minimum marshalable fields.
+func NewBeaconBlock(slot uint64) *ethpb.BeaconBlock {
+	return &ethpb.BeaconBlock{
+		ParentRoot: make([]byte, 32),
+		StateRoot:  make([]byte, 32),
+		Slot:       eth2Types.Slot(slot),
+		Body: &ethpb.BeaconBlockBody{
+			RandaoReveal: make([]byte, 96),
+			Eth1Data: &ethpb.Eth1Data{
+				DepositRoot: make([]byte, 32),
+				BlockHash:   make([]byte, 32),
+			},
+			Graffiti:          make([]byte, 32),
+			Attestations:      []*ethpb.Attestation{},
+			AttesterSlashings: []*ethpb.AttesterSlashing{},
+			Deposits:          []*ethpb.Deposit{},
+			ProposerSlashings: []*ethpb.ProposerSlashing{},
+			VoluntaryExits:    []*ethpb.SignedVoluntaryExit{},
+			PandoraShard:      []*ethpb.PandoraShard{NewPandoraShard(NewEth1Header(slot))},
+		},
 	}
 }

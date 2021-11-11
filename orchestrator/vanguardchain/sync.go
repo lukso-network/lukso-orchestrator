@@ -3,6 +3,7 @@ package vanguardchain
 import (
 	"github.com/ethereum/go-ethereum/common"
 	ethpb "github.com/prysmaticlabs/prysm/proto/eth/v1alpha1"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"time"
 )
 
@@ -14,18 +15,18 @@ func (s *Service) syncWithVanguardHead() {
 	for {
 		select {
 		case <-ticker.C:
-			status, err := s.vanGRPCClient.SyncStatus()
+			syncStatus, err := s.nodeClient.GetSyncStatus(s.ctx, &emptypb.Empty{})
 			if err != nil {
 				log.WithError(err).Error("Could not fetch sync status")
 				continue
 			}
-			if !status {
+			if syncStatus.Syncing {
 				log.Info("Waiting for vanguard node to be fully synced...")
 				continue
 			}
 
 			log.Info("Vanguard node is fully synced now verifying orchestrator verified slot info db...")
-			head, err := s.vanGRPCClient.ChainHead()
+			head, err := s.beaconClient.GetChainHead(s.ctx, &emptypb.Empty{})
 			if err != nil {
 				log.WithError(err).Error("Could not fetch vanguard chain head, continuing...")
 				continue

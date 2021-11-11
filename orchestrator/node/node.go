@@ -11,7 +11,6 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/pandorachain"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/client"
 	"github.com/lukso-network/lukso-orchestrator/shared"
 	"github.com/lukso-network/lukso-orchestrator/shared/cmd"
 	"github.com/lukso-network/lukso-orchestrator/shared/fileutil"
@@ -24,7 +23,6 @@ import (
 	"path/filepath"
 	"sync"
 	"syscall"
-	"time"
 )
 
 // OrchestratorNode
@@ -136,15 +134,11 @@ func (o *OrchestratorNode) startDB(cliCtx *cli.Context) error {
 // registerVanguardChainService
 func (o *OrchestratorNode) registerVanguardChainService(cliCtx *cli.Context) error {
 	vanguardGRPCUrl := cliCtx.String(cmd.VanguardGRPCEndpoint.Name)
-	dialGRPCClient := vanguardchain.DIALGRPCFn(func(endpoint string) (client.VanguardClient, error) {
-		return client.Dial(o.ctx, endpoint, time.Minute*6, 32, math.MaxInt32)
-	})
 	svc, err := vanguardchain.NewService(
 		o.ctx,
 		vanguardGRPCUrl,
 		o.db,
 		o.vanShardInfoCache,
-		dialGRPCClient,
 	)
 	if err != nil {
 		return nil
