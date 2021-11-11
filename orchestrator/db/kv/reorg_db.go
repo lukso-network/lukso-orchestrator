@@ -98,3 +98,20 @@ func (s *Store) LatestLatestFinalizedEpoch() uint64 {
 	// db is already started so latest finalized slot must be initialized in store
 	return latestFinalizedEpoch
 }
+
+func (s *Store)UpdateVerifiedSlotInfo(slot uint64) error  {
+	slotNumber, slotInfo, err := s.SeekSlotInfo(slot)
+	if err != nil {
+		return err
+	}
+	err = s.SaveLatestVerifiedSlot(s.ctx, slotNumber)
+	if err != nil {
+		return err
+	}
+
+	err = s.SaveLatestVerifiedHeaderHash(slotInfo.PandoraHeaderHash)
+	if err != nil {
+		return err
+	}
+	return nil
+}

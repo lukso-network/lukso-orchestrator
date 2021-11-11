@@ -120,7 +120,7 @@ func (s *Service) reorgDB(revertSlot uint64) error {
 	}
 
 	//TODO: Updating latestVerifiedSlot and latestVerifiedHeaderHash
-	if err := s.db.UpdateVerifiedSlotInfo(s.ctx, revertSlot); err != nil {
+	if err := s.db.UpdateVerifiedSlotInfo(revertSlot); err != nil {
 		log.WithError(err).Error("failed to update latest verified slot in db")
 		return err
 	}

@@ -16,6 +16,28 @@ var (
 	errInvalidSlot = errors.New("invalid slot and not found any verified slot info for the given slot")
 )
 
+func (s *Store) SeekSlotInfo(slot uint64) (uint64, *types.SlotInfo, error) {
+	var slotInfo *types.SlotInfo
+	var foundSlot uint64
+	err := s.db.View(func(tx *bolt.Tx) error {
+		bkt := tx.Bucket(verifiedSlotInfosBucket)
+		key := bytesutil.Uint64ToBytesBigEndian(slot)
+		cursor := bkt.Cursor()
+		for slotNumber, info := cursor.Seek(key); slotNumber != nil && info != nil; slotNumber, info = cursor.Prev() {
+			foundSlot = bytesutil.BytesToUint64BigEndian(slotNumber)
+			err := decode(info, slotInfo)
+			if err != nil {
+				return err
+			}
+			if foundSlot <= slot {
+				return nil
+			}
+		}
+		return nil
+	})
+	return foundSlot, slotInfo, err
+}
+
 // VerifiedSlotInfo
 func (s *Store) VerifiedSlotInfo(slot uint64) (*types.SlotInfo, error) {
 	if v, ok := s.verifiedSlotInfoCache.Get(slot); v != nil && ok {

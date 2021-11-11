@@ -41,6 +41,7 @@ type VerifiedSlotDatabase interface {
 	SaveLatestFinalizedSlot(latestFinalizedSlot uint64) error
 	SaveLatestFinalizedEpoch(latestFinalizedEpoch uint64) error
 	RemoveRangeVerifiedInfo(fromSlot, skipSlot uint64) error
+	UpdateVerifiedSlotInfo(slot uint64) error
 }
 
 type ReadOnlyInvalidSlotInfoDatabase interface {
