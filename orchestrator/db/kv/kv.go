@@ -40,9 +40,7 @@ type Store struct {
 
 	// Latest information need to be stored into db
 	latestEpoch        uint64
-	latestVerifiedSlot uint64
 	latestHeaderHash   common.Hash
-	latestVanBlockHash []byte
 	// There should be mutex in store
 	sync.Mutex
 }
@@ -107,6 +105,7 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 			consensusInfosBucket,
 			verifiedSlotInfosBucket,
 			invalidSlotInfosBucket,
+			latestInfoMarkerBucket,
 		)
 	}); err != nil {
 		return nil, err
@@ -135,11 +134,6 @@ func (s *Store) Close() error {
 		return err
 	}
 
-	err = s.SaveLatestVerifiedSlot(s.ctx)
-	if nil != err {
-		return err
-	}
-
 	err = s.SaveLatestVerifiedHeaderHash()
 	if err != nil {
 		return err
@@ -157,10 +151,8 @@ func (s *Store) DatabasePath() string {
 func (s *Store) initLatestDataFromDB() {
 	// Retrieve latest saved epoch number from db
 	s.latestEpoch = s.LatestSavedEpoch()
-	s.latestVerifiedSlot = s.LatestSavedVerifiedSlot()
 	s.latestHeaderHash = s.LatestVerifiedHeaderHash()
 	log.WithField("latestSavedEpoch", s.latestEpoch).WithField(
-		"latestVerifiedSlot", s.latestVerifiedSlot).WithField(
 		"latestHeaderHash", s.latestHeaderHash).Debug("latest saved info from db")
 }
 

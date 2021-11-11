@@ -33,7 +33,7 @@ func TestService_SubscribeVanNewPendingBlockHash(t *testing.T) {
 	).Do(func() {
 		cancel()
 	})
-	bs.subscribeVanNewPendingBlockHash(ctx, 0)
+	bs.subscribeVanNewPendingBlockHash(0)
 }
 
 //// Test_VanguardChainStartStop_Initialized

@@ -31,13 +31,11 @@ func TestKV_Start_Stop(t *testing.T) {
 	defer kv.ClearDB()
 
 	headerHash := common.HexToHash("093eff5a6f078a434dc239817cf9916ab7867152dbf713e9f0f2001b6c1eeb1d")
-	kv.latestVerifiedSlot = 100
 	kv.latestEpoch = 3
 	kv.latestHeaderHash = headerHash
 
 	require.NoError(t, kv.Close())
 	kv = setupDB(t, false)
-	assert.Equal(t, uint64(100), kv.latestVerifiedSlot)
 	assert.Equal(t, uint64(3), kv.latestEpoch)
 	assert.Equal(t, headerHash, kv.latestHeaderHash)
 }

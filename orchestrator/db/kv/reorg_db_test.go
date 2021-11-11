@@ -55,7 +55,7 @@ func setupReorgDB(t *testing.T, ctx context.Context) *Store {
 	}
 
 	require.NoError(t, db.SaveLatestEpoch(ctx))
-	require.NoError(t, db.SaveLatestVerifiedSlot(ctx))
+	require.NoError(t, db.SaveLatestVerifiedSlot(ctx, 100))
 	require.NoError(t, db.SaveLatestVerifiedHeaderHash())
 	return db
 }
