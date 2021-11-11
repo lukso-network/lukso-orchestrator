@@ -132,7 +132,6 @@ func (s *Store) DatabasePath() string {
 	return s.databasePath
 }
 
-
 // createBuckets
 func createBuckets(tx *bolt.Tx, buckets ...[]byte) error {
 	for _, bucket := range buckets {

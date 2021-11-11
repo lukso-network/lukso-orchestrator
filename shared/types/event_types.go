@@ -21,6 +21,7 @@ type MinimalEpochConsensusInfoV2 struct {
 	EpochStartTime   uint64        `json:"epochTimeStart"`
 	SlotTimeDuration time.Duration `json:"slotTimeDuration"`
 	ReorgInfo        *Reorg        `json:"reorg_info"`
+	FinalizedSlot    uint64        `json:"finalizedSlot"`
 }
 
 type MinimalEpochConsensusInfo struct {

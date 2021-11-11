@@ -34,24 +34,15 @@ func (s *Service) subscribeVanNewPendingBlockHash(fromSlot uint64) error {
 	for {
 		select {
 		case <-s.ctx.Done():
-			log.Debug("closing subscribeVanNewPendingBlockHash")
+			log.Debug("closing context, exiting vanguard pending block streaming subscription!")
 			return nil
 
-		case <-s.resubscribePendingBlkCh:
-			fromSlot = s.orchestratorDB.LatestLatestFinalizedSlot()
-			stream, err = s.beaconClient.StreamNewPendingBlocks(s.ctx,
-				&ethpb.StreamPendingBlocksRequest{
-					BlockRoot: blockRoot,
-					FromSlot:  eth2Types.Slot(fromSlot),
-				})
-			if err != nil {
-				log.WithError(err).Error("Failed to re-subscribe to new pending blocks stream")
-				return err
-			}
-			log.WithField("slot", fromSlot).Debug("Re-subscribing to new vanguard pending blocks stream")
+		case <-s.stopPendingBlkSubCh:
+			log.Debug("closing triggered by reorg, exiting vanguard pending block streaming subscription!")
+			return nil
 
 		default:
-			vanBlock, err := stream.Recv()
+			vanBlockInfo, err := stream.Recv()
 			if e, ok := status.FromError(err); ok {
 				switch e.Code() {
 				case codes.Canceled, codes.Internal, codes.Unavailable:
@@ -68,7 +59,7 @@ func (s *Service) subscribeVanNewPendingBlockHash(fromSlot uint64) error {
 					}
 				}
 			}
-			if err := s.OnNewPendingVanguardBlock(s.ctx, vanBlock); err != nil {
+			if err := s.OnNewPendingVanguardBlock(s.ctx, vanBlockInfo); err != nil {
 				log.WithError(err).Error("Failed to process the pending vanguard shardInfo. Exiting vanguard pending header subscription")
 				return errConsensusInfoProcess
 			}
@@ -87,41 +78,14 @@ func (s *Service) subscribeNewConsensusInfoGRPC(fromEpoch uint64) error {
 		log.WithError(err).Error("Failed to subscribe to stream of new consensus info")
 		return err
 	}
-	log.WithField("fromEpoch", fromEpoch).Info("Successfully subscribed to minimal " +
-		"consensus info to vanguard client")
+
+	log.WithField("fromEpoch", fromEpoch).Info("Successfully subscribed to minimal consensus info to vanguard client")
+
 	for {
 		select {
 		case <-s.ctx.Done():
 			log.Info("Received cancelled context, closing existing consensus info subscription")
 			return nil
-
-		case <-s.resubscribeEpochInfoCh:
-			latestFinalizedEpoch := s.orchestratorDB.LatestLatestFinalizedEpoch()
-			fromEpoch = latestFinalizedEpoch
-
-			// checking consensus info db
-			for i := latestFinalizedEpoch; i >= 0; {
-				epochInfo, _ := s.orchestratorDB.ConsensusInfo(s.ctx, i)
-				if epochInfo == nil {
-					// epoch info is missing. so subscribe from here. maybe db operation was wrong
-					latestFinalizedEpoch = i
-					log.WithField("epoch", fromEpoch).Debug("Found missing epoch info in db, so subscription should " +
-						"be started from this missing epoch")
-				}
-				if i == 0 {
-					break
-				}
-				i--
-			}
-			log.WithField("fromEpoch", fromEpoch).Info("Re-subscribing to new vanguard epoch info stream")
-			stream, err = s.beaconClient.StreamMinimalConsensusInfo(
-				s.ctx,
-				&ethpb.MinimalConsensusInfoRequest{FromEpoch: eth2Types.Epoch(fromEpoch)},
-			)
-			if nil != err {
-				log.WithError(err).Error("Failed to re-subscribe to new vanguard epoch info info stream, Exiting go routine")
-				return err
-			}
 
 		default:
 			vanMinimalConsensusInfo, err := stream.Recv()
@@ -141,7 +105,7 @@ func (s *Service) subscribeNewConsensusInfoGRPC(fromEpoch uint64) error {
 				}
 			}
 
-			if nil == vanMinimalConsensusInfo {
+			if vanMinimalConsensusInfo == nil {
 				log.Error("Received nil consensus info, Exiting go routine")
 				return errConsensusInfoNil
 			}
@@ -158,6 +122,7 @@ func (s *Service) subscribeNewConsensusInfoGRPC(fromEpoch uint64) error {
 				ValidatorList:    vanMinimalConsensusInfo.ValidatorList,
 				EpochStartTime:   vanMinimalConsensusInfo.EpochTimeStart,
 				SlotTimeDuration: time.Duration(vanMinimalConsensusInfo.SlotTimeDuration.Seconds),
+				FinalizedSlot:    s.getFinalizedSlot(),
 			}
 			// if re-org happens then we get this info not nil
 			if vanMinimalConsensusInfo.ReorgInfo != nil {
@@ -172,7 +137,7 @@ func (s *Service) subscribeNewConsensusInfoGRPC(fromEpoch uint64) error {
 			log.WithField("epoch", vanMinimalConsensusInfo.Epoch).WithField("epochInfo", fmt.Sprintf("%+v", vanMinimalConsensusInfo)).
 				Debug("Received new consensus info")
 			if err := s.OnNewConsensusInfo(s.ctx, consensusInfo); err != nil {
-				log.WithError(err).Error("Closing epoch info subscription, Exiting go routine")
+				log.WithError(err).Error("Failed to handle consensus info. Closing epoch info subscription, Exiting go routine")
 				return err
 			}
 		}

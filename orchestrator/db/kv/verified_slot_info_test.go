@@ -23,7 +23,7 @@ func TestStore_VerifiedSlotInfos(t *testing.T) {
 	db := setupDB(t, true)
 	slotInfosLen := 64
 	slotInfos := createAndSaveEmptySlotInfos(t, slotInfosLen, db)
-	require.NoError(t, db.SaveLatestVerifiedSlot(context.Background(), uint64(slotInfosLen) - uint64(1)))
+	require.NoError(t, db.SaveLatestVerifiedSlot(context.Background(), uint64(slotInfosLen)-uint64(1)))
 	retrievedSlotInfos, err := db.VerifiedSlotInfos(0)
 	require.NoError(t, err)
 	require.Equal(t, slotInfosLen, len(retrievedSlotInfos))
@@ -85,7 +85,7 @@ func TestStore_RemoveRangeVerifiedInfo(t *testing.T) {
 	slotInfosLen := 128
 	slotInfos := createAndSaveEmptySlotInfos(t, slotInfosLen, db)
 	ctx := context.Background()
-	require.NoError(t, db.SaveLatestVerifiedSlot(ctx, uint64(slotInfosLen - 1)))
+	require.NoError(t, db.SaveLatestVerifiedSlot(ctx, uint64(slotInfosLen-1)))
 
 	t.Run("should remove range with skip", func(t *testing.T) {
 		require.NoError(t, db.RemoveRangeVerifiedInfo(4, 5))

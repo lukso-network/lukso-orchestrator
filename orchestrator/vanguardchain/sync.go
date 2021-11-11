@@ -20,6 +20,7 @@ func (s *Service) syncWithVanguardHead() {
 				log.WithError(err).Error("Could not fetch sync status")
 				continue
 			}
+
 			if syncStatus.Syncing {
 				log.Info("Waiting for vanguard node to be fully synced...")
 				continue
@@ -31,10 +32,21 @@ func (s *Service) syncWithVanguardHead() {
 				log.WithError(err).Error("Could not fetch vanguard chain head, continuing...")
 				continue
 			}
+
+			// If current orchestrator's finalize epoch is less than incoming finalized epoch, then update into db and in-memory
+			if s.finalizedEpoch < uint64(head.FinalizedEpoch) {
+				newFS := uint64(head.FinalizedSlot)
+				newFE := uint64(head.FinalizedEpoch)
+
+				if err := s.updateFinalizedInfoInDB(newFS, newFE); err != nil {
+					log.WithError(err).Warn("Failed to store new finalized info")
+				}
+				s.updateInMemoryFinalizedInfo(newFS, newFE)
+			}
+
 			// trigger revert db if vanguard head slot block hash not match with latest verified slot van block hash
-			if err := s.checkVerifiedSlotInfoHead(head); err != nil {
+			if err := s.revert(head); err != nil {
 				log.WithError(err).Error("Could not revert db successfully.")
-				continue
 			}
 		case <-s.ctx.Done():
 			log.Debug("Context closed, exiting syncing vanguard chain go routine!")
@@ -43,27 +55,8 @@ func (s *Service) syncWithVanguardHead() {
 	}
 }
 
-func (s *Service) checkVerifiedSlotInfoHead(head *ethpb.ChainHead) error {
-	// update the latest finalized slot
-	latestFinalizedSlot := s.orchestratorDB.LatestLatestFinalizedSlot()
-	newFinalizedSlot := uint64(head.FinalizedSlot)
-	if latestFinalizedSlot < newFinalizedSlot {
-		if err := s.orchestratorDB.SaveLatestFinalizedSlot(newFinalizedSlot); err != nil {
-			log.WithError(err).Error("Failed to store new finalized slot in db")
-			return err
-		}
-	}
-
-	// update the latest finalized epoch
-	latestFinalizedEpoch := s.orchestratorDB.LatestLatestFinalizedEpoch()
-	newFinalizedEpoch := uint64(head.FinalizedEpoch)
-	if latestFinalizedEpoch < newFinalizedEpoch {
-		if err := s.orchestratorDB.SaveLatestFinalizedEpoch(newFinalizedEpoch); err != nil {
-			log.WithError(err).Error("Failed to store new finalized epoch in db")
-			return err
-		}
-	}
-
+// revert
+func (s *Service) revert(head *ethpb.ChainHead) error {
 	// trigger re-org if vanguard head slot block hash not match with latest verified slot van block hash
 	latestVerifiedSlot := s.orchestratorDB.LatestSavedVerifiedSlot()
 	latestVerifiedSlotInfo, err := s.orchestratorDB.VerifiedSlotInfo(latestVerifiedSlot)
@@ -81,15 +74,73 @@ func (s *Service) checkVerifiedSlotInfoHead(head *ethpb.ChainHead) error {
 			WithField("latestVerifiedSlot", latestVerifiedSlot).
 			Warn("Vanguard canonical head block hash does not match with latest verified block hash")
 
-		revertSlot := latestFinalizedSlot
-		if latestFinalizedSlot > 0 {
-			revertSlot = latestFinalizedSlot + 1
+		revertSlot := s.getFinalizedSlot()
+		if revertSlot > 0 {
+			revertSlot = revertSlot + 1
 		}
-		s.orchestratorDB.RemoveRangeVerifiedInfo(revertSlot, 0)
 
-		// Trigger to resubscribe van pending blocks stream and epoch info stream
-		s.resubscribeEpochInfoCh <- struct{}{}
-		s.resubscribePendingBlkCh <- struct{}{}
+		log.WithField("curFinalizedSlot", head.FinalizedSlot).WithField("revertSlot", revertSlot).
+			WithField("latestVerifiedSlot", latestVerifiedSlot).Warn("Stop subscription and reverting orchestrator db from sync method")
+
+		// Stop subscription of vanguard new pending blocks
+		s.stopSubscription()
+
+		// Removing slot infos from verified slot info db
+		if err := s.orchestratorDB.RemoveRangeVerifiedInfo(revertSlot, 0); err != nil {
+			log.WithError(err).Warn("Failed to revert verified info db")
+			return err
+		}
+
+		// Re-subscribe vanguard new pending blocks
+		go s.subscribeVanNewPendingBlockHash(revertSlot)
 	}
 	return nil
+}
+
+// updateFinalizedInfoInDB stores new finalizedSlot and finalizedEpoch into db
+func (s *Service) updateFinalizedInfoInDB(finalizedSlot, finalizedEpoch uint64) error {
+	// store new finalized slot into db
+	if err := s.orchestratorDB.SaveLatestFinalizedSlot(finalizedSlot); err != nil {
+		log.WithError(err).Error("Failed to store new finalized slot in db")
+		return err
+	}
+
+	// store new finalized epoch into db
+	if err := s.orchestratorDB.SaveLatestFinalizedEpoch(finalizedEpoch); err != nil {
+		log.WithError(err).Error("Failed to store new finalized epoch in db")
+		return err
+	}
+
+	return nil
+}
+
+// updateInMemoryFinalizedInfo updates in-memory finalizedSlot and finalizedEpoch
+func (s *Service) updateInMemoryFinalizedInfo(finalizedSlot, finalizedEpoch uint64) {
+	s.processingLock.Lock()
+	defer s.processingLock.Unlock()
+
+	s.finalizedSlot = finalizedSlot
+	s.finalizedEpoch = finalizedEpoch
+}
+
+// getFinalizedSlot
+func (s *Service) getFinalizedSlot() uint64 {
+	s.processingLock.Lock()
+	defer s.processingLock.Unlock()
+
+	return s.finalizedSlot
+}
+
+func (s *Service) getFinalizedEpoch() uint64 {
+	s.processingLock.Lock()
+	defer s.processingLock.Unlock()
+
+	return s.finalizedEpoch
+}
+
+func (s *Service) stopSubscription() {
+	s.processingLock.Lock()
+	defer s.processingLock.Unlock()
+
+	s.stopPendingBlkSubCh <- struct{}{}
 }

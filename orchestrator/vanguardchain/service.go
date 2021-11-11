@@ -49,10 +49,11 @@ type Service struct {
 	scope                    event.SubscriptionScope
 	vanguardShardingInfoFeed event.Feed
 
-	orchestratorDB          db.Database              // db support
-	shardingInfoCache       cache.VanguardShardCache // lru cache support
-	resubscribePendingBlkCh chan struct{}
-	resubscribeEpochInfoCh  chan struct{}
+	orchestratorDB      db.Database              // db support
+	shardingInfoCache   cache.VanguardShardCache // lru cache support
+	stopPendingBlkSubCh chan struct{}
+	finalizedSlot       uint64
+	finalizedEpoch      uint64
 }
 
 // NewService creates new service with vanguard endpoint, vanguard namespace and consensusInfoDB
@@ -65,14 +66,19 @@ func NewService(
 
 	ctx, cancel := context.WithCancel(ctx)
 	_ = cancel // govet fix for lost cancel. Cancel is handled in service.Stop()
+
+	finalizedSlotInDB := db.LatestLatestFinalizedSlot()
+	finalizedEpochInDB := db.LatestLatestFinalizedEpoch()
+
 	return &Service{
-		ctx:                     ctx,
-		cancel:                  cancel,
-		vanGRPCEndpoint:         vanGRPCEndpoint,
-		orchestratorDB:          db,
-		shardingInfoCache:       cache,
-		resubscribeEpochInfoCh:  make(chan struct{}),
-		resubscribePendingBlkCh: make(chan struct{}),
+		ctx:                 ctx,
+		cancel:              cancel,
+		vanGRPCEndpoint:     vanGRPCEndpoint,
+		orchestratorDB:      db,
+		shardingInfoCache:   cache,
+		stopPendingBlkSubCh: make(chan struct{}),
+		finalizedSlot:       finalizedSlotInDB,
+		finalizedEpoch:      finalizedEpochInDB,
 	}, nil
 }
 
@@ -94,7 +100,12 @@ func (s *Service) Start() {
 		log.WithField("endpoint", s.vanGRPCEndpoint).WithError(err).Warn("Could not dial endpoint")
 		return
 	}
+
 	s.conn = c
+	s.beaconClient = ethpb.NewBeaconChainClient(c)
+	s.validatorClient = ethpb.NewBeaconNodeValidatorClient(c)
+	s.nodeClient = ethpb.NewNodeClient(c)
+
 	go s.run()
 }
 
@@ -128,7 +139,7 @@ func (s *Service) run() {
 
 	s.waitForConnection()
 
-	latestFinalizedEpoch := s.orchestratorDB.LatestLatestFinalizedEpoch()
+	latestFinalizedEpoch := s.getFinalizedEpoch()
 	fromEpoch := latestFinalizedEpoch
 
 	// checking consensus info db
@@ -146,7 +157,7 @@ func (s *Service) run() {
 		i--
 	}
 
-	latestFinalizedSlot := s.orchestratorDB.LatestLatestFinalizedSlot()
+	latestFinalizedSlot := s.getFinalizedSlot()
 
 	go s.subscribeNewConsensusInfoGRPC(fromEpoch)
 	go s.subscribeVanNewPendingBlockHash(latestFinalizedSlot)
