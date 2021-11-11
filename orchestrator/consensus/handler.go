@@ -67,7 +67,7 @@ func (s *Service) verifyShardingInfo(slot uint64, vanShardInfo *types.VanguardSh
 		log.WithError(err).Error("Failed to store latest verified slot")
 	}
 	// storing latest verified pandora header hash into db
-	if err := s.verifiedSlotInfoDB.SaveLatestVerifiedHeaderHash(); err != nil {
+	if err := s.verifiedSlotInfoDB.SaveLatestVerifiedHeaderHash(slotInfo.PandoraHeaderHash); err != nil {
 		log.WithError(err).Error("Failed to store latest verified slot")
 	}
 	slotInfoWithStatus.Status = types.Verified

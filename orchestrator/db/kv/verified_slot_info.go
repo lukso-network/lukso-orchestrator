@@ -92,9 +92,6 @@ func (s *Store) SaveVerifiedSlotInfo(slot uint64, slotInfo *types.SlotInfo) erro
 		if err := bkt.Put(slotBytes, enc); err != nil {
 			return err
 		}
-		// store latest verified slot and latest header hash in in-memory
-		s.latestHeaderHash = slotInfo.PandoraHeaderHash
-
 		return nil
 	})
 }
@@ -138,14 +135,14 @@ func (s *Store) LatestSavedVerifiedSlot() uint64 {
 }
 
 // SaveLatestEpoch
-func (s *Store) SaveLatestVerifiedHeaderHash() error {
+func (s *Store) SaveLatestVerifiedHeaderHash(hash common.Hash) error {
 	s.Mutex.Lock()
 	defer s.Mutex.Unlock()
 
 	// storing latest epoch number into db
 	return s.db.Update(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(latestInfoMarkerBucket)
-		headerHashBytes := s.latestHeaderHash.Bytes()
+		headerHashBytes := hash.Bytes()
 		if err := bkt.Put(latestHeaderHashKey, headerHashBytes); err != nil {
 			return err
 		}

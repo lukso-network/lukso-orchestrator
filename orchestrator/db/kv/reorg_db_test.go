@@ -47,8 +47,8 @@ func setupReorgDB(t *testing.T, ctx context.Context) *Store {
 		epochInfoV2 := consensusInfo.ConvertToEpochInfo()
 		require.NoError(t, db.SaveConsensusInfo(ctx, epochInfoV2))
 	}
+	slotInfo := new(types.SlotInfo)
 	for i := 0; i <= 100; i++ {
-		slotInfo := new(types.SlotInfo)
 		slotInfo.VanguardBlockHash = common.BytesToHash([]byte{uint8(i)})
 		slotInfo.PandoraHeaderHash = common.BytesToHash([]byte{uint8(i + 50)})
 		require.NoError(t, db.SaveVerifiedSlotInfo(uint64(i), slotInfo))
@@ -56,6 +56,6 @@ func setupReorgDB(t *testing.T, ctx context.Context) *Store {
 
 	require.NoError(t, db.SaveLatestEpoch(ctx))
 	require.NoError(t, db.SaveLatestVerifiedSlot(ctx, 100))
-	require.NoError(t, db.SaveLatestVerifiedHeaderHash())
+	require.NoError(t, db.SaveLatestVerifiedHeaderHash(slotInfo.PandoraHeaderHash))
 	return db
 }

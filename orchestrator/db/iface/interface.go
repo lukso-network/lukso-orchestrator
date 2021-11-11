@@ -37,7 +37,7 @@ type VerifiedSlotDatabase interface {
 
 	SaveVerifiedSlotInfo(slot uint64, slotInfo *types.SlotInfo) error
 	SaveLatestVerifiedSlot(ctx context.Context, slot uint64) error
-	SaveLatestVerifiedHeaderHash() error
+	SaveLatestVerifiedHeaderHash(hash common.Hash) error
 	SaveLatestFinalizedSlot(latestFinalizedSlot uint64) error
 	SaveLatestFinalizedEpoch(latestFinalizedEpoch uint64) error
 	RemoveRangeVerifiedInfo(fromSlot, skipSlot uint64) error

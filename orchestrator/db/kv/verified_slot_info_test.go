@@ -44,9 +44,7 @@ func TestStore_LatestVerifiedSuite(t *testing.T) {
 	require.NoError(t, db.SaveLatestVerifiedSlot(ctx, customSlotInfoHeight))
 	require.Equal(t, customSlotInfoHeight, db.LatestSavedVerifiedSlot())
 	// this is failing, implementation is wrong
-	require.Equal(t, customSlotInfoHeight, db.LatestSavedVerifiedSlot())
-	require.Equal(t, customSlotInfo.PandoraHeaderHash, db.LatestVerifiedHeaderHash())
-	require.NoError(t, db.SaveLatestVerifiedHeaderHash())
+	require.NoError(t, db.SaveLatestVerifiedHeaderHash(customSlotInfo.PandoraHeaderHash))
 	require.Equal(t, customSlotInfo.PandoraHeaderHash, db.LatestVerifiedHeaderHash())
 }
 
