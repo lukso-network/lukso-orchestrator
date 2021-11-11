@@ -19,7 +19,7 @@ type ConsensusInfoAccessDatabase interface {
 	ReadOnlyConsensusInfoDatabase
 
 	SaveConsensusInfo(ctx context.Context, consensusInfo *types.MinimalEpochConsensusInfo) error
-	SaveLatestEpoch(ctx context.Context) error
+	SaveLatestEpoch(ctx context.Context, epoch uint64) error
 	RevertConsensusInfo(reorgInfo *types.MinimalEpochConsensusInfoV2) error
 }
 

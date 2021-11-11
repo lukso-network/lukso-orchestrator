@@ -94,7 +94,6 @@ func (s *Store) SaveConsensusInfo(
 			return err
 		}
 		// update latest epoch
-		s.latestEpoch = consensusInfo.Epoch
 		return nil
 	})
 }
@@ -139,14 +138,14 @@ func (s *Store) LatestSavedEpoch() uint64 {
 }
 
 // SaveLatestEpoch
-func (s *Store) SaveLatestEpoch(ctx context.Context) error {
+func (s *Store) SaveLatestEpoch(ctx context.Context, epoch uint64) error {
 	s.Mutex.Lock()
 	defer s.Mutex.Unlock()
 
 	// storing latest epoch number into db
 	return s.db.Update(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(latestInfoMarkerBucket)
-		epochBytes := bytesutil.Uint64ToBytesBigEndian(s.latestEpoch)
+		epochBytes := bytesutil.Uint64ToBytesBigEndian(epoch)
 		if err := bkt.Put(lastStoredEpochKey, epochBytes); err != nil {
 			return err
 		}

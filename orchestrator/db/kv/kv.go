@@ -37,8 +37,6 @@ type Store struct {
 	consensusInfoCache    *ristretto.Cache
 	verifiedSlotInfoCache *ristretto.Cache
 
-	// Latest information need to be stored into db
-	latestEpoch        uint64
 	// There should be mutex in store
 	sync.Mutex
 }
