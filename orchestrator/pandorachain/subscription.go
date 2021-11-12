@@ -2,6 +2,7 @@ package pandorachain
 
 import (
 	"context"
+
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
@@ -38,6 +39,9 @@ func (s *Service) SubscribePendingHeaders(
 					s.conInfoSubErrCh <- errPandoraHeaderProcessing
 					return
 				}
+			case <-s.conDisconnect:
+				log.Info("Received re-org event, exiting pandora pending block subscription!")
+				return
 			case err := <-sub.Err():
 				if err != nil {
 					log.WithError(err).Debug("Got subscription error")

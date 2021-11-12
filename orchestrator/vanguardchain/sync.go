@@ -62,6 +62,7 @@ func (s *Service) revert(head *ethpb.ChainHead) error {
 
 		// Stop subscription of vanguard new pending blocks
 		s.stopSubscription()
+		s.subscriptionShutdownFeed.Send(true) // shutdown pandora subscription
 		// TODO- Stop pandora pending block subscription
 
 		revertSlot := s.getFinalizedSlot()
@@ -77,6 +78,7 @@ func (s *Service) revert(head *ethpb.ChainHead) error {
 		// Re-subscribe vanguard new pending blocks
 		go s.subscribeVanNewPendingBlockHash(revertSlot)
 		//TODO- start pandora pending block subscription
+		s.subscriptionShutdownFeed.Send(false)
 
 		return nil
 	}
@@ -124,6 +126,7 @@ func (s *Service) reorgDB(revertSlot uint64) error {
 		log.WithError(err).Error("failed to update latest verified slot in db")
 		return err
 	}
+	return nil
 }
 
 // updateInMemoryFinalizedInfo updates in-memory finalizedSlot and finalizedEpoch

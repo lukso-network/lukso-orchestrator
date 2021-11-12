@@ -49,6 +49,7 @@ type Service struct {
 	consensusInfoFeed        event.Feed
 	scope                    event.SubscriptionScope
 	vanguardShardingInfoFeed event.Feed
+	subscriptionShutdownFeed event.Feed
 
 	db                  db.Database              // db support
 	shardingInfoCache   cache.VanguardShardCache // lru cache support
@@ -202,6 +203,10 @@ func (s *Service) SubscribeMinConsensusInfoEvent(ch chan<- *types.MinimalEpochCo
 
 func (s *Service) SubscribeShardInfoEvent(ch chan<- *types.VanguardShardInfo) event.Subscription {
 	return s.scope.Track(s.vanguardShardingInfoFeed.Subscribe(ch))
+}
+
+func (s *Service) SubscribeShutdownSignalEvent(ch chan <-bool) event.Subscription {
+	return s.scope.Track(s.subscriptionShutdownFeed.Subscribe(ch))
 }
 
 // constructDialOptions constructs a list of grpc dial options

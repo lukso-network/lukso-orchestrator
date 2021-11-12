@@ -2,6 +2,7 @@ package pandorachain
 
 import (
 	"context"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/iface"
 	"sync"
 	"time"
 
@@ -40,6 +41,10 @@ type Service struct {
 	// subscription
 	conInfoSubErrCh chan error
 	conInfoSub      *rpc.ClientSubscription
+	conDisconnect chan struct{}
+	shutdownSignal iface.ShutdownSignalPropagationFeed
+	signalFromVanguard chan bool
+	vanguardSubscription event.Subscription
 
 	// db support
 	db    db.Database
@@ -57,6 +62,7 @@ func NewService(
 	db db.Database,
 	cache cache.PandoraHeaderCache,
 	dialRPCFn DialRPCFn,
+	signalFeed iface.ShutdownSignalPropagationFeed,
 ) (*Service, error) {
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -70,11 +76,13 @@ func NewService(
 		conInfoSubErrCh: make(chan error),
 		db:              db,
 		cache:           cache,
+		shutdownSignal: signalFeed,
 	}, nil
 }
 
 // Start a consensus info fetcher service's main event loop.
 func (s *Service) Start() {
+	s.vanguardSubscription = s.shutdownSignal.SubscribeShutdownSignalEvent(s.signalFromVanguard)
 	// Exit early if pandora endpoint is not set.
 	if s.endpoint == "" {
 		return
@@ -96,6 +104,7 @@ func (s *Service) Stop() error {
 	}
 	s.closeClients()
 	s.scope.Close()
+	s.vanguardSubscription.Unsubscribe()
 	return nil
 }
 
@@ -163,6 +172,12 @@ func (s *Service) run(done <-chan struct{}) {
 	// if any subscription error happens, it will try to reconnect and re-subscribe with pandora chain again.
 	for {
 		select {
+		case val := <- s.signalFromVanguard:
+			if val == true {
+				s.conDisconnect <- struct{}{}
+			} else {
+				s.subscribe()
+			}
 		case <-done:
 			s.isRunning = false
 			s.runError = nil

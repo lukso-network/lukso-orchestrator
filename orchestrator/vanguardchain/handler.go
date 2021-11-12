@@ -21,6 +21,7 @@ func (s *Service) onNewConsensusInfo(ctx context.Context, consensusInfo *types.M
 		// Stop subscription of vanguard new pending blocks
 		s.stopSubscription()
 		// TODO- Stop pandora pending block subscription
+		s.subscriptionShutdownFeed.Send(true)
 
 		// reorg happened. So remove info from database
 		revertSlot := s.getFinalizedSlot()
@@ -38,6 +39,7 @@ func (s *Service) onNewConsensusInfo(ctx context.Context, consensusInfo *types.M
 		// Re-subscribe vanguard new pending blocks
 		go s.subscribeVanNewPendingBlockHash(revertSlot)
 		//TODO- start pandora pending block subscription
+		s.subscriptionShutdownFeed.Send(false)
 	}
 
 	if err := s.db.SaveConsensusInfo(ctx, consensusInfo.ConvertToEpochInfo()); err != nil {

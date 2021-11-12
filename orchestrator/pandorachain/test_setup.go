@@ -86,7 +86,8 @@ func SetupPandoraSvc(ctx context.Context, t *testing.T, dialRPCFn DialRPCFn) *Se
 		"eth",
 		testDB.SetupDB(t),
 		cache.NewPanHeaderCache(),
-		dialRPCFn)
+		dialRPCFn,
+		nil)
 	if err != nil {
 		t.Fatalf("failed to create protocol stack: %v", err)
 	}

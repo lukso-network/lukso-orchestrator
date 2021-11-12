@@ -157,8 +157,12 @@ func (o *OrchestratorNode) registerPandoraChainService(cliCtx *cli.Context) erro
 		}
 		return rpcClient, nil
 	}
+	var vanguardShardFeed *vanguardchain.Service
+	if err := o.services.FetchService(&vanguardShardFeed); err != nil {
+		return err
+	}
 	namespace := "eth"
-	svc, err := pandorachain.NewService(o.ctx, pandoraRPCUrl, namespace, o.db, o.pandoraInfoCache, dialRPCClient)
+	svc, err := pandorachain.NewService(o.ctx, pandoraRPCUrl, namespace, o.db, o.pandoraInfoCache, dialRPCClient, vanguardShardFeed)
 	if err != nil {
 		return nil
 	}
