@@ -95,13 +95,13 @@ func Test_VanguardSvc_RetryToConnServer(t *testing.T) {
 	vanSvc, _ := SetupVanguardSvc(ctx, t, GRPCFunc)
 	shouldPass := false
 
-	vanSvc.dialGRPCFn = DIALGRPCFn(func(endpoint string) (client.VanguardClient, error) {
+	vanSvc.dialGRPCFn = func(endpoint string) (client.VanguardClient, error) {
 		if shouldPass {
 			return GRPCFunc(endpoint)
 		}
 
 		return nil, fmt.Errorf("dummy error")
-	})
+	}
 
 	oldReconPeriod := reConPeriod
 	reConPeriod = time.Millisecond * 50
