@@ -12,6 +12,7 @@ import (
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	"net"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -175,16 +176,35 @@ func constructDialOptions(
 // prepareRpcAddressAndProtocol returns a RPC address and protocol.
 // It can be HTTP/S layer or IPC socket, tcp or unix socket.
 func prepareRpcAddressAndProtocol(rpcAddress string) (string, string, error) {
+	var host string
 	u, err := url.Parse(rpcAddress)
 	if err != nil {
-		return rpcAddress, protocol, err
+		_, _, err = net.SplitHostPort(rpcAddress)
+		if err != nil {
+			return rpcAddress, "", err
+		}
 	}
+
+	if u == nil {
+		host, _, err = net.SplitHostPort(rpcAddress)
+		if err != nil {
+			return rpcAddress, "", err
+		}
+	}
+
+	if net.ParseIP(host) != nil {
+		return rpcAddress, "tcp", nil
+	}
+
 	switch u.Scheme {
 	case "http", "https":
 		return rpcAddress, "tcp", nil
 	case "":
+		if len(strings.TrimSpace(u.Path)) == 0 {
+			return rpcAddress, "", fmt.Errorf("invalid socket path %q", u.Host)
+		}
 		return rpcAddress, "unix", nil
 	default:
-		return rpcAddress, protocol, fmt.Errorf("no known transport for URL scheme %q", u.Scheme)
+		return rpcAddress, "", fmt.Errorf("no known transport for URL scheme %q", u.Scheme)
 	}
 }
