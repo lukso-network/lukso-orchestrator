@@ -37,7 +37,7 @@ func (s *Service) onNewConsensusInfo(ctx context.Context, consensusInfo *types.M
 		}
 
 		// Re-subscribe vanguard new pending blocks
-		go s.subscribeVanNewPendingBlockHash(revertSlot)
+		go s.subscribeVanNewPendingBlockHash(ctx, revertSlot)
 		//TODO- start pandora pending block subscription
 		s.subscriptionShutdownFeed.Send(false)
 	}

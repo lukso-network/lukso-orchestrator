@@ -39,11 +39,11 @@ type Service struct {
 	namespace string
 
 	// subscription
-	conInfoSubErrCh chan error
-	conInfoSub      *rpc.ClientSubscription
-	conDisconnect chan struct{}
-	shutdownSignal iface.ShutdownSignalPropagationFeed
-	signalFromVanguard chan bool
+	conInfoSubErrCh      chan error
+	conInfoSub           *rpc.ClientSubscription
+	conDisconnect        chan struct{}
+	shutdownSignal       iface.ShutdownSignalPropagationFeed
+	signalFromVanguard   chan bool
 	vanguardSubscription event.Subscription
 
 	// db support
@@ -76,7 +76,7 @@ func NewService(
 		conInfoSubErrCh: make(chan error),
 		db:              db,
 		cache:           cache,
-		shutdownSignal: signalFeed,
+		shutdownSignal:  signalFeed,
 	}, nil
 }
 
@@ -172,7 +172,7 @@ func (s *Service) run(done <-chan struct{}) {
 	// if any subscription error happens, it will try to reconnect and re-subscribe with pandora chain again.
 	for {
 		select {
-		case val := <- s.signalFromVanguard:
+		case val := <-s.signalFromVanguard:
 			if val == true {
 				s.conDisconnect <- struct{}{}
 			} else {

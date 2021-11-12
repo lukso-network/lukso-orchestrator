@@ -1,20 +1,5 @@
 package vanguardchain
 
-import (
-	"context"
-	"github.com/golang/mock/gomock"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
-	testDB "github.com/lukso-network/lukso-orchestrator/orchestrator/db/testing"
-	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
-	"github.com/lukso-network/lukso-orchestrator/shared/testutil/require"
-	ethpb "github.com/prysmaticlabs/prysm/proto/eth/v1alpha1"
-	"github.com/prysmaticlabs/prysm/shared/mock"
-	logTest "github.com/sirupsen/logrus/hooks/test"
-	"google.golang.org/protobuf/types/known/emptypb"
-	"testing"
-	"time"
-)
-
 // Integration test
 /* 1. DB setup (100 verified infos)
 	 - latestVerifiedSlot = 100
@@ -49,41 +34,66 @@ Reorg test scenario:
 
 // Test_VanguardSvc_StartStop checks start and stop process. When the vanguard service starts, it also subscribes
 // van_subscribe to get new consensus info
-func Test_VanguardSvc_StartStop(t *testing.T) {
-	ctx:= context.Background()
-	hook := logTest.NewGlobal()
-	ctrl := gomock.NewController(t)
+//func serviceInit(t *testing.T) (*Service, *logTest.Hook) {
+//	ctx:= context.Background()
+//	hook := logTest.NewGlobal()
+//	ctrl := gomock.NewController(t)
+//	defer ctrl.Finish()
+//
+//	mockedBeaconClient := mock.NewMockBeaconChainClient(ctrl)
+//	mockedNodeClient := mock.NewMockNodeClient(ctrl)
+//
+//	testDB := testDB.SetupDB(t)
+//	cache := cache.NewVanShardInfoCache(1024)
+//	s, err := NewService(ctx, "127.0.0.1:4000", testDB, cache)
+//	require.NoError(t, err)
+//
+//	s.beaconClient = mockedBeaconClient
+//	s.nodeClient = mockedNodeClient
 
-	mockedBeaconClient := mock.NewMockBeaconChainClient(ctrl)
-	mockedNodeClient := mock.NewMockNodeClient(ctrl)
+//blockPendingStream := mock.NewMockBeaconChain_StreamNewPendingBlocksClient(ctrl)
+//epochInfoStream := mock.NewMockBeaconChain_StreamMinimalConsensusInfoClient(ctrl)
 
-	testDB := testDB.SetupDB(t)
-	cache := cache.NewVanShardInfoCache(1024)
-	s, err := NewService(ctx, "127.0.0.1:4000", testDB, cache)
-	require.NoError(t, err)
+//go s.run()
 
+//mockedBeaconClient.EXPECT().GetChainHead(
+//	gomock.Any(),
+//	gomock.Any(),
+//	).Return(nil, errors.New("Fuck me")).Times(10)
+//mockedBeaconClient.EXPECT().GetChainHead(
+//	gomock.Any(),
+//	gomock.Any(),
+//).Return(&ethpb.ChainHead{}, nil)
+//
+//mockedBeaconClient.EXPECT().StreamNewPendingBlocks(
+//	gomock.Any(),
+//	gomock.Any(),
+//	).Return(blockPendingStream, nil)
+//mockedBeaconClient.EXPECT().StreamMinimalConsensusInfo(
+//	gomock.Any(),
+//	gomock.Any(),
+//	).Return(epochInfoStream, nil)
+//blockPendingStream.EXPECT().Recv().Return(
+//	&ethpb.StreamPendingBlockInfo{},
+//	nil,
+//).Do(func() {
+//	s.Stop()
+//	assert.LogsContain(t, hook, "Connected vanguard chain")
+//	hook.Reset()
+//})
+//epochInfoStream.EXPECT().Recv().Return(
+//	&ethpb.MinimalConsensusInfoRequest{},
+//	nil,
+//).Do(func() {
+//	assert.LogsContain(t, hook, "Connected vanguard chain")
+//	hook.Reset()
+//})
 
-	s.beaconClient = mockedBeaconClient
-	s.nodeClient = mockedNodeClient
-
-	blockPendingStream := mock.NewMockBeaconChain_StreamNewPendingBlocksClient(ctrl)
-	epochInfoStream := mock.NewMockBeaconChain_StreamMinimalConsensusInfoClient(ctrl)
-
-	defer func() {
-		ctrl.Finish()
-		s.Stop()
-	}()
-
-	go s.run()
-
-	mockedBeaconClient.EXPECT().GetChainHead(gomock.Any(), &emptypb.Empty{}).Return(&ethpb.ChainHead{}, nil)
-	mockedBeaconClient.EXPECT().StreamNewPendingBlocks(gomock.Any(), &ethpb.StreamPendingBlocksRequest{}).Return(blockPendingStream, nil)
-	mockedBeaconClient.EXPECT().StreamMinimalConsensusInfo(gomock.Any(), &ethpb.MinimalConsensusInfoRequest{}).Return(epochInfoStream, nil)
-
-	time.Sleep(1 * time.Second)
-	assert.LogsContain(t, hook, "Connected vanguard chain")
-	hook.Reset()
-}
+//time.Sleep(30 * time.Second)
+//assert.LogsContain(t, hook, "Connected vanguard chain")
+//hook.Reset()
+//	return s, hook
+//}
 //
 //// Test_VanguardSvc_StartStop checks start and stop process. When the vanguard service starts, it also subscribes
 //// van_subscribe to get new consensus info

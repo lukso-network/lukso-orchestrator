@@ -99,7 +99,7 @@ func (s *Store) LatestLatestFinalizedEpoch() uint64 {
 	return latestFinalizedEpoch
 }
 
-func (s *Store)UpdateVerifiedSlotInfo(slot uint64) error  {
+func (s *Store) UpdateVerifiedSlotInfo(slot uint64) error {
 	slotNumber, slotInfo, err := s.SeekSlotInfo(slot)
 	if err != nil {
 		return err

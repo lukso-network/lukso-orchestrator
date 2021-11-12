@@ -76,7 +76,7 @@ func (s *Service) revert(head *ethpb.ChainHead) error {
 
 		}
 		// Re-subscribe vanguard new pending blocks
-		go s.subscribeVanNewPendingBlockHash(revertSlot)
+		go s.subscribeVanNewPendingBlockHash(s.ctx, revertSlot)
 		//TODO- start pandora pending block subscription
 		s.subscriptionShutdownFeed.Send(false)
 

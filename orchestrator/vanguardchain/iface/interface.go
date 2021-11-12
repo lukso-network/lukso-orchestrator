@@ -14,5 +14,5 @@ type VanguardShardInfoFeed interface {
 }
 
 type ShutdownSignalPropagationFeed interface {
-	SubscribeShutdownSignalEvent(ch chan <-bool) event.Subscription
+	SubscribeShutdownSignalEvent(ch chan<- bool) event.Subscription
 }

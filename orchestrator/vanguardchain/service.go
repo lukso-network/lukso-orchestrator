@@ -114,7 +114,9 @@ func (s *Service) Stop() error {
 		defer s.cancel()
 	}
 	s.scope.Close()
-	s.conn.Close()
+	if s.conn != nil {
+		s.conn.Close()
+	}
 	return nil
 }
 
@@ -155,8 +157,8 @@ func (s *Service) run() {
 
 	latestFinalizedSlot := s.getFinalizedSlot()
 
-	go s.subscribeNewConsensusInfoGRPC(fromEpoch)
-	go s.subscribeVanNewPendingBlockHash(latestFinalizedSlot)
+	go s.subscribeNewConsensusInfoGRPC(s.ctx, fromEpoch)
+	go s.subscribeVanNewPendingBlockHash(s.ctx, latestFinalizedSlot)
 	go s.syncWithVanguardHead()
 }
 
@@ -199,7 +201,7 @@ func (s *Service) SubscribeShardInfoEvent(ch chan<- *types.VanguardShardInfo) ev
 	return s.scope.Track(s.vanguardShardingInfoFeed.Subscribe(ch))
 }
 
-func (s *Service) SubscribeShutdownSignalEvent(ch chan <-bool) event.Subscription {
+func (s *Service) SubscribeShutdownSignalEvent(ch chan<- bool) event.Subscription {
 	return s.scope.Track(s.subscriptionShutdownFeed.Subscribe(ch))
 }
 
