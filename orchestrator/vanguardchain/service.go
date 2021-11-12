@@ -41,7 +41,6 @@ type Service struct {
 	vanGRPCEndpoint   string
 	dialOpts          []grpc.DialOption
 	beaconClient      ethpb.BeaconChainClient
-	validatorClient   ethpb.BeaconNodeValidatorClient
 	nodeClient        ethpb.NodeClient
 	conn              *grpc.ClientConn
 
@@ -105,7 +104,6 @@ func (s *Service) Start() {
 
 	s.conn = c
 	s.beaconClient = ethpb.NewBeaconChainClient(c)
-	s.validatorClient = ethpb.NewBeaconNodeValidatorClient(c)
 	s.nodeClient = ethpb.NewNodeClient(c)
 
 	go s.run()
@@ -134,10 +132,6 @@ func (s *Service) Status() error {
 
 // run subscribes to all the services for the ETH1.0 chain.
 func (s *Service) run() {
-	if s.conn == nil {
-		log.Error("Vanguard client has not successfully initiated, exiting vanguard chain service!")
-		return
-	}
 
 	s.waitForConnection()
 
