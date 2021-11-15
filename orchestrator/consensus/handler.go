@@ -62,14 +62,30 @@ func (s *Service) verifyShardingInfo(slot uint64, vanShardInfo *types.VanguardSh
 			"slotInfo", fmt.Sprintf("%+v", slotInfo)).WithError(err).Error("Failed to store verified slot info")
 		return err
 	}
+
 	// storing latest verified slot into db
 	if err := s.verifiedSlotInfoDB.SaveLatestVerifiedSlot(s.ctx, slot); err != nil {
 		log.WithError(err).Error("Failed to store latest verified slot")
 	}
+
 	// storing latest verified pandora header hash into db
 	if err := s.verifiedSlotInfoDB.SaveLatestVerifiedHeaderHash(slotInfo.PandoraHeaderHash); err != nil {
 		log.WithError(err).Error("Failed to store latest verified slot")
 	}
+
+	// Storing latest finalized slot and epoch
+	if s.verifiedSlotInfoDB.LatestLatestFinalizedEpoch() < vanShardInfo.FinalizedEpoch {
+		if err := s.verifiedSlotInfoDB.SaveLatestFinalizedSlot(vanShardInfo.FinalizedSlot); err != nil {
+			log.WithError(err).Warn("Failed to store new finalized info")
+		}
+
+		if err := s.verifiedSlotInfoDB.SaveLatestFinalizedEpoch(vanShardInfo.FinalizedEpoch); err != nil {
+			log.WithError(err).Warn("Failed to store new finalized epoch")
+		}
+		log.WithField("newFinalizedSlot", vanShardInfo.FinalizedSlot).
+			WithField("newFinalizedEpoch", vanShardInfo.FinalizedEpoch).Debug("Saved latest finalized info")
+	}
+
 	slotInfoWithStatus.Status = types.Verified
 	//removing previous cached slots which dont verified yet. By convention, they are skipped
 	s.pandoraPendingHeaderCache.Remove(s.ctx, slot)

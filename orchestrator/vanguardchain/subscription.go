@@ -132,7 +132,7 @@ func (s *Service) subscribeNewConsensusInfoGRPC(ctx context.Context, fromEpoch u
 				ValidatorList:    vanMinimalConsensusInfo.ValidatorList,
 				EpochStartTime:   vanMinimalConsensusInfo.EpochTimeStart,
 				SlotTimeDuration: time.Duration(vanMinimalConsensusInfo.SlotTimeDuration.Seconds),
-				FinalizedSlot:    s.getFinalizedSlot(),
+				FinalizedSlot:    s.db.LatestLatestFinalizedSlot(),
 			}
 
 			// if re-org happens then we get this info not nil

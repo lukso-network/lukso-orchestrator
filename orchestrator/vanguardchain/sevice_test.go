@@ -50,12 +50,12 @@ Reorg test scenario:
 //
 //	s.beaconClient = mockedBeaconClient
 //	s.nodeClient = mockedNodeClient
-
+//
 //blockPendingStream := mock.NewMockBeaconChain_StreamNewPendingBlocksClient(ctrl)
 //epochInfoStream := mock.NewMockBeaconChain_StreamMinimalConsensusInfoClient(ctrl)
-
+//
 //go s.run()
-
+//
 //mockedBeaconClient.EXPECT().GetChainHead(
 //	gomock.Any(),
 //	gomock.Any(),
@@ -88,99 +88,9 @@ Reorg test scenario:
 //	assert.LogsContain(t, hook, "Connected vanguard chain")
 //	hook.Reset()
 //})
-
+//
 //time.Sleep(30 * time.Second)
 //assert.LogsContain(t, hook, "Connected vanguard chain")
 //hook.Reset()
 //	return s, hook
-//}
-//
-//// Test_VanguardSvc_StartStop checks start and stop process. When the vanguard service starts, it also subscribes
-//// van_subscribe to get new consensus info
-//func Test_VanguardSvc_NoServerConn(t *testing.T) {
-//	hook := logTest.NewGlobal()
-//	reConPeriod = 1 * time.Second
-//
-//	ConsensusInfoMocks = make([]*eth.MinimalConsensusInfo, 0)
-//	ConsensusInfoMocks = append(ConsensusInfoMocks, &eth.MinimalConsensusInfo{
-//		SlotTimeDuration: &duration.Duration{Seconds: 6}})
-//
-//	PendingBlockMocks = nil
-//
-//	defer func() {
-//		CleanConsensusMocks()
-//		CleanPendingBlocksMocks()
-//	}()
-//
-//	ctx := context.Background()
-//	vanSvc, _ := SetupVanguardSvc(ctx, t, GRPCFunc)
-//	vanSvc.vanGRPCEndpoint = "wsad://invalid.not.reachable!@:BrOKkeeeeeennnnnnnnnn"
-//	vanSvc.dialGRPCFn = DIALGRPCFn(func(endpoint string) (client.VanguardClient, error) {
-//		return nil, fmt.Errorf("dummy error")
-//	})
-//
-//	vanSvc.Start()
-//	defer func() {
-//		_ = vanSvc.Stop()
-//	}()
-//
-//	time.Sleep(1 * time.Second)
-//	assert.LogsContain(t, hook, "Could not connect to vanguard endpoint")
-//	hook.Reset()
-//}
-//
-//func Test_VanguardSvc_RetryToConnServer(t *testing.T) {
-//	hook := logTest.NewGlobal()
-//	reConPeriod = 1 * time.Second
-//
-//	ConsensusInfoMocks = make([]*eth.MinimalConsensusInfo, 0)
-//	ConsensusInfoMocks = append(ConsensusInfoMocks, &eth.MinimalConsensusInfo{
-//		SlotTimeDuration: &duration.Duration{Seconds: 6}})
-//
-//	PendingBlockMocks = nil
-//
-//	defer func() {
-//		CleanConsensusMocks()
-//		CleanPendingBlocksMocks()
-//	}()
-//
-//	ctx := context.Background()
-//	vanSvc, _ := SetupVanguardSvc(ctx, t, GRPCFunc)
-//	shouldPass := false
-//
-//	vanSvc.dialGRPCFn = DIALGRPCFn(func(endpoint string) (client.VanguardClient, error) {
-//		if shouldPass {
-//			return GRPCFunc(endpoint)
-//		}
-//
-//		return nil, fmt.Errorf("dummy error")
-//	})
-//
-//	oldReconPeriod := reConPeriod
-//	reConPeriod = time.Millisecond * 50
-//
-//	defer func() {
-//		reConPeriod = oldReconPeriod
-//	}()
-//
-//	vanSvc.Start()
-//	defer func() {
-//		_ = vanSvc.Stop()
-//	}()
-//
-//	time.Sleep(10 * reConPeriod)
-//	assert.LogsContain(t, hook, "Could not connect to vanguard endpoint")
-//	shouldPass = true
-//
-//	time.Sleep(time.Second)
-//	assert.LogsContain(t, hook, "Connected vanguard chain")
-//	hook.Reset()
-//}
-//
-//func CleanConsensusMocks() {
-//	ConsensusInfoMocks = nil
-//}
-//
-//func CleanPendingBlocksMocks() {
-//	PendingBlockMocks = nil
 //}

@@ -55,9 +55,11 @@ type PandoraHeaderInfo struct {
 
 // VanguardShardInfo
 type VanguardShardInfo struct {
-	Slot      uint64
-	ShardInfo *eth2Types.PandoraShard
-	BlockHash []byte
+	Slot           uint64
+	ShardInfo      *eth2Types.PandoraShard
+	BlockHash      []byte
+	FinalizedSlot  uint64
+	FinalizedEpoch uint64
 }
 
 type BlsSignatureBytes [BLSSignatureSize]byte

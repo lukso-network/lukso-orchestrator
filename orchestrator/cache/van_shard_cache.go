@@ -48,3 +48,10 @@ func (vc *VanShardingInfoCache) Remove(ctx context.Context, slot uint64) {
 		}
 	}
 }
+
+// Clear the vanguard sharding cache.
+func (c *VanShardingInfoCache) Purge() {
+	c.lock.Lock()
+	c.cache.Purge()
+	c.lock.Unlock()
+}

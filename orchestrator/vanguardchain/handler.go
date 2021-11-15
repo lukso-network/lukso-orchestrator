@@ -20,25 +20,22 @@ func (s *Service) onNewConsensusInfo(ctx context.Context, consensusInfo *types.M
 	if consensusInfo.ReorgInfo != nil {
 		// Stop subscription of vanguard new pending blocks
 		s.stopSubscription()
-		// TODO- Stop pandora pending block subscription
 		s.subscriptionShutdownFeed.Send(true)
 
 		// reorg happened. So remove info from database
-		revertSlot := s.getFinalizedSlot()
-
+		revertSlot := s.db.LatestLatestFinalizedSlot()
 		log.WithField("curSlot", consensusInfo.ReorgInfo.NewSlot).WithField("revertSlot", revertSlot).
-			Warn("Stop subscription and reverting orchestrator db on live")
-
+			Warn("Stop subscription and reverting orchestrator db")
 		// Removing slot infos from verified slot info db
 		if err := s.reorgDB(revertSlot); err != nil {
 			log.WithError(err).Warn("Failed to revert verified info db")
 			return err
 
 		}
+		s.shardingInfoCache.Purge()
 
 		// Re-subscribe vanguard new pending blocks
 		go s.subscribeVanNewPendingBlockHash(ctx, revertSlot)
-		//TODO- start pandora pending block subscription
 		s.subscriptionShutdownFeed.Send(false)
 	}
 
@@ -70,22 +67,13 @@ func (s *Service) onNewPendingVanguardBlock(ctx context.Context, blockInfo *eth.
 		return errors.New("invalid shard info length in vanguard block body")
 	}
 
-	// If current orchestrator's finalize epoch is less than incoming finalized epoch, then update into db and in-memory
-	if s.getFinalizedEpoch() < uint64(blockInfo.FinalizedEpoch) {
-		newFS := uint64(blockInfo.FinalizedSlot)
-		newFE := uint64(blockInfo.FinalizedEpoch)
-
-		if err := s.updateFinalizedInfoInDB(newFS, newFE); err != nil {
-			log.WithError(err).Warn("Failed to store new finalized info")
-		}
-		s.updateInMemoryFinalizedInfo(newFS, newFE)
-	}
-
 	shardInfo := pandoraShards[0]
 	cachedShardInfo := &types.VanguardShardInfo{
-		Slot:      uint64(block.Slot),
-		BlockHash: blockHash[:],
-		ShardInfo: shardInfo,
+		Slot:           uint64(block.Slot),
+		BlockHash:      blockHash[:],
+		ShardInfo:      shardInfo,
+		FinalizedSlot:  uint64(blockInfo.FinalizedSlot),
+		FinalizedEpoch: uint64(blockInfo.FinalizedEpoch),
 	}
 
 	log.WithField("slot", block.Slot).
@@ -97,4 +85,26 @@ func (s *Service) onNewPendingVanguardBlock(ctx context.Context, blockInfo *eth.
 
 	s.vanguardShardingInfoFeed.Send(cachedShardInfo)
 	return nil
+}
+
+func (s *Service) reorgDB(revertSlot uint64) error {
+	// Removing slot infos from verified slot info db
+	if err := s.db.RemoveRangeVerifiedInfo(revertSlot+1, 0); err != nil {
+		log.WithError(err).Error("found error while reverting orchestrator database")
+		return err
+	}
+
+	//TODO: Updating latestVerifiedSlot and latestVerifiedHeaderHash
+	if err := s.db.UpdateVerifiedSlotInfo(revertSlot); err != nil {
+		log.WithError(err).Error("failed to update latest verified slot in db")
+		return err
+	}
+	return nil
+}
+
+func (s *Service) stopSubscription() {
+	s.processingLock.Lock()
+	defer s.processingLock.Unlock()
+
+	s.stopPendingBlkSubCh <- struct{}{}
 }

@@ -53,8 +53,6 @@ type Service struct {
 	db                  db.Database              // db support
 	shardingInfoCache   cache.VanguardShardCache // lru cache support
 	stopPendingBlkSubCh chan struct{}
-	finalizedSlot       uint64
-	finalizedEpoch      uint64
 }
 
 // NewService creates new service with vanguard endpoint, vanguard namespace and consensusInfoDB
@@ -68,9 +66,6 @@ func NewService(
 	ctx, cancel := context.WithCancel(ctx)
 	_ = cancel // govet fix for lost cancel. Cancel is handled in service.Stop()
 
-	finalizedSlotInDB := db.LatestLatestFinalizedSlot()
-	finalizedEpochInDB := db.LatestLatestFinalizedEpoch()
-
 	return &Service{
 		ctx:                 ctx,
 		cancel:              cancel,
@@ -78,8 +73,6 @@ func NewService(
 		db:                  db,
 		shardingInfoCache:   cache,
 		stopPendingBlkSubCh: make(chan struct{}),
-		finalizedSlot:       finalizedSlotInDB,
-		finalizedEpoch:      finalizedEpochInDB,
 	}, nil
 }
 
@@ -137,7 +130,8 @@ func (s *Service) run() {
 
 	s.waitForConnection()
 
-	latestFinalizedEpoch := s.getFinalizedEpoch()
+	latestFinalizedEpoch := s.db.LatestLatestFinalizedEpoch()
+	latestFinalizedSlot := s.db.LatestLatestFinalizedSlot()
 	fromEpoch := latestFinalizedEpoch
 
 	// checking consensus info db
@@ -155,11 +149,8 @@ func (s *Service) run() {
 		i--
 	}
 
-	latestFinalizedSlot := s.getFinalizedSlot()
-
 	go s.subscribeNewConsensusInfoGRPC(s.ctx, fromEpoch)
 	go s.subscribeVanNewPendingBlockHash(s.ctx, latestFinalizedSlot)
-	go s.syncWithVanguardHead()
 }
 
 // waitForConnection waits for a connection with vanguard chain. Until a successful with

@@ -78,6 +78,10 @@ func (backed *Backend) PendingPandoraHeaders() []*eth1Types.Header {
 	return headers
 }
 
+func (backend *Backend) LatestFinalizedSlot() uint64 {
+	return backend.VerifiedSlotInfoDB.LatestLatestFinalizedSlot()
+}
+
 // GetSlotStatus
 func (backend *Backend) GetSlotStatus(ctx context.Context, slot uint64, hash common.Hash, requestFrom bool) types.Status {
 	// by default if nothing is found then return skipped

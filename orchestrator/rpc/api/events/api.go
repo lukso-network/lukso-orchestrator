@@ -24,6 +24,7 @@ type Backend interface {
 	VerifiedSlotInfos(fromSlot uint64) map[uint64]*generalTypes.SlotInfo
 	LatestVerifiedSlot() uint64
 	PendingPandoraHeaders() []*eth1Types.Header
+	LatestFinalizedSlot() uint64
 }
 
 // PublicFilterAPI offers support to create and manage filters. This will allow external clients to retrieve various
@@ -123,12 +124,14 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, requestedE
 				log.WithError(err).Error("Some epoch infos are missing in db.")
 				return errors.Wrap(err, "Missing epoch infos in db. Could not send over stream.")
 			}
+			latestFinalizedSlot := api.backend.LatestFinalizedSlot()
 			for _, ei := range epochInfos {
 				if err := notifier.Notify(rpcSub.ID, &generalTypes.MinimalEpochConsensusInfoV2{
 					Epoch:            ei.Epoch,
 					ValidatorList:    ei.ValidatorList,
 					EpochStartTime:   ei.EpochStartTime,
 					SlotTimeDuration: ei.SlotTimeDuration,
+					FinalizedSlot:    latestFinalizedSlot,
 				}); err != nil {
 					log.WithField("start", start).
 						WithField("end", end).
@@ -136,7 +139,8 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, requestedE
 						Error("Failed to send epoch info. Could not send over stream.")
 					return errors.Wrap(err, "Failed to send epoch info. Could not send over stream.")
 				}
-				log.WithField("epoch", ei.Epoch).Info("published epoch info to pandora")
+				log.WithField("epoch", ei.Epoch).WithField("latestFinalizedSlot", latestFinalizedSlot).
+					Info("published epoch info to pandora")
 			}
 			return nil
 		}
@@ -182,12 +186,17 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, requestedE
 					EpochStartTime:   currentEpochInfo.EpochStartTime,
 					SlotTimeDuration: currentEpochInfo.SlotTimeDuration,
 					ReorgInfo:        currentEpochInfo.ReorgInfo,
+					FinalizedSlot:    currentEpochInfo.FinalizedSlot,
 				})
 				if nil != err {
 					log.WithField("epoch", currentEpochInfo.Epoch).WithError(err).Error(
 						"Failed to notify consensus info")
 					return
 				}
+
+				log.WithField("epoch", currentEpochInfo.Epoch).WithField("latestFinalizedSlot", currentEpochInfo.FinalizedSlot).
+					Info("published epoch info to pandora")
+
 			case <-rpcSub.Err():
 				log.Info("Unsubscribing registered pandora client")
 				consensusInfoSub.Unsubscribe()

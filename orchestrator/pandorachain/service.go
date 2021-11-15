@@ -174,6 +174,8 @@ func (s *Service) run(done <-chan struct{}) {
 		select {
 		case val := <-s.signalFromVanguard:
 			if val == true {
+				// Empty the cache and disconnect subscription
+				s.cache.Purge()
 				s.conDisconnect <- struct{}{}
 			} else {
 				s.subscribe()
