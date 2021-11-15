@@ -197,7 +197,7 @@ func prepareRpcAddressAndProtocol(rpcAddress string) (string, string, error) {
 		return rpcAddress, "tcp", nil
 	case "":
 		if len(strings.TrimSpace(u.Path)) == 0 {
-			return rpcAddress, "", fmt.Errorf("invalid socket path %q", u.Host)
+			return rpcAddress, "", fmt.Errorf("invalid socket path %q", u.Path)
 		}
 		return rpcAddress, "unix", nil
 	default:
