@@ -179,17 +179,13 @@ func prepareRpcAddressAndProtocol(rpcAddress string) (string, string, error) {
 	var host string
 	u, err := url.Parse(rpcAddress)
 	if err != nil {
-		_, _, err = net.SplitHostPort(rpcAddress)
-		if err != nil {
-			return rpcAddress, "", err
-		}
-	}
-
-	if u == nil {
 		host, _, err = net.SplitHostPort(rpcAddress)
 		if err != nil {
 			return rpcAddress, "", err
 		}
+	}
+	if u != nil {
+		host = u.Host
 	}
 
 	if net.ParseIP(host) != nil {
