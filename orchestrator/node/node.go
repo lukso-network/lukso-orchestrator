@@ -64,6 +64,15 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 	if err := orchestrator.startDB(orchestrator.cliCtx); err != nil {
 		return nil, err
 	}
+	finalizedSlot :=  orchestrator.db.LatestLatestFinalizedSlot()
+	if err := orchestrator.db.RemoveRangeVerifiedInfo(finalizedSlot + 1, 0); err != nil {
+		return nil, err
+	}
+
+	if err := orchestrator.db.UpdateVerifiedSlotInfo(finalizedSlot); err != nil {
+		log.WithError(err).Error("failed to update latest verified slot in db")
+		return nil, err
+	}
 
 	if err := orchestrator.registerVanguardChainService(cliCtx); err != nil {
 		return nil, err
