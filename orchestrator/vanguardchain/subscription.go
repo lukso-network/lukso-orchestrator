@@ -100,28 +100,27 @@ func (s *Service) subscribeNewConsensusInfoGRPC(ctx context.Context, fromEpoch u
 
 		default:
 			vanMinimalConsensusInfo, err := stream.Recv()
-			if e, ok := status.FromError(err); ok {
-				switch e.Code() {
-				case codes.Canceled, codes.Internal, codes.Unavailable:
-					log.WithError(err).Infof("Trying to restart connection. rpc status: %v", e.Code())
+			if err != nil {
+				if e, ok := status.FromError(err); ok {
+					switch e.Code() {
+					case codes.Canceled, codes.Internal, codes.Unavailable:
+						log.WithError(err).Infof("Trying to restart connection. rpc status: %v", e.Code())
 
-					s.waitForConnection()
+						s.waitForConnection()
 
-					stream, err = s.beaconClient.StreamMinimalConsensusInfo(
-						ctx,
-						&ethpb.MinimalConsensusInfoRequest{FromEpoch: eth2Types.Epoch(fromEpoch)},
-					)
-					if nil != err {
-						log.WithError(err).Error("Failed to subscribe to stream of new consensus info, Exiting go routine")
-						return err
+						stream, err = s.beaconClient.StreamMinimalConsensusInfo(
+							ctx,
+							&ethpb.MinimalConsensusInfoRequest{FromEpoch: eth2Types.Epoch(fromEpoch)},
+						)
+						if nil != err {
+							log.WithError(err).Error("Failed to subscribe to stream of new consensus info, Exiting go routine")
+							return err
+						}
 					}
-				default:
-					log.WithError(err).Errorf("Could not receive epoch info from vanguard. rpc status: %v", e.Code())
+				} else {
+					log.WithError(err).Error("Could not receive epoch info from vanguard")
 					return err
 				}
-			} else {
-				log.WithError(err).Error("Could not receive epoch info from vanguard")
-				return err
 			}
 
 			if vanMinimalConsensusInfo == nil {
