@@ -139,3 +139,11 @@ func NewBeaconBlock(slot uint64) *ethpb.BeaconBlock {
 		},
 	}
 }
+
+func NewReOrg(slot uint64) *types.Reorg {
+	return &types.Reorg{
+		VanParentHash: []byte("0xd2302fac5c5f370575a70bcbab9fdaeb8f7e892f381d648ce1f2ad07ad17f20e"),
+		PanParentHash: []byte("0xd2302fac5c5f370575a70bcbab9fdaeb8f7e892f381d648ce1f2ad07ad17f20e"),
+		NewSlot:       slot,
+	}
+}

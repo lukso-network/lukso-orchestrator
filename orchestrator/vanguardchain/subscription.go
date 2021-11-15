@@ -3,6 +3,7 @@ package vanguardchain
 import (
 	"context"
 	"fmt"
+	"github.com/lukso-network/lukso-orchestrator/shared/testutil"
 	"time"
 
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
@@ -152,6 +153,12 @@ func (s *Service) subscribeNewConsensusInfoGRPC(ctx context.Context, fromEpoch u
 					NewSlot:       uint64(vanMinimalConsensusInfo.ReorgInfo.NewSlot),
 				}
 				consensusInfo.ReorgInfo = reorgInfo
+			}
+
+			// TODO(Atif): Triggering dummy reorg here for testing
+			if consensusInfo.Epoch%100 == 0 {
+				log.WithField("epoch", consensusInfo.Epoch).Debug("Triggering dummy reorg...")
+				consensusInfo.ReorgInfo = testutil.NewReOrg(consensusInfo.Epoch)
 			}
 
 			log.WithField("epoch", vanMinimalConsensusInfo.Epoch).WithField("epochInfo", fmt.Sprintf("%+v", vanMinimalConsensusInfo)).
