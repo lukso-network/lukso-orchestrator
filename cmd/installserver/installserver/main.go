@@ -34,9 +34,7 @@ func DownloadAndServe(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if isVersionString {
-			version = "v" + versionQueryParam
-		}
+		version = "v" + versionQueryParam
 	}
 
 	resp, err := http.Get("https://raw.githubusercontent.com/lukso-network/network-lukso-cli/" + version + "/shell_scripts/install-unix.sh")
