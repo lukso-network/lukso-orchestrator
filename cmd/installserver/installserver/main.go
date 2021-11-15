@@ -26,7 +26,13 @@ func DownloadAndServe(w http.ResponseWriter, r *http.Request) {
 		// https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
 		semverRegex := `^(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$`
 
-		isVersionString, _ := regexp.MatchString(semverRegex, versionQueryParam)
+		isVersionString, err := regexp.MatchString(semverRegex, versionQueryParam)
+
+		if nil != err || !isVersionString {
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+
+			return
+		}
 
 		if isVersionString {
 			version = "v" + versionQueryParam
