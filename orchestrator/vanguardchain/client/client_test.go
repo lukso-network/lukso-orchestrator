@@ -33,11 +33,12 @@ func TestVanguardClient(t *testing.T) {
 	}
 
 	for _, tt := range tests{
-		ctx := context.Background()
-		vanguardClient, err := client.Dial(ctx, tt.vanguardRpcEndpoint, time.Minute*6, 32, math.MaxInt32)
-		require.NoError(t, err)
-		require.NotNil(t, vanguardClient)
-		vanguardClient.Close()
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			vanguardClient, err := client.Dial(ctx, tt.vanguardRpcEndpoint, time.Minute*6, 32, math.MaxInt32)
+			require.NoError(t, err)
+			require.NotNil(t, vanguardClient)
+			vanguardClient.Close()
+		})
 	}
 }
-
