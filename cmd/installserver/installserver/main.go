@@ -29,7 +29,7 @@ func DownloadAndServe(w http.ResponseWriter, r *http.Request) {
 		isVersionString, _ := regexp.MatchString(semverRegex, versionQueryParam)
 
 		if isVersionString {
-			version = versionQueryParam
+			version = "v" + versionQueryParam
 		}
 	}
 
