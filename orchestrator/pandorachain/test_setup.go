@@ -3,6 +3,7 @@ package pandorachain
 import (
 	"context"
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
 	testDB "github.com/lukso-network/lukso-orchestrator/orchestrator/db/testing"
@@ -12,6 +13,15 @@ import (
 	"github.com/sirupsen/logrus"
 	"testing"
 )
+
+type mockFeedService struct {
+	reorgFeed event.Feed
+	scope     event.SubscriptionScope
+}
+
+func (mc *mockFeedService) SubscribeShutdownSignalEvent(ch chan<- bool) event.Subscription {
+	return mc.scope.Track(mc.reorgFeed.Subscribe(ch))
+}
 
 // pandoraChainService
 type pandoraChainService struct {
@@ -87,7 +97,7 @@ func SetupPandoraSvc(ctx context.Context, t *testing.T, dialRPCFn DialRPCFn) *Se
 		testDB.SetupDB(t),
 		cache.NewPanHeaderCache(),
 		dialRPCFn,
-		nil)
+		new(mockFeedService))
 	if err != nil {
 		t.Fatalf("failed to create protocol stack: %v", err)
 	}

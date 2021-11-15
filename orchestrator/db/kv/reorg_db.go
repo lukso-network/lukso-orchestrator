@@ -104,6 +104,15 @@ func (s *Store) UpdateVerifiedSlotInfo(slot uint64) error {
 	if err != nil {
 		return err
 	}
+
+	if slotInfo == nil {
+		log.WithField("slot", slotNumber).Debug("Could not found slot info in verified slot info")
+		return nil
+	}
+
+	log.WithField("slot", slotNumber).WithField("latestVerifiedSlot", slotNumber).
+		Debug("Latest slot till latest finalized slot, updating verified markers")
+
 	err = s.SaveLatestVerifiedSlot(s.ctx, slotNumber)
 	if err != nil {
 		return err

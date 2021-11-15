@@ -14,7 +14,6 @@ import (
 )
 
 var (
-	errShardInfoProcess       = errors.New("Failed to process the pending vanguard shardInfo")
 	errConsensusInfoNil       = errors.New("Incoming consensus info is nil")
 	errInvalidValidatorLength = errors.New("Incoming consensus info's validator list is invalid")
 	errConsensusInfoProcess   = errors.New("Could not process minimal consensus info")
@@ -45,22 +44,32 @@ func (s *Service) subscribeVanNewPendingBlockHash(ctx context.Context, fromSlot 
 
 		default:
 			vanBlockInfo, err := stream.Recv()
-			if e, ok := status.FromError(err); ok {
-				switch e.Code() {
-				case codes.Canceled, codes.Internal, codes.Unavailable:
-					log.WithError(err).Infof("Trying to restart connection. rpc status: %v", e.Code())
-					s.waitForConnection()
-					stream, err = s.beaconClient.StreamNewPendingBlocks(ctx,
-						&ethpb.StreamPendingBlocksRequest{
-							BlockRoot: blockRoot,
-							FromSlot:  eth2Types.Slot(fromSlot),
-						})
-					if err != nil {
-						log.WithError(err).Error("Failed to subscribe to new pending blocks stream")
-						return err
+			if err != nil {
+				if e, ok := status.FromError(err); ok {
+					switch e.Code() {
+					case codes.Canceled, codes.Internal, codes.Unavailable:
+						log.WithError(err).Infof("Trying to restart connection. rpc status: %v", e.Code())
+
+						s.waitForConnection()
+
+						// Re-try subscription from latest finalized slot
+						latestFinalizedSlot := s.db.LatestLatestFinalizedSlot()
+						stream, err = s.beaconClient.StreamNewPendingBlocks(ctx,
+							&ethpb.StreamPendingBlocksRequest{
+								BlockRoot: blockRoot,
+								FromSlot:  eth2Types.Slot(latestFinalizedSlot),
+							})
+						if err != nil {
+							log.WithError(err).Error("Failed to subscribe to new pending blocks stream")
+							return err
+						}
 					}
+				} else {
+					log.WithError(err).Error("Could not receive pending blocks from vanguard node")
+					return err
 				}
 			}
+
 			if err := s.onNewPendingVanguardBlock(ctx, vanBlockInfo); err != nil {
 				log.WithError(err).Error("Failed to process the pending vanguard shardInfo. Exiting vanguard pending header subscription")
 				return errConsensusInfoProcess

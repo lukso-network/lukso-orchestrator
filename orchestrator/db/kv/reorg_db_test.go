@@ -9,37 +9,6 @@ import (
 	"testing"
 )
 
-func TestStore_ReorgDB(t *testing.T) {
-	t.Parallel()
-	ctx := context.Background()
-	db := setupReorgDB(t, ctx)
-	defer db.ClearDB()
-	reorgEpochInfo := &types.MinimalEpochConsensusInfoV2{
-		Epoch: 3,
-		ReorgInfo: &types.Reorg{
-			VanParentHash: []byte{uint8(50)},
-			PanParentHash: []byte{uint8(100)},
-		},
-	}
-	require.NoError(t, db.RevertConsensusInfo(reorgEpochInfo))
-	expectedSlotInfo := (*types.SlotInfo)(nil)
-	for i := 51; i < 100; i++ {
-		actualSlotInfo, err := db.VerifiedSlotInfo(uint64(i))
-		require.NoError(t, err)
-		require.DeepEqual(t, expectedSlotInfo, actualSlotInfo)
-	}
-
-	for i := 0; i <= 50; i++ {
-		expectedSlotInfo := new(types.SlotInfo)
-		expectedSlotInfo.VanguardBlockHash = common.BytesToHash([]byte{uint8(i)})
-		expectedSlotInfo.PandoraHeaderHash = common.BytesToHash([]byte{uint8(i + 50)})
-
-		actualSlotInfo, err := db.VerifiedSlotInfo(uint64(i))
-		require.NoError(t, err)
-		require.DeepEqual(t, expectedSlotInfo, actualSlotInfo)
-	}
-}
-
 func setupReorgDB(t *testing.T, ctx context.Context) *Store {
 	db := setupDB(t, true)
 	for i := 0; i < 5; i++ {

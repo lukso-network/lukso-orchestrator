@@ -23,19 +23,20 @@ func (s *Service) onNewConsensusInfo(ctx context.Context, consensusInfo *types.M
 		s.subscriptionShutdownFeed.Send(true)
 
 		// reorg happened. So remove info from database
-		revertSlot := s.db.LatestLatestFinalizedSlot()
-		log.WithField("curSlot", consensusInfo.ReorgInfo.NewSlot).WithField("revertSlot", revertSlot).
-			Warn("Stop subscription and reverting orchestrator db")
-		// Removing slot infos from verified slot info db
-		if err := s.reorgDB(revertSlot); err != nil {
+		finalizedSlot := s.db.LatestLatestFinalizedSlot()
+		log.WithField("curSlot", consensusInfo.ReorgInfo.NewSlot).WithField("revertSlot", finalizedSlot).
+			Warn("Stop subscription and reverting orchestrator db to latest finalized slot")
+
+		if err := s.reorgDB(finalizedSlot); err != nil {
 			log.WithError(err).Warn("Failed to revert verified info db")
 			return err
 
 		}
+		// Removing slot infos from vanguard cache
 		s.shardingInfoCache.Purge()
 
 		// Re-subscribe vanguard new pending blocks
-		go s.subscribeVanNewPendingBlockHash(ctx, revertSlot)
+		go s.subscribeVanNewPendingBlockHash(ctx, finalizedSlot)
 		s.subscriptionShutdownFeed.Send(false)
 	}
 
@@ -90,13 +91,12 @@ func (s *Service) onNewPendingVanguardBlock(ctx context.Context, blockInfo *eth.
 func (s *Service) reorgDB(revertSlot uint64) error {
 	// Removing slot infos from verified slot info db
 	if err := s.db.RemoveRangeVerifiedInfo(revertSlot+1, 0); err != nil {
-		log.WithError(err).Error("found error while reverting orchestrator database")
+		log.WithError(err).Error("found error while reverting orchestrator database in reorg phase")
 		return err
 	}
 
-	//TODO: Updating latestVerifiedSlot and latestVerifiedHeaderHash
 	if err := s.db.UpdateVerifiedSlotInfo(revertSlot); err != nil {
-		log.WithError(err).Error("failed to update latest verified slot in db")
+		log.WithError(err).Error("failed to update latest verified slot info in reorg phase")
 		return err
 	}
 	return nil

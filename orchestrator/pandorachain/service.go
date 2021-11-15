@@ -2,6 +2,7 @@ package pandorachain
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/iface"
 	"sync"
 	"time"
@@ -14,8 +15,10 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 )
 
-// time to wait before trying to reconnect.
-var reConPeriod = 2 * time.Second
+var (
+	reConPeriod = 2 * time.Second // time to wait before trying to reconnect.
+	EmptyHash   = common.HexToHash("0000000000000000000000000000000000000000000000000000000000000000")
+)
 
 // DialRPCFn dials to the given endpoint
 type DialRPCFn func(endpoint string) (*rpc.Client, error)
@@ -82,7 +85,6 @@ func NewService(
 
 // Start a consensus info fetcher service's main event loop.
 func (s *Service) Start() {
-	s.vanguardSubscription = s.shutdownSignal.SubscribeShutdownSignalEvent(s.signalFromVanguard)
 	// Exit early if pandora endpoint is not set.
 	if s.endpoint == "" {
 		return
@@ -104,7 +106,11 @@ func (s *Service) Stop() error {
 	}
 	s.closeClients()
 	s.scope.Close()
-	s.vanguardSubscription.Unsubscribe()
+
+	if s.vanguardSubscription != nil {
+		s.vanguardSubscription.Unsubscribe()
+	}
+
 	return nil
 }
 
@@ -167,6 +173,7 @@ func (s *Service) waitForConnection() {
 func (s *Service) run(done <-chan struct{}) {
 	log.Debug("Pandora chain service is starting")
 	s.runError = nil
+	s.vanguardSubscription = s.shutdownSignal.SubscribeShutdownSignalEvent(s.signalFromVanguard)
 
 	// the loop waits for any error which comes from consensus info subscription
 	// if any subscription error happens, it will try to reconnect and re-subscribe with pandora chain again.
@@ -225,10 +232,27 @@ func (s *Service) retryToConnectAndSubscribe(err error) {
 
 // subscribe subscribes to pandora events
 func (s *Service) subscribe() error {
-	latestSavedHeaderHash := s.db.LatestVerifiedHeaderHash()
-	filter := &types.PandoraPendingHeaderFilter{
-		FromBlockHash: latestSavedHeaderHash,
+	latestFinalizedSlot := s.db.LatestLatestFinalizedSlot()
+	slotInfo, err := s.db.VerifiedSlotInfo(latestFinalizedSlot)
+	if err != nil {
+		log.WithError(err).WithField("finalizedSlot", latestFinalizedSlot).
+			Error("Could not get verified slot info from db at latest finalized slot")
+		return err
 	}
+
+	filter := &types.PandoraPendingHeaderFilter{
+		FromBlockHash: EmptyHash,
+	}
+
+	if slotInfo != nil {
+		filter = &types.PandoraPendingHeaderFilter{
+			FromBlockHash: slotInfo.PandoraHeaderHash,
+		}
+	}
+
+	log.WithField("finalizedSlot", latestFinalizedSlot).WithField("panHeaderHash", filter.FromBlockHash).
+		Debug("Start subscribing to pandora client for pending headers")
+
 	// subscribe to pandora client for pending headers
 	sub, err := s.SubscribePendingHeaders(s.ctx, filter, s.namespace, s.rpcClient)
 	if err != nil {
