@@ -21,6 +21,7 @@ type MinimalEpochConsensusInfoV2 struct {
 	EpochStartTime   uint64        `json:"epochTimeStart"`
 	SlotTimeDuration time.Duration `json:"slotTimeDuration"`
 	ReorgInfo        *Reorg        `json:"reorg_info"`
+	FinalizedSlot    uint64        `json:"finalizedSlot"`
 }
 
 type MinimalEpochConsensusInfo struct {
@@ -54,9 +55,11 @@ type PandoraHeaderInfo struct {
 
 // VanguardShardInfo
 type VanguardShardInfo struct {
-	Slot      uint64
-	ShardInfo *eth2Types.PandoraShard
-	BlockHash []byte
+	Slot           uint64
+	ShardInfo      *eth2Types.PandoraShard
+	BlockHash      []byte
+	FinalizedSlot  uint64
+	FinalizedEpoch uint64
 }
 
 type BlsSignatureBytes [BLSSignatureSize]byte

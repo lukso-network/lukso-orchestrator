@@ -9,7 +9,6 @@ require (
 	github.com/ethereum/go-ethereum v1.10.2
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/mock v1.6.0
-	github.com/golang/protobuf v1.5.2
 	github.com/gorilla/websocket v1.4.2
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.2
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
@@ -31,4 +30,7 @@ require (
 	google.golang.org/protobuf v1.26.0
 )
 
-replace github.com/prysmaticlabs/prysm => github.com/lukso-network/vanguard-consensus-engine v0.5.1-develop.0.20211108134132-fdc1dc776e66
+replace (
+	github.com/grpc-ecosystem/grpc-gateway/v2 => github.com/prysmaticlabs/grpc-gateway/v2 v2.3.1-0.20210622145107-ca3041e1b380
+	github.com/prysmaticlabs/prysm => github.com/lukso-network/vanguard-consensus-engine v0.2.0-rc.1.0.20211112151950-3fd69111ecc3
+)

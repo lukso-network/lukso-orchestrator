@@ -12,7 +12,6 @@ type ReadOnlyConsensusInfoDatabase interface {
 	ConsensusInfo(ctx context.Context, epoch uint64) (*types.MinimalEpochConsensusInfo, error)
 	ConsensusInfos(fromEpoch uint64) ([]*types.MinimalEpochConsensusInfo, error)
 	LatestSavedEpoch() uint64
-	GetLatestEpoch() uint64
 }
 
 // ConsensusInfoAccessDatabase
@@ -20,7 +19,7 @@ type ConsensusInfoAccessDatabase interface {
 	ReadOnlyConsensusInfoDatabase
 
 	SaveConsensusInfo(ctx context.Context, consensusInfo *types.MinimalEpochConsensusInfo) error
-	SaveLatestEpoch(ctx context.Context) error
+	SaveLatestEpoch(ctx context.Context, epoch uint64) error
 	RevertConsensusInfo(reorgInfo *types.MinimalEpochConsensusInfoV2) error
 }
 
@@ -28,17 +27,21 @@ type ReadOnlyVerifiedSlotInfoDatabase interface {
 	VerifiedSlotInfo(slot uint64) (*types.SlotInfo, error)
 	VerifiedSlotInfos(fromSlot uint64) (map[uint64]*types.SlotInfo, error)
 	LatestSavedVerifiedSlot() uint64
-	InMemoryLatestVerifiedSlot() uint64
 	LatestVerifiedHeaderHash() common.Hash
-	InMemoryLatestVerifiedHeaderHash() common.Hash
+	LatestLatestFinalizedSlot() uint64
+	LatestLatestFinalizedEpoch() uint64
 }
 
 type VerifiedSlotDatabase interface {
 	ReadOnlyVerifiedSlotInfoDatabase
 
 	SaveVerifiedSlotInfo(slot uint64, slotInfo *types.SlotInfo) error
-	SaveLatestVerifiedSlot(ctx context.Context) error
-	SaveLatestVerifiedHeaderHash() error
+	SaveLatestVerifiedSlot(ctx context.Context, slot uint64) error
+	SaveLatestVerifiedHeaderHash(hash common.Hash) error
+	SaveLatestFinalizedSlot(latestFinalizedSlot uint64) error
+	SaveLatestFinalizedEpoch(latestFinalizedEpoch uint64) error
+	RemoveRangeVerifiedInfo(fromSlot, skipSlot uint64) error
+	UpdateVerifiedSlotInfo(slot uint64) error
 }
 
 type ReadOnlyInvalidSlotInfoDatabase interface {

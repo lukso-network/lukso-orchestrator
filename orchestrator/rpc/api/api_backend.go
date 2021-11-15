@@ -78,13 +78,17 @@ func (backed *Backend) PendingPandoraHeaders() []*eth1Types.Header {
 	return headers
 }
 
+func (backend *Backend) LatestFinalizedSlot() uint64 {
+	return backend.VerifiedSlotInfoDB.LatestLatestFinalizedSlot()
+}
+
 // GetSlotStatus
 func (backend *Backend) GetSlotStatus(ctx context.Context, slot uint64, hash common.Hash, requestFrom bool) types.Status {
 	// by default if nothing is found then return skipped
 	status := types.Pending
 
 	//when requested slot is greater than latest verified slot
-	latestVerifiedSlot := backend.VerifiedSlotInfoDB.InMemoryLatestVerifiedSlot()
+	latestVerifiedSlot := backend.VerifiedSlotInfoDB.LatestSavedVerifiedSlot()
 	var slotInfo *types.SlotInfo
 
 	logPrinter := func(stat types.Status) {

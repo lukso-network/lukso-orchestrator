@@ -100,3 +100,19 @@ func Test_PandoraHeaderGetAll(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, len(expectedPanHeaders), len(actualPanHeaders))
 }
+
+func Test_PandoraHeaderPurge(t *testing.T) {
+	maxCacheSize = 1 << 10
+	pc := NewPanHeaderCache()
+	ctx := context.Background()
+	setup(100)
+
+	for slot := 1; slot <= 100; slot++ {
+		slotUint64 := uint64(slot)
+		pc.Put(ctx, slotUint64, expectedPanHeaders[slotUint64])
+	}
+	pc.Purge()
+	actualPanHeaders, err := pc.GetAll()
+	require.NoError(t, err)
+	assert.Equal(t, 0, len(actualPanHeaders))
+}

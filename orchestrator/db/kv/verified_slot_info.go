@@ -16,6 +16,28 @@ var (
 	errInvalidSlot = errors.New("invalid slot and not found any verified slot info for the given slot")
 )
 
+func (s *Store) SeekSlotInfo(slot uint64) (uint64, *types.SlotInfo, error) {
+	var slotInfo *types.SlotInfo
+	var foundSlot uint64
+	err := s.db.View(func(tx *bolt.Tx) error {
+		bkt := tx.Bucket(verifiedSlotInfosBucket)
+		key := bytesutil.Uint64ToBytesBigEndian(slot)
+		cursor := bkt.Cursor()
+		for slotNumber, info := cursor.Seek(key); slotNumber != nil && info != nil; slotNumber, info = cursor.Prev() {
+			foundSlot = bytesutil.BytesToUint64BigEndian(slotNumber)
+			err := decode(info, slotInfo)
+			if err != nil {
+				return err
+			}
+			if foundSlot <= slot {
+				return nil
+			}
+		}
+		return nil
+	})
+	return foundSlot, slotInfo, err
+}
+
 // VerifiedSlotInfo
 func (s *Store) VerifiedSlotInfo(slot uint64) (*types.SlotInfo, error) {
 	if v, ok := s.verifiedSlotInfoCache.Get(slot); v != nil && ok {
@@ -75,9 +97,6 @@ func (s *Store) VerifiedSlotInfos(fromSlot uint64) (map[uint64]*types.SlotInfo, 
 // SaveVerifiedSlotInfo will insert slot information to particular slot to db and cache
 // After save operations you must call SaveLatestVerifiedSlot to push in memory slot height to db
 func (s *Store) SaveVerifiedSlotInfo(slot uint64, slotInfo *types.SlotInfo) error {
-	s.Mutex.Lock()
-	defer s.Mutex.Unlock()
-
 	// storing consensus info into cache and db
 	return s.db.Update(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(verifiedSlotInfosBucket)
@@ -92,23 +111,16 @@ func (s *Store) SaveVerifiedSlotInfo(slot uint64, slotInfo *types.SlotInfo) erro
 		if err := bkt.Put(slotBytes, enc); err != nil {
 			return err
 		}
-		// store latest verified slot and latest header hash in in-memory
-		s.latestVerifiedSlot = slot
-		s.latestHeaderHash = slotInfo.PandoraHeaderHash
-
 		return nil
 	})
 }
 
 // SaveLatestEpoch
-func (s *Store) SaveLatestVerifiedSlot(ctx context.Context) error {
-	s.Mutex.Lock()
-	defer s.Mutex.Unlock()
-
+func (s *Store) SaveLatestVerifiedSlot(ctx context.Context, slot uint64) error {
 	// storing latest epoch number into db
 	return s.db.Update(func(tx *bolt.Tx) error {
-		bkt := tx.Bucket(verifiedSlotInfosBucket)
-		slotBytes := bytesutil.Uint64ToBytesBigEndian(s.latestVerifiedSlot)
+		bkt := tx.Bucket(latestInfoMarkerBucket)
+		slotBytes := bytesutil.Uint64ToBytesBigEndian(slot)
 		if err := bkt.Put(latestSavedVerifiedSlotKey, slotBytes); err != nil {
 			return err
 		}
@@ -122,7 +134,7 @@ func (s *Store) LatestSavedVerifiedSlot() uint64 {
 	// Db is not prepared yet. Retrieve latest saved epoch number from db
 	if !s.isRunning {
 		s.db.View(func(tx *bolt.Tx) error {
-			bkt := tx.Bucket(verifiedSlotInfosBucket)
+			bkt := tx.Bucket(latestInfoMarkerBucket)
 			slotBytes := bkt.Get(latestSavedVerifiedSlotKey[:])
 			// not found the latest epoch in db. so latest epoch will be zero
 			if slotBytes == nil {
@@ -138,22 +150,12 @@ func (s *Store) LatestSavedVerifiedSlot() uint64 {
 	return latestSavedVerifiedSlot
 }
 
-func (s *Store) InMemoryLatestVerifiedSlot() uint64 {
-	s.Mutex.Lock()
-	defer s.Mutex.Unlock()
-
-	return s.latestVerifiedSlot
-}
-
 // SaveLatestEpoch
-func (s *Store) SaveLatestVerifiedHeaderHash() error {
-	s.Mutex.Lock()
-	defer s.Mutex.Unlock()
-
+func (s *Store) SaveLatestVerifiedHeaderHash(hash common.Hash) error {
 	// storing latest epoch number into db
 	return s.db.Update(func(tx *bolt.Tx) error {
-		bkt := tx.Bucket(verifiedSlotInfosBucket)
-		headerHashBytes := s.latestHeaderHash.Bytes()
+		bkt := tx.Bucket(latestInfoMarkerBucket)
+		headerHashBytes := hash.Bytes()
 		if err := bkt.Put(latestHeaderHashKey, headerHashBytes); err != nil {
 			return err
 		}
@@ -168,7 +170,7 @@ func (s *Store) LatestVerifiedHeaderHash() common.Hash {
 	// Db is not prepared yet. Retrieve latest saved epoch number from db
 	if !s.isRunning {
 		s.db.View(func(tx *bolt.Tx) error {
-			bkt := tx.Bucket(verifiedSlotInfosBucket)
+			bkt := tx.Bucket(latestInfoMarkerBucket)
 			latestHeaderHashBytes := bkt.Get(latestHeaderHashKey[:])
 			// not found the latest epoch in db. so latest epoch will be zero
 			if latestHeaderHashBytes == nil {
@@ -182,13 +184,6 @@ func (s *Store) LatestVerifiedHeaderHash() common.Hash {
 	}
 	// db is already started so latest epoch must be initialized in store
 	return latestHeaderHash
-}
-
-func (s *Store) InMemoryLatestVerifiedHeaderHash() common.Hash {
-	s.Mutex.Lock()
-	defer s.Mutex.Unlock()
-
-	return s.latestHeaderHash
 }
 
 // FindVerifiedSlotNumber will try to find matching of verified slot info
@@ -208,28 +203,24 @@ func (s *Store) FindVerifiedSlotNumber(info *types.SlotInfo, fromSlot uint64) ui
 	return 0
 }
 
+// RemoveRangeVerifiedInfo method deletes [fromSlot, latestVerifiedSlot]
 func (s *Store) RemoveRangeVerifiedInfo(fromSlot, skipSlot uint64) error {
-	s.Mutex.Lock()
-	defer s.Mutex.Unlock()
-
 	// storing latest epoch number into db
 	return s.db.Update(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(verifiedSlotInfosBucket)
 		cursor := bkt.Cursor()
 		for key, val := cursor.Last(); key != nil && val != nil; key, val = cursor.Prev() {
-			if string(key) == string(latestHeaderHashKey) || string(key) == string(latestSavedVerifiedSlotKey) {
-				continue
-			}
 			slotNumber := bytesutil.BytesToUint64BigEndian(key)
 			if slotNumber != skipSlot {
 				s.verifiedSlotInfoCache.Del(slotNumber)
-
-				err := cursor.Delete()
-				if err != nil {
-					return err
+				if slotNumber >= fromSlot {
+					if err := cursor.Delete(); err != nil {
+						return err
+					}
+					log.WithField("slot", slotNumber).Warn("Removed verified slot info!")
 				}
 			}
-			if slotNumber == fromSlot {
+			if slotNumber <= fromSlot {
 				return nil
 			}
 		}

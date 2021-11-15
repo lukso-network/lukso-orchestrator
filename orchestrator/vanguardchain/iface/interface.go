@@ -12,3 +12,7 @@ type ConsensusInfoFeed interface {
 type VanguardShardInfoFeed interface {
 	SubscribeShardInfoEvent(chan<- *types.VanguardShardInfo) event.Subscription
 }
+
+type ShutdownSignalPropagationFeed interface {
+	SubscribeShutdownSignalEvent(ch chan<- bool) event.Subscription
+}

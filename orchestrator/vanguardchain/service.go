@@ -2,21 +2,26 @@ package vanguardchain
 
 import (
 	"context"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
+	"math"
 	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/rpc"
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/client"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
+	ethpb "github.com/prysmaticlabs/prysm/proto/eth/v1alpha1"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // time to wait before trying to reconnect with the vanguard node.
-var reConPeriod = 2 * time.Second
-
-type DIALGRPCFn func(endpoint string) (client.VanguardClient, error)
+var (
+	reConPeriod               = 2 * time.Second
+	syncStatusPollingInterval = 30 * time.Second
+)
 
 // Service
 // 	- maintains connection with vanguard chain
@@ -34,19 +39,20 @@ type Service struct {
 	// vanguard chain related attributes
 	connectedVanguard bool
 	vanGRPCEndpoint   string
-	vanGRPCClient     *client.VanguardClient
-	dialGRPCFn        DIALGRPCFn
+	dialOpts          []grpc.DialOption
+	beaconClient      ethpb.BeaconChainClient
+	nodeClient        ethpb.NodeClient
+	conn              *grpc.ClientConn
 
 	// subscription
 	consensusInfoFeed        event.Feed
 	scope                    event.SubscriptionScope
-	conInfoSubErrCh          chan error
-	conInfoSub               *rpc.ClientSubscription
 	vanguardShardingInfoFeed event.Feed
-	// db support
-	orchestratorDB db.Database
-	// lru cache support
-	shardingInfoCache cache.VanguardShardCache
+	subscriptionShutdownFeed event.Feed
+
+	db                  db.Database              // db support
+	shardingInfoCache   cache.VanguardShardCache // lru cache support
+	stopPendingBlkSubCh chan struct{}
 }
 
 // NewService creates new service with vanguard endpoint, vanguard namespace and consensusInfoDB
@@ -55,37 +61,45 @@ func NewService(
 	vanGRPCEndpoint string,
 	db db.Database,
 	cache cache.VanguardShardCache,
-	dialGRPCFn DIALGRPCFn,
 ) (*Service, error) {
 
 	ctx, cancel := context.WithCancel(ctx)
 	_ = cancel // govet fix for lost cancel. Cancel is handled in service.Stop()
+
 	return &Service{
-		ctx:               ctx,
-		cancel:            cancel,
-		vanGRPCEndpoint:   vanGRPCEndpoint,
-		dialGRPCFn:        dialGRPCFn,
-		conInfoSubErrCh:   make(chan error),
-		orchestratorDB:    db,
-		shardingInfoCache: cache,
+		ctx:                 ctx,
+		cancel:              cancel,
+		vanGRPCEndpoint:     vanGRPCEndpoint,
+		db:                  db,
+		shardingInfoCache:   cache,
+		stopPendingBlkSubCh: make(chan struct{}),
 	}, nil
 }
 
 // Start a consensus info fetcher service's main event loop.
 func (s *Service) Start() {
-	// Exit early if eth1 endpoint is not set.
+	// Exit early if endpoint is not set.
 	if s.vanGRPCEndpoint == "" {
 		return
 	}
-	go func() {
-		s.isRunning = true
-		s.waitForConnection()
-		if s.ctx.Err() != nil {
-			log.Info("Context closed, exiting pandora goroutine")
-			return
-		}
-		s.run(s.ctx.Done())
-	}()
+
+	dialOpts := constructDialOptions(math.MaxInt32, "", 32, time.Minute*6)
+	if dialOpts == nil {
+		log.Warn("Failed to construct dial options for vanguard client")
+		return
+	}
+
+	c, err := grpc.DialContext(s.ctx, s.vanGRPCEndpoint, dialOpts...)
+	if err != nil {
+		log.WithField("endpoint", s.vanGRPCEndpoint).WithError(err).Warn("Could not dial endpoint")
+		return
+	}
+
+	s.conn = c
+	s.beaconClient = ethpb.NewBeaconChainClient(c)
+	s.nodeClient = ethpb.NewNodeClient(c)
+
+	go s.run()
 }
 
 func (s *Service) Stop() error {
@@ -93,7 +107,9 @@ func (s *Service) Stop() error {
 		defer s.cancel()
 	}
 	s.scope.Close()
-	s.closeClients()
+	if s.conn != nil {
+		s.conn.Close()
+	}
 	return nil
 }
 
@@ -109,102 +125,62 @@ func (s *Service) Status() error {
 	return nil
 }
 
-// closes down our active eth1 clients.
-func (s *Service) closeClients() {
+// run subscribes to all the services for the ETH1.0 chain.
+func (s *Service) run() {
 
+	s.waitForConnection()
+
+	latestFinalizedEpoch := s.db.LatestLatestFinalizedEpoch()
+	latestFinalizedSlot := s.db.LatestLatestFinalizedSlot()
+	fromEpoch := latestFinalizedEpoch
+
+	// checking consensus info db
+	for i := latestFinalizedEpoch; i >= 0; {
+		epochInfo, _ := s.db.ConsensusInfo(s.ctx, i)
+		if epochInfo == nil {
+			// epoch info is missing. so subscribe from here. maybe db operation was wrong
+			fromEpoch = i
+			log.WithField("epoch", fromEpoch).Debug("Found missing epoch info in db, so subscription should " +
+				"be started from this missing epoch")
+		}
+		if i == 0 {
+			break
+		}
+		i--
+	}
+
+	go s.subscribeNewConsensusInfoGRPC(s.ctx, fromEpoch)
+	go s.subscribeVanNewPendingBlockHash(s.ctx, latestFinalizedSlot)
 }
 
 // waitForConnection waits for a connection with vanguard chain. Until a successful with
 // vanguard chain, it retries again and again.
 func (s *Service) waitForConnection() {
-	var err error
-	if err = s.connectToVanguardChain(); err == nil {
-		log.WithField("vanguardHttp", s.vanGRPCEndpoint).Info("Connected vanguard chain")
+	if _, err := s.beaconClient.GetChainHead(s.ctx, &emptypb.Empty{}); err == nil {
+		log.WithField("vanguardEndpoint", s.vanGRPCEndpoint).Info("Connected vanguard chain")
 		s.connectedVanguard = true
 		return
 	}
-	log.WithError(err).Warn("Could not connect to vanguard endpoint")
-	s.runError = err
+
 	ticker := time.NewTicker(reConPeriod)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
-			log.WithField("endpoint", s.vanGRPCEndpoint).Debugf("Dialing vanguard node")
-			var errConnect error
-			if errConnect = s.connectToVanguardChain(); errConnect != nil {
-				log.WithError(errConnect).Warn("Could not connect to vanguard endpoint")
-				s.runError = errConnect
+			if _, err := s.beaconClient.GetChainHead(s.ctx, &emptypb.Empty{}); err != nil {
+				log.WithField("vanguardEndpoint", s.vanGRPCEndpoint).Warn("Could not connect or subscribe to vanguard chain")
 				continue
 			}
 			s.connectedVanguard = true
 			s.runError = nil
-			log.WithField("vanguardHttp", s.vanGRPCEndpoint).Info("Connected vanguard chain")
+			log.WithField("vanguardEndpoint", s.vanGRPCEndpoint).Info("Connected vanguard chain")
 			return
 		case <-s.ctx.Done():
-			log.Debug("Received cancelled context,closing existing vanguard client service")
+			log.Info("Received cancelled context, closing existing go routine: waitForConnection")
 			return
 		}
 	}
-}
-
-// run subscribes to all the services for the ETH1.0 chain.
-func (s *Service) run(done <-chan struct{}) {
-	s.runError = nil
-
-	// the loop waits for any error which comes from consensus info subscription
-	// if any subscription error happens, it will try to reconnect and re-subscribe with vanguard chain again.
-	for {
-		select {
-		case <-done:
-			s.isRunning = false
-			s.runError = nil
-			log.Debug("Context closed, exiting goroutine")
-			return
-		case err := <-s.conInfoSubErrCh:
-			if err != nil {
-				log.WithError(err).Debug("Could not fetch consensus info from vanguard node")
-				// Try to check the connection and retry to establish the connection
-				s.retryVanguardNode(err)
-				continue
-			}
-		}
-	}
-}
-
-// connectToVanguardChain dials to vanguard chain and creates rpcClient
-func (s *Service) connectToVanguardChain() (err error) {
-	vanguardClient, err := s.dialGRPCFn(s.vanGRPCEndpoint)
-
-	if nil != err {
-		return
-	}
-
-	err = s.subscribeVanNewPendingBlockHash(vanguardClient)
-
-	if nil != err {
-		return
-	}
-
-	err = s.subscribeNewConsensusInfoGRPC(vanguardClient)
-
-	if nil != err {
-		return
-	}
-
-	return
-}
-
-// Reconnect to vanguard node in case of any failure.
-func (s *Service) retryVanguardNode(err error) {
-	s.runError = err
-	s.connectedVanguard = false
-	// Back off for a while before resuming dialing the vanguard node.
-	time.Sleep(reConPeriod)
-	s.waitForConnection()
-	// Reset run error in the event of a successful connection.
-	s.runError = nil
 }
 
 // SubscribeMinConsensusInfoEvent registers a subscription of ChainHeadEvent.
@@ -214,4 +190,48 @@ func (s *Service) SubscribeMinConsensusInfoEvent(ch chan<- *types.MinimalEpochCo
 
 func (s *Service) SubscribeShardInfoEvent(ch chan<- *types.VanguardShardInfo) event.Subscription {
 	return s.scope.Track(s.vanguardShardingInfoFeed.Subscribe(ch))
+}
+
+func (s *Service) SubscribeShutdownSignalEvent(ch chan<- bool) event.Subscription {
+	return s.scope.Track(s.subscriptionShutdownFeed.Subscribe(ch))
+}
+
+// constructDialOptions constructs a list of grpc dial options
+func constructDialOptions(
+	maxCallRecvMsgSize int,
+	withCert string,
+	grpcRetries uint,
+	grpcRetryDelay time.Duration,
+	extraOpts ...grpc.DialOption,
+) []grpc.DialOption {
+	var transportSecurity grpc.DialOption
+	if withCert != "" {
+		creds, err := credentials.NewClientTLSFromFile(withCert, "")
+		if err != nil {
+			log.Errorf("Could not get valid credentials: %v", err)
+			return nil
+		}
+		transportSecurity = grpc.WithTransportCredentials(creds)
+	} else {
+		transportSecurity = grpc.WithInsecure()
+		log.Warn("You are using an insecure gRPC connection. If you are running your beacon node and " +
+			"validator on the same machines, you can ignore this message. If you want to know " +
+			"how to enable secure connections, see: https://docs.prylabs.network/docs/prysm-usage/secure-grpc")
+	}
+
+	if maxCallRecvMsgSize == 0 {
+		maxCallRecvMsgSize = 10 * 5 << 20 // Default 50Mb
+	}
+
+	dialOpts := []grpc.DialOption{
+		transportSecurity,
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallRecvMsgSize(maxCallRecvMsgSize),
+			grpc_retry.WithMax(grpcRetries),
+			grpc_retry.WithBackoff(grpc_retry.BackoffLinear(grpcRetryDelay)),
+		),
+	}
+
+	dialOpts = append(dialOpts, extraOpts...)
+	return dialOpts
 }

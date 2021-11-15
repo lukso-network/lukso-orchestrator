@@ -2,6 +2,8 @@ package pandorachain
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/iface"
 	"sync"
 	"time"
 
@@ -13,8 +15,10 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 )
 
-// time to wait before trying to reconnect.
-var reConPeriod = 2 * time.Second
+var (
+	reConPeriod = 2 * time.Second // time to wait before trying to reconnect.
+	EmptyHash   = common.HexToHash("0000000000000000000000000000000000000000000000000000000000000000")
+)
 
 // DialRPCFn dials to the given endpoint
 type DialRPCFn func(endpoint string) (*rpc.Client, error)
@@ -38,8 +42,12 @@ type Service struct {
 	namespace string
 
 	// subscription
-	conInfoSubErrCh chan error
-	conInfoSub      *rpc.ClientSubscription
+	conInfoSubErrCh      chan error
+	conInfoSub           *rpc.ClientSubscription
+	conDisconnect        chan struct{}
+	shutdownSignal       iface.ShutdownSignalPropagationFeed
+	signalFromVanguard   chan bool
+	vanguardSubscription event.Subscription
 
 	// db support
 	db    db.Database
@@ -57,6 +65,7 @@ func NewService(
 	db db.Database,
 	cache cache.PandoraHeaderCache,
 	dialRPCFn DialRPCFn,
+	signalFeed iface.ShutdownSignalPropagationFeed,
 ) (*Service, error) {
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -70,6 +79,7 @@ func NewService(
 		conInfoSubErrCh: make(chan error),
 		db:              db,
 		cache:           cache,
+		shutdownSignal:  signalFeed,
 	}, nil
 }
 
@@ -96,6 +106,11 @@ func (s *Service) Stop() error {
 	}
 	s.closeClients()
 	s.scope.Close()
+
+	if s.vanguardSubscription != nil {
+		s.vanguardSubscription.Unsubscribe()
+	}
+
 	return nil
 }
 
@@ -158,11 +173,20 @@ func (s *Service) waitForConnection() {
 func (s *Service) run(done <-chan struct{}) {
 	log.Debug("Pandora chain service is starting")
 	s.runError = nil
+	s.vanguardSubscription = s.shutdownSignal.SubscribeShutdownSignalEvent(s.signalFromVanguard)
 
 	// the loop waits for any error which comes from consensus info subscription
 	// if any subscription error happens, it will try to reconnect and re-subscribe with pandora chain again.
 	for {
 		select {
+		case val := <-s.signalFromVanguard:
+			if val == true {
+				// Empty the cache and disconnect subscription
+				s.cache.Purge()
+				s.conDisconnect <- struct{}{}
+			} else {
+				s.subscribe()
+			}
 		case <-done:
 			s.isRunning = false
 			s.runError = nil
@@ -201,17 +225,34 @@ func (s *Service) retryToConnectAndSubscribe(err error) {
 	s.connected = false
 	// Back off for a while before resuming dialing the pandora node.
 	time.Sleep(reConPeriod)
-	s.waitForConnection()
+	go s.waitForConnection()
 	// Reset run error in the event of a successful connection.
 	s.runError = nil
 }
 
 // subscribe subscribes to pandora events
 func (s *Service) subscribe() error {
-	latestSavedHeaderHash := s.db.InMemoryLatestVerifiedHeaderHash()
-	filter := &types.PandoraPendingHeaderFilter{
-		FromBlockHash: latestSavedHeaderHash,
+	latestFinalizedSlot := s.db.LatestLatestFinalizedSlot()
+	slotInfo, err := s.db.VerifiedSlotInfo(latestFinalizedSlot)
+	if err != nil {
+		log.WithError(err).WithField("finalizedSlot", latestFinalizedSlot).
+			Error("Could not get verified slot info from db at latest finalized slot")
+		return err
 	}
+
+	filter := &types.PandoraPendingHeaderFilter{
+		FromBlockHash: EmptyHash,
+	}
+
+	if slotInfo != nil {
+		filter = &types.PandoraPendingHeaderFilter{
+			FromBlockHash: slotInfo.PandoraHeaderHash,
+		}
+	}
+
+	log.WithField("finalizedSlot", latestFinalizedSlot).WithField("panHeaderHash", filter.FromBlockHash).
+		Debug("Start subscribing to pandora client for pending headers")
+
 	// subscribe to pandora client for pending headers
 	sub, err := s.SubscribePendingHeaders(s.ctx, filter, s.namespace, s.rpcClient)
 	if err != nil {

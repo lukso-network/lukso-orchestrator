@@ -63,3 +63,7 @@ func (mb *MockBackend) VerifiedSlotInfos(fromSlot uint64) map[uint64]*eventTypes
 func (mb *MockBackend) LatestVerifiedSlot() uint64 {
 	return 100
 }
+
+func (mb *MockBackend) LatestFinalizedSlot() uint64 {
+	return 100
+}
