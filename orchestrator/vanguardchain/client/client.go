@@ -26,10 +26,6 @@ type VanguardClient interface {
 // Assure that GRPCClient struct will implement VanguardClient interface
 var _ VanguardClient = &GRPCClient{}
 
-const (
-	protocol = "unix"
-)
-
 // GRPCClient
 type GRPCClient struct {
 	ctx             context.Context

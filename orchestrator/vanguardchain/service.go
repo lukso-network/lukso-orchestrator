@@ -33,7 +33,7 @@ type Service struct {
 
 	// vanguard chain related attributes
 	connectedVanguard bool
-	vanguardRpc       string
+	vanGRPCEndpoint   string
 	vanGRPCClient     *client.VanguardClient
 	dialGRPCFn        DIALGRPCFn
 
@@ -52,7 +52,7 @@ type Service struct {
 // NewService creates new service with vanguard endpoint, vanguard namespace and consensusInfoDB
 func NewService(
 	ctx context.Context,
-	vanguardRpc string,
+	vanGRPCEndpoint string,
 	db db.Database,
 	cache cache.VanguardShardCache,
 	dialGRPCFn DIALGRPCFn,
@@ -63,7 +63,7 @@ func NewService(
 	return &Service{
 		ctx:               ctx,
 		cancel:            cancel,
-		vanguardRpc:       vanguardRpc,
+		vanGRPCEndpoint:   vanGRPCEndpoint,
 		dialGRPCFn:        dialGRPCFn,
 		conInfoSubErrCh:   make(chan error),
 		orchestratorDB:    db,
@@ -74,7 +74,7 @@ func NewService(
 // Start a consensus info fetcher service's main event loop.
 func (s *Service) Start() {
 	// Exit early if eth1 endpoint is not set.
-	if s.vanguardRpc == "" {
+	if s.vanGRPCEndpoint == "" {
 		return
 	}
 	go func() {
@@ -119,7 +119,7 @@ func (s *Service) closeClients() {
 func (s *Service) waitForConnection() {
 	var err error
 	if err = s.connectToVanguardChain(); err == nil {
-		log.WithField("vanguardRpc", s.vanguardRpc).Info("Connected vanguard chain")
+		log.WithField("vanguardGrpc", s.vanGRPCEndpoint).Info("Connected vanguard chain")
 		s.connectedVanguard = true
 		return
 	}
@@ -131,7 +131,7 @@ func (s *Service) waitForConnection() {
 	for {
 		select {
 		case <-ticker.C:
-			log.WithField("endpoint", s.vanguardRpc).Debugf("Dialing vanguard node")
+			log.WithField("endpoint", s.vanGRPCEndpoint).Debugf("Dialing vanguard node")
 			var errConnect error
 			if errConnect = s.connectToVanguardChain(); errConnect != nil {
 				log.WithError(errConnect).Warn("Could not connect to vanguard endpoint")
@@ -140,7 +140,7 @@ func (s *Service) waitForConnection() {
 			}
 			s.connectedVanguard = true
 			s.runError = nil
-			log.WithField("vanguardRpc", s.vanguardRpc).Info("Connected vanguard chain")
+			log.WithField("vanguardGrpc", s.vanGRPCEndpoint).Info("Connected vanguard chain")
 			return
 		case <-s.ctx.Done():
 			log.Debug("Received cancelled context,closing existing vanguard client service")
@@ -175,7 +175,7 @@ func (s *Service) run(done <-chan struct{}) {
 
 // connectToVanguardChain dials to vanguard chain and creates rpcClient
 func (s *Service) connectToVanguardChain() (err error) {
-	vanguardClient, err := s.dialGRPCFn(s.vanguardRpc)
+	vanguardClient, err := s.dialGRPCFn(s.vanGRPCEndpoint)
 
 	if nil != err {
 		return

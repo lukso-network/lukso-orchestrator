@@ -61,7 +61,7 @@ func Test_VanguardSvc_NoServerConn(t *testing.T) {
 
 	ctx := context.Background()
 	vanSvc, _ := SetupVanguardSvc(ctx, t, GRPCFunc)
-	vanSvc.vanguardRpc = "wsad://invalid.not.reachable!@:BrOKkeeeeeennnnnnnnnn"
+	vanSvc.vanGRPCEndpoint = "wsad://invalid.not.reachable!@:BrOKkeeeeeennnnnnnnnn"
 	vanSvc.dialGRPCFn = func(endpoint string) (client.VanguardClient, error) {
 		return nil, fmt.Errorf("dummy error")
 	}
