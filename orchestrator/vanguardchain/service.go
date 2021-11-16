@@ -119,7 +119,7 @@ func (s *Service) closeClients() {
 func (s *Service) waitForConnection() {
 	var err error
 	if err = s.connectToVanguardChain(); err == nil {
-		log.WithField("vanguardIpc", s.vanguardRpc).Info("Connected vanguard chain")
+		log.WithField("vanguardRpc", s.vanguardRpc).Info("Connected vanguard chain")
 		s.connectedVanguard = true
 		return
 	}
@@ -140,7 +140,7 @@ func (s *Service) waitForConnection() {
 			}
 			s.connectedVanguard = true
 			s.runError = nil
-			log.WithField("vanguardIpc", s.vanguardRpc).Info("Connected vanguard chain")
+			log.WithField("vanguardRpc", s.vanguardRpc).Info("Connected vanguard chain")
 			return
 		case <-s.ctx.Done():
 			log.Debug("Received cancelled context,closing existing vanguard client service")
