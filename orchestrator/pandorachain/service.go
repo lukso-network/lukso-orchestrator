@@ -2,10 +2,11 @@ package pandorachain
 
 import (
 	"context"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/iface"
 	"sync"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/iface"
 
 	"github.com/ethereum/go-ethereum/event"
 
@@ -71,15 +72,16 @@ func NewService(
 	ctx, cancel := context.WithCancel(ctx)
 	_ = cancel // govet fix for lost cancel. Cancel is handled in service.Stop()
 	return &Service{
-		ctx:             ctx,
-		cancel:          cancel,
-		endpoint:        endpoint,
-		dialRPCFn:       dialRPCFn,
-		namespace:       namespace,
-		conInfoSubErrCh: make(chan error),
-		db:              db,
-		cache:           cache,
-		shutdownSignal:  signalFeed,
+		ctx:                ctx,
+		cancel:             cancel,
+		endpoint:           endpoint,
+		dialRPCFn:          dialRPCFn,
+		namespace:          namespace,
+		conInfoSubErrCh:    make(chan error),
+		signalFromVanguard: make(chan bool),
+		db:                 db,
+		cache:              cache,
+		shutdownSignal:     signalFeed,
 	}, nil
 }
 
@@ -180,6 +182,7 @@ func (s *Service) run(done <-chan struct{}) {
 	for {
 		select {
 		case val := <-s.signalFromVanguard:
+			log.WithField("value", val).Debug("received shut down signal in pandora side")
 			if val == true {
 				// Empty the cache and disconnect subscription
 				s.cache.Purge()

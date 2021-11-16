@@ -25,7 +25,7 @@ func (s *Store) SeekSlotInfo(slot uint64) (uint64, *types.SlotInfo, error) {
 		cursor := bkt.Cursor()
 		for slotNumber, info := cursor.Seek(key); slotNumber != nil && info != nil; slotNumber, info = cursor.Prev() {
 			foundSlot = bytesutil.BytesToUint64BigEndian(slotNumber)
-			err := decode(info, slotInfo)
+			err := decode(info, &slotInfo)
 			if err != nil {
 				return err
 			}
