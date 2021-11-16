@@ -205,6 +205,9 @@ func (s *Store) FindVerifiedSlotNumber(info *types.SlotInfo, fromSlot uint64) ui
 
 // RemoveRangeVerifiedInfo method deletes [fromSlot, latestVerifiedSlot]
 func (s *Store) RemoveRangeVerifiedInfo(fromSlot, skipSlot uint64) error {
+	log.WithField("latestFinalizedSlot", s.LatestLatestFinalizedSlot()).WithField("fromSlot", fromSlot).
+		Debug("Start removing slot infos from verified db!")
+
 	// storing latest epoch number into db
 	return s.db.Update(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(verifiedSlotInfosBucket)

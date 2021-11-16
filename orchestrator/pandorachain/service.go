@@ -5,7 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/iface"
 
 	"github.com/ethereum/go-ethereum/event"
@@ -16,10 +15,8 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 )
 
-var (
-	reConPeriod = 2 * time.Second // time to wait before trying to reconnect.
-	EmptyHash   = common.HexToHash("0000000000000000000000000000000000000000000000000000000000000000")
-)
+// time to wait before trying to reconnect.
+var reConPeriod = 2 * time.Second
 
 // DialRPCFn dials to the given endpoint
 type DialRPCFn func(endpoint string) (*rpc.Client, error)
@@ -238,25 +235,12 @@ func (s *Service) retryToConnectAndSubscribe(err error) {
 
 // subscribe subscribes to pandora events
 func (s *Service) subscribe() error {
-	latestFinalizedSlot := s.db.LatestLatestFinalizedSlot()
-	slotInfo, err := s.db.VerifiedSlotInfo(latestFinalizedSlot)
-	if err != nil {
-		log.WithError(err).WithField("finalizedSlot", latestFinalizedSlot).
-			Error("Could not get verified slot info from db at latest finalized slot")
-		return err
-	}
-
+	latestSavedHeaderHash := s.db.LatestVerifiedHeaderHash()
 	filter := &types.PandoraPendingHeaderFilter{
-		FromBlockHash: EmptyHash,
+		FromBlockHash: latestSavedHeaderHash,
 	}
 
-	if slotInfo != nil {
-		filter = &types.PandoraPendingHeaderFilter{
-			FromBlockHash: slotInfo.PandoraHeaderHash,
-		}
-	}
-
-	log.WithField("finalizedSlot", latestFinalizedSlot).WithField("panHeaderHash", filter.FromBlockHash).
+	log.WithField("finalizedSlot", s.db.LatestSavedVerifiedSlot()).WithField("panHeaderHash", filter.FromBlockHash).
 		Debug("Start subscribing to pandora client for pending headers")
 
 	// subscribe to pandora client for pending headers

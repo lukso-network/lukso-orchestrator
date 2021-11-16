@@ -107,6 +107,16 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 		return nil, err
 	}
 
+	latestFinalizedSlot := kv.LatestLatestFinalizedSlot()
+	latestFinalizedEpoch := kv.LatestLatestFinalizedEpoch()
+	latestVerifiedSlot := kv.LatestSavedVerifiedSlot()
+	latestVerifiedPanHeaderHash := kv.LatestVerifiedHeaderHash()
+	latestEpoch := kv.LatestSavedEpoch()
+
+	log.WithField("latestFinalizedSlot", latestFinalizedSlot).WithField("latestFinalizedEpoch", latestFinalizedEpoch).
+		WithField("latestVerifiedSlot", latestVerifiedSlot).WithField("latestVerifiedPanHeaderHash", latestVerifiedPanHeaderHash).
+		WithField("latestEpoch", latestEpoch).Info("Initial saved latest infos")
+
 	return kv, err
 }
 
