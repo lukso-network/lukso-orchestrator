@@ -19,7 +19,7 @@ type mockFeedService struct {
 	scope     event.SubscriptionScope
 }
 
-func (mc *mockFeedService) SubscribeShutdownSignalEvent(ch chan<- bool) event.Subscription {
+func (mc *mockFeedService) SubscribeShutdownSignalEvent(ch chan<- *types.PandoraShutDownSignal) event.Subscription {
 	return mc.scope.Track(mc.reorgFeed.Subscribe(ch))
 }
 

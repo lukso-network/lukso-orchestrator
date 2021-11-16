@@ -53,6 +53,10 @@ type PandoraHeaderInfo struct {
 	Header *eth1Types.Header
 }
 
+type PandoraShutDownSignal struct {
+	Shutdown bool
+}
+
 // VanguardShardInfo
 type VanguardShardInfo struct {
 	Slot           uint64

@@ -47,7 +47,7 @@ type Service struct {
 	conInfoSub           *rpc.ClientSubscription
 	conDisconnect        chan struct{}
 	shutdownSignal       iface.ShutdownSignalPropagationFeed
-	signalFromVanguard   chan bool
+	signalFromVanguard   chan *types.PandoraShutDownSignal
 	vanguardSubscription event.Subscription
 
 	// db support
@@ -78,7 +78,7 @@ func NewService(
 		dialRPCFn:          dialRPCFn,
 		namespace:          namespace,
 		conInfoSubErrCh:    make(chan error),
-		signalFromVanguard: make(chan bool),
+		signalFromVanguard: make(chan *types.PandoraShutDownSignal),
 		db:                 db,
 		cache:              cache,
 		shutdownSignal:     signalFeed,
@@ -182,8 +182,11 @@ func (s *Service) run(done <-chan struct{}) {
 	for {
 		select {
 		case val := <-s.signalFromVanguard:
+			if val == nil {
+				continue
+			}
 			log.WithField("value", val).Debug("received shut down signal in pandora side")
-			if val == true {
+			if val.Shutdown == true {
 				// Empty the cache and disconnect subscription
 				s.cache.Purge()
 				s.conDisconnect <- struct{}{}
