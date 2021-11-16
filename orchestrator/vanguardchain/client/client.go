@@ -65,7 +65,7 @@ func Dial(ctx context.Context, rpcAddress string, grpcRetryDelay time.Duration,
 
 	c, err := grpc.DialContext(ctx, rpcAddress, dialOpts...)
 	if err != nil {
-		log.Errorf("Could not connect to RPC endpoint or socket: %s, %v", rpcAddress, err)
+		log.Errorf("Could not connect to gRPC endpoint or socket: %s, %v", rpcAddress, err)
 		return nil, err
 	}
 
