@@ -192,7 +192,7 @@ func (s *Service) SubscribeShardInfoEvent(ch chan<- *types.VanguardShardInfo) ev
 	return s.scope.Track(s.vanguardShardingInfoFeed.Subscribe(ch))
 }
 
-func (s *Service) SubscribeShutdownSignalEvent(ch chan<- bool) event.Subscription {
+func (s *Service) SubscribeShutdownSignalEvent(ch chan<- *types.PandoraShutDownSignal) event.Subscription {
 	return s.scope.Track(s.subscriptionShutdownFeed.Subscribe(ch))
 }
 

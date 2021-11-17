@@ -68,12 +68,12 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 	// Reverting db to latest finalized slot
 	finalizedSlot := orchestrator.db.LatestLatestFinalizedSlot()
 	if err := orchestrator.db.RemoveRangeVerifiedInfo(finalizedSlot+1, 0); err != nil {
-		log.WithError(err).Error("failed to remove latest verified slot infos from db")
+		log.WithError(err).Error("Failed to remove latest verified slot infos from db")
 		return nil, err
 	}
 
 	if err := orchestrator.db.UpdateVerifiedSlotInfo(finalizedSlot); err != nil {
-		log.WithError(err).Error("failed to update latest verified slot in db")
+		log.WithError(err).Error("Failed to update latest verified slot in db")
 		return nil, err
 	}
 

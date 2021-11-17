@@ -25,7 +25,7 @@ func (s *Store) SeekSlotInfo(slot uint64) (uint64, *types.SlotInfo, error) {
 		cursor := bkt.Cursor()
 		for slotNumber, info := cursor.Seek(key); slotNumber != nil && info != nil; slotNumber, info = cursor.Prev() {
 			foundSlot = bytesutil.BytesToUint64BigEndian(slotNumber)
-			err := decode(info, slotInfo)
+			err := decode(info, &slotInfo)
 			if err != nil {
 				return err
 			}
@@ -205,6 +205,9 @@ func (s *Store) FindVerifiedSlotNumber(info *types.SlotInfo, fromSlot uint64) ui
 
 // RemoveRangeVerifiedInfo method deletes [fromSlot, latestVerifiedSlot]
 func (s *Store) RemoveRangeVerifiedInfo(fromSlot, skipSlot uint64) error {
+	log.WithField("latestFinalizedSlot", s.LatestLatestFinalizedSlot()).WithField("fromSlot", fromSlot).
+		Debug("Start removing slot infos from verified db!")
+
 	// storing latest epoch number into db
 	return s.db.Update(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(verifiedSlotInfosBucket)

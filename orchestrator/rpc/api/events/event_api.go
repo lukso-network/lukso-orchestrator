@@ -35,6 +35,7 @@ func (api *PublicFilterAPI) SteamConfirmedPanBlockHashes(
 				sendingInfo := &generalTypes.BlockStatus{
 					Hash:   slotInfos[i].PandoraHeaderHash,
 					Status: generalTypes.Verified,
+					FinalizedSlot: api.backend.LatestFinalizedSlot(),
 				}
 				log.WithField("info", *sendingInfo).Debug("Sending pendingness status to pandora")
 				if err := notifier.Notify(rpcSub.ID, sendingInfo); err != nil {
@@ -82,6 +83,7 @@ func (api *PublicFilterAPI) SteamConfirmedPanBlockHashes(
 				if err := notifier.Notify(rpcSub.ID, &generalTypes.BlockStatus{
 					Hash:   slotInfoWithStatus.PandoraHeaderHash,
 					Status: slotInfoWithStatus.Status,
+					FinalizedSlot: api.backend.LatestFinalizedSlot(),
 				}); err != nil {
 					log.WithField("hash", slotInfoWithStatus.PandoraHeaderHash).
 						Error("Failed to notify slot info status. Could not send over stream.")
