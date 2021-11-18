@@ -2,7 +2,11 @@ package vanguardchain
 
 import (
 	"context"
+	"fmt"
 	"math"
+	"net"
+	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -83,15 +87,28 @@ func (s *Service) Start() {
 		return
 	}
 
+	grpcAddress, protocol, err := resolveRpcAddressAndProtocol(s.vanGRPCEndpoint, "")
+	if nil != err {
+		return
+	}
+
 	dialOpts := constructDialOptions(math.MaxInt32, "", 32, time.Minute*6)
 	if dialOpts == nil {
 		log.Warn("Failed to construct dial options for vanguard client")
 		return
 	}
 
-	c, err := grpc.DialContext(s.ctx, s.vanGRPCEndpoint, dialOpts...)
+	if "unix" == protocol {
+		dialer := func(addr string, t time.Duration) (net.Conn, error) {
+			return net.Dial(protocol, addr)
+		}
+
+		dialOpts = append(dialOpts, grpc.WithDialer(dialer))
+	}
+
+	c, err := grpc.DialContext(s.ctx, grpcAddress, dialOpts...)
 	if err != nil {
-		log.WithField("endpoint", s.vanGRPCEndpoint).WithError(err).Warn("Could not dial endpoint")
+		log.WithField("endpoint", grpcAddress).WithError(err).Warn("Could not dial endpoint")
 		return
 	}
 
@@ -234,4 +251,43 @@ func constructDialOptions(
 
 	dialOpts = append(dialOpts, extraOpts...)
 	return dialOpts
+}
+
+// resolveRpcAddressAndProtocol returns a RPC address and protocol.
+// It can be HTTP/S layer or IPC socket, tcp or unix socket.
+func resolveRpcAddressAndProtocol(host, port string) (address string, protocol string, err error) {
+	if port != "" {
+		address = fmt.Sprintf("%s:%s", host, port)
+	}
+
+	if strings.Contains(address, ".ipc") || port == "" {
+		address = host
+	}
+
+	u, err := url.Parse(address)
+	if err != nil {
+		host, _, err = net.SplitHostPort(address)
+		if err != nil {
+			return address, "", err
+		}
+	}
+	if u != nil {
+		host = u.Host
+	}
+
+	if net.ParseIP(host) != nil {
+		return address, "tcp", nil
+	}
+
+	switch u.Scheme {
+	case "http", "https":
+		return address, "tcp", nil
+	case "":
+		if len(strings.TrimSpace(u.Path)) == 0 || !strings.Contains(address, ".ipc") {
+			return address, "", fmt.Errorf("invalid socket path %q", address)
+		}
+		return address, "unix", nil
+	default:
+		return address, protocol, fmt.Errorf("no known network transport layer for address %q", address)
+	}
 }
