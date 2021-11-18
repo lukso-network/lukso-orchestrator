@@ -48,9 +48,6 @@ func New(ctx context.Context, cfg *Config) (service *Service) {
 	ctx, cancel := context.WithCancel(ctx)
 	_ = cancel // govet fix for lost cancel. Cancel is handled in service.Stop()
 
-	latestVerifiedSlot := cfg.VerifiedSlotInfoDB.InMemoryLatestVerifiedSlot()
-	log.WithField("latestVerifiedSlot", latestVerifiedSlot).Debug("Initializing consensus service")
-
 	return &Service{
 		ctx:                          ctx,
 		cancel:                       cancel,
@@ -91,6 +88,7 @@ func (s *Service) Start() {
 							PandoraHeaderHash: slotInfo.PandoraHeaderHash,
 							Status:            types.Verified,
 						})
+
 						continue
 					}
 				}
@@ -105,7 +103,7 @@ func (s *Service) Start() {
 						log.WithField("slot", newVanShardInfo.Slot).
 							WithField("shardInfoHash", hexutil.Encode(newVanShardInfo.ShardInfo.Hash)).
 							Info("Vanguard shard info is already in verified slot info db")
-						//TODO(Atif)- Need to send this verified slot info to vanguard subscriber
+
 						continue
 					}
 				}

@@ -21,6 +21,7 @@ type MinimalEpochConsensusInfoV2 struct {
 	EpochStartTime   uint64        `json:"epochTimeStart"`
 	SlotTimeDuration time.Duration `json:"slotTimeDuration"`
 	ReorgInfo        *Reorg        `json:"reorg_info"`
+	FinalizedSlot    uint64        `json:"finalizedSlot"`
 }
 
 type MinimalEpochConsensusInfo struct {
@@ -33,6 +34,7 @@ type MinimalEpochConsensusInfo struct {
 type BlockStatus struct {
 	Hash   common.Hash `json:"hash"`
 	Status Status      `json:"status"`
+	FinalizedSlot uint64 `json:"finalizedSlot"`
 }
 
 // PandoraPendingHeaderFilter
@@ -52,11 +54,17 @@ type PandoraHeaderInfo struct {
 	Header *eth1Types.Header
 }
 
+type PandoraShutDownSignal struct {
+	Shutdown bool
+}
+
 // VanguardShardInfo
 type VanguardShardInfo struct {
-	Slot      uint64
-	ShardInfo *eth2Types.PandoraShard
-	BlockHash []byte
+	Slot           uint64
+	ShardInfo      *eth2Types.PandoraShard
+	BlockHash      []byte
+	FinalizedSlot  uint64
+	FinalizedEpoch uint64
 }
 
 type BlsSignatureBytes [BLSSignatureSize]byte

@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/boltdb/bolt"
 	"github.com/dgraph-io/ristretto"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/lukso-network/lukso-orchestrator/shared/fileutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/params"
 	"github.com/pkg/errors"
@@ -38,11 +37,6 @@ type Store struct {
 	consensusInfoCache    *ristretto.Cache
 	verifiedSlotInfoCache *ristretto.Cache
 
-	// Latest information need to be stored into db
-	latestEpoch        uint64
-	latestVerifiedSlot uint64
-	latestHeaderHash   common.Hash
-	latestVanBlockHash []byte
 	// There should be mutex in store
 	sync.Mutex
 }
@@ -107,12 +101,21 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 			consensusInfosBucket,
 			verifiedSlotInfosBucket,
 			invalidSlotInfosBucket,
+			latestInfoMarkerBucket,
 		)
 	}); err != nil {
 		return nil, err
 	}
-	// Retrieve initial data from DB
-	kv.initLatestDataFromDB()
+
+	latestFinalizedSlot := kv.LatestLatestFinalizedSlot()
+	latestFinalizedEpoch := kv.LatestLatestFinalizedEpoch()
+	latestVerifiedSlot := kv.LatestSavedVerifiedSlot()
+	latestVerifiedPanHeaderHash := kv.LatestVerifiedHeaderHash()
+	latestEpoch := kv.LatestSavedEpoch()
+
+	log.WithField("latestFinalizedSlot", latestFinalizedSlot).WithField("latestFinalizedEpoch", latestFinalizedEpoch).
+		WithField("latestVerifiedSlot", latestVerifiedSlot).WithField("latestVerifiedPanHeaderHash", latestVerifiedPanHeaderHash).
+		WithField("latestEpoch", latestEpoch).Info("Initial saved latest infos")
 
 	return kv, err
 }
@@ -130,20 +133,6 @@ func (s *Store) ClearDB() error {
 
 // Close closes the underlying BoltDB database.
 func (s *Store) Close() error {
-	err := s.SaveLatestEpoch(s.ctx)
-	if nil != err {
-		return err
-	}
-
-	err = s.SaveLatestVerifiedSlot(s.ctx)
-	if nil != err {
-		return err
-	}
-
-	err = s.SaveLatestVerifiedHeaderHash()
-	if err != nil {
-		return err
-	}
 	log.Info("Received cancelled context, closing db")
 	return s.db.Close()
 }
@@ -151,17 +140,6 @@ func (s *Store) Close() error {
 // DatabasePath at which this database writes files.
 func (s *Store) DatabasePath() string {
 	return s.databasePath
-}
-
-// initLatestDataFromDB helps to retrieve initial data from DB
-func (s *Store) initLatestDataFromDB() {
-	// Retrieve latest saved epoch number from db
-	s.latestEpoch = s.LatestSavedEpoch()
-	s.latestVerifiedSlot = s.LatestSavedVerifiedSlot()
-	s.latestHeaderHash = s.LatestVerifiedHeaderHash()
-	log.WithField("latestSavedEpoch", s.latestEpoch).WithField(
-		"latestVerifiedSlot", s.latestVerifiedSlot).WithField(
-		"latestHeaderHash", s.latestHeaderHash).Debug("latest saved info from db")
 }
 
 // createBuckets

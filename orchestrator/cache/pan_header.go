@@ -68,3 +68,10 @@ func (c *PanHeaderCache) GetAll() ([]*eth1Types.Header, error) {
 	}
 	return pendingHeaders, nil
 }
+
+// Clear the pandora header cache.
+func (c *PanHeaderCache) Purge() {
+	c.lock.Lock()
+	c.cache.Purge()
+	c.lock.Unlock()
+}

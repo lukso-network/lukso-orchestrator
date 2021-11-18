@@ -3,6 +3,7 @@ package kv
 import (
 	"context"
 	"fmt"
+
 	"github.com/boltdb/bolt"
 	"github.com/lukso-network/lukso-orchestrator/shared/bytesutil"
 	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
@@ -93,7 +94,6 @@ func (s *Store) SaveConsensusInfo(
 			return err
 		}
 		// update latest epoch
-		s.latestEpoch = consensusInfo.Epoch
 		return nil
 	})
 }
@@ -121,7 +121,7 @@ func (s *Store) LatestSavedEpoch() uint64 {
 	// Db is not prepared yet. Retrieve latest saved epoch number from db
 	if !s.isRunning {
 		s.db.View(func(tx *bolt.Tx) error {
-			bkt := tx.Bucket(consensusInfosBucket)
+			bkt := tx.Bucket(latestInfoMarkerBucket)
 			epochBytes := bkt.Get(lastStoredEpochKey[:])
 			// not found the latest epoch in db. so latest epoch will be zero
 			if epochBytes == nil {
@@ -138,22 +138,17 @@ func (s *Store) LatestSavedEpoch() uint64 {
 }
 
 // SaveLatestEpoch
-func (s *Store) SaveLatestEpoch(ctx context.Context) error {
+func (s *Store) SaveLatestEpoch(ctx context.Context, epoch uint64) error {
 	s.Mutex.Lock()
 	defer s.Mutex.Unlock()
 
 	// storing latest epoch number into db
 	return s.db.Update(func(tx *bolt.Tx) error {
-		bkt := tx.Bucket(consensusInfosBucket)
-		epochBytes := bytesutil.Uint64ToBytesBigEndian(s.latestEpoch)
+		bkt := tx.Bucket(latestInfoMarkerBucket)
+		epochBytes := bytesutil.Uint64ToBytesBigEndian(epoch)
 		if err := bkt.Put(lastStoredEpochKey, epochBytes); err != nil {
 			return err
 		}
 		return nil
 	})
-}
-
-// GetLatestHeaderHash
-func (s *Store) GetLatestEpoch() uint64 {
-	return s.latestEpoch
 }

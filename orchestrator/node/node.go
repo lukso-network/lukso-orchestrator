@@ -11,7 +11,6 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/pandorachain"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/client"
 	"github.com/lukso-network/lukso-orchestrator/shared"
 	"github.com/lukso-network/lukso-orchestrator/shared/cmd"
 	"github.com/lukso-network/lukso-orchestrator/shared/fileutil"
@@ -24,7 +23,6 @@ import (
 	"path/filepath"
 	"sync"
 	"syscall"
-	"time"
 )
 
 // OrchestratorNode
@@ -64,6 +62,18 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 	}
 
 	if err := orchestrator.startDB(orchestrator.cliCtx); err != nil {
+		return nil, err
+	}
+
+	// Reverting db to latest finalized slot
+	finalizedSlot := orchestrator.db.LatestLatestFinalizedSlot()
+	if err := orchestrator.db.RemoveRangeVerifiedInfo(finalizedSlot+1, 0); err != nil {
+		log.WithError(err).Error("Failed to remove latest verified slot infos from db")
+		return nil, err
+	}
+
+	if err := orchestrator.db.UpdateVerifiedSlotInfo(finalizedSlot); err != nil {
+		log.WithError(err).Error("Failed to update latest verified slot in db")
 		return nil, err
 	}
 
@@ -135,21 +145,17 @@ func (o *OrchestratorNode) startDB(cliCtx *cli.Context) error {
 
 // registerVanguardChainService
 func (o *OrchestratorNode) registerVanguardChainService(cliCtx *cli.Context) error {
-	vanguardGRPC := cliCtx.String(cmd.VanguardGRPCEndpoint.Name)
-	dialGRPCClient := vanguardchain.DIALGRPCFn(func(endpoint string) (client.VanguardClient, error) {
-		return client.Dial(o.ctx, endpoint, time.Minute*6, 32, math.MaxInt32)
-	})
+	vanguardGRPCUrl := cliCtx.String(cmd.VanguardGRPCEndpoint.Name)
 	svc, err := vanguardchain.NewService(
 		o.ctx,
-		vanguardGRPC,
+		vanguardGRPCUrl,
 		o.db,
 		o.vanShardInfoCache,
-		dialGRPCClient,
 	)
 	if err != nil {
 		return nil
 	}
-	log.WithField("vanguardGrpc", vanguardGRPC).Info("Registered vanguard chain service")
+	log.WithField("vanguardGRPCUrl", vanguardGRPCUrl).Info("Registered vanguard chain service")
 	return o.services.RegisterService(svc)
 }
 
@@ -163,8 +169,12 @@ func (o *OrchestratorNode) registerPandoraChainService(cliCtx *cli.Context) erro
 		}
 		return rpcClient, nil
 	}
+	var vanguardShardFeed *vanguardchain.Service
+	if err := o.services.FetchService(&vanguardShardFeed); err != nil {
+		return err
+	}
 	namespace := "eth"
-	svc, err := pandorachain.NewService(o.ctx, pandoraRPCUrl, namespace, o.db, o.pandoraInfoCache, dialRPCClient)
+	svc, err := pandorachain.NewService(o.ctx, pandoraRPCUrl, namespace, o.db, o.pandoraInfoCache, dialRPCClient, vanguardShardFeed)
 	if err != nil {
 		return nil
 	}

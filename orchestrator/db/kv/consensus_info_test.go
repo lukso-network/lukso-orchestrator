@@ -6,7 +6,6 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/require"
 	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
-	"math/rand"
 	"testing"
 )
 
@@ -60,8 +59,7 @@ func TestStore_ConsensusInfos_RetrieveByEpoch(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	db := setupDB(t, true)
-	db.latestEpoch = 199
-	db.SaveLatestEpoch(ctx)
+	db.SaveLatestEpoch(ctx, 199)
 	totalConsensusInfos := make([]*eventTypes.MinimalEpochConsensusInfo, 200)
 
 	for i := 0; i < 200; i++ {
@@ -76,35 +74,24 @@ func TestStore_ConsensusInfos_RetrieveByEpoch(t *testing.T) {
 	assert.DeepEqual(t, totalConsensusInfos[10:], retrievedConsensusInfos)
 }
 
-// TestStore_LatestSavedEpoch_ForFirstTime
-func TestStore_LatestSavedEpoch_ForFirstTime(t *testing.T) {
-	t.Parallel()
-	db := setupDB(t, true)
-
-	latestEpoch := db.LatestSavedEpoch()
-	assert.Equal(t, db.latestEpoch, latestEpoch)
-}
-
 // TestStore_LatestSavedEpoch
 func TestStore_SaveLatestSavedEpoch_RetrieveLatestEpoch(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	db := setupDB(t, true)
-	db.latestEpoch = uint64(1000)
 
 	// SaveLatestEpoch is called when db is going to close
-	require.NoError(t, db.SaveLatestEpoch(ctx))
+	require.NoError(t, db.SaveLatestEpoch(ctx, 1000))
 
 	// LatestSavedEpoch is called when db is going up
 	latestEpoch := db.LatestSavedEpoch()
-	assert.Equal(t, db.latestEpoch, latestEpoch)
+	assert.Equal(t, uint64(1000), latestEpoch)
 }
 
 // TestDB_Close_Success
 func TestDB_Close_Success(t *testing.T) {
 	t.Parallel()
 	db := setupDB(t, true)
-	db.latestEpoch = uint64(1000)
 
 	if db.isRunning {
 		require.NoError(t, db.Close())
@@ -114,8 +101,6 @@ func TestDB_Close_Success(t *testing.T) {
 func TestStore_LatestEpoch_ClosingDB_OpeningDB(t *testing.T) {
 	t.Parallel()
 	db := setupDB(t, false)
-	prevLatestEpoch := rand.Uint64()
-	db.latestEpoch = prevLatestEpoch
 
 	if !db.isRunning {
 		t.SkipNow()
@@ -124,9 +109,4 @@ func TestStore_LatestEpoch_ClosingDB_OpeningDB(t *testing.T) {
 	}
 
 	require.NoError(t, db.Close())
-	restartedDB := setupDB(t, false)
-
-	// LatestSavedEpoch is called when db is going up
-	latestEpoch := restartedDB.LatestSavedEpoch()
-	assert.Equal(t, prevLatestEpoch, latestEpoch)
 }
