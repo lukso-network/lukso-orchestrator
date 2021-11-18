@@ -21,20 +21,24 @@ func (s *Store) SeekSlotInfo(slot uint64) (uint64, *types.SlotInfo, error) {
 	var foundSlot uint64
 	err := s.db.View(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(verifiedSlotInfosBucket)
-		key := bytesutil.Uint64ToBytesBigEndian(slot)
-		cursor := bkt.Cursor()
-		for slotNumber, info := cursor.Seek(key); slotNumber != nil && info != nil; slotNumber, info = cursor.Prev() {
-			foundSlot = bytesutil.BytesToUint64BigEndian(slotNumber)
+		for i := int64(slot); i > 0; i-- {
+			slotInBytes := bytesutil.Uint64ToBytesBigEndian(uint64(i))
+			info := bkt.Get(slotInBytes)
+			if info == nil {
+				continue
+			}
 			err := decode(info, &slotInfo)
 			if err != nil {
 				return err
 			}
-			if foundSlot <= slot {
-				return nil
-			}
+			foundSlot = uint64(i)
+			break
 		}
 		return nil
 	})
+	if slotInfo != nil {
+		log.Debug("seekSlotInfo is returning", "foundSlot", foundSlot, "slotInfo.PandoraHash", slotInfo.PandoraHeaderHash, "slotInfo.VanHash", slotInfo.VanguardBlockHash, "error", err)
+	}
 	return foundSlot, slotInfo, err
 }
 
@@ -204,29 +208,23 @@ func (s *Store) FindVerifiedSlotNumber(info *types.SlotInfo, fromSlot uint64) ui
 }
 
 // RemoveRangeVerifiedInfo method deletes [fromSlot, latestVerifiedSlot]
-func (s *Store) RemoveRangeVerifiedInfo(fromSlot, skipSlot uint64) error {
-	log.WithField("latestFinalizedSlot", s.LatestLatestFinalizedSlot()).WithField("fromSlot", fromSlot).
+func (s *Store) RemoveRangeVerifiedInfo(fromSlot, toSlot uint64) error {
+	log.WithField("fromSlot", fromSlot).WithField("toSlot", toSlot).
 		Debug("Start removing slot infos from verified db!")
 
 	// storing latest epoch number into db
 	return s.db.Update(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(verifiedSlotInfosBucket)
-		cursor := bkt.Cursor()
-		for key, val := cursor.Last(); key != nil && val != nil; key, val = cursor.Prev() {
-			slotNumber := bytesutil.BytesToUint64BigEndian(key)
-			if slotNumber != skipSlot {
-				s.verifiedSlotInfoCache.Del(slotNumber)
-				if slotNumber >= fromSlot {
-					if err := cursor.Delete(); err != nil {
-						return err
-					}
-					log.WithField("slot", slotNumber).Warn("Removed verified slot info!")
-				}
-			}
-			if slotNumber <= fromSlot {
-				return nil
+
+		for slotNum := fromSlot; slotNum <= toSlot; slotNum++ {
+			removingSlotNumber := bytesutil.Uint64ToBytesBigEndian(slotNum)
+			s.verifiedSlotInfoCache.Del(slotNum)
+			err := bkt.Delete(removingSlotNumber)
+			if err != nil {
+				return err
 			}
 		}
+		log.Debug("success:: all slots are removed from the verified database")
 		return nil
 	})
 }
