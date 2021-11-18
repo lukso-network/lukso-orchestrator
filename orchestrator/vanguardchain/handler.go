@@ -90,7 +90,7 @@ func (s *Service) onNewPendingVanguardBlock(ctx context.Context, blockInfo *eth.
 
 func (s *Service) reorgDB(revertSlot uint64) error {
 	// Removing slot infos from verified slot info db
-	if err := s.db.RemoveRangeVerifiedInfo(revertSlot+1, 0); err != nil {
+	if err := s.db.RemoveRangeVerifiedInfo(revertSlot+1, s.db.LatestSavedVerifiedSlot()); err != nil {
 		log.WithError(err).Error("found error while reverting orchestrator database in reorg phase")
 		return err
 	}

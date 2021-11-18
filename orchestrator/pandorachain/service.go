@@ -76,6 +76,7 @@ func NewService(
 		namespace:          namespace,
 		conInfoSubErrCh:    make(chan error),
 		signalFromVanguard: make(chan *types.PandoraShutDownSignal),
+		conDisconnect:      make(chan struct{}),
 		db:                 db,
 		cache:              cache,
 		shutdownSignal:     signalFeed,

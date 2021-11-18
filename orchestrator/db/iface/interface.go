@@ -20,7 +20,6 @@ type ConsensusInfoAccessDatabase interface {
 
 	SaveConsensusInfo(ctx context.Context, consensusInfo *types.MinimalEpochConsensusInfo) error
 	SaveLatestEpoch(ctx context.Context, epoch uint64) error
-	RevertConsensusInfo(reorgInfo *types.MinimalEpochConsensusInfoV2) error
 }
 
 type ReadOnlyVerifiedSlotInfoDatabase interface {
@@ -40,7 +39,7 @@ type VerifiedSlotDatabase interface {
 	SaveLatestVerifiedHeaderHash(hash common.Hash) error
 	SaveLatestFinalizedSlot(latestFinalizedSlot uint64) error
 	SaveLatestFinalizedEpoch(latestFinalizedEpoch uint64) error
-	RemoveRangeVerifiedInfo(fromSlot, skipSlot uint64) error
+	RemoveRangeVerifiedInfo(fromSlot, toSlot uint64) error
 	UpdateVerifiedSlotInfo(slot uint64) error
 }
 
