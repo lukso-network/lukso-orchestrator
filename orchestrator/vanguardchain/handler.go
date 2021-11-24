@@ -36,7 +36,11 @@ func (s *Service) onNewConsensusInfo(ctx context.Context, consensusInfo *types.M
 		s.shardingInfoCache.Purge()
 
 		// Re-subscribe vanguard new pending blocks
-		go s.subscribeVanNewPendingBlockHash(ctx, finalizedSlot)
+		if err := s.reSubscribeBlocksEvent(finalizedSlot); err != nil {
+			log.WithError(err).Warn("Failed to resubscribe to vanguard blocks event api")
+			return err
+		}
+
 		s.subscriptionShutdownFeed.Send(&types.PandoraShutDownSignal{Shutdown: false})
 	}
 
@@ -102,9 +106,31 @@ func (s *Service) reorgDB(revertSlot uint64) error {
 	return nil
 }
 
+// reSubscribeBlocksEvent method re-subscribe to vanguard block api.
+func (s *Service) reSubscribeBlocksEvent(finalizedSlot uint64) error {
+	if s.conn != nil {
+		log.Warn("Connection is not nil, could not re-subscribe to vanguard blocks event")
+		return nil
+	}
+
+	if err := s.dialConn(); err != nil {
+		log.WithError(err).Error("Could not create connection with vanguard node during re-subscription")
+		return err
+	}
+
+	// Re-subscribe vanguard new pending blocks
+	go s.subscribeVanNewPendingBlockHash(s.ctx, finalizedSlot)
+
+	return nil
+}
+
 func (s *Service) stopSubscription() {
 	s.processingLock.Lock()
 	defer s.processingLock.Unlock()
 
 	s.stopPendingBlkSubCh <- struct{}{}
+	if s.conn != nil {
+		s.conn.Close()
+		s.conn = nil
+	}
 }
