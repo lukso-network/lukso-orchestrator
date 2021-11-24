@@ -2,10 +2,11 @@ package consensus
 
 import (
 	"context"
+	"sync"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/event"
-	"sync"
 
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
@@ -20,8 +21,8 @@ type Config struct {
 	VanguardPendingShardingCache cache.VanguardShardCache
 	PandoraPendingHeaderCache    cache.PandoraHeaderCache
 
-	VanguardShardFeed iface.VanguardShardInfoFeed
-	PandoraHeaderFeed iface2.PandoraHeaderFeed
+	VanguardShardFeed iface.VanguardService
+	PandoraHeaderFeed iface2.PandoraService
 }
 
 // Service This part could be moved to other place during refactor, might be registered as a service
@@ -38,8 +39,8 @@ type Service struct {
 	vanguardPendingShardingCache cache.VanguardShardCache
 	pandoraPendingHeaderCache    cache.PandoraHeaderCache
 
-	vanguardShardFeed    iface.VanguardShardInfoFeed
-	pandoraHeaderFeed    iface2.PandoraHeaderFeed
+	vanguardService      iface.VanguardService
+	pandoraService       iface2.PandoraService
 	verifiedSlotInfoFeed event.Feed
 }
 
@@ -55,8 +56,8 @@ func New(ctx context.Context, cfg *Config) (service *Service) {
 		invalidSlotInfoDB:            cfg.InvalidSlotInfoDB,
 		vanguardPendingShardingCache: cfg.VanguardPendingShardingCache,
 		pandoraPendingHeaderCache:    cfg.PandoraPendingHeaderCache,
-		vanguardShardFeed:            cfg.VanguardShardFeed,
-		pandoraHeaderFeed:            cfg.PandoraHeaderFeed,
+		vanguardService:              cfg.VanguardShardFeed,
+		pandoraService:               cfg.PandoraHeaderFeed,
 	}
 }
 
@@ -69,10 +70,12 @@ func (s *Service) Start() {
 	go func() {
 		log.Info("Starting consensus service")
 		vanShardInfoCh := make(chan *types.VanguardShardInfo)
+		vanShutdownSignalCh := make(chan *types.ShutDownSignal)
 		panHeaderInfoCh := make(chan *types.PandoraHeaderInfo)
 
-		vanShardInfoSub := s.vanguardShardFeed.SubscribeShardInfoEvent(vanShardInfoCh)
-		panHeaderInfoSub := s.pandoraHeaderFeed.SubscribeHeaderInfoEvent(panHeaderInfoCh)
+		vanShardInfoSub := s.vanguardService.SubscribeShardInfoEvent(vanShardInfoCh)
+		vanShutdownSub := s.vanguardService.SubscribeShutdownSignalEvent(vanShutdownSignalCh)
+		panHeaderInfoSub := s.pandoraService.SubscribeHeaderInfoEvent(panHeaderInfoCh)
 
 		for {
 			select {
@@ -111,8 +114,34 @@ func (s *Service) Start() {
 					log.WithField("error", err).Error("error found while processing vanguard sharding info")
 					return
 				}
+			case shutdownSignal := <-vanShutdownSignalCh:
+				if shutdownSignal == nil {
+					log.Error("received shutdown signal but value not set. So we are doing nothing")
+					continue
+				}
+				log.WithField("value", *shutdownSignal).Debug("received shut down signal from vanguard")
+				if shutdownSignal.Shutdown == true {
+					// disconnect subscription
+					log.Debug("Stopping subscription for vanguard and pandora")
+					s.vanguardService.StopSubscription()
+					s.pandoraService.StopPandoraSubscription()
+				} else {
+					log.Debug("Starting subscription for vanguard and pandora")
+					err := s.vanguardService.ReSubscribeBlocksEvent()
+					if err != nil {
+						log.WithError(err).Error("Error while subscribing block event")
+						continue
+					}
+					err = s.pandoraService.ResumePandoraSubscription()
+					if err != nil {
+						log.WithError(err).Error("Error while resuming pandora block subscription")
+						continue
+					}
+				}
+
 			case <-s.ctx.Done():
 				vanShardInfoSub.Unsubscribe()
+				vanShutdownSub.Unsubscribe()
 				panHeaderInfoSub.Unsubscribe()
 				log.Info("Received cancelled context,closing existing consensus service")
 				return

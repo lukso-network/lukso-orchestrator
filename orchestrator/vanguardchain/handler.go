@@ -23,8 +23,7 @@ func (s *Service) onNewConsensusInfo(ctx context.Context, consensusInfo *types.M
 		log.WithField("curSlot", consensusInfo.ReorgInfo.NewSlot).WithField("revertSlot", finalizedSlot).Warn("Triggered reorg event")
 
 		// Stop subscription of vanguard new pending blocks
-		s.stopSubscription()
-		s.subscriptionShutdownFeed.Send(&types.PandoraShutDownSignal{Shutdown: true})
+		s.subscriptionShutdownFeed.Send(&types.ShutDownSignal{Shutdown: true})
 		log.WithField("finalizedEpoch", finalizedEpoch).Warn("Stop subscription and reverting orchestrator db to latest finalized slot")
 
 		if err := s.reorgDB(finalizedSlot); err != nil {
@@ -35,13 +34,7 @@ func (s *Service) onNewConsensusInfo(ctx context.Context, consensusInfo *types.M
 		// Removing slot infos from vanguard cache
 		s.shardingInfoCache.Purge()
 
-		// Re-subscribe vanguard new pending blocks
-		if err := s.reSubscribeBlocksEvent(finalizedSlot, finalizedEpoch); err != nil {
-			log.WithError(err).Warn("Failed to resubscribe to vanguard blocks event api")
-			return err
-		}
-
-		s.subscriptionShutdownFeed.Send(&types.PandoraShutDownSignal{Shutdown: false})
+		s.subscriptionShutdownFeed.Send(&types.ShutDownSignal{Shutdown: false})
 	}
 
 	if err := s.db.SaveConsensusInfo(ctx, consensusInfo.ConvertToEpochInfo()); err != nil {
@@ -103,8 +96,13 @@ func (s *Service) reorgDB(revertSlot uint64) error {
 	return nil
 }
 
-// reSubscribeBlocksEvent method re-subscribe to vanguard block api.
-func (s *Service) reSubscribeBlocksEvent(finalizedSlot, finalizedEpoch uint64) error {
+// ReSubscribeBlocksEvent method re-subscribe to vanguard block api.
+func (s *Service) ReSubscribeBlocksEvent() error {
+	finalizedSlot := s.db.LatestLatestFinalizedSlot()
+	finalizedEpoch := s.db.LatestLatestFinalizedEpoch()
+
+	log.WithField("finalizedSlot", finalizedSlot).WithField("finalizedEpoch", finalizedEpoch).Info("Resubscribing Block Event")
+
 	if s.conn != nil {
 		log.Warn("Connection is not nil, could not re-subscribe to vanguard blocks event")
 		return nil
@@ -121,7 +119,8 @@ func (s *Service) reSubscribeBlocksEvent(finalizedSlot, finalizedEpoch uint64) e
 	return nil
 }
 
-func (s *Service) stopSubscription() {
+func (s *Service) StopSubscription() {
+	log.Info("Stopping vanguard gRPC subscription")
 	s.processingLock.Lock()
 	defer s.processingLock.Unlock()
 
