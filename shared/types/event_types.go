@@ -54,7 +54,7 @@ type PandoraHeaderInfo struct {
 	Header *eth1Types.Header
 }
 
-type PandoraShutDownSignal struct {
+type ShutDownSignal struct {
 	Shutdown bool
 }
 

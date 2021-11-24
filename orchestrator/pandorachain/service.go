@@ -5,8 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/iface"
-
 	"github.com/ethereum/go-ethereum/event"
 
 	"github.com/ethereum/go-ethereum/rpc"
@@ -43,8 +41,6 @@ type Service struct {
 	conInfoSubErrCh      chan error
 	conInfoSub           *rpc.ClientSubscription
 	conDisconnect        chan struct{}
-	shutdownSignal       iface.ShutdownSignalPropagationFeed
-	signalFromVanguard   chan *types.PandoraShutDownSignal
 	vanguardSubscription event.Subscription
 
 	// db support
@@ -63,23 +59,20 @@ func NewService(
 	db db.Database,
 	cache cache.PandoraHeaderCache,
 	dialRPCFn DialRPCFn,
-	signalFeed iface.ShutdownSignalPropagationFeed,
 ) (*Service, error) {
 
 	ctx, cancel := context.WithCancel(ctx)
 	_ = cancel // govet fix for lost cancel. Cancel is handled in service.Stop()
 	return &Service{
-		ctx:                ctx,
-		cancel:             cancel,
-		endpoint:           endpoint,
-		dialRPCFn:          dialRPCFn,
-		namespace:          namespace,
-		conInfoSubErrCh:    make(chan error),
-		signalFromVanguard: make(chan *types.PandoraShutDownSignal),
-		conDisconnect:      make(chan struct{}),
-		db:                 db,
-		cache:              cache,
-		shutdownSignal:     signalFeed,
+		ctx:             ctx,
+		cancel:          cancel,
+		endpoint:        endpoint,
+		dialRPCFn:       dialRPCFn,
+		namespace:       namespace,
+		conInfoSubErrCh: make(chan error),
+		conDisconnect:   make(chan struct{}),
+		db:              db,
+		cache:           cache,
 	}, nil
 }
 
@@ -106,10 +99,6 @@ func (s *Service) Stop() error {
 	}
 	s.closeClients()
 	s.scope.Close()
-
-	if s.vanguardSubscription != nil {
-		s.vanguardSubscription.Unsubscribe()
-	}
 
 	return nil
 }
@@ -173,24 +162,11 @@ func (s *Service) waitForConnection() {
 func (s *Service) run(done <-chan struct{}) {
 	log.Debug("Pandora chain service is starting")
 	s.runError = nil
-	s.vanguardSubscription = s.shutdownSignal.SubscribeShutdownSignalEvent(s.signalFromVanguard)
 
 	// the loop waits for any error which comes from consensus info subscription
 	// if any subscription error happens, it will try to reconnect and re-subscribe with pandora chain again.
 	for {
 		select {
-		case val := <-s.signalFromVanguard:
-			if val == nil {
-				continue
-			}
-			log.WithField("value", val).Debug("received shut down signal in pandora side")
-			if val.Shutdown == true {
-				// Empty the cache and disconnect subscription
-				s.cache.Purge()
-				s.conDisconnect <- struct{}{}
-			} else {
-				s.subscribe()
-			}
 		case <-done:
 			s.isRunning = false
 			s.runError = nil
@@ -204,6 +180,17 @@ func (s *Service) run(done <-chan struct{}) {
 			continue
 		}
 	}
+}
+
+func (s *Service) StopPandoraSubscription() {
+	defer log.Info("Pandora subscription stopped")
+	s.cache.Purge()
+	s.conDisconnect <- struct{}{}
+}
+
+func (s *Service) ResumePandoraSubscription() error {
+	defer log.Info("Pandora subscription resumed")
+	return s.subscribe()
 }
 
 // connectToChain dials to pandora chain and creates rpcClient and subscribe
