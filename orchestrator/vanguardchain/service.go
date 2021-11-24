@@ -55,6 +55,7 @@ type Service struct {
 	db                  db.Database              // db support
 	shardingInfoCache   cache.VanguardShardCache // lru cache support
 	stopPendingBlkSubCh chan struct{}
+	stopEpochInfoSubCh  chan struct{}
 }
 
 // NewService creates new service with vanguard endpoint, vanguard namespace and consensusInfoDB
@@ -75,6 +76,7 @@ func NewService(
 		db:                  db,
 		shardingInfoCache:   cache,
 		stopPendingBlkSubCh: make(chan struct{}),
+		stopEpochInfoSubCh:  make(chan struct{}),
 	}, nil
 }
 
