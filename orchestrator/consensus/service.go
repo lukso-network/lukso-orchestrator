@@ -70,9 +70,9 @@ func (s *Service) Start() {
 	s.isRunning = true
 	go func() {
 		log.Info("Starting consensus service")
-		vanShardInfoCh := make(chan *types.VanguardShardInfo)
-		reorgSignalCh := make(chan *types.Reorg)
-		panHeaderInfoCh := make(chan *types.PandoraHeaderInfo)
+		vanShardInfoCh := make(chan *types.VanguardShardInfo, 1)
+		reorgSignalCh := make(chan *types.Reorg, 1)
+		panHeaderInfoCh := make(chan *types.PandoraHeaderInfo, 1)
 
 		vanShardInfoSub := s.vanguardService.SubscribeShardInfoEvent(vanShardInfoCh)
 		vanShutdownSub := s.vanguardService.SubscribeShutdownSignalEvent(reorgSignalCh)
@@ -96,7 +96,13 @@ func (s *Service) Start() {
 						continue
 					}
 				}
-				if err := s.processPandoraHeader(newPanHeaderInfo); !s.reorgInProgress && err != nil {
+
+				if !s.reorgInProgress {
+					log.WithField("slot", newPanHeaderInfo.Slot).Info("Reorg is progressing, so skipping new pandora header")
+					continue
+				}
+
+				if err := s.processPandoraHeader(newPanHeaderInfo); err != nil {
 					log.WithField("error", err).Error("error found while processing pandora header")
 					return
 				}
@@ -111,7 +117,13 @@ func (s *Service) Start() {
 						continue
 					}
 				}
-				if err := s.processVanguardShardInfo(newVanShardInfo); !s.reorgInProgress && err != nil {
+
+				if !s.reorgInProgress {
+					log.WithField("slot", newVanShardInfo.Slot).Info("Reorg is progressing, so skipping new vanguard shard")
+					continue
+				}
+
+				if err := s.processVanguardShardInfo(newVanShardInfo); err != nil {
 					log.WithField("error", err).Error("error found while processing vanguard sharding info")
 					return
 				}
