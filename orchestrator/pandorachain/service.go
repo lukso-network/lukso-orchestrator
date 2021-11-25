@@ -184,7 +184,7 @@ func (s *Service) run(done <-chan struct{}) {
 
 func (s *Service) StopPandoraSubscription() {
 	defer log.Info("Pandora subscription stopped")
-	s.conDisconnect <- struct{}{}
+	s.closeClients()
 }
 
 func (s *Service) ResumePandoraSubscription() error {

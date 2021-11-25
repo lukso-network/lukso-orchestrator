@@ -81,6 +81,12 @@ func (s *Service) Start() {
 		for {
 			select {
 			case newPanHeaderInfo := <-panHeaderInfoCh:
+
+				if s.reorgInProgress {
+					log.WithField("slot", newPanHeaderInfo.Slot).Info("Reorg is progressing, so skipping new pandora header")
+					continue
+				}
+
 				if slotInfo, _ := s.verifiedSlotInfoDB.VerifiedSlotInfo(newPanHeaderInfo.Slot); slotInfo != nil {
 					if slotInfo.PandoraHeaderHash == newPanHeaderInfo.Header.Hash() {
 						log.WithField("slot", newPanHeaderInfo.Slot).
@@ -97,16 +103,17 @@ func (s *Service) Start() {
 					}
 				}
 
-				if !s.reorgInProgress {
-					log.WithField("slot", newPanHeaderInfo.Slot).Info("Reorg is progressing, so skipping new pandora header")
-					continue
-				}
-
 				if err := s.processPandoraHeader(newPanHeaderInfo); err != nil {
 					log.WithField("error", err).Error("error found while processing pandora header")
 					return
 				}
 			case newVanShardInfo := <-vanShardInfoCh:
+
+				if s.reorgInProgress {
+					log.WithField("slot", newVanShardInfo.Slot).Info("Reorg is progressing, so skipping new vanguard shard")
+					continue
+				}
+
 				if slotInfo, _ := s.verifiedSlotInfoDB.VerifiedSlotInfo(newVanShardInfo.Slot); slotInfo != nil {
 					blockHashHex := common.BytesToHash(newVanShardInfo.BlockHash[:])
 					if slotInfo.VanguardBlockHash == blockHashHex {
@@ -116,11 +123,6 @@ func (s *Service) Start() {
 
 						continue
 					}
-				}
-
-				if !s.reorgInProgress {
-					log.WithField("slot", newVanShardInfo.Slot).Info("Reorg is progressing, so skipping new vanguard shard")
-					continue
 				}
 
 				if err := s.processVanguardShardInfo(newVanShardInfo); err != nil {
@@ -139,11 +141,6 @@ func (s *Service) Start() {
 				log.WithField("curSlot", reorgInfo.NewSlot).WithField("revertSlot", finalizedSlot).
 					WithField("finalizedEpoch", finalizedEpoch).Warn("Triggered reorg event")
 
-				// disconnect subscription
-				log.Debug("Stopping subscription for vanguard and pandora")
-				s.vanguardService.StopSubscription()
-				s.pandoraService.StopPandoraSubscription()
-
 				if err := s.reorgDB(finalizedSlot); err != nil {
 					log.WithError(err).Warn("Failed to revert verified info db, exiting consensus go routine")
 					return
@@ -153,15 +150,20 @@ func (s *Service) Start() {
 				s.pandoraPendingHeaderCache.Purge()
 				log.Debug("Starting subscription for vanguard and pandora")
 
-				if err := s.vanguardService.ReSubscribeBlocksEvent(); err != nil {
-					log.WithError(err).Error("Error while subscribing block event, exiting consensus go routine")
-					return
-				}
+				// disconnect subscription
+				log.Debug("Stopping subscription for vanguard and pandora")
+				s.vanguardService.StopSubscription()
+				s.pandoraService.StopPandoraSubscription()
 
-				if err := s.pandoraService.ResumePandoraSubscription(); err != nil {
-					log.WithError(err).Error("Error while resuming pandora block subscription, exiting consensus go routine")
-					return
-				}
+				//if err := s.vanguardService.ReSubscribeBlocksEvent(); err != nil {
+				//	log.WithError(err).Error("Error while subscribing block event, exiting consensus go routine")
+				//	return
+				//}
+				//
+				//if err := s.pandoraService.ResumePandoraSubscription(); err != nil {
+				//	log.WithError(err).Error("Error while resuming pandora block subscription, exiting consensus go routine")
+				//	return
+				//}
 				// resetting reorgInProgress to false
 				s.reorgInProgress = false
 			case <-s.ctx.Done():

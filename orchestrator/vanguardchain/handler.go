@@ -92,13 +92,7 @@ func (s *Service) ReSubscribeBlocksEvent() error {
 }
 
 func (s *Service) StopSubscription() {
-	log.Info("Stopping vanguard gRPC subscription")
-	s.processingLock.Lock()
-	defer s.processingLock.Unlock()
-
-	s.stopPendingBlkSubCh <- struct{}{}
-	s.stopEpochInfoSubCh <- struct{}{}
-
+	defer log.Info("Stopped vanguard gRPC subscription")
 	if s.conn != nil {
 		s.conn.Close()
 		s.conn = nil

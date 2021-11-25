@@ -149,6 +149,13 @@ func (s *Service) run() {
 // waitForConnection waits for a connection with vanguard chain. Until a successful with
 // vanguard chain, it retries again and again.
 func (s *Service) waitForConnection() {
+	if s.conn == nil {
+		if err := s.dialConn(); err != nil {
+			log.WithError(err).Error("Could not create connection with vanguard node during re-subscription")
+			return
+		}
+	}
+
 	if _, err := s.beaconClient.GetChainHead(s.ctx, &emptypb.Empty{}); err == nil {
 		log.WithField("vanguardEndpoint", s.vanGRPCEndpoint).Info("Connected vanguard chain")
 		s.connectedVanguard = true
