@@ -43,10 +43,8 @@ func (s *Service) SubscribePendingHeaders(
 				log.Info("Received re-org event, exiting pandora pending block subscription!")
 				return
 			case err := <-sub.Err():
-				if err != nil {
-					log.WithError(err).Debug("Got subscription error")
-					s.conInfoSubErrCh <- err
-				}
+				log.WithError(err).Debug("Got subscription error")
+				s.conInfoSubErrCh <- err
 				return
 			case <-ctx.Done():
 				log.Info("Received cancelled context, closing existing pending pandora headers subscription")
