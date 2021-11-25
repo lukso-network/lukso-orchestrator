@@ -33,8 +33,8 @@ func (api *PublicFilterAPI) SteamConfirmedPanBlockHashes(
 				}
 				log.WithField("hash", slotInfos[i].PandoraHeaderHash).Debug("sending verifiedInfo to pandora batchsender")
 				sendingInfo := &generalTypes.BlockStatus{
-					Hash:   slotInfos[i].PandoraHeaderHash,
-					Status: generalTypes.Verified,
+					Hash:          slotInfos[i].PandoraHeaderHash,
+					Status:        generalTypes.Verified,
 					FinalizedSlot: api.backend.LatestFinalizedSlot(),
 				}
 				log.WithField("info", *sendingInfo).Debug("Sending pendingness status to pandora")
@@ -81,8 +81,8 @@ func (api *PublicFilterAPI) SteamConfirmedPanBlockHashes(
 				}
 
 				if err := notifier.Notify(rpcSub.ID, &generalTypes.BlockStatus{
-					Hash:   slotInfoWithStatus.PandoraHeaderHash,
-					Status: slotInfoWithStatus.Status,
+					Hash:          slotInfoWithStatus.PandoraHeaderHash,
+					Status:        slotInfoWithStatus.Status,
 					FinalizedSlot: api.backend.LatestFinalizedSlot(),
 				}); err != nil {
 					log.WithField("hash", slotInfoWithStatus.PandoraHeaderHash).

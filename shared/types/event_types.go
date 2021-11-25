@@ -32,9 +32,9 @@ type MinimalEpochConsensusInfo struct {
 }
 
 type BlockStatus struct {
-	Hash   common.Hash `json:"hash"`
-	Status Status      `json:"status"`
-	FinalizedSlot uint64 `json:"finalizedSlot"`
+	Hash          common.Hash `json:"hash"`
+	Status        Status      `json:"status"`
+	FinalizedSlot uint64      `json:"finalizedSlot"`
 }
 
 // PandoraPendingHeaderFilter
@@ -54,7 +54,7 @@ type PandoraHeaderInfo struct {
 	Header *eth1Types.Header
 }
 
-type PandoraShutDownSignal struct {
+type ShutDownSignal struct {
 	Shutdown bool
 }
 

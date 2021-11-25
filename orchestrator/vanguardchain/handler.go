@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	eth "github.com/prysmaticlabs/prysm/proto/eth/v1alpha1"
 	"github.com/prysmaticlabs/prysm/proto/eth/v1alpha1/wrapper"
@@ -17,29 +16,6 @@ func (s *Service) onNewConsensusInfo(ctx context.Context, consensusInfo *types.M
 	nsent := s.consensusInfoFeed.Send(consensusInfo)
 	log.WithField("nsent", nsent).Trace("Send consensus info to subscribers")
 
-	if consensusInfo.ReorgInfo != nil {
-		// Stop subscription of vanguard new pending blocks
-		s.stopSubscription()
-		s.subscriptionShutdownFeed.Send(&types.PandoraShutDownSignal{Shutdown: true})
-
-		// reorg happened. So remove info from database
-		finalizedSlot := s.db.LatestLatestFinalizedSlot()
-		log.WithField("curSlot", consensusInfo.ReorgInfo.NewSlot).WithField("revertSlot", finalizedSlot).
-			Warn("Stop subscription and reverting orchestrator db to latest finalized slot")
-
-		if err := s.reorgDB(finalizedSlot); err != nil {
-			log.WithError(err).Warn("Failed to revert verified info db")
-			return err
-
-		}
-		// Removing slot infos from vanguard cache
-		s.shardingInfoCache.Purge()
-
-		// Re-subscribe vanguard new pending blocks
-		go s.subscribeVanNewPendingBlockHash(ctx, finalizedSlot)
-		s.subscriptionShutdownFeed.Send(&types.PandoraShutDownSignal{Shutdown: false})
-	}
-
 	if err := s.db.SaveConsensusInfo(ctx, consensusInfo.ConvertToEpochInfo()); err != nil {
 		log.WithError(err).Warn("failed to save consensus info into consensusInfoDB!")
 		return err
@@ -49,6 +25,13 @@ func (s *Service) onNewConsensusInfo(ctx context.Context, consensusInfo *types.M
 		log.WithError(err).Warn("failed to save latest epoch into consensusInfoDB!")
 		return err
 	}
+
+	if consensusInfo.ReorgInfo != nil {
+		nsent = s.subscriptionShutdownFeed.Send(consensusInfo.ReorgInfo)
+		log.WithField("nsent", nsent).Trace("Send reorg info to consensus service")
+		return nil
+	}
+
 	return nil
 }
 
@@ -77,34 +60,41 @@ func (s *Service) onNewPendingVanguardBlock(ctx context.Context, blockInfo *eth.
 		FinalizedEpoch: uint64(blockInfo.FinalizedEpoch),
 	}
 
-	log.WithField("slot", block.Slot).
-		WithField("blockNumber", shardInfo.BlockNumber).
-		WithField("shardInfoHash", hexutil.Encode(shardInfo.Hash)).
-		WithField("latestFinalizedSlot", blockInfo.FinalizedSlot).
-		WithField("latestFinalizedEpoch", blockInfo.FinalizedEpoch).
+	log.WithField("slot", block.Slot).WithField("panBlockNum", shardInfo.BlockNumber).
+		WithField("finalizedSlot", blockInfo.FinalizedSlot).WithField("finalizedEpoch", blockInfo.FinalizedEpoch).
 		Info("New vanguard shard info has arrived")
 
 	s.vanguardShardingInfoFeed.Send(cachedShardInfo)
 	return nil
 }
 
-func (s *Service) reorgDB(revertSlot uint64) error {
-	// Removing slot infos from verified slot info db
-	if err := s.db.RemoveRangeVerifiedInfo(revertSlot+1, s.db.LatestSavedVerifiedSlot()); err != nil {
-		log.WithError(err).Error("found error while reverting orchestrator database in reorg phase")
+// ReSubscribeBlocksEvent method re-subscribe to vanguard block api.
+func (s *Service) ReSubscribeBlocksEvent() error {
+	finalizedSlot := s.db.LatestLatestFinalizedSlot()
+	finalizedEpoch := s.db.LatestLatestFinalizedEpoch()
+
+	log.WithField("finalizedSlot", finalizedSlot).WithField("finalizedEpoch", finalizedEpoch).Info("Resubscribing Block Event")
+
+	if s.conn != nil {
+		log.Warn("Connection is not nil, could not re-subscribe to vanguard blocks event")
+		return nil
+	}
+
+	if err := s.dialConn(); err != nil {
+		log.WithError(err).Error("Could not create connection with vanguard node during re-subscription")
 		return err
 	}
 
-	if err := s.db.UpdateVerifiedSlotInfo(revertSlot); err != nil {
-		log.WithError(err).Error("failed to update latest verified slot info in reorg phase")
-		return err
-	}
+	// Re-subscribe vanguard new pending blocks
+	go s.subscribeVanNewPendingBlockHash(s.ctx, finalizedSlot)
+	go s.subscribeNewConsensusInfoGRPC(s.ctx, finalizedEpoch)
 	return nil
 }
 
-func (s *Service) stopSubscription() {
-	s.processingLock.Lock()
-	defer s.processingLock.Unlock()
-
-	s.stopPendingBlkSubCh <- struct{}{}
+func (s *Service) StopSubscription() {
+	defer log.Info("Stopped vanguard gRPC subscription")
+	if s.conn != nil {
+		s.conn.Close()
+		s.conn = nil
+	}
 }

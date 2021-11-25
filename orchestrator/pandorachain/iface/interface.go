@@ -5,6 +5,8 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 )
 
-type PandoraHeaderFeed interface {
+type PandoraService interface {
 	SubscribeHeaderInfoEvent(chan<- *types.PandoraHeaderInfo) event.Subscription
+	StopPandoraSubscription()
+	ResumePandoraSubscription() error
 }

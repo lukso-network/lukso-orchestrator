@@ -9,10 +9,9 @@ type ConsensusInfoFeed interface {
 	SubscribeMinConsensusInfoEvent(chan<- *types.MinimalEpochConsensusInfoV2) event.Subscription
 }
 
-type VanguardShardInfoFeed interface {
+type VanguardService interface {
 	SubscribeShardInfoEvent(chan<- *types.VanguardShardInfo) event.Subscription
-}
-
-type ShutdownSignalPropagationFeed interface {
-	SubscribeShutdownSignalEvent(chan<- *types.PandoraShutDownSignal) event.Subscription
+	SubscribeShutdownSignalEvent(chan<- *types.Reorg) event.Subscription
+	ReSubscribeBlocksEvent() error
+	StopSubscription()
 }

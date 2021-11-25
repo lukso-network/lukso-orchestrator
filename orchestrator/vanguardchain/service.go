@@ -2,6 +2,7 @@ package vanguardchain
 
 import (
 	"context"
+	"errors"
 	"math"
 	"sync"
 	"time"
@@ -19,8 +20,8 @@ import (
 
 // time to wait before trying to reconnect with the vanguard node.
 var (
-	reConPeriod               = 2 * time.Second
-	syncStatusPollingInterval = 30 * time.Second
+	reConPeriod = 2 * time.Second
+	errDialNil  = errors.New("failed to construct dial options")
 )
 
 // Service
@@ -53,6 +54,7 @@ type Service struct {
 	db                  db.Database              // db support
 	shardingInfoCache   cache.VanguardShardCache // lru cache support
 	stopPendingBlkSubCh chan struct{}
+	stopEpochInfoSubCh  chan struct{}
 }
 
 // NewService creates new service with vanguard endpoint, vanguard namespace and consensusInfoDB
@@ -73,6 +75,7 @@ func NewService(
 		db:                  db,
 		shardingInfoCache:   cache,
 		stopPendingBlkSubCh: make(chan struct{}),
+		stopEpochInfoSubCh:  make(chan struct{}),
 	}, nil
 }
 
@@ -80,24 +83,14 @@ func NewService(
 func (s *Service) Start() {
 	// Exit early if endpoint is not set.
 	if s.vanGRPCEndpoint == "" {
+		log.Error("Missing vanguard node's endpoint")
 		return
 	}
 
-	dialOpts := constructDialOptions(math.MaxInt32, "", 32, time.Minute*6)
-	if dialOpts == nil {
-		log.Warn("Failed to construct dial options for vanguard client")
+	if err := s.dialConn(); err != nil {
+		log.WithError(err).Error("Could not create connection with vanguard node")
 		return
 	}
-
-	c, err := grpc.DialContext(s.ctx, s.vanGRPCEndpoint, dialOpts...)
-	if err != nil {
-		log.WithField("endpoint", s.vanGRPCEndpoint).WithError(err).Warn("Could not dial endpoint")
-		return
-	}
-
-	s.conn = c
-	s.beaconClient = ethpb.NewBeaconChainClient(c)
-	s.nodeClient = ethpb.NewNodeClient(c)
 
 	go s.run()
 }
@@ -156,6 +149,11 @@ func (s *Service) run() {
 // waitForConnection waits for a connection with vanguard chain. Until a successful with
 // vanguard chain, it retries again and again.
 func (s *Service) waitForConnection() {
+	if err := s.dialConn(); err != nil {
+		log.WithError(err).Error("Could not create connection with vanguard node during re-subscription")
+		return
+	}
+
 	if _, err := s.beaconClient.GetChainHead(s.ctx, &emptypb.Empty{}); err == nil {
 		log.WithField("vanguardEndpoint", s.vanGRPCEndpoint).Info("Connected vanguard chain")
 		s.connectedVanguard = true
@@ -192,8 +190,34 @@ func (s *Service) SubscribeShardInfoEvent(ch chan<- *types.VanguardShardInfo) ev
 	return s.scope.Track(s.vanguardShardingInfoFeed.Subscribe(ch))
 }
 
-func (s *Service) SubscribeShutdownSignalEvent(ch chan<- *types.PandoraShutDownSignal) event.Subscription {
+func (s *Service) SubscribeShutdownSignalEvent(ch chan<- *types.Reorg) event.Subscription {
 	return s.scope.Track(s.subscriptionShutdownFeed.Subscribe(ch))
+}
+
+// dialConn method creates connection with vanguard grpc server
+func (s *Service) dialConn() error {
+	s.processingLock.Lock()
+	defer s.processingLock.Unlock()
+
+	if s.conn != nil {
+		return nil
+	}
+
+	dialOpts := constructDialOptions(math.MaxInt32, "", 32, time.Minute*6)
+	if dialOpts == nil {
+		return errDialNil
+	}
+
+	c, err := grpc.DialContext(s.ctx, s.vanGRPCEndpoint, dialOpts...)
+	if err != nil {
+		return err
+	}
+
+	s.conn = c
+	s.beaconClient = ethpb.NewBeaconChainClient(c)
+	s.nodeClient = ethpb.NewNodeClient(c)
+
+	return nil
 }
 
 // constructDialOptions constructs a list of grpc dial options

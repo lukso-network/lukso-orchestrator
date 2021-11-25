@@ -2,18 +2,40 @@ package consensus
 
 import (
 	"context"
+	"testing"
+
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
 	testDB "github.com/lukso-network/lukso-orchestrator/orchestrator/db/testing"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
-	"testing"
 )
 
 type mockFeedService struct {
-	headerInfoFeed event.Feed
-	shardInfoFeed  event.Feed
-	scope          event.SubscriptionScope
+	headerInfoFeed           event.Feed
+	shardInfoFeed            event.Feed
+	subscriptionShutdownFeed event.Feed
+	scope                    event.SubscriptionScope
+}
+
+func (mc *mockFeedService) SubscribeShutdownSignalEvent(signals chan<- *types.Reorg) event.Subscription {
+	return mc.scope.Track(mc.subscriptionShutdownFeed.Subscribe(signals))
+}
+
+func (mc *mockFeedService) ReSubscribeBlocksEvent() error {
+	panic("implement me")
+}
+
+func (mc *mockFeedService) StopSubscription() {
+	panic("implement me")
+}
+
+func (mc *mockFeedService) StopPandoraSubscription() {
+	panic("implement StopPandoraSubscription")
+}
+
+func (mc *mockFeedService) ResumePandoraSubscription() error {
+	panic("implement ResumePandoraSubscription")
 }
 
 func (mc *mockFeedService) SubscribeHeaderInfoEvent(ch chan<- *types.PandoraHeaderInfo) event.Subscription {
