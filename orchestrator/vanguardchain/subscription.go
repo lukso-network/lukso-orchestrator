@@ -119,7 +119,7 @@ func (s *Service) subscribeNewConsensusInfoGRPC(ctx context.Context, fromEpoch u
 							log.WithError(err).Error("Failed to subscribe to stream of new consensus info, Exiting go routine")
 							return err
 						}
-						log.WithField("finalizedSlot", latestFinalizedEpoch).Info("Successfully re-subscribed to vanguard epoch infos")
+						log.WithField("finalizedEpoch", latestFinalizedEpoch).Info("Successfully re-subscribed to vanguard epoch infos")
 						continue
 					}
 				} else {
