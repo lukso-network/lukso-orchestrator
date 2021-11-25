@@ -15,6 +15,7 @@ import (
 
 var (
 	errConsensusInfoNil       = errors.New("Incoming consensus info is nil")
+	errBlockInfoNil           = errors.New("Incoming block info is nil")
 	errInvalidValidatorLength = errors.New("Incoming consensus info's validator list is invalid")
 	errConsensusInfoProcess   = errors.New("Could not process minimal consensus info")
 )
@@ -61,11 +62,18 @@ func (s *Service) subscribeVanNewPendingBlockHash(ctx context.Context, fromSlot 
 							log.WithError(err).Error("Failed to subscribe to new pending blocks stream")
 							return err
 						}
+						log.WithField("finalizedSlot", latestFinalizedSlot).Info("Successfully re-subscribed to vanguard blocks")
+						continue
 					}
 				} else {
 					log.WithError(err).Error("Could not receive pending blocks from vanguard node")
 					return err
 				}
+			}
+
+			if vanBlockInfo == nil {
+				log.Error("Received nil blockInfo, Exiting go routine")
+				return errBlockInfoNil
 			}
 
 			if err := s.onNewPendingVanguardBlock(ctx, vanBlockInfo); err != nil {
@@ -111,6 +119,8 @@ func (s *Service) subscribeNewConsensusInfoGRPC(ctx context.Context, fromEpoch u
 							log.WithError(err).Error("Failed to subscribe to stream of new consensus info, Exiting go routine")
 							return err
 						}
+						log.WithField("finalizedSlot", latestFinalizedEpoch).Info("Successfully re-subscribed to vanguard epoch infos")
+						continue
 					}
 				} else {
 					log.WithError(err).Error("Could not receive epoch info from vanguard")
