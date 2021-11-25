@@ -184,7 +184,6 @@ func (s *Service) run(done <-chan struct{}) {
 
 func (s *Service) StopPandoraSubscription() {
 	defer log.Info("Pandora subscription stopped")
-	s.cache.Purge()
 	s.conDisconnect <- struct{}{}
 }
 

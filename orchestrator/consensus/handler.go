@@ -95,3 +95,17 @@ func (s *Service) verifyShardingInfo(slot uint64, vanShardInfo *types.VanguardSh
 	s.verifiedSlotInfoFeed.Send(slotInfoWithStatus)
 	return nil
 }
+
+func (s *Service) reorgDB(revertSlot uint64) error {
+	// Removing slot infos from verified slot info db
+	if err := s.verifiedSlotInfoDB.RemoveRangeVerifiedInfo(revertSlot+1, s.verifiedSlotInfoDB.LatestSavedVerifiedSlot()); err != nil {
+		log.WithError(err).Error("found error while reverting orchestrator database in reorg phase")
+		return err
+	}
+
+	if err := s.verifiedSlotInfoDB.UpdateVerifiedSlotInfo(revertSlot); err != nil {
+		log.WithError(err).Error("failed to update latest verified slot info in reorg phase")
+		return err
+	}
+	return nil
+}

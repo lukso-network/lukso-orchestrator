@@ -12,13 +12,13 @@ import (
 )
 
 type mockFeedService struct {
-	headerInfoFeed event.Feed
-	shardInfoFeed  event.Feed
+	headerInfoFeed           event.Feed
+	shardInfoFeed            event.Feed
 	subscriptionShutdownFeed event.Feed
-	scope          event.SubscriptionScope
+	scope                    event.SubscriptionScope
 }
 
-func (mc *mockFeedService) SubscribeShutdownSignalEvent(signals chan<- *types.ShutDownSignal) event.Subscription {
+func (mc *mockFeedService) SubscribeShutdownSignalEvent(signals chan<- *types.Reorg) event.Subscription {
 	return mc.scope.Track(mc.subscriptionShutdownFeed.Subscribe(signals))
 }
 

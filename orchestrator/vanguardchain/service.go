@@ -20,8 +20,8 @@ import (
 
 // time to wait before trying to reconnect with the vanguard node.
 var (
-	reConPeriod               = 2 * time.Second
-	errDialNil                = errors.New("failed to construct dial options")
+	reConPeriod = 2 * time.Second
+	errDialNil  = errors.New("failed to construct dial options")
 )
 
 // Service
@@ -185,7 +185,7 @@ func (s *Service) SubscribeShardInfoEvent(ch chan<- *types.VanguardShardInfo) ev
 	return s.scope.Track(s.vanguardShardingInfoFeed.Subscribe(ch))
 }
 
-func (s *Service) SubscribeShutdownSignalEvent(ch chan<- *types.ShutDownSignal) event.Subscription {
+func (s *Service) SubscribeShutdownSignalEvent(ch chan<- *types.Reorg) event.Subscription {
 	return s.scope.Track(s.subscriptionShutdownFeed.Subscribe(ch))
 }
 

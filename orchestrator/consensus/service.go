@@ -42,6 +42,7 @@ type Service struct {
 	vanguardService      iface.VanguardService
 	pandoraService       iface2.PandoraService
 	verifiedSlotInfoFeed event.Feed
+	reorgInProgress      bool
 }
 
 //
@@ -70,11 +71,11 @@ func (s *Service) Start() {
 	go func() {
 		log.Info("Starting consensus service")
 		vanShardInfoCh := make(chan *types.VanguardShardInfo)
-		vanShutdownSignalCh := make(chan *types.ShutDownSignal)
+		reorgSignalCh := make(chan *types.Reorg)
 		panHeaderInfoCh := make(chan *types.PandoraHeaderInfo)
 
 		vanShardInfoSub := s.vanguardService.SubscribeShardInfoEvent(vanShardInfoCh)
-		vanShutdownSub := s.vanguardService.SubscribeShutdownSignalEvent(vanShutdownSignalCh)
+		vanShutdownSub := s.vanguardService.SubscribeShutdownSignalEvent(reorgSignalCh)
 		panHeaderInfoSub := s.pandoraService.SubscribeHeaderInfoEvent(panHeaderInfoCh)
 
 		for {
@@ -95,7 +96,7 @@ func (s *Service) Start() {
 						continue
 					}
 				}
-				if err := s.processPandoraHeader(newPanHeaderInfo); err != nil {
+				if err := s.processPandoraHeader(newPanHeaderInfo); !s.reorgInProgress && err != nil {
 					log.WithField("error", err).Error("error found while processing pandora header")
 					return
 				}
@@ -110,35 +111,47 @@ func (s *Service) Start() {
 						continue
 					}
 				}
-				if err := s.processVanguardShardInfo(newVanShardInfo); err != nil {
+				if err := s.processVanguardShardInfo(newVanShardInfo); !s.reorgInProgress && err != nil {
 					log.WithField("error", err).Error("error found while processing vanguard sharding info")
 					return
 				}
-			case shutdownSignal := <-vanShutdownSignalCh:
-				if shutdownSignal == nil {
+			case reorgInfo := <-reorgSignalCh:
+				if reorgInfo == nil {
 					log.Error("received shutdown signal but value not set. So we are doing nothing")
 					continue
 				}
-				log.WithField("value", *shutdownSignal).Debug("received shut down signal from vanguard")
-				if shutdownSignal.Shutdown == true {
-					// disconnect subscription
-					log.Debug("Stopping subscription for vanguard and pandora")
-					s.vanguardService.StopSubscription()
-					s.pandoraService.StopPandoraSubscription()
-				} else {
-					log.Debug("Starting subscription for vanguard and pandora")
-					err := s.vanguardService.ReSubscribeBlocksEvent()
-					if err != nil {
-						log.WithError(err).Error("Error while subscribing block event")
-						continue
-					}
-					err = s.pandoraService.ResumePandoraSubscription()
-					if err != nil {
-						log.WithError(err).Error("Error while resuming pandora block subscription")
-						continue
-					}
+				s.reorgInProgress = true
+				// reorg happened. So remove info from database
+				finalizedSlot := s.verifiedSlotInfoDB.LatestLatestFinalizedSlot()
+				finalizedEpoch := s.verifiedSlotInfoDB.LatestLatestFinalizedEpoch()
+				log.WithField("curSlot", reorgInfo.NewSlot).WithField("revertSlot", finalizedSlot).
+					WithField("finalizedEpoch", finalizedEpoch).Warn("Triggered reorg event")
+
+				// disconnect subscription
+				log.Debug("Stopping subscription for vanguard and pandora")
+				s.vanguardService.StopSubscription()
+				s.pandoraService.StopPandoraSubscription()
+
+				if err := s.reorgDB(finalizedSlot); err != nil {
+					log.WithError(err).Warn("Failed to revert verified info db, exiting consensus go routine")
+					return
+				}
+				// Removing slot infos from vanguard cache and pandora cache
+				s.vanguardPendingShardingCache.Purge()
+				s.pandoraPendingHeaderCache.Purge()
+				log.Debug("Starting subscription for vanguard and pandora")
+
+				if err := s.vanguardService.ReSubscribeBlocksEvent(); err != nil {
+					log.WithError(err).Error("Error while subscribing block event, exiting consensus go routine")
+					return
 				}
 
+				if err := s.pandoraService.ResumePandoraSubscription(); err != nil {
+					log.WithError(err).Error("Error while resuming pandora block subscription, exiting consensus go routine")
+					return
+				}
+				// resetting reorgInProgress to false
+				s.reorgInProgress = false
 			case <-s.ctx.Done():
 				vanShardInfoSub.Unsubscribe()
 				vanShutdownSub.Unsubscribe()
