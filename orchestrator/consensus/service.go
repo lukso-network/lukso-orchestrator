@@ -155,16 +155,6 @@ func (s *Service) Start() {
 				s.vanguardService.StopSubscription()
 				s.pandoraService.StopPandoraSubscription()
 
-				//if err := s.vanguardService.ReSubscribeBlocksEvent(); err != nil {
-				//	log.WithError(err).Error("Error while subscribing block event, exiting consensus go routine")
-				//	return
-				//}
-				//
-				//if err := s.pandoraService.ResumePandoraSubscription(); err != nil {
-				//	log.WithError(err).Error("Error while resuming pandora block subscription, exiting consensus go routine")
-				//	return
-				//}
-				// resetting reorgInProgress to false
 				s.reorgInProgress = false
 			case <-s.ctx.Done():
 				vanShardInfoSub.Unsubscribe()
