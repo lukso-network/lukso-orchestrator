@@ -209,7 +209,7 @@ func (s *Service) dialConn() error {
 
 	grpcAddress, protocol, err := resolveRpcAddressAndProtocol(s.vanGRPCEndpoint, "")
 	if nil != err {
-		return
+		return nil
 	}
 
 	dialOpts := constructDialOptions(math.MaxInt32, "", 32, time.Minute*6)
