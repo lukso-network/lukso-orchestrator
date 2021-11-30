@@ -16,7 +16,7 @@ func main() {
 
 // DownloadAndServe serve you l15 install script
 func DownloadAndServe(w http.ResponseWriter, r *http.Request) {
-	version := "main"
+	version := "v1.7.6"
 	versionQueryParam, ok := r.URL.Query()["version"]
 
 	if ok {
