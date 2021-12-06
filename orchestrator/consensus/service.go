@@ -148,12 +148,10 @@ func (s *Service) Start() {
 				// Removing slot infos from vanguard cache and pandora cache
 				s.vanguardPendingShardingCache.Purge()
 				s.pandoraPendingHeaderCache.Purge()
-				log.Debug("Starting subscription for vanguard and pandora")
 
 				// disconnect subscription
-				log.Debug("Stopping subscription for vanguard and pandora")
+				s.pandoraService.Resubscribe()
 				s.vanguardService.StopSubscription()
-				s.pandoraService.StopPandoraSubscription()
 
 				s.reorgInProgress = false
 			case <-s.ctx.Done():

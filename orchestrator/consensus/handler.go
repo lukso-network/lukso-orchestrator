@@ -36,12 +36,21 @@ func (s *Service) verifyShardingInfo(slot uint64, vanShardInfo *types.VanguardSh
 		PandoraHeaderHash: header.Hash(),
 		VanguardBlockHash: common.BytesToHash(vanShardInfo.BlockHash[:]),
 	}
-	status := CompareShardingInfo(header, vanShardInfo.ShardInfo)
+
 	slotInfoWithStatus := &types.SlotInfoWithStatus{
 		PandoraHeaderHash: header.Hash(),
 		VanguardBlockHash: common.BytesToHash(vanShardInfo.BlockHash[:]),
 	}
-	if !status {
+
+	// Verifying parent hash of vanguard and pandora with latest verified slot info
+	if !s.verifyConsecutiveHashes(header, vanShardInfo) {
+		slotInfoWithStatus.Status = types.Invalid
+		// sending verified slot info to rpc service
+		s.verifiedSlotInfoFeed.Send(slotInfoWithStatus)
+		return nil
+	}
+
+	if !CompareShardingInfo(header, vanShardInfo.ShardInfo) {
 		// store invalid slot info into invalid slot info bucket
 		if err := s.invalidSlotInfoDB.SaveInvalidSlotInfo(slot, slotInfo); err != nil {
 			log.WithField("slot", slot).WithField(

@@ -81,3 +81,35 @@ func CompareShardingInfo(ph *eth1Types.Header, vs *eth2Types.PandoraShard) bool 
 
 	return true
 }
+
+// verifyConsecutiveHashes method checks parent hash of vanguard and pandora current block header
+// Retrieves latest verified slot info and then checks the incoming vanguard and pandora blocks parent hash
+func (s *Service) verifyConsecutiveHashes(ph *eth1Types.Header, vs *types.VanguardShardInfo) bool {
+	verifiedSlot := s.verifiedSlotInfoDB.LatestSavedVerifiedSlot()
+	if verifiedSlot == 0 {
+		return true
+	}
+
+	lastVerifiedSlotInfo, err := s.verifiedSlotInfoDB.VerifiedSlotInfo(verifiedSlot)
+	if err != nil || lastVerifiedSlotInfo == nil {
+		log.Error("Could not retrieve latest verified slot info from db")
+		return false
+	}
+
+	vParentHash := common.BytesToHash(vs.ParentHash)
+	pParentHash := ph.ParentHash
+
+	if lastVerifiedSlotInfo.VanguardBlockHash != vParentHash {
+		log.WithField("lastVerifiedVanHash", lastVerifiedSlotInfo.VanguardBlockHash).
+			WithField("curVanParentHash", vParentHash).Debug("Invalid vanguard parent hash")
+		return false
+	}
+
+	if lastVerifiedSlotInfo.PandoraHeaderHash != pParentHash {
+		log.WithField("lastVerifiedPanHash", lastVerifiedSlotInfo.PandoraHeaderHash).
+			WithField("curPanParentHash", pParentHash).Debug("Invalid pandora parent hash")
+		return false
+	}
+
+	return true
+}
