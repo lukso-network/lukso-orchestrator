@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum/common"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/event"
@@ -22,20 +23,12 @@ func (mc *mockFeedService) SubscribeShutdownSignalEvent(signals chan<- *types.Re
 	return mc.scope.Track(mc.subscriptionShutdownFeed.Subscribe(signals))
 }
 
-func (mc *mockFeedService) ReSubscribeBlocksEvent() error {
-	panic("implement me")
-}
-
 func (mc *mockFeedService) StopSubscription() {
 	panic("implement me")
 }
 
-func (mc *mockFeedService) StopPandoraSubscription() {
-	panic("implement StopPandoraSubscription")
-}
-
-func (mc *mockFeedService) ResumePandoraSubscription() error {
-	panic("implement ResumePandoraSubscription")
+func (mc *mockFeedService) Resubscribe() {
+	panic("implement Resubscribe")
 }
 
 func (mc *mockFeedService) SubscribeHeaderInfoEvent(ch chan<- *types.PandoraHeaderInfo) event.Subscription {
@@ -69,9 +62,11 @@ func getHeaderInfosAndShardInfos(fromSlot uint64, num uint64) ([]*types.PandoraH
 		headerInfo := new(types.PandoraHeaderInfo)
 		headerInfo.Header = testutil.NewEth1Header(i)
 		headerInfo.Slot = i
+		headerInfo.Header.ParentHash = common.BytesToHash([]byte{uint8(i - 1)})
 		headerInfos = append(headerInfos, headerInfo)
 
 		vanShardInfo := testutil.NewVanguardShardInfo(i, headerInfo.Header)
+		vanShardInfo.ParentHash = []byte{uint8(i - 1)}
 		vanShardInfos = append(vanShardInfos, vanShardInfo)
 
 	}

@@ -44,7 +44,6 @@ type Service struct {
 	// subscription
 	conInfoSubErrCh      chan error
 	conInfoSub           *rpc.ClientSubscription
-	conDisconnect        chan struct{}
 	vanguardSubscription event.Subscription
 
 	// db support
@@ -74,7 +73,6 @@ func NewService(
 		dialRPCFn:       dialRPCFn,
 		namespace:       namespace,
 		conInfoSubErrCh: make(chan error),
-		conDisconnect:   make(chan struct{}),
 		db:              db,
 		cache:           cache,
 	}, nil
@@ -134,6 +132,7 @@ func (s *Service) waitForConnection() {
 	if err = s.connectToChain(); err == nil {
 		log.WithField("endpoint", s.endpoint).Info("Connected and subscribed to pandora chain")
 		s.connected = true
+		s.runError = nil
 		return
 	}
 	log.WithError(err).Warn("Could not connect or subscribe to pandora chain")
@@ -186,16 +185,12 @@ func (s *Service) run(done <-chan struct{}) {
 	}
 }
 
-func (s *Service) StopPandoraSubscription() {
-	defer log.Info("Pandora subscription stopped")
+func (s *Service) Resubscribe() {
 	if s.conInfoSub != nil {
 		s.conInfoSub.Unsubscribe()
+		// resubscribing from latest finalised slot
+		s.retryToConnectAndSubscribe(nil)
 	}
-}
-
-func (s *Service) ResumePandoraSubscription() error {
-	defer log.Info("Pandora subscription resumed")
-	return s.subscribe()
 }
 
 // connectToChain dials to pandora chain and creates rpcClient and subscribe
@@ -222,8 +217,6 @@ func (s *Service) retryToConnectAndSubscribe(err error) {
 	// Back off for a while before resuming dialing the pandora node.
 	time.Sleep(reConPeriod)
 	go s.waitForConnection()
-	// Reset run error in the event of a successful connection.
-	s.runError = nil
 }
 
 // subscribe subscribes to pandora events

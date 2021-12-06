@@ -3,6 +3,7 @@ package vanguardchain
 import (
 	"context"
 	"errors"
+	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	eth "github.com/prysmaticlabs/prysm/proto/eth/v1alpha1"
@@ -58,36 +59,14 @@ func (s *Service) onNewPendingVanguardBlock(ctx context.Context, blockInfo *eth.
 		ShardInfo:      shardInfo,
 		FinalizedSlot:  uint64(blockInfo.FinalizedSlot),
 		FinalizedEpoch: uint64(blockInfo.FinalizedEpoch),
+		ParentHash:     blockInfo.GetBlock().ParentRoot[:],
 	}
 
 	log.WithField("slot", block.Slot).WithField("panBlockNum", shardInfo.BlockNumber).
-		WithField("finalizedSlot", blockInfo.FinalizedSlot).WithField("finalizedEpoch", blockInfo.FinalizedEpoch).
-		Info("New vanguard shard info has arrived")
+		WithField("shardingHash", common.BytesToHash(shardInfo.Hash)).WithField("finalizedSlot", blockInfo.FinalizedSlot).
+		WithField("finalizedEpoch", blockInfo.FinalizedEpoch).Info("New vanguard shard info has arrived")
 
 	s.vanguardShardingInfoFeed.Send(cachedShardInfo)
-	return nil
-}
-
-// ReSubscribeBlocksEvent method re-subscribe to vanguard block api.
-func (s *Service) ReSubscribeBlocksEvent() error {
-	finalizedSlot := s.verifiedShardInfoDB.FinalizedSlot()
-	finalizedEpoch := s.verifiedShardInfoDB.FinalizedEpoch()
-
-	log.WithField("finalizedSlot", finalizedSlot).WithField("finalizedEpoch", finalizedEpoch).Info("Resubscribing Block Event")
-
-	if s.conn != nil {
-		log.Warn("Connection is not nil, could not re-subscribe to vanguard blocks event")
-		return nil
-	}
-
-	if err := s.dialConn(); err != nil {
-		log.WithError(err).Error("Could not create connection with vanguard node during re-subscription")
-		return err
-	}
-
-	// Re-subscribe vanguard new pending blocks
-	go s.subscribeVanNewPendingBlockHash(s.ctx, finalizedSlot)
-	go s.subscribeNewConsensusInfoGRPC(s.ctx, finalizedEpoch)
 	return nil
 }
 
