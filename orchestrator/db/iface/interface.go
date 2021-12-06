@@ -43,6 +43,11 @@ type VerifiedSlotDatabase interface {
 	UpdateVerifiedSlotInfo(slot uint64) error
 }
 
+type NewVerifiedSlotDatabase interface {
+
+
+}
+
 type ReadOnlyInvalidSlotInfoDatabase interface {
 	InvalidSlotInfo(slots uint64) (*types.SlotInfo, error)
 }

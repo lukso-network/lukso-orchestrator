@@ -24,6 +24,26 @@ type ExtraData struct {
 	ProposerIndex uint64
 }
 
+type ShardData struct {
+	Number uint64
+	Hash   common.Hash
+}
+
+type Shard struct {
+	Id     uint64
+	Blocks []ShardData
+}
+
+type MultiShardInfo struct {
+	Slot   NewSlotInfo
+	Shards []Shard
+}
+
+type NewSlotInfo struct {
+	Slot uint64
+	Hash common.Hash
+}
+
 // SlotInfo
 type SlotInfo struct {
 	VanguardBlockHash common.Hash
