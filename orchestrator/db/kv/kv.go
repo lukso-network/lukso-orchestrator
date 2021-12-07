@@ -36,6 +36,7 @@ type Store struct {
 	consensusInfoCache    *ristretto.Cache
 	verifiedSlotInfoCache *ristretto.Cache
 	multiShardsInfoCache  *ristretto.Cache
+	slotStepIndexCache    *ristretto.Cache
 }
 
 // NewKVStore initializes a new boltDB key-value store at the directory
@@ -95,6 +96,15 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 		return nil, err
 	}
 
+	slotStepIndexCache, err := ristretto.NewCache(&ristretto.Config{
+		NumCounters: 1000,                    // number of keys to track frequency of (1000).
+		MaxCost:     ConsensusInfosCacheSize, // maximum cost of cache (1000 headers).
+		BufferItems: 64,                      // number of keys per Get buffer.
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	kv := &Store{
 		ctx:                   ctx,
 		db:                    boltDB,
@@ -102,6 +112,7 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 		consensusInfoCache:    consensusInfoCache,
 		verifiedSlotInfoCache: verifiedSlotInfoCache,
 		multiShardsInfoCache:  multiShardsInfoCache,
+		slotStepIndexCache:    slotStepIndexCache,
 	}
 
 	if err := kv.db.Update(func(tx *bolt.Tx) error {
@@ -112,6 +123,7 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 			invalidSlotInfosBucket,
 			latestInfoMarkerBucket,
 			multiShardsBucket,
+			slotStepIndicesBucket,
 		)
 	}); err != nil {
 		return nil, err

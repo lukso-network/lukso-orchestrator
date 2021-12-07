@@ -12,6 +12,10 @@ type ROnlyInvalidSlotInfoDB = iface.ReadOnlyInvalidSlotInfoDatabase
 
 type VerifiedSlotInfoDB = iface.VerifiedSlotDatabase
 
+type ROnlyVerifiedShardInfoDB = iface.ReadOnlyVerifiedShardInfoDatabase
+
+type VerifiedShardInfoDB = iface.VerifiedShardInfoDatabase
+
 type InvalidSlotInfoDB = iface.InvalidSlotDatabase
 
 type Database = iface.Database

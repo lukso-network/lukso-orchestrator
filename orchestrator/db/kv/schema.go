@@ -7,6 +7,7 @@ var (
 	invalidSlotInfosBucket  = []byte("invalid-slots")
 	latestInfoMarkerBucket  = []byte("latest-info-marker") // Only use for storing the following keys
 	multiShardsBucket       = []byte("multi-shards")
+	slotStepIndicesBucket   = []byte("slot-step-indices")
 
 	latestHeaderHashKey        = []byte("latest-header-hash")
 	lastStoredEpochKey         = []byte("last-epoch")

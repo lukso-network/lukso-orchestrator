@@ -8,9 +8,13 @@ import (
 	"github.com/pkg/errors"
 )
 
+var (
+	errShardInfoNotFound = errors.New("shard info not found in db")
+)
+
 // VerifiedSlotInfo
 func (s *Store) VerifiedShardInfo(stepId uint64) (*types.MultiShardInfo, error) {
-	if v, ok := s.verifiedSlotInfoCache.Get(stepId); v != nil && ok {
+	if v, ok := s.multiShardsInfoCache.Get(stepId); v != nil && ok {
 		return v.(*types.MultiShardInfo), nil
 	}
 
@@ -82,8 +86,8 @@ func (s *Store) SaveLatestStepID(stepID uint64) error {
 	// storing latest epoch number into db
 	return s.db.Update(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(latestInfoMarkerBucket)
-		slotBytes := bytesutil.Uint64ToBytesBigEndian(stepID)
-		if err := bkt.Put(curStepId, slotBytes); err != nil {
+		stepBytes := bytesutil.Uint64ToBytesBigEndian(stepID)
+		if err := bkt.Put(curStepId, stepBytes); err != nil {
 			return err
 		}
 		return nil
@@ -110,4 +114,73 @@ func (s *Store) LatestStepID() uint64 {
 	}
 	// db is already started so latest epoch must be initialized in store
 	return latestStepId
+}
+
+// RemoveShardingInfos removes shard infos from db
+func (s *Store) RemoveShardingInfos(fromStepId uint64) error {
+	latestStepId := s.LatestStepID()
+	// when requested epoch is greater than stored latest epoch
+	if fromStepId > latestStepId {
+		return errors.Wrap(errInvalidSlot, fmt.Sprintf("fromStepId: %d", fromStepId))
+	}
+
+	return s.db.Update(func(tx *bolt.Tx) error {
+		bkt := tx.Bucket(multiShardsBucket)
+		for step := fromStepId; step <= latestStepId; step++ {
+			stepBytes := bytesutil.Uint64ToBytesBigEndian(step)
+			s.multiShardsInfoCache.Del(step)
+			err := bkt.Delete(stepBytes)
+			if err != nil {
+				return err
+			}
+		}
+		log.WithField("fromStep", fromStepId).WithField("latestStepId", latestStepId).Info("Reverted shard infos from DB")
+		return nil
+	})
+}
+
+// StoreSlotStepIndex
+func (s *Store) SaveSlotStepIndex(slot, stepId uint64) error {
+	// storing latest epoch number into db
+	return s.db.Update(func(tx *bolt.Tx) error {
+		if status := s.slotStepIndexCache.Set(slot, stepId, 0); !status {
+			log.WithField("stepId", stepId).WithField("slot", slot).Warn("could not store step id into cache")
+		}
+
+		bkt := tx.Bucket(slotStepIndicesBucket)
+		key := bytesutil.Uint64ToBytesBigEndian(slot)
+		value := bytesutil.Uint64ToBytesBigEndian(stepId)
+		if err := bkt.Put(key, value); err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+// GetStepIdBySlot
+func (s *Store) GetStepIdBySlot(slot uint64) (uint64, error) {
+	if v, ok := s.multiShardsInfoCache.Get(slot); v != nil && ok {
+		return v.(uint64), nil
+	}
+
+	var stepId uint64
+	err := s.db.View(func(tx *bolt.Tx) error {
+		bkt := tx.Bucket(slotStepIndicesBucket)
+		key := bytesutil.Uint64ToBytesBigEndian(slot)
+		stepIdBytes := bkt.Get(key[:])
+		// not found the latest epoch in db. so latest epoch will be zero
+		if stepIdBytes == nil {
+			stepId = uint64(0)
+			log.Warn("Could not find latest step id in db. It may happen for brand new DB")
+			return nil
+		}
+		stepId = bytesutil.BytesToUint64BigEndian(stepIdBytes)
+		return nil
+	})
+
+	if err != nil {
+		return stepId, err
+	}
+
+	return stepId, nil
 }

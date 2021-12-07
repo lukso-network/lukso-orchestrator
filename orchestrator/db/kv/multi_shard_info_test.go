@@ -9,12 +9,12 @@ import (
 
 func TestStore_SaveVerifiedShardInfo(t *testing.T) {
 	db := setupDB(t, true)
-	shardInfos := NewMultiShardInfos(1001)
-	for i := 1; i <= 1001; i++ {
+	shardInfos := NewMultiShardInfos(11)
+	for i := 1; i <= 11; i++ {
 		require.NoError(t, db.SaveVerifiedShardInfo(uint64(i), shardInfos[i]))
 	}
 
-	for i := 1; i <= 1001; i++ {
+	for i := 1; i <= 11; i++ {
 		shardInfo, err := db.VerifiedShardInfo(uint64(i))
 		require.NoError(t, err)
 		require.DeepEqual(t, shardInfo, shardInfos[i])
@@ -25,21 +25,21 @@ func NewMultiShardInfos(size int) []*types.MultiShardInfo {
 	shardInfos := make([]*types.MultiShardInfo, size+1)
 	for i := 1; i <= size; i++ {
 		slotInfo := &types.NewSlotInfo{
-			Slot: uint64(i),
-			Hash: common.BytesToHash([]byte{uint8(i)}),
+			Slot:      uint64(i),
+			BlockRoot: common.BytesToHash([]byte{uint8(i)}),
 		}
 
 		shards := make([]*types.Shard, 2)
 		blocks := make([]*types.ShardData, 2)
 
 		blocks[0] = &types.ShardData{
-			Number: 1,
-			Hash:   common.BytesToHash([]byte{'A' + uint8(i)}),
+			Number:     1,
+			HeaderRoot: common.BytesToHash([]byte{'A' + uint8(i)}),
 		}
 
 		blocks[1] = &types.ShardData{
-			Number: 2,
-			Hash:   common.BytesToHash([]byte{'B' + uint8(i)}),
+			Number:     2,
+			HeaderRoot: common.BytesToHash([]byte{'B' + uint8(i)}),
 		}
 
 		shards[0] = &types.Shard{

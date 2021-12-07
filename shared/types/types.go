@@ -25,8 +25,8 @@ type ExtraData struct {
 }
 
 type ShardData struct {
-	Number uint64
-	Hash   common.Hash
+	Number     uint64
+	HeaderRoot common.Hash
 }
 
 type Shard struct {
@@ -42,8 +42,8 @@ type MultiShardInfo struct {
 
 // NewSlotInfo contains slot info
 type NewSlotInfo struct {
-	Slot uint64
-	Hash common.Hash
+	Slot      uint64
+	BlockRoot common.Hash
 }
 
 // SlotInfo

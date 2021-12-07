@@ -43,7 +43,21 @@ type VerifiedSlotDatabase interface {
 	UpdateVerifiedSlotInfo(slot uint64) error
 }
 
-type NewVerifiedSlotDatabase interface {
+type ReadOnlyVerifiedShardInfoDatabase interface {
+	VerifiedShardInfo(stepId uint64) (*types.MultiShardInfo, error)
+	VerifiedShardInfos(fromStepId uint64) (map[uint64]*types.MultiShardInfo, error)
+	LatestStepID() uint64
+	SeekShardInfo(slot uint64) (uint64, *types.MultiShardInfo, error)
+	GetStepIdBySlot(slot uint64) (uint64, error)
+}
+
+type VerifiedShardInfoDatabase interface {
+	ReadOnlyVerifiedShardInfoDatabase
+
+	SaveVerifiedShardInfo(stepId uint64, shardInfo *types.MultiShardInfo) error
+	SaveLatestStepID(stepID uint64) error
+	RemoveShardingInfos(fromStepId uint64) error
+	SaveSlotStepIndex(slot, stepId uint64) error
 }
 
 type ReadOnlyInvalidSlotInfoDatabase interface {
@@ -65,6 +79,8 @@ type Database interface {
 	VerifiedSlotDatabase
 
 	InvalidSlotDatabase
+
+	VerifiedShardInfoDatabase
 
 	DatabasePath() string
 	ClearDB() error

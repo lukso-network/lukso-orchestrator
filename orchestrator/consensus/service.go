@@ -4,8 +4,6 @@ import (
 	"context"
 	"sync"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/event"
 
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
@@ -15,9 +13,16 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 )
 
+const (
+	TotalExecutionShardCount = 1
+	ShardsPerVanBlock        = 1
+)
+
 type Config struct {
-	VerifiedSlotInfoDB           db.VerifiedSlotInfoDB
-	InvalidSlotInfoDB            db.InvalidSlotInfoDB
+	VerifiedSlotInfoDB  db.VerifiedSlotInfoDB
+	InvalidSlotInfoDB   db.InvalidSlotInfoDB
+	VerifiedShardInfoDB db.VerifiedShardInfoDB
+
 	VanguardPendingShardingCache cache.VanguardShardCache
 	PandoraPendingHeaderCache    cache.PandoraHeaderCache
 
@@ -33,9 +38,12 @@ type Service struct {
 	cancel         context.CancelFunc
 	runError       error
 
-	scope                        event.SubscriptionScope
-	verifiedSlotInfoDB           db.VerifiedSlotInfoDB
-	invalidSlotInfoDB            db.InvalidSlotInfoDB
+	scope event.SubscriptionScope
+
+	verifiedSlotInfoDB  db.VerifiedSlotInfoDB
+	invalidSlotInfoDB   db.InvalidSlotInfoDB
+	verifiedShardInfoDB db.VerifiedShardInfoDB
+
 	vanguardPendingShardingCache cache.VanguardShardCache
 	pandoraPendingHeaderCache    cache.PandoraHeaderCache
 
@@ -54,6 +62,7 @@ func New(ctx context.Context, cfg *Config) (service *Service) {
 		ctx:                          ctx,
 		cancel:                       cancel,
 		verifiedSlotInfoDB:           cfg.VerifiedSlotInfoDB,
+		verifiedShardInfoDB:          cfg.VerifiedShardInfoDB,
 		invalidSlotInfoDB:            cfg.InvalidSlotInfoDB,
 		vanguardPendingShardingCache: cfg.VanguardPendingShardingCache,
 		pandoraPendingHeaderCache:    cfg.PandoraPendingHeaderCache,
@@ -81,57 +90,30 @@ func (s *Service) Start() {
 		for {
 			select {
 			case newPanHeaderInfo := <-panHeaderInfoCh:
-
 				if s.reorgInProgress {
 					log.WithField("slot", newPanHeaderInfo.Slot).Info("Reorg is progressing, so skipping new pandora header")
 					continue
 				}
 
-				if slotInfo, _ := s.verifiedSlotInfoDB.VerifiedSlotInfo(newPanHeaderInfo.Slot); slotInfo != nil {
-					if slotInfo.PandoraHeaderHash == newPanHeaderInfo.Header.Hash() {
-						log.WithField("slot", newPanHeaderInfo.Slot).
-							WithField("headerHash", newPanHeaderInfo.Header.Hash()).
-							Info("Pandora header is already in verified slot info db")
-
-						s.verifiedSlotInfoFeed.Send(&types.SlotInfoWithStatus{
-							VanguardBlockHash: slotInfo.VanguardBlockHash,
-							PandoraHeaderHash: slotInfo.PandoraHeaderHash,
-							Status:            types.Verified,
-						})
-
-						continue
-					}
-				}
-
 				if err := s.processPandoraHeader(newPanHeaderInfo); err != nil {
-					log.WithField("error", err).Error("error found while processing pandora header")
+					log.WithField("error", err).Error("Error found while processing pandora header")
 					return
 				}
-			case newVanShardInfo := <-vanShardInfoCh:
 
+			case newVanShardInfo := <-vanShardInfoCh:
 				if s.reorgInProgress {
 					log.WithField("slot", newVanShardInfo.Slot).Info("Reorg is progressing, so skipping new vanguard shard")
 					continue
 				}
 
-				if slotInfo, _ := s.verifiedSlotInfoDB.VerifiedSlotInfo(newVanShardInfo.Slot); slotInfo != nil {
-					blockHashHex := common.BytesToHash(newVanShardInfo.BlockHash[:])
-					if slotInfo.VanguardBlockHash == blockHashHex {
-						log.WithField("slot", newVanShardInfo.Slot).
-							WithField("shardInfoHash", hexutil.Encode(newVanShardInfo.ShardInfo.Hash)).
-							Info("Vanguard shard info is already in verified slot info db")
-
-						continue
-					}
-				}
-
 				if err := s.processVanguardShardInfo(newVanShardInfo); err != nil {
-					log.WithField("error", err).Error("error found while processing vanguard sharding info")
+					log.WithField("error", err).Error("Error found while processing vanguard sharding info")
 					return
 				}
+
 			case reorgInfo := <-reorgSignalCh:
 				if reorgInfo == nil {
-					log.Error("received shutdown signal but value not set. So we are doing nothing")
+					log.Error("Received shutdown signal but value not set. So we are doing nothing")
 					continue
 				}
 				s.reorgInProgress = true
@@ -156,6 +138,7 @@ func (s *Service) Start() {
 				s.pandoraService.StopPandoraSubscription()
 
 				s.reorgInProgress = false
+
 			case <-s.ctx.Done():
 				vanShardInfoSub.Unsubscribe()
 				vanShutdownSub.Unsubscribe()

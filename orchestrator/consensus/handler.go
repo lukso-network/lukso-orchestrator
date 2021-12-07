@@ -1,7 +1,7 @@
 package consensus
 
 import (
-	"fmt"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/utils"
 
 	"github.com/ethereum/go-ethereum/common"
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
@@ -11,101 +11,190 @@ import (
 // processPandoraHeader
 func (s *Service) processPandoraHeader(headerInfo *types.PandoraHeaderInfo) error {
 	slot := headerInfo.Slot
+
+	// short circuit check, if this header is already in verified sharding info db then send confirmation instantly
+	if shardInfo := s.getShardingInfoInDB(slot); shardInfo != nil {
+		if len(shardInfo.Shards) > 0 {
+			blocks := shardInfo.Shards[0].Blocks
+			if len(blocks) > 0 && blocks[0].HeaderRoot == headerInfo.Header.Hash() {
+				log.WithField("shardInfo", shardInfo).Debug("Pan header is already in verified shard info db")
+
+				s.verifiedSlotInfoFeed.Send(&types.SlotInfoWithStatus{
+					VanguardBlockHash: shardInfo.SlotInfo.BlockRoot,
+					PandoraHeaderHash: blocks[0].HeaderRoot,
+					Status:            types.Verified,
+				})
+
+				return nil
+			}
+		}
+	}
+
+	// retrieving sharding
 	s.pandoraPendingHeaderCache.Put(s.ctx, slot, headerInfo.Header)
 	vanShardInfo, _ := s.vanguardPendingShardingCache.Get(s.ctx, slot)
-	if vanShardInfo != nil {
-		return s.verifyShardingInfo(slot, vanShardInfo, headerInfo.Header)
+	if vanShardInfo == nil {
+		return nil
 	}
-	return nil
+
+	return s.insertIntoChain(vanShardInfo, headerInfo.Header)
 }
 
 // processVanguardShardInfo
 func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo) error {
 	slot := vanShardInfo.Slot
-	s.vanguardPendingShardingCache.Put(s.ctx, slot, vanShardInfo)
-	headerInfo, _ := s.pandoraPendingHeaderCache.Get(s.ctx, slot)
-	if headerInfo != nil {
-		return s.verifyShardingInfo(slot, vanShardInfo, headerInfo)
-	}
-	return nil
-}
 
-// verifyShardingInfo
-func (s *Service) verifyShardingInfo(slot uint64, vanShardInfo *types.VanguardShardInfo, header *eth1Types.Header) error {
-	slotInfo := &types.SlotInfo{
-		PandoraHeaderHash: header.Hash(),
-		VanguardBlockHash: common.BytesToHash(vanShardInfo.BlockHash[:]),
-	}
-	status := CompareShardingInfo(header, vanShardInfo.ShardInfo)
-	slotInfoWithStatus := &types.SlotInfoWithStatus{
-		PandoraHeaderHash: header.Hash(),
-		VanguardBlockHash: common.BytesToHash(vanShardInfo.BlockHash[:]),
-	}
-	if !status {
-		// store invalid slot info into invalid slot info bucket
-		if err := s.invalidSlotInfoDB.SaveInvalidSlotInfo(slot, slotInfo); err != nil {
-			log.WithField("slot", slot).WithField(
-				"slotInfo", fmt.Sprintf("%+v", slotInfo)).WithError(err).Error(
-				"Failed to store invalid slot info")
-			return err
+	// short circuit check, if this header is already in verified sharding info db then send confirmation instantly
+	if shardInfo := s.getShardingInfoInDB(slot); shardInfo != nil {
+		if shardInfo.SlotInfo != nil && shardInfo.SlotInfo.BlockRoot != common.BytesToHash(vanShardInfo.BlockHash) {
+			log.WithField("shardInfo", shardInfo).Debug("Van header is already in verified shard info db")
+			return nil
 		}
-		slotInfoWithStatus.Status = types.Invalid
-		log.WithField("slot", slot).Info("Invalid sharding info")
-		// sending verified slot info to rpc service
-		s.verifiedSlotInfoFeed.Send(slotInfoWithStatus)
+	}
+
+	s.vanguardPendingShardingCache.Put(s.ctx, slot, vanShardInfo)
+	header, _ := s.pandoraPendingHeaderCache.Get(s.ctx, slot)
+	if header == nil {
 		return nil
 	}
 
-	// store verified slot info into verified slot info bucket
-	if err := s.verifiedSlotInfoDB.SaveVerifiedSlotInfo(slot, slotInfo); err != nil {
-		log.WithField("slot", slot).WithField(
-			"slotInfo", fmt.Sprintf("%+v", slotInfo)).WithError(err).Error("Failed to store verified slot info")
-		return err
+	return s.insertIntoChain(vanShardInfo, header)
+}
+
+// insertIntoChain method
+//	- verifies shard info and pandora header
+//  - write into db
+//  - send status to pandora chain
+func (s *Service) insertIntoChain(vanShardInfo *types.VanguardShardInfo, header *eth1Types.Header) error {
+	status := s.verifyShardingInfo(vanShardInfo, header)
+	confirmationStatus := &types.SlotInfoWithStatus{
+		PandoraHeaderHash: header.Hash(),
+		VanguardBlockHash: common.BytesToHash(vanShardInfo.BlockHash[:]),
 	}
 
-	// storing latest verified slot into db
-	if err := s.verifiedSlotInfoDB.SaveLatestVerifiedSlot(s.ctx, slot); err != nil {
-		log.WithError(err).Error("Failed to store latest verified slot")
-	}
-
-	// storing latest verified pandora header hash into db
-	if err := s.verifiedSlotInfoDB.SaveLatestVerifiedHeaderHash(slotInfo.PandoraHeaderHash); err != nil {
-		log.WithError(err).Error("Failed to store latest verified slot")
-	}
-
-	// Storing latest finalized slot and epoch
-	if s.verifiedSlotInfoDB.LatestLatestFinalizedEpoch() < vanShardInfo.FinalizedEpoch {
-		if err := s.verifiedSlotInfoDB.SaveLatestFinalizedSlot(vanShardInfo.FinalizedSlot); err != nil {
-			log.WithError(err).Warn("Failed to store new finalized info")
+	if status {
+		shardInfo := utils.PrepareMultiShardData(vanShardInfo, header, TotalExecutionShardCount, ShardsPerVanBlock)
+		// Write shard info into db
+		if err := s.writeShardInfoInDB(shardInfo); err != nil {
+			return err
 		}
+		// write finalize info into db
+		s.writeFinalizeInfo(vanShardInfo.FinalizedSlot, vanShardInfo.FinalizedEpoch)
+		confirmationStatus.Status = types.Verified
 
-		if err := s.verifiedSlotInfoDB.SaveLatestFinalizedEpoch(vanShardInfo.FinalizedEpoch); err != nil {
-			log.WithError(err).Warn("Failed to store new finalized epoch")
-		}
-		log.WithField("newFinalizedSlot", vanShardInfo.FinalizedSlot).
-			WithField("newFinalizedEpoch", vanShardInfo.FinalizedEpoch).Debug("Saved latest finalized info")
+	} else {
+		confirmationStatus.Status = types.Invalid
+		log.WithField("slot", vanShardInfo.Slot).Info("Invalid sharding info")
 	}
 
-	slotInfoWithStatus.Status = types.Verified
-	//removing previous cached slots which dont verified yet. By convention, they are skipped
-	s.pandoraPendingHeaderCache.Remove(s.ctx, slot)
-	s.vanguardPendingShardingCache.Remove(s.ctx, slot)
-	log.WithField("slot", slot).Info("Successfully verified sharding info")
-	// sending verified slot info to rpc service
-	s.verifiedSlotInfoFeed.Send(slotInfoWithStatus)
+	// sending confirmation status to pandora
+	s.verifiedSlotInfoFeed.Send(confirmationStatus)
 	return nil
 }
 
-func (s *Service) reorgDB(revertSlot uint64) error {
+// verifyShardingInfo checks
+//	- sharding info between incoming vanguard and pandora sharding infos
+// 	- checks consecutive parent hash of vanguard and pandora sharding hash
+// 	- if parent hash of vanguard block does not match with latest verified slot then trigger reorg
+func (s *Service) verifyShardingInfo(vanShardInfo *types.VanguardShardInfo, header *eth1Types.Header) bool {
+	// Here comparing sharding info with vanguard and pandora block's header
+	if !CompareShardingInfo(header, vanShardInfo.ShardInfo) {
+		return false
+	}
+
+	// TODO- Checking block consecutive of pandora sharding info and vanguard slot info
+	// TODO- Trigger reorg if slot consecutive fails
+
+	return true
+}
+
+func (s *Service) getShardingInfoInDB(slot uint64) *types.MultiShardInfo {
 	// Removing slot infos from verified slot info db
-	if err := s.verifiedSlotInfoDB.RemoveRangeVerifiedInfo(revertSlot+1, s.verifiedSlotInfoDB.LatestSavedVerifiedSlot()); err != nil {
-		log.WithError(err).Error("found error while reverting orchestrator database in reorg phase")
+	stepId, err := s.verifiedShardInfoDB.GetStepIdBySlot(slot)
+	if err != nil {
+		log.WithError(err).WithField("slot", slot).Error("Could not found step id from DB")
+		return nil
+	}
+
+	shardInfo, err := s.verifiedShardInfoDB.VerifiedShardInfo(stepId)
+	if err != nil {
+		log.WithError(err).WithField("stepId", stepId).Error("Could not found shard info from DB during reorg")
+		return nil
+	}
+
+	if shardInfo == nil {
+		log.WithField("stepId", stepId).Debug("Could not found shard info from DB during reorg")
+		return nil
+	}
+
+	return shardInfo
+}
+
+// WriteShardInfoInDB method converts vanShardInfo and panHeader to multiShardingInfo
+// Store multiShardingInfo into db
+// Update stepId into db
+func (s *Service) writeShardInfoInDB(shardInfo *types.MultiShardInfo) error {
+	latestStepId := s.verifiedShardInfoDB.LatestStepID()
+	nextStepId := latestStepId + 1
+	if err := s.verifiedShardInfoDB.SaveVerifiedShardInfo(nextStepId, shardInfo); err != nil {
 		return err
 	}
 
-	if err := s.verifiedSlotInfoDB.UpdateVerifiedSlotInfo(revertSlot); err != nil {
-		log.WithError(err).Error("failed to update latest verified slot info in reorg phase")
+	if err := s.verifiedShardInfoDB.SaveLatestStepID(nextStepId); err != nil {
 		return err
 	}
+
+	if err := s.verifiedShardInfoDB.SaveSlotStepIndex(shardInfo.SlotInfo.Slot, nextStepId); err != nil {
+		return err
+	}
+
+	log.WithField("stepId", nextStepId).WithField("shardInfo", shardInfo).Info("Inserted sharding info into verified DB")
+	return nil
+}
+
+// writeFinalizeInfo method store latest finalize slot and epoch if needed
+func (s *Service) writeFinalizeInfo(finalizeSlot, finalizeEpoch uint64) {
+	curFinalizeSlot := s.verifiedSlotInfoDB.LatestLatestFinalizedSlot()
+	if finalizeSlot > curFinalizeSlot {
+		if err := s.verifiedSlotInfoDB.SaveLatestFinalizedSlot(finalizeSlot); err != nil {
+			log.WithError(err).Warn("Failed to store new finalized info")
+		}
+	}
+
+	curFinalizeEpoch := s.verifiedSlotInfoDB.LatestLatestFinalizedEpoch()
+	if finalizeEpoch > curFinalizeEpoch {
+		if err := s.verifiedSlotInfoDB.SaveLatestFinalizedEpoch(finalizeEpoch); err != nil {
+			log.WithError(err).Warn("Failed to store new finalized epoch")
+		}
+	}
+}
+
+// reorgDB
+func (s *Service) reorgDB(revertSlot uint64) error {
+	// Removing slot infos from verified slot info db
+	stepId, err := s.verifiedShardInfoDB.GetStepIdBySlot(revertSlot)
+	if err != nil {
+		log.WithError(err).WithField("revertSlot", revertSlot).Error("Could not found step id from DB during reorg")
+		return err
+	}
+
+	shardInfo, err := s.verifiedShardInfoDB.VerifiedShardInfo(stepId)
+	if err != nil {
+		log.WithError(err).WithField("stepId", stepId).Error("Could not found shard info from DB during reorg")
+		return err
+	}
+
+	if stepId > 0 && shardInfo != nil {
+		if err := s.verifiedShardInfoDB.RemoveShardingInfos(stepId); err != nil {
+			log.WithError(err).Error("Could not revert shard info from DB during reorg")
+			return err
+		}
+	}
+
+	if err := s.verifiedShardInfoDB.SaveLatestStepID(stepId); err != nil {
+		log.WithError(err).Error("Could not store latest step id during reorg")
+		return err
+	}
+
 	return nil
 }
