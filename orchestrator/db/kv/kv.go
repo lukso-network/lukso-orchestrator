@@ -9,7 +9,6 @@ import (
 	"github.com/pkg/errors"
 	"os"
 	"path"
-	"sync"
 	"time"
 )
 
@@ -36,9 +35,7 @@ type Store struct {
 	databasePath          string
 	consensusInfoCache    *ristretto.Cache
 	verifiedSlotInfoCache *ristretto.Cache
-
-	// There should be mutex in store
-	sync.Mutex
+	multiShardsInfoCache  *ristretto.Cache
 }
 
 // NewKVStore initializes a new boltDB key-value store at the directory
@@ -69,6 +66,7 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 		}
 		return nil, err
 	}
+
 	boltDB.AllocSize = boltAllocSize
 	consensusInfoCache, err := ristretto.NewCache(&ristretto.Config{
 		NumCounters: 1000,                    // number of keys to track frequency of (1000).
@@ -78,7 +76,17 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 	if err != nil {
 		return nil, err
 	}
+
 	verifiedSlotInfoCache, err := ristretto.NewCache(&ristretto.Config{
+		NumCounters: 1000,                    // number of keys to track frequency of (1000).
+		MaxCost:     ConsensusInfosCacheSize, // maximum cost of cache (1000 headers).
+		BufferItems: 64,                      // number of keys per Get buffer.
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	multiShardsInfoCache, err := ristretto.NewCache(&ristretto.Config{
 		NumCounters: 1000,                    // number of keys to track frequency of (1000).
 		MaxCost:     ConsensusInfosCacheSize, // maximum cost of cache (1000 headers).
 		BufferItems: 64,                      // number of keys per Get buffer.
@@ -93,6 +101,7 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 		databasePath:          dirPath,
 		consensusInfoCache:    consensusInfoCache,
 		verifiedSlotInfoCache: verifiedSlotInfoCache,
+		multiShardsInfoCache:  multiShardsInfoCache,
 	}
 
 	if err := kv.db.Update(func(tx *bolt.Tx) error {
@@ -102,6 +111,7 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 			verifiedSlotInfosBucket,
 			invalidSlotInfosBucket,
 			latestInfoMarkerBucket,
+			multiShardsBucket,
 		)
 	}); err != nil {
 		return nil, err

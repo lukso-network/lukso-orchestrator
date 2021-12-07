@@ -44,8 +44,6 @@ type VerifiedSlotDatabase interface {
 }
 
 type NewVerifiedSlotDatabase interface {
-
-
 }
 
 type ReadOnlyInvalidSlotInfoDatabase interface {

@@ -31,14 +31,16 @@ type ShardData struct {
 
 type Shard struct {
 	Id     uint64
-	Blocks []ShardData
+	Blocks []*ShardData
 }
 
+// MultiShardInfo
 type MultiShardInfo struct {
-	Slot   NewSlotInfo
-	Shards []Shard
+	SlotInfo *NewSlotInfo
+	Shards   []*Shard
 }
 
+// NewSlotInfo contains slot info
 type NewSlotInfo struct {
 	Slot uint64
 	Hash common.Hash
