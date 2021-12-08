@@ -51,8 +51,7 @@ func setup(ctx context.Context, t *testing.T) (*Service, *mockFeedService) {
 	mfs := new(mockFeedService)
 
 	cfg := &Config{
-		VerifiedSlotInfoDB:           testDB,
-		InvalidSlotInfoDB:            testDB,
+		VerifiedShardInfoDB:          testDB,
 		VanguardPendingShardingCache: cache.NewVanShardInfoCache(1024),
 		PandoraPendingHeaderCache:    cache.NewPanHeaderCache(),
 		VanguardShardFeed:            mfs,

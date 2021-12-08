@@ -66,14 +66,22 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 	}
 
 	// Reverting db to latest finalized slot
-	finalizedSlot := orchestrator.db.LatestLatestFinalizedSlot()
-	if err := orchestrator.db.RemoveRangeVerifiedInfo(finalizedSlot+1, orchestrator.db.LatestSavedVerifiedSlot()); err != nil {
-		log.WithError(err).Error("Failed to remove latest verified slot infos from db")
+	finalizedSlot := orchestrator.db.FinalizedSlot()
+	// Removing slot infos from verified slot info db
+	stepId, err := orchestrator.db.GetStepIdBySlot(finalizedSlot)
+	if err != nil {
+		log.WithError(err).WithField("finalizedSlot", finalizedSlot).WithField("stepId", stepId).
+			Error("Could not found step id from DB")
 		return nil, err
 	}
 
-	if err := orchestrator.db.UpdateVerifiedSlotInfo(finalizedSlot); err != nil {
-		log.WithError(err).Error("Failed to update latest verified slot in db")
+	if err := orchestrator.db.RemoveShardingInfos(stepId + 1); err != nil {
+		log.WithError(err).Error("Failed to remove latest verified shard infos from db")
+		return nil, err
+	}
+
+	if err := orchestrator.db.SaveLatestStepID(stepId); err != nil {
+		log.WithError(err).Error("Failed to update latest step id into db")
 		return nil, err
 	}
 

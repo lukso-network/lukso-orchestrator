@@ -230,25 +230,14 @@ func (s *Service) retryToConnectAndSubscribe(err error) {
 func (s *Service) subscribe() error {
 
 	finalizedSlot := s.db.FinalizedSlot()
-	finalizedStepId, err := s.db.GetStepIdBySlot(finalizedSlot)
-	if err != nil {
-		log.WithError(err).WithField("finalizedSlot", finalizedSlot).Error("Could not found step id from DB")
-	}
+	finalizedStepId, _ := s.db.GetStepIdBySlot(finalizedSlot)
 
-	shardInfo, err := s.db.VerifiedShardInfo(finalizedStepId)
-	if err != nil {
-		log.WithError(err).WithField("finalizedStepId", finalizedStepId).Error("Could not found shard info from DB")
-	}
-
-	if shardInfo == nil {
-		log.WithField("finalizedStepId", finalizedStepId).Debug("Could not found shard info from DB")
-	}
-
+	shardInfo, _ := s.db.VerifiedShardInfo(finalizedStepId)
 	filter := &types.PandoraPendingHeaderFilter{
 		FromBlockHash: EmptyHash,
 	}
 
-	if len(shardInfo.Shards) > 0 && len(shardInfo.Shards[0].Blocks) > 0 {
+	if shardInfo != nil && len(shardInfo.Shards) > 0 && len(shardInfo.Shards[0].Blocks) > 0 {
 		filter.FromBlockHash = shardInfo.Shards[0].Blocks[0].HeaderRoot
 	}
 

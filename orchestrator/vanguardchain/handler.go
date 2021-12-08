@@ -16,12 +16,12 @@ func (s *Service) onNewConsensusInfo(ctx context.Context, consensusInfo *types.M
 	nsent := s.consensusInfoFeed.Send(consensusInfo)
 	log.WithField("nsent", nsent).Trace("Send consensus info to subscribers")
 
-	if err := s.db.SaveConsensusInfo(ctx, consensusInfo.ConvertToEpochInfo()); err != nil {
+	if err := s.consensusInfoDB.SaveConsensusInfo(ctx, consensusInfo.ConvertToEpochInfo()); err != nil {
 		log.WithError(err).Warn("failed to save consensus info into consensusInfoDB!")
 		return err
 	}
 
-	if err := s.db.SaveLatestEpoch(ctx, consensusInfo.Epoch); err != nil {
+	if err := s.consensusInfoDB.SaveLatestEpoch(ctx, consensusInfo.Epoch); err != nil {
 		log.WithError(err).Warn("failed to save latest epoch into consensusInfoDB!")
 		return err
 	}
@@ -70,8 +70,8 @@ func (s *Service) onNewPendingVanguardBlock(ctx context.Context, blockInfo *eth.
 
 // ReSubscribeBlocksEvent method re-subscribe to vanguard block api.
 func (s *Service) ReSubscribeBlocksEvent() error {
-	finalizedSlot := s.db.LatestLatestFinalizedSlot()
-	finalizedEpoch := s.db.LatestLatestFinalizedEpoch()
+	finalizedSlot := s.verifiedShardInfoDB.FinalizedSlot()
+	finalizedEpoch := s.verifiedShardInfoDB.FinalizedEpoch()
 
 	log.WithField("finalizedSlot", finalizedSlot).WithField("finalizedEpoch", finalizedEpoch).Info("Resubscribing Block Event")
 

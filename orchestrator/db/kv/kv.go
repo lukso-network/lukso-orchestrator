@@ -29,14 +29,13 @@ type Config struct {
 }
 
 type Store struct {
-	ctx                   context.Context
-	isRunning             bool
-	db                    *bolt.DB
-	databasePath          string
-	consensusInfoCache    *ristretto.Cache
-	verifiedSlotInfoCache *ristretto.Cache
-	multiShardsInfoCache  *ristretto.Cache
-	slotStepIndexCache    *ristretto.Cache
+	ctx                  context.Context
+	isRunning            bool
+	db                   *bolt.DB
+	databasePath         string
+	consensusInfoCache   *ristretto.Cache
+	multiShardsInfoCache *ristretto.Cache
+	slotStepIndexCache   *ristretto.Cache
 }
 
 // NewKVStore initializes a new boltDB key-value store at the directory
@@ -78,15 +77,6 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 		return nil, err
 	}
 
-	verifiedSlotInfoCache, err := ristretto.NewCache(&ristretto.Config{
-		NumCounters: 1000,                    // number of keys to track frequency of (1000).
-		MaxCost:     ConsensusInfosCacheSize, // maximum cost of cache (1000 headers).
-		BufferItems: 64,                      // number of keys per Get buffer.
-	})
-	if err != nil {
-		return nil, err
-	}
-
 	multiShardsInfoCache, err := ristretto.NewCache(&ristretto.Config{
 		NumCounters: 1000,                    // number of keys to track frequency of (1000).
 		MaxCost:     ConsensusInfosCacheSize, // maximum cost of cache (1000 headers).
@@ -106,20 +96,18 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 	}
 
 	kv := &Store{
-		ctx:                   ctx,
-		db:                    boltDB,
-		databasePath:          dirPath,
-		consensusInfoCache:    consensusInfoCache,
-		verifiedSlotInfoCache: verifiedSlotInfoCache,
-		multiShardsInfoCache:  multiShardsInfoCache,
-		slotStepIndexCache:    slotStepIndexCache,
+		ctx:                  ctx,
+		db:                   boltDB,
+		databasePath:         dirPath,
+		consensusInfoCache:   consensusInfoCache,
+		multiShardsInfoCache: multiShardsInfoCache,
+		slotStepIndexCache:   slotStepIndexCache,
 	}
 
 	if err := kv.db.Update(func(tx *bolt.Tx) error {
 		return createBuckets(
 			tx,
 			consensusInfosBucket,
-			verifiedSlotInfosBucket,
 			invalidSlotInfosBucket,
 			latestInfoMarkerBucket,
 			multiShardsBucket,
@@ -129,15 +117,13 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 		return nil, err
 	}
 
-	latestFinalizedSlot := kv.LatestLatestFinalizedSlot()
-	latestFinalizedEpoch := kv.LatestLatestFinalizedEpoch()
-	latestVerifiedSlot := kv.LatestSavedVerifiedSlot()
-	latestVerifiedPanHeaderHash := kv.LatestVerifiedHeaderHash()
+	finalizedSlot := kv.FinalizedSlot()
+	finalizedEpoch := kv.FinalizedEpoch()
 	latestEpoch := kv.LatestSavedEpoch()
+	latestStepId := kv.LatestStepID()
 
-	log.WithField("latestFinalizedSlot", latestFinalizedSlot).WithField("latestFinalizedEpoch", latestFinalizedEpoch).
-		WithField("latestVerifiedSlot", latestVerifiedSlot).WithField("latestVerifiedPanHeaderHash", latestVerifiedPanHeaderHash).
-		WithField("latestEpoch", latestEpoch).Info("Initial saved latest infos")
+	log.WithField("finalizedSlot", finalizedSlot).WithField("finalizedEpoch", finalizedEpoch).
+		WithField("latestEpoch", latestEpoch).WithField("latestStepId", latestStepId).Info("Initial db")
 
 	return kv, err
 }

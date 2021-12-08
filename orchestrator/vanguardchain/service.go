@@ -55,8 +55,9 @@ type Service struct {
 	vanguardShardingInfoFeed event.Feed
 	subscriptionShutdownFeed event.Feed
 
-	db                  db.Database              // db support
-	shardingInfoCache   cache.VanguardShardCache // lru cache support
+	verifiedShardInfoDB db.ROnlyVerifiedShardInfoDB // db support
+	consensusInfoDB     db.ConsensusInfoAccessDB    // db support
+	shardingInfoCache   cache.VanguardShardCache    // lru cache support
 	stopPendingBlkSubCh chan struct{}
 	stopEpochInfoSubCh  chan struct{}
 }
@@ -76,7 +77,8 @@ func NewService(
 		ctx:                 ctx,
 		cancel:              cancel,
 		vanGRPCEndpoint:     vanGRPCEndpoint,
-		db:                  db,
+		verifiedShardInfoDB: db,
+		consensusInfoDB:     db,
 		shardingInfoCache:   cache,
 		stopPendingBlkSubCh: make(chan struct{}),
 		stopEpochInfoSubCh:  make(chan struct{}),
@@ -127,13 +129,13 @@ func (s *Service) run() {
 
 	s.waitForConnection()
 
-	latestFinalizedEpoch := s.db.LatestLatestFinalizedEpoch()
-	latestFinalizedSlot := s.db.LatestLatestFinalizedSlot()
+	latestFinalizedEpoch := s.verifiedShardInfoDB.FinalizedEpoch()
+	latestFinalizedSlot := s.verifiedShardInfoDB.FinalizedSlot()
 	fromEpoch := latestFinalizedEpoch
 
 	// checking consensus info db
 	for i := latestFinalizedEpoch; i >= 0; {
-		epochInfo, _ := s.db.ConsensusInfo(s.ctx, i)
+		epochInfo, _ := s.consensusInfoDB.ConsensusInfo(s.ctx, i)
 		if epochInfo == nil {
 			// epoch info is missing. so subscribe from here. maybe db operation was wrong
 			fromEpoch = i

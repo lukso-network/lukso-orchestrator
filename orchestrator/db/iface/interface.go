@@ -21,27 +21,6 @@ type ConsensusInfoAccessDatabase interface {
 	SaveLatestEpoch(ctx context.Context, epoch uint64) error
 }
 
-//type ReadOnlyVerifiedSlotInfoDatabase interface {
-//	VerifiedSlotInfo(slot uint64) (*types.SlotInfo, error)
-//	VerifiedSlotInfos(fromSlot uint64) (map[uint64]*types.SlotInfo, error)
-//	LatestSavedVerifiedSlot() uint64
-//	LatestVerifiedHeaderHash() common.Hash
-//	LatestLatestFinalizedSlot() uint64
-//	LatestLatestFinalizedEpoch() uint64
-//}
-//
-//type VerifiedSlotDatabase interface {
-//	ReadOnlyVerifiedSlotInfoDatabase
-//
-//	SaveVerifiedSlotInfo(slot uint64, slotInfo *types.SlotInfo) error
-//	SaveLatestVerifiedSlot(ctx context.Context, slot uint64) error
-//	SaveLatestVerifiedHeaderHash(hash common.Hash) error
-//	SaveLatestFinalizedSlot(latestFinalizedSlot uint64) error
-//	SaveLatestFinalizedEpoch(latestFinalizedEpoch uint64) error
-//	RemoveRangeVerifiedInfo(fromSlot, toSlot uint64) error
-//	UpdateVerifiedSlotInfo(slot uint64) error
-//}
-
 type ReadOnlyVerifiedShardInfoDatabase interface {
 	VerifiedShardInfo(stepId uint64) (*types.MultiShardInfo, error)
 	VerifiedShardInfos(fromStepId uint64) (map[uint64]*types.MultiShardInfo, error)
