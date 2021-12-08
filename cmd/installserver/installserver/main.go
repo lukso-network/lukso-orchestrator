@@ -3,6 +3,7 @@ package main
 import (
 	"io"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 
@@ -16,7 +17,7 @@ func main() {
 
 // DownloadAndServe serve you l15 install script
 func DownloadAndServe(w http.ResponseWriter, r *http.Request) {
-	version := "v1.7.6"
+	version := os.Getenv("DEFAULT_INSTALL_VERSION")
 	versionQueryParam, ok := r.URL.Query()["version"]
 
 	if ok {
