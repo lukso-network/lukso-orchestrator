@@ -2,13 +2,9 @@ package kv
 
 import (
 	"github.com/boltdb/bolt"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/lukso-network/lukso-orchestrator/shared/bytesutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
-	"github.com/pkg/errors"
-)
-
-var (
-	errShardInfoNotFound = errors.New("shard info not found in db")
 )
 
 // VerifiedSlotInfo
@@ -86,7 +82,7 @@ func (s *Store) SaveLatestStepID(stepID uint64) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(latestInfoMarkerBucket)
 		stepBytes := bytesutil.Uint64ToBytesBigEndian(stepID)
-		if err := bkt.Put(curStepId, stepBytes); err != nil {
+		if err := bkt.Put(latestStepIdKey, stepBytes); err != nil {
 			return err
 		}
 		return nil
@@ -100,7 +96,7 @@ func (s *Store) LatestStepID() uint64 {
 	if !s.isRunning {
 		s.db.View(func(tx *bolt.Tx) error {
 			bkt := tx.Bucket(latestInfoMarkerBucket)
-			stepIdBytes := bkt.Get(curStepId[:])
+			stepIdBytes := bkt.Get(latestStepIdKey[:])
 			// not found the latest epoch in db. so latest epoch will be zero
 			if stepIdBytes == nil {
 				latestStepId = uint64(0)
@@ -132,7 +128,7 @@ func (s *Store) RemoveShardingInfos(fromStepId uint64) error {
 				return err
 			}
 		}
-		log.WithField("fromStep", fromStepId).WithField("latestStepId", latestStepId).Info("Reverted shard infos from DB")
+		log.WithField("fromStep", fromStepId).WithField("latestStepIdKey", latestStepId).Info("Reverted shard infos from DB")
 		return nil
 	})
 }
@@ -250,4 +246,32 @@ func (s *Store) FinalizedEpoch() uint64 {
 	}
 	// db is already started so latest finalized slot must be initialized in store
 	return latestFinalizedEpoch
+}
+
+// FindAncestor
+func (s *Store) FindAncestor(fromStepId, toStepId uint64, blockHash common.Hash) (*types.MultiShardInfo, error) {
+	var ancestorShardInfo *types.MultiShardInfo
+	err := s.db.View(func(tx *bolt.Tx) error {
+		for step := fromStepId; step > toStepId; step-- {
+			shardInfo, err := s.VerifiedShardInfo(step)
+			if err != nil {
+				log.WithField("step", step).Warn("DB is corrupted")
+				return err
+			}
+			if shardInfo.SlotInfo.BlockRoot == blockHash {
+				ancestorShardInfo = shardInfo
+				log.WithField("fromStepId", fromStepId).WithField("toStepId", toStepId).
+					WithField("blockHash", blockHash).WithField("ancestorShardInfo", ancestorShardInfo).
+					Info("Found common ancestor")
+				return nil
+			}
+		}
+		return nil
+	})
+	// the query not successful
+	if err != nil {
+		return nil, err
+	}
+
+	return ancestorShardInfo, nil
 }

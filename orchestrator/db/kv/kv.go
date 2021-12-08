@@ -123,7 +123,7 @@ func NewKVStore(ctx context.Context, dirPath string, config *Config) (*Store, er
 	latestStepId := kv.LatestStepID()
 
 	log.WithField("finalizedSlot", finalizedSlot).WithField("finalizedEpoch", finalizedEpoch).
-		WithField("latestEpoch", latestEpoch).WithField("latestStepId", latestStepId).Info("Initial db")
+		WithField("latestEpoch", latestEpoch).WithField("latestStepIdKey", latestStepId).Info("Initial db")
 
 	return kv, err
 }

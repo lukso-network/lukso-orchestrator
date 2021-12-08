@@ -27,12 +27,6 @@ func (s *Service) onNewConsensusInfo(ctx context.Context, consensusInfo *types.M
 		return err
 	}
 
-	if consensusInfo.ReorgInfo != nil {
-		nsent = s.subscriptionShutdownFeed.Send(consensusInfo.ReorgInfo)
-		log.WithField("nsent", nsent).Trace("Send reorg info to consensus service")
-		return nil
-	}
-
 	return nil
 }
 
@@ -68,12 +62,4 @@ func (s *Service) onNewPendingVanguardBlock(ctx context.Context, blockInfo *eth.
 
 	s.vanguardShardingInfoFeed.Send(cachedShardInfo)
 	return nil
-}
-
-func (s *Service) StopSubscription() {
-	defer log.Info("Stopped vanguard gRPC subscription")
-	if s.conn != nil {
-		s.conn.Close()
-		s.conn = nil
-	}
 }

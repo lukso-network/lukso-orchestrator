@@ -9,7 +9,7 @@ import (
 	eth2Types "github.com/prysmaticlabs/prysm/proto/eth/v1alpha1"
 )
 
-func CompareShardingInfo(ph *eth1Types.Header, vs *eth2Types.PandoraShard) bool {
+func compareShardingInfo(ph *eth1Types.Header, vs *eth2Types.PandoraShard) bool {
 	if ph == nil && vs == nil {
 		// in existing code this will happen. as some part may have no sharding info for testing.
 		return true
@@ -84,24 +84,23 @@ func CompareShardingInfo(ph *eth1Types.Header, vs *eth2Types.PandoraShard) bool 
 
 // verifyConsecutiveHashes method checks parent hash of vanguard and pandora current block header
 // Retrieves latest verified slot info and then checks the incoming vanguard and pandora blocks parent hash
-func (s *Service) verifyConsecutiveHashes(ph *eth1Types.Header, vs *types.VanguardShardInfo) bool {
-
+func (s *Service) verifyConsecutiveHashes(ph *eth1Types.Header, vs *types.VanguardShardInfo) (verificationStatus, triggerReorg bool) {
 	latestStepId := s.db.LatestStepID()
 	// short circuit when latest step id is 0 and 1. For latest first step id, we can not verify consecutiveness
 	// so returning true here
 	if latestStepId <= 1 {
-		return true
+		return true, false
 	}
 
 	shardInfo, err := s.db.VerifiedShardInfo(latestStepId)
 	if err != nil {
 		log.WithError(err).WithField("latestStepId", latestStepId).Error("Could not found shard info from DB")
-		return false
+		return false, false
 	}
 
 	if shardInfo == nil {
 		log.WithField("latestStepId", latestStepId).Debug("Could not found shard info from DB")
-		return false
+		return false, false
 	}
 
 	vParentHash := common.BytesToHash(vs.ParentHash)
@@ -110,14 +109,14 @@ func (s *Service) verifyConsecutiveHashes(ph *eth1Types.Header, vs *types.Vangua
 	if shardInfo.SlotInfo.BlockRoot != vParentHash {
 		log.WithField("lastVerifiedVanHash", shardInfo.SlotInfo.BlockRoot).WithField("curVanParentHash", vParentHash).
 			Debug("Invalid vanguard parent hash")
-		return false
+		return false, true
 	}
 
-	if len(shardInfo.Shards) > 0 &&  len(shardInfo.Shards[0].Blocks) > 0 && shardInfo.Shards[0].Blocks[0].HeaderRoot == pParentHash {
+	if len(shardInfo.Shards) > 0 && len(shardInfo.Shards[0].Blocks) > 0 && shardInfo.Shards[0].Blocks[0].HeaderRoot == pParentHash {
 		log.WithField("lastVerifiedPanHash", shardInfo.Shards[0].Blocks[0].HeaderRoot).
 			WithField("curPanParentHash", pParentHash).Debug("Invalid pandora parent hash")
-		return false
+		return false, false
 	}
 
-	return true
+	return true, false
 }

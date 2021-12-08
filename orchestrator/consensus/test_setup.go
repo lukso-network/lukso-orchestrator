@@ -23,7 +23,7 @@ func (mc *mockFeedService) SubscribeShutdownSignalEvent(signals chan<- *types.Re
 	return mc.scope.Track(mc.subscriptionShutdownFeed.Subscribe(signals))
 }
 
-func (mc *mockFeedService) StopSubscription() {
+func (mc *mockFeedService) StopSubscription(reorgInfo *types.Reorg) {
 	panic("implement me")
 }
 

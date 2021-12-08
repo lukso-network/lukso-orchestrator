@@ -2,6 +2,7 @@ package iface
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	"io"
 )
@@ -28,6 +29,7 @@ type ReadOnlyVerifiedShardInfoDatabase interface {
 	GetStepIdBySlot(slot uint64) (uint64, error)
 	FinalizedSlot() uint64
 	FinalizedEpoch() uint64
+	FindAncestor(fromStepId, toStepId uint64, blockHash common.Hash) (*types.MultiShardInfo, error)
 }
 
 type VerifiedShardInfoDatabase interface {

@@ -60,6 +60,7 @@ type Service struct {
 	shardingInfoCache   cache.VanguardShardCache    // lru cache support
 	stopPendingBlkSubCh chan struct{}
 	stopEpochInfoSubCh  chan struct{}
+	reorgInfo           *types.Reorg
 }
 
 // NewService creates new service with vanguard endpoint, vanguard namespace and consensusInfoDB
@@ -200,6 +201,18 @@ func (s *Service) SubscribeShutdownSignalEvent(ch chan<- *types.Reorg) event.Sub
 	return s.scope.Track(s.subscriptionShutdownFeed.Subscribe(ch))
 }
 
+func (s *Service) StopSubscription(reorgInfo *types.Reorg) {
+	defer s.processingLock.Unlock()
+	s.processingLock.Lock()
+
+	s.reorgInfo = reorgInfo
+	if s.conn != nil {
+		s.conn.Close()
+		s.conn = nil
+	}
+	log.Info("Stopped vanguard gRPC subscription due to reorg")
+}
+
 // dialConn method creates connection with vanguard grpc server
 func (s *Service) dialConn() error {
 	s.processingLock.Lock()
@@ -257,9 +270,9 @@ func constructDialOptions(
 		transportSecurity = grpc.WithTransportCredentials(creds)
 	} else {
 		transportSecurity = grpc.WithInsecure()
-		log.Warn("You are using an insecure gRPC connection. If you are running your beacon node and " +
-			"validator on the same machines, you can ignore this message. If you want to know " +
-			"how to enable secure connections, see: https://docs.prylabs.network/docs/prysm-usage/secure-grpc")
+		log.Warn("You are using an insecure gRPC connection. If you are running your orchestrator, vanguard, pandora and " +
+			"validator node on the same machines, you can ignore this message. If you want to know " +
+			"how to enable secure connections, see: https://docs.lukso.tech/networks/l15-testnet")
 	}
 
 	if maxCallRecvMsgSize == 0 {

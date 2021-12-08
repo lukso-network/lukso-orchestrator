@@ -2,7 +2,9 @@ package consensus
 
 import (
 	"context"
+	"errors"
 	"sync"
+	"sync/atomic"
 
 	"github.com/ethereum/go-ethereum/event"
 
@@ -11,6 +13,10 @@ import (
 	iface2 "github.com/lukso-network/lukso-orchestrator/orchestrator/pandorachain/iface"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain/iface"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
+)
+
+var (
+	errUnknownParent = errors.New("unknown parent")
 )
 
 const (
@@ -40,7 +46,7 @@ type Service struct {
 	vanguardService              iface.VanguardService
 	pandoraService               iface2.PandoraService
 	verifiedSlotInfoFeed         event.Feed
-	reorgInProgress              bool
+	reorgInProgress              uint32
 }
 
 //
@@ -68,68 +74,39 @@ func (s *Service) Start() {
 	go func() {
 		log.Info("Starting consensus service")
 		vanShardInfoCh := make(chan *types.VanguardShardInfo, 1)
-		reorgSignalCh := make(chan *types.Reorg, 1)
 		panHeaderInfoCh := make(chan *types.PandoraHeaderInfo, 1)
 
 		vanShardInfoSub := s.vanguardService.SubscribeShardInfoEvent(vanShardInfoCh)
-		vanShutdownSub := s.vanguardService.SubscribeShutdownSignalEvent(reorgSignalCh)
 		panHeaderInfoSub := s.pandoraService.SubscribeHeaderInfoEvent(panHeaderInfoCh)
 
 		for {
 			select {
 			case newPanHeaderInfo := <-panHeaderInfoCh:
-				if s.reorgInProgress {
+				if atomic.LoadUint32(&s.reorgInProgress) == 1 {
 					log.WithField("slot", newPanHeaderInfo.Slot).Info("Reorg is progressing, so skipping new pandora header")
 					continue
 				}
 
 				if err := s.processPandoraHeader(newPanHeaderInfo); err != nil {
-					log.WithField("error", err).Error("Error found while processing pandora header")
+					log.WithField("error", err).Error("Could not process pandora shard info, exiting consensus service")
 					return
 				}
 
 			case newVanShardInfo := <-vanShardInfoCh:
-				if s.reorgInProgress {
+				if atomic.LoadUint32(&s.reorgInProgress) == 1 {
 					log.WithField("slot", newVanShardInfo.Slot).Info("Reorg is progressing, so skipping new vanguard shard")
 					continue
 				}
 
 				if err := s.processVanguardShardInfo(newVanShardInfo); err != nil {
-					log.WithField("error", err).Error("Error found while processing vanguard sharding info")
+					log.WithField("error", err).Error("Could not process vanguard shard info, exiting consensus service")
 					return
 				}
-
-			case reorgInfo := <-reorgSignalCh:
-				if reorgInfo == nil {
-					log.Error("Received shutdown signal but value not set. So we are doing nothing")
-					continue
-				}
-				s.reorgInProgress = true
-				// reorg happened. So remove info from database
-				finalizedSlot := s.db.FinalizedSlot()
-				finalizedEpoch := s.db.FinalizedEpoch()
-				log.WithField("curSlot", reorgInfo.NewSlot).WithField("revertSlot", finalizedSlot).
-					WithField("finalizedEpoch", finalizedEpoch).Warn("Triggered reorg event")
-
-				if err := s.reorgDB(finalizedSlot); err != nil {
-					log.WithError(err).Warn("Failed to revert verified info db, exiting consensus go routine")
-					return
-				}
-				// Removing slot infos from vanguard cache and pandora cache
-				s.vanguardPendingShardingCache.Purge()
-				s.pandoraPendingHeaderCache.Purge()
-
-				// disconnect subscription
-				s.pandoraService.Resubscribe()
-				s.vanguardService.StopSubscription()
-
-				s.reorgInProgress = false
 
 			case <-s.ctx.Done():
 				vanShardInfoSub.Unsubscribe()
-				vanShutdownSub.Unsubscribe()
 				panHeaderInfoSub.Unsubscribe()
-				log.Info("Received cancelled context,closing existing consensus service")
+				log.Info("Received cancelled context, existing consensus service")
 				return
 			}
 		}

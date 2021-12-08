@@ -149,17 +149,18 @@ func (s *Service) subscribeNewConsensusInfoGRPC(ctx context.Context, fromEpoch u
 			}
 
 			// if re-org happens then we get this info not nil
-			if vanMinimalConsensusInfo.ReorgInfo != nil {
-				reorgInfo := &types.Reorg{
-					VanParentHash: vanMinimalConsensusInfo.ReorgInfo.VanParentHash,
-					PanParentHash: vanMinimalConsensusInfo.ReorgInfo.PanParentHash,
-					NewSlot:       uint64(vanMinimalConsensusInfo.ReorgInfo.NewSlot),
-				}
-				consensusInfo.ReorgInfo = reorgInfo
+			if s.reorgInfo != nil {
+				consensusInfo.ReorgInfo = s.reorgInfo
+
+				s.processingLock.Lock()
+				s.reorgInfo = nil
+				s.processingLock.Unlock()
 			}
 
-			log.WithField("epoch", vanMinimalConsensusInfo.Epoch).WithField("epochInfo", fmt.Sprintf("%+v", vanMinimalConsensusInfo)).
+			log.WithField("epoch", consensusInfo.Epoch).
+				WithField("epochInfo", fmt.Sprintf("%+v", consensusInfo)).
 				Debug("Received new consensus info")
+
 			if err := s.onNewConsensusInfo(ctx, consensusInfo); err != nil {
 				log.WithError(err).Error("Failed to handle consensus info. Closing epoch info subscription, Exiting go routine")
 				return err
