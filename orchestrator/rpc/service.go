@@ -18,8 +18,7 @@ type Config struct {
 	ConsensusInfoFeed            iface.ConsensusInfoFeed
 	VerifiedSlotInfoFeed         conIface.VerifiedSlotInfoFeed
 	Db                           db.Database
-	VanguardPendingShardingCache cache.VanguardShardCache
-	PandoraPendingHeaderCache    cache.PandoraHeaderCache
+	PendingInfoCache             cache.QueueInterface
 	// ipc config
 	IPCPath string
 	// http config
@@ -69,13 +68,12 @@ func NewService(ctx context.Context, cfg *Config) (*Service, error) {
 		config:        cfg,
 		inprocHandler: rpc.NewServer(),
 		backend: &api.Backend{
-			ConsensusInfoFeed:            cfg.ConsensusInfoFeed,
-			ConsensusInfoDB:              cfg.Db,
-			VerifiedSlotInfoDB:           cfg.Db,
-			InvalidSlotInfoDB:            cfg.Db,
-			PandoraPendingHeaderCache:    cfg.PandoraPendingHeaderCache,
-			VanguardPendingShardingCache: cfg.VanguardPendingShardingCache,
-			VerifiedSlotInfoFeed:         cfg.VerifiedSlotInfoFeed,
+			ConsensusInfoFeed:    cfg.ConsensusInfoFeed,
+			ConsensusInfoDB:      cfg.Db,
+			VerifiedSlotInfoDB:   cfg.Db,
+			InvalidSlotInfoDB:    cfg.Db,
+			PendingInfoCache:     cfg.PendingInfoCache,
+			VerifiedSlotInfoFeed: cfg.VerifiedSlotInfoFeed,
 		},
 	}
 	// Configure RPC servers.

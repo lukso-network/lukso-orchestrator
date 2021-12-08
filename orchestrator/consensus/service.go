@@ -3,6 +3,7 @@ package consensus
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -18,8 +19,7 @@ import (
 type Config struct {
 	VerifiedSlotInfoDB           db.VerifiedSlotInfoDB
 	InvalidSlotInfoDB            db.InvalidSlotInfoDB
-	VanguardPendingShardingCache cache.VanguardShardCache
-	PandoraPendingHeaderCache    cache.PandoraHeaderCache
+	PendingHeaderCache           cache.QueueInterface
 
 	VanguardShardFeed iface.VanguardService
 	PandoraHeaderFeed iface2.PandoraService
@@ -33,11 +33,10 @@ type Service struct {
 	cancel         context.CancelFunc
 	runError       error
 
-	scope                        event.SubscriptionScope
-	verifiedSlotInfoDB           db.VerifiedSlotInfoDB
-	invalidSlotInfoDB            db.InvalidSlotInfoDB
-	vanguardPendingShardingCache cache.VanguardShardCache
-	pandoraPendingHeaderCache    cache.PandoraHeaderCache
+	scope              event.SubscriptionScope
+	verifiedSlotInfoDB db.VerifiedSlotInfoDB
+	invalidSlotInfoDB  db.InvalidSlotInfoDB
+	pendingInfoCache   cache.QueueInterface
 
 	vanguardService      iface.VanguardService
 	pandoraService       iface2.PandoraService
@@ -51,14 +50,37 @@ func New(ctx context.Context, cfg *Config) (service *Service) {
 	_ = cancel // govet fix for lost cancel. Cancel is handled in service.Stop()
 
 	return &Service{
-		ctx:                          ctx,
-		cancel:                       cancel,
-		verifiedSlotInfoDB:           cfg.VerifiedSlotInfoDB,
-		invalidSlotInfoDB:            cfg.InvalidSlotInfoDB,
-		vanguardPendingShardingCache: cfg.VanguardPendingShardingCache,
-		pandoraPendingHeaderCache:    cfg.PandoraPendingHeaderCache,
-		vanguardService:              cfg.VanguardShardFeed,
-		pandoraService:               cfg.PandoraHeaderFeed,
+		ctx:                ctx,
+		cancel:             cancel,
+		verifiedSlotInfoDB: cfg.VerifiedSlotInfoDB,
+		invalidSlotInfoDB:  cfg.InvalidSlotInfoDB,
+		pendingInfoCache:   cfg.PendingHeaderCache,
+		vanguardService:    cfg.VanguardShardFeed,
+		pandoraService:     cfg.PandoraHeaderFeed,
+	}
+}
+
+func (s *Service) cacheClearanceLoop () {
+	ticker := time.NewTicker(1 * time.Second)
+
+	for {
+		select {
+		case currentTime := <- ticker.C:
+			removedInfo := s.pendingInfoCache.RemoveByTime(currentTime)
+			for _, info := range  removedInfo {
+				if panHeader := info.GetPanHeader(); panHeader != nil {
+					// so for this slot we've pandora info. need to notify pandora now
+					s.verifiedSlotInfoFeed.Send(&types.SlotInfoWithStatus{
+						PandoraHeaderHash: panHeader.Hash(),
+						Status:            types.Invalid,
+					})
+				}
+			}
+
+		case <- s.ctx.Done():
+			log.Info("cacheClearLoop terminating due to context close")
+			return
+		}
 	}
 }
 
@@ -67,6 +89,7 @@ func (s *Service) Start() {
 		log.Error("Attempted to start consensus service when it was already started")
 		return
 	}
+	go s.cacheClearanceLoop()
 	s.isRunning = true
 	go func() {
 		log.Info("Starting consensus service")
@@ -146,8 +169,7 @@ func (s *Service) Start() {
 					return
 				}
 				// Removing slot infos from vanguard cache and pandora cache
-				s.vanguardPendingShardingCache.Purge()
-				s.pandoraPendingHeaderCache.Purge()
+				s.pendingInfoCache.Purge()
 				log.Debug("Starting subscription for vanguard and pandora")
 
 				// disconnect subscription

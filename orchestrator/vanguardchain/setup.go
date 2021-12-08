@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/golang/mock/gomock"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
 	testDB "github.com/lukso-network/lukso-orchestrator/orchestrator/db/testing"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil"
@@ -26,8 +25,7 @@ func serviceInit(t *testing.T, numberOfElements byte) (*Service, *logTest.Hook) 
 	mockedNodeClient := mock.NewMockNodeClient(ctrl)
 
 	testDB := dbSetup(ctx, t, numberOfElements)
-	cache := cache.NewVanShardInfoCache(1024)
-	s, err := NewService(ctx, "127.0.0.1:4000", testDB, cache)
+	s, err := NewService(ctx, "127.0.0.1:4000", testDB)
 	require.NoError(t, err)
 
 	s.beaconClient = mockedBeaconClient

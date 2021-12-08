@@ -11,10 +11,23 @@ import (
 // processPandoraHeader
 func (s *Service) processPandoraHeader(headerInfo *types.PandoraHeaderInfo) error {
 	slot := headerInfo.Slot
-	s.pandoraPendingHeaderCache.Put(s.ctx, slot, headerInfo.Header)
-	vanShardInfo, _ := s.vanguardPendingShardingCache.Get(s.ctx, slot)
-	if vanShardInfo != nil {
-		return s.verifyShardingInfo(slot, vanShardInfo, headerInfo.Header)
+	// first push the header into the cache.
+	// it will update the cache if already present or enter a new info
+	s.pendingInfoCache.PutPandoraHeader(slot, headerInfo.Header)
+
+	// now mark it as we are making a decision on it
+	err := s.pendingInfoCache.MarkInProgress(slot)
+	if err != nil {
+		return err
+	}
+	defer s.pendingInfoCache.MarkNotInProgress(slot)
+
+	slotInfo, _ := s.pendingInfoCache.GetSlot(slot)
+	if slotInfo != nil {
+		if shardInfo := slotInfo.GetVanShard(); shardInfo != nil {
+			// vanguard sharding info is present for this slot. So verify it
+			return s.verifyShardingInfo(slot, shardInfo, headerInfo.Header)
+		}
 	}
 	return nil
 }
@@ -22,10 +35,22 @@ func (s *Service) processPandoraHeader(headerInfo *types.PandoraHeaderInfo) erro
 // processVanguardShardInfo
 func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo) error {
 	slot := vanShardInfo.Slot
-	s.vanguardPendingShardingCache.Put(s.ctx, slot, vanShardInfo)
-	headerInfo, _ := s.pandoraPendingHeaderCache.Get(s.ctx, slot)
-	if headerInfo != nil {
-		return s.verifyShardingInfo(slot, vanShardInfo, headerInfo)
+	// first push the shardInfo into the cache.
+	// it will update the cache if already present or enter a new info
+	s.pendingInfoCache.PutVanguardShardingInfo(slot, vanShardInfo, false)
+	// now mark it as we are making a decision on it
+	err := s.pendingInfoCache.MarkInProgress(slot)
+	if err != nil {
+		return err
+	}
+	defer s.pendingInfoCache.MarkNotInProgress(slot)
+
+	slotInfo, _ := s.pendingInfoCache.GetSlot(slot)
+	if slotInfo != nil {
+		if header := slotInfo.GetPanHeader(); header != nil {
+			// Header info is present for this slot. So verify it
+			return s.verifyShardingInfo(slot, vanShardInfo, header)
+		}
 	}
 	return nil
 }
@@ -87,9 +112,8 @@ func (s *Service) verifyShardingInfo(slot uint64, vanShardInfo *types.VanguardSh
 	}
 
 	slotInfoWithStatus.Status = types.Verified
-	//removing previous cached slots which dont verified yet. By convention, they are skipped
-	s.pandoraPendingHeaderCache.Remove(s.ctx, slot)
-	s.vanguardPendingShardingCache.Remove(s.ctx, slot)
+	//removing slot that is already verified
+	s.pendingInfoCache.ForceDelSlot(slot)
 	log.WithField("slot", slot).Info("Successfully verified sharding info")
 	// sending verified slot info to rpc service
 	s.verifiedSlotInfoFeed.Send(slotInfoWithStatus)

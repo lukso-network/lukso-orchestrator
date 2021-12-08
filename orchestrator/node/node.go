@@ -41,8 +41,7 @@ type OrchestratorNode struct {
 	db db.Database
 
 	// lru caches
-	pandoraInfoCache  *cache.PanHeaderCache
-	vanShardInfoCache *cache.VanShardingInfoCache
+	pendingInfoCache  *cache.PendingQueueCache
 }
 
 // New creates a new node instance, sets up configuration options, and registers
@@ -57,8 +56,7 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 		cancel:            cancel,
 		services:          registry,
 		stop:              make(chan struct{}),
-		pandoraInfoCache:  cache.NewPanHeaderCache(),
-		vanShardInfoCache: cache.NewVanShardInfoCache(math.MaxInt32),
+		pendingInfoCache:  cache.NewPendingDataContainer(math.MaxInt32),
 	}
 
 	if err := orchestrator.startDB(orchestrator.cliCtx); err != nil {
@@ -150,7 +148,6 @@ func (o *OrchestratorNode) registerVanguardChainService(cliCtx *cli.Context) err
 		o.ctx,
 		vanguardGRPCUrl,
 		o.db,
-		o.vanShardInfoCache,
 	)
 	if err != nil {
 		return nil
@@ -170,7 +167,7 @@ func (o *OrchestratorNode) registerPandoraChainService(cliCtx *cli.Context) erro
 		return rpcClient, nil
 	}
 	namespace := "eth"
-	svc, err := pandorachain.NewService(o.ctx, pandoraRPCUrl, namespace, o.db, o.pandoraInfoCache, dialRPCClient)
+	svc, err := pandorachain.NewService(o.ctx, pandoraRPCUrl, namespace, o.db, dialRPCClient)
 	if err != nil {
 		return nil
 	}
@@ -191,12 +188,11 @@ func (o *OrchestratorNode) registerConsensusService(cliCtx *cli.Context) error {
 	}
 
 	svc := consensus.New(o.ctx, &consensus.Config{
-		VerifiedSlotInfoDB:           o.db,
-		InvalidSlotInfoDB:            o.db,
-		VanguardPendingShardingCache: o.vanShardInfoCache,
-		PandoraPendingHeaderCache:    o.pandoraInfoCache,
-		VanguardShardFeed:            vanguardShardFeed,
-		PandoraHeaderFeed:            pandoraHeaderFeed,
+		VerifiedSlotInfoDB: o.db,
+		InvalidSlotInfoDB:  o.db,
+		PendingHeaderCache: o.pendingInfoCache,
+		VanguardShardFeed:  vanguardShardFeed,
+		PandoraHeaderFeed:  pandoraHeaderFeed,
 	})
 
 	log.Info("Registered consensus service")
@@ -246,9 +242,8 @@ func (o *OrchestratorNode) registerRPCService(cliCtx *cli.Context) error {
 		WSHost:            wsListenerAddr,
 		WSPort:            wsPort,
 
-		VanguardPendingShardingCache: o.vanShardInfoCache,
-		PandoraPendingHeaderCache:    o.pandoraInfoCache,
-		VerifiedSlotInfoFeed:         verifiedSlotInfoFeed,
+		PendingInfoCache:     o.pendingInfoCache,
+		VerifiedSlotInfoFeed: verifiedSlotInfoFeed,
 	})
 	if err != nil {
 		return nil

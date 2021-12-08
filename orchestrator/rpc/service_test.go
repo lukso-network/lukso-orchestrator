@@ -19,7 +19,6 @@ func setup(t *testing.T) (*Config, error) {
 		context.Background(),
 		cmd.DefaultVanguardGRPCEndpoint,
 		orchestratorDB,
-		cache.NewVanShardInfoCache(1<<10),
 	)
 	if err != nil {
 		return nil, err
@@ -30,8 +29,7 @@ func setup(t *testing.T) (*Config, error) {
 		&consensus.Config{
 			orchestratorDB,
 			orchestratorDB,
-			cache.NewVanShardInfoCache(1 << 10),
-			cache.NewPanHeaderCache(),
+			cache.NewPendingDataContainer(1 << 10),
 			nil,
 			nil,
 		})

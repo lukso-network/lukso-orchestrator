@@ -53,12 +53,12 @@ func TestService(t *testing.T) {
 
 			for i := 0; i < 5; i++ {
 				slot := tt.vanShardInfos[i].Slot
-				svc.vanguardPendingShardingCache.Put(ctx, slot, tt.vanShardInfos[i])
+				time.Sleep(5 * time.Millisecond)
 				mockedFeed.shardInfoFeed.Send(tt.vanShardInfos[i])
 
 				time.Sleep(5 * time.Millisecond)
 
-				svc.pandoraPendingHeaderCache.Put(ctx, slot, tt.panHeaderInfos[i].Header)
+				svc.pendingInfoCache.PutPandoraHeader(slot, tt.panHeaderInfos[i].Header)
 				mockedFeed.headerInfoFeed.Send(tt.panHeaderInfos[i])
 
 				time.Sleep(100 * time.Millisecond)

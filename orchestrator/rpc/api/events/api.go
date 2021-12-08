@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 	generalTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
@@ -23,7 +22,6 @@ type Backend interface {
 	SubscribeNewVerifiedSlotInfoEvent(chan<- *generalTypes.SlotInfoWithStatus) event.Subscription
 	VerifiedSlotInfos(fromSlot uint64) map[uint64]*generalTypes.SlotInfo
 	LatestVerifiedSlot() uint64
-	PendingPandoraHeaders() []*eth1Types.Header
 	LatestFinalizedSlot() uint64
 }
 

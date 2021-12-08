@@ -8,7 +8,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 )
@@ -45,7 +44,6 @@ type Service struct {
 
 	// db support
 	db    db.Database
-	cache cache.PandoraHeaderCache
 
 	scope                 event.SubscriptionScope
 	pandoraHeaderInfoFeed event.Feed
@@ -57,7 +55,6 @@ func NewService(
 	endpoint string,
 	namespace string,
 	db db.Database,
-	cache cache.PandoraHeaderCache,
 	dialRPCFn DialRPCFn,
 ) (*Service, error) {
 
@@ -72,7 +69,6 @@ func NewService(
 		conInfoSubErrCh: make(chan error),
 		conDisconnect:   make(chan struct{}),
 		db:              db,
-		cache:           cache,
 	}, nil
 }
 

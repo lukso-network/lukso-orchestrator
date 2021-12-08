@@ -3,7 +3,6 @@ package events
 import (
 	"context"
 	"github.com/ethereum/go-ethereum/common"
-	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
 	"time"
@@ -46,10 +45,6 @@ func (mb *MockBackend) GetSlotStatus(ctx context.Context, slot uint64, hash comm
 
 func (mb *MockBackend) LatestEpoch() uint64 {
 	return 100
-}
-
-func (mb *MockBackend) PendingPandoraHeaders() []*eth1Types.Header {
-	return nil
 }
 
 func (mb *MockBackend) VerifiedSlotInfos(fromSlot uint64) map[uint64]*eventTypes.SlotInfo {

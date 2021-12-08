@@ -13,7 +13,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/event"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	ethpb "github.com/prysmaticlabs/prysm/proto/eth/v1alpha1"
@@ -56,7 +55,6 @@ type Service struct {
 	subscriptionShutdownFeed event.Feed
 
 	db                  db.Database              // db support
-	shardingInfoCache   cache.VanguardShardCache // lru cache support
 	stopPendingBlkSubCh chan struct{}
 	stopEpochInfoSubCh  chan struct{}
 }
@@ -66,7 +64,6 @@ func NewService(
 	ctx context.Context,
 	vanGRPCEndpoint string,
 	db db.Database,
-	cache cache.VanguardShardCache,
 ) (*Service, error) {
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -77,7 +74,6 @@ func NewService(
 		cancel:              cancel,
 		vanGRPCEndpoint:     vanGRPCEndpoint,
 		db:                  db,
-		shardingInfoCache:   cache,
 		stopPendingBlkSubCh: make(chan struct{}),
 		stopEpochInfoSubCh:  make(chan struct{}),
 	}, nil
