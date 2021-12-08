@@ -22,25 +22,25 @@ type ConsensusInfoAccessDatabase interface {
 	SaveLatestEpoch(ctx context.Context, epoch uint64) error
 }
 
-type ReadOnlyVerifiedSlotInfoDatabase interface {
-	VerifiedSlotInfo(slot uint64) (*types.SlotInfo, error)
-	VerifiedSlotInfos(fromSlot uint64) (map[uint64]*types.SlotInfo, error)
-	LatestSavedVerifiedSlot() uint64
-	LatestVerifiedHeaderHash() common.Hash
-	LatestLatestFinalizedSlot() uint64
-	LatestLatestFinalizedEpoch() uint64
+type ReadOnlyVerifiedShardInfoDatabase interface {
+	VerifiedShardInfo(stepId uint64) (*types.MultiShardInfo, error)
+	VerifiedShardInfos(fromStepId uint64) (map[uint64]*types.MultiShardInfo, error)
+	LatestStepID() uint64
+	GetStepIdBySlot(slot uint64) (uint64, error)
+	FinalizedSlot() uint64
+	FinalizedEpoch() uint64
+	FindAncestor(fromStepId, toStepId uint64, blockHash common.Hash) (*types.MultiShardInfo, error)
 }
 
-type VerifiedSlotDatabase interface {
-	ReadOnlyVerifiedSlotInfoDatabase
+type VerifiedShardInfoDatabase interface {
+	ReadOnlyVerifiedShardInfoDatabase
 
-	SaveVerifiedSlotInfo(slot uint64, slotInfo *types.SlotInfo) error
-	SaveLatestVerifiedSlot(ctx context.Context, slot uint64) error
-	SaveLatestVerifiedHeaderHash(hash common.Hash) error
-	SaveLatestFinalizedSlot(latestFinalizedSlot uint64) error
-	SaveLatestFinalizedEpoch(latestFinalizedEpoch uint64) error
-	RemoveRangeVerifiedInfo(fromSlot, toSlot uint64) error
-	UpdateVerifiedSlotInfo(slot uint64) error
+	SaveVerifiedShardInfo(stepId uint64, shardInfo *types.MultiShardInfo) error
+	SaveLatestStepID(stepID uint64) error
+	RemoveShardingInfos(fromStepId uint64) error
+	SaveSlotStepIndex(slot, stepId uint64) error
+	SaveFinalizedSlot(latestFinalizedSlot uint64) error
+	SaveFinalizedEpoch(latestFinalizedEpoch uint64) error
 }
 
 type ReadOnlyInvalidSlotInfoDatabase interface {
@@ -59,9 +59,9 @@ type Database interface {
 
 	ConsensusInfoAccessDatabase
 
-	VerifiedSlotDatabase
-
 	InvalidSlotDatabase
+
+	VerifiedShardInfoDatabase
 
 	DatabasePath() string
 	ClearDB() error

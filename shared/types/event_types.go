@@ -65,6 +65,7 @@ type VanguardShardInfo struct {
 	BlockHash      []byte
 	FinalizedSlot  uint64
 	FinalizedEpoch uint64
+	ParentHash     []byte
 }
 
 type BlsSignatureBytes [BLSSignatureSize]byte

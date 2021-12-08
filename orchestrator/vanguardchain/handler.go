@@ -3,6 +3,7 @@ package vanguardchain
 import (
 	"context"
 	"errors"
+	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	eth "github.com/prysmaticlabs/prysm/proto/eth/v1alpha1"
@@ -16,20 +17,14 @@ func (s *Service) onNewConsensusInfo(ctx context.Context, consensusInfo *types.M
 	nsent := s.consensusInfoFeed.Send(consensusInfo)
 	log.WithField("nsent", nsent).Trace("Send consensus info to subscribers")
 
-	if err := s.db.SaveConsensusInfo(ctx, consensusInfo.ConvertToEpochInfo()); err != nil {
+	if err := s.consensusInfoDB.SaveConsensusInfo(ctx, consensusInfo.ConvertToEpochInfo()); err != nil {
 		log.WithError(err).Warn("failed to save consensus info into consensusInfoDB!")
 		return err
 	}
 
-	if err := s.db.SaveLatestEpoch(ctx, consensusInfo.Epoch); err != nil {
+	if err := s.consensusInfoDB.SaveLatestEpoch(ctx, consensusInfo.Epoch); err != nil {
 		log.WithError(err).Warn("failed to save latest epoch into consensusInfoDB!")
 		return err
-	}
-
-	if consensusInfo.ReorgInfo != nil {
-		nsent = s.subscriptionShutdownFeed.Send(consensusInfo.ReorgInfo)
-		log.WithField("nsent", nsent).Trace("Send reorg info to consensus service")
-		return nil
 	}
 
 	return nil
@@ -58,43 +53,13 @@ func (s *Service) onNewPendingVanguardBlock(ctx context.Context, blockInfo *eth.
 		ShardInfo:      shardInfo,
 		FinalizedSlot:  uint64(blockInfo.FinalizedSlot),
 		FinalizedEpoch: uint64(blockInfo.FinalizedEpoch),
+		ParentHash:     blockInfo.GetBlock().ParentRoot[:],
 	}
 
 	log.WithField("slot", block.Slot).WithField("panBlockNum", shardInfo.BlockNumber).
-		WithField("finalizedSlot", blockInfo.FinalizedSlot).WithField("finalizedEpoch", blockInfo.FinalizedEpoch).
-		Info("New vanguard shard info has arrived")
+		WithField("shardingHash", common.BytesToHash(shardInfo.Hash)).WithField("finalizedSlot", blockInfo.FinalizedSlot).
+		WithField("finalizedEpoch", blockInfo.FinalizedEpoch).Info("New vanguard shard info has arrived")
 
 	s.vanguardShardingInfoFeed.Send(cachedShardInfo)
 	return nil
-}
-
-// ReSubscribeBlocksEvent method re-subscribe to vanguard block api.
-func (s *Service) ReSubscribeBlocksEvent() error {
-	finalizedSlot := s.db.LatestLatestFinalizedSlot()
-	finalizedEpoch := s.db.LatestLatestFinalizedEpoch()
-
-	log.WithField("finalizedSlot", finalizedSlot).WithField("finalizedEpoch", finalizedEpoch).Info("Resubscribing Block Event")
-
-	if s.conn != nil {
-		log.Warn("Connection is not nil, could not re-subscribe to vanguard blocks event")
-		return nil
-	}
-
-	if err := s.dialConn(); err != nil {
-		log.WithError(err).Error("Could not create connection with vanguard node during re-subscription")
-		return err
-	}
-
-	// Re-subscribe vanguard new pending blocks
-	go s.subscribeVanNewPendingBlockHash(s.ctx, finalizedSlot)
-	go s.subscribeNewConsensusInfoGRPC(s.ctx, finalizedEpoch)
-	return nil
-}
-
-func (s *Service) StopSubscription() {
-	defer log.Info("Stopped vanguard gRPC subscription")
-	if s.conn != nil {
-		s.conn.Close()
-		s.conn = nil
-	}
 }

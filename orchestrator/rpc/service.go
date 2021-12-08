@@ -71,7 +71,6 @@ func NewService(ctx context.Context, cfg *Config) (*Service, error) {
 		backend: &api.Backend{
 			ConsensusInfoFeed:            cfg.ConsensusInfoFeed,
 			ConsensusInfoDB:              cfg.Db,
-			VerifiedSlotInfoDB:           cfg.Db,
 			InvalidSlotInfoDB:            cfg.Db,
 			PandoraPendingHeaderCache:    cfg.PandoraPendingHeaderCache,
 			VanguardPendingShardingCache: cfg.VanguardPendingShardingCache,

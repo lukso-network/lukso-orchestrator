@@ -6,11 +6,11 @@ type ROnlyConsensusInfoDB = iface.ReadOnlyConsensusInfoDatabase
 
 type ConsensusInfoAccessDB = iface.ConsensusInfoAccessDatabase
 
-type ROnlyVerifiedSlotInfoDB = iface.ReadOnlyVerifiedSlotInfoDatabase
-
 type ROnlyInvalidSlotInfoDB = iface.ReadOnlyInvalidSlotInfoDatabase
 
-type VerifiedSlotInfoDB = iface.VerifiedSlotDatabase
+type ROnlyVerifiedShardInfoDB = iface.ReadOnlyVerifiedShardInfoDatabase
+
+type VerifiedShardInfoDB = iface.VerifiedShardInfoDatabase
 
 type InvalidSlotInfoDB = iface.InvalidSlotDatabase
 
