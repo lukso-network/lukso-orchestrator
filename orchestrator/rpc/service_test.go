@@ -29,7 +29,6 @@ func setup(t *testing.T) (*Config, error) {
 		context.Background(),
 		&consensus.Config{
 			orchestratorDB,
-			orchestratorDB,
 			cache.NewVanShardInfoCache(1 << 10),
 			cache.NewPanHeaderCache(),
 			nil,

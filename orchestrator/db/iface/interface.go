@@ -2,7 +2,6 @@ package iface
 
 import (
 	"context"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	"io"
 )
@@ -22,33 +21,34 @@ type ConsensusInfoAccessDatabase interface {
 	SaveLatestEpoch(ctx context.Context, epoch uint64) error
 }
 
-type ReadOnlyVerifiedSlotInfoDatabase interface {
-	VerifiedSlotInfo(slot uint64) (*types.SlotInfo, error)
-	VerifiedSlotInfos(fromSlot uint64) (map[uint64]*types.SlotInfo, error)
-	LatestSavedVerifiedSlot() uint64
-	LatestVerifiedHeaderHash() common.Hash
-	LatestLatestFinalizedSlot() uint64
-	LatestLatestFinalizedEpoch() uint64
-}
-
-type VerifiedSlotDatabase interface {
-	ReadOnlyVerifiedSlotInfoDatabase
-
-	SaveVerifiedSlotInfo(slot uint64, slotInfo *types.SlotInfo) error
-	SaveLatestVerifiedSlot(ctx context.Context, slot uint64) error
-	SaveLatestVerifiedHeaderHash(hash common.Hash) error
-	SaveLatestFinalizedSlot(latestFinalizedSlot uint64) error
-	SaveLatestFinalizedEpoch(latestFinalizedEpoch uint64) error
-	RemoveRangeVerifiedInfo(fromSlot, toSlot uint64) error
-	UpdateVerifiedSlotInfo(slot uint64) error
-}
+//type ReadOnlyVerifiedSlotInfoDatabase interface {
+//	VerifiedSlotInfo(slot uint64) (*types.SlotInfo, error)
+//	VerifiedSlotInfos(fromSlot uint64) (map[uint64]*types.SlotInfo, error)
+//	LatestSavedVerifiedSlot() uint64
+//	LatestVerifiedHeaderHash() common.Hash
+//	LatestLatestFinalizedSlot() uint64
+//	LatestLatestFinalizedEpoch() uint64
+//}
+//
+//type VerifiedSlotDatabase interface {
+//	ReadOnlyVerifiedSlotInfoDatabase
+//
+//	SaveVerifiedSlotInfo(slot uint64, slotInfo *types.SlotInfo) error
+//	SaveLatestVerifiedSlot(ctx context.Context, slot uint64) error
+//	SaveLatestVerifiedHeaderHash(hash common.Hash) error
+//	SaveLatestFinalizedSlot(latestFinalizedSlot uint64) error
+//	SaveLatestFinalizedEpoch(latestFinalizedEpoch uint64) error
+//	RemoveRangeVerifiedInfo(fromSlot, toSlot uint64) error
+//	UpdateVerifiedSlotInfo(slot uint64) error
+//}
 
 type ReadOnlyVerifiedShardInfoDatabase interface {
 	VerifiedShardInfo(stepId uint64) (*types.MultiShardInfo, error)
 	VerifiedShardInfos(fromStepId uint64) (map[uint64]*types.MultiShardInfo, error)
 	LatestStepID() uint64
-	SeekShardInfo(slot uint64) (uint64, *types.MultiShardInfo, error)
 	GetStepIdBySlot(slot uint64) (uint64, error)
+	FinalizedSlot() uint64
+	FinalizedEpoch() uint64
 }
 
 type VerifiedShardInfoDatabase interface {
@@ -58,6 +58,8 @@ type VerifiedShardInfoDatabase interface {
 	SaveLatestStepID(stepID uint64) error
 	RemoveShardingInfos(fromStepId uint64) error
 	SaveSlotStepIndex(slot, stepId uint64) error
+	SaveFinalizedSlot(latestFinalizedSlot uint64) error
+	SaveFinalizedEpoch(latestFinalizedEpoch uint64) error
 }
 
 type ReadOnlyInvalidSlotInfoDatabase interface {
@@ -75,8 +77,6 @@ type Database interface {
 	io.Closer
 
 	ConsensusInfoAccessDatabase
-
-	VerifiedSlotDatabase
 
 	InvalidSlotDatabase
 

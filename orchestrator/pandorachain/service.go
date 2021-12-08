@@ -2,6 +2,7 @@ package pandorachain
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum/common"
 	"sync"
 	"time"
 
@@ -14,7 +15,10 @@ import (
 )
 
 // time to wait before trying to reconnect.
-var reConPeriod = 2 * time.Second
+var (
+	reConPeriod = 2 * time.Second
+	EmptyHash   = common.HexToHash("0000000000000000000000000000000000000000000000000000000000000000")
+)
 
 // DialRPCFn dials to the given endpoint
 type DialRPCFn func(endpoint string) (*rpc.Client, error)
@@ -44,7 +48,7 @@ type Service struct {
 	vanguardSubscription event.Subscription
 
 	// db support
-	db    db.Database
+	db    db.ROnlyVerifiedShardInfoDB
 	cache cache.PandoraHeaderCache
 
 	scope                 event.SubscriptionScope
@@ -56,7 +60,7 @@ func NewService(
 	ctx context.Context,
 	endpoint string,
 	namespace string,
-	db db.Database,
+	db db.ROnlyVerifiedShardInfoDB,
 	cache cache.PandoraHeaderCache,
 	dialRPCFn DialRPCFn,
 ) (*Service, error) {
@@ -224,12 +228,32 @@ func (s *Service) retryToConnectAndSubscribe(err error) {
 
 // subscribe subscribes to pandora events
 func (s *Service) subscribe() error {
-	latestSavedHeaderHash := s.db.LatestVerifiedHeaderHash()
-	filter := &types.PandoraPendingHeaderFilter{
-		FromBlockHash: latestSavedHeaderHash,
+
+	finalizedSlot := s.db.FinalizedSlot()
+	finalizedStepId, err := s.db.GetStepIdBySlot(finalizedSlot)
+	if err != nil {
+		log.WithError(err).WithField("finalizedSlot", finalizedSlot).Error("Could not found step id from DB")
 	}
 
-	log.WithField("finalizedSlot", s.db.LatestSavedVerifiedSlot()).WithField("panHeaderHash", filter.FromBlockHash).
+	shardInfo, err := s.db.VerifiedShardInfo(finalizedStepId)
+	if err != nil {
+		log.WithError(err).WithField("finalizedStepId", finalizedStepId).Error("Could not found shard info from DB")
+	}
+
+	if shardInfo == nil {
+		log.WithField("finalizedStepId", finalizedStepId).Debug("Could not found shard info from DB")
+	}
+
+	filter := &types.PandoraPendingHeaderFilter{
+		FromBlockHash: EmptyHash,
+	}
+
+	if len(shardInfo.Shards) > 0 && len(shardInfo.Shards[0].Blocks) > 0 {
+		filter.FromBlockHash = shardInfo.Shards[0].Blocks[0].HeaderRoot
+	}
+
+	log.WithField("finalizedSlot", finalizedSlot).WithField("finalizedStepId", finalizedStepId).
+		WithField("finalizedShardInfo", shardInfo).WithField("fromPanHash", filter.FromBlockHash).
 		Debug("Start subscribing to pandora client for pending headers")
 
 	// subscribe to pandora client for pending headers
@@ -238,6 +262,7 @@ func (s *Service) subscribe() error {
 		log.WithError(err).Warn("Could not subscribe to pandora client for new pending headers")
 		return err
 	}
+
 	s.conInfoSub = sub
 	return nil
 }

@@ -1,16 +1,17 @@
-package events
+package api
 
 import (
 	"context"
 	"github.com/ethereum/go-ethereum/common"
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
 	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
 	"time"
 )
 
 var (
-	deadline = 5 * time.Minute
+	Deadline = 5 * time.Minute
 )
 
 type MockBackend struct {
@@ -22,7 +23,7 @@ type MockBackend struct {
 	CurEpoch          uint64
 }
 
-var _ Backend = &MockBackend{}
+var _ events.Backend = &MockBackend{}
 
 func (b *MockBackend) ConsensusInfoByEpochRange(fromEpoch uint64) ([]*eventTypes.MinimalEpochConsensusInfoV2, error) {
 	consensusInfos := make([]*eventTypes.MinimalEpochConsensusInfoV2, 0)
@@ -52,18 +53,18 @@ func (mb *MockBackend) PendingPandoraHeaders() []*eth1Types.Header {
 	return nil
 }
 
-func (mb *MockBackend) VerifiedSlotInfos(fromSlot uint64) map[uint64]*eventTypes.SlotInfo {
-	slotInfos := make(map[uint64]*eventTypes.SlotInfo)
-	for slot, slotInfo := range mb.verifiedSlotInfos {
-		slotInfos[slot] = slotInfo
-	}
-	return slotInfos
-}
-
-func (mb *MockBackend) LatestVerifiedSlot() uint64 {
-	return 100
+func (mb *MockBackend) VerifiedSlotInfos(fromSlot uint64) (map[uint64]*eventTypes.BlockStatus, error) {
+	return nil, nil
 }
 
 func (mb *MockBackend) LatestFinalizedSlot() uint64 {
 	return 100
+}
+
+func (mb *MockBackend) StepId(slot uint64) uint64 {
+	return 0
+}
+
+func (mb *MockBackend) LatestStepId() uint64 {
+	return 0
 }

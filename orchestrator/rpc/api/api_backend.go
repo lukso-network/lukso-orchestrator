@@ -2,9 +2,10 @@ package api
 
 import (
 	"context"
-	"errors"
 	"github.com/ethereum/go-ethereum/common"
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/utils"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/ethereum/go-ethereum/event"
@@ -23,25 +24,25 @@ type Backend struct {
 	VerifiedSlotInfoFeed conIface.VerifiedSlotInfoFeed
 
 	// db reference
-	ConsensusInfoDB    db.ROnlyConsensusInfoDB
-	VerifiedSlotInfoDB db.ROnlyVerifiedSlotInfoDB
-	InvalidSlotInfoDB  db.ROnlyInvalidSlotInfoDB
+	ConsensusInfoDB     db.ROnlyConsensusInfoDB
+	verifiedShardInfoDB db.ROnlyVerifiedShardInfoDB
+	InvalidSlotInfoDB   db.ROnlyInvalidSlotInfoDB
 
 	// cache reference
 	VanguardPendingShardingCache cache.VanguardShardCache
 	PandoraPendingHeaderCache    cache.PandoraHeaderCache
 }
 
-func (backend *Backend) SubscribeNewEpochEvent(ch chan<- *types.MinimalEpochConsensusInfoV2) event.Subscription {
-	return backend.ConsensusInfoFeed.SubscribeMinConsensusInfoEvent(ch)
+func (b *Backend) SubscribeNewEpochEvent(ch chan<- *types.MinimalEpochConsensusInfoV2) event.Subscription {
+	return b.ConsensusInfoFeed.SubscribeMinConsensusInfoEvent(ch)
 }
 
-func (backend *Backend) SubscribeNewVerifiedSlotInfoEvent(ch chan<- *types.SlotInfoWithStatus) event.Subscription {
-	return backend.VerifiedSlotInfoFeed.SubscribeVerifiedSlotInfoEvent(ch)
+func (b *Backend) SubscribeNewVerifiedSlotInfoEvent(ch chan<- *types.SlotInfoWithStatus) event.Subscription {
+	return b.VerifiedSlotInfoFeed.SubscribeVerifiedSlotInfoEvent(ch)
 }
 
-func (backend *Backend) ConsensusInfoByEpochRange(fromEpoch uint64) ([]*types.MinimalEpochConsensusInfoV2, error) {
-	consensusInfosV2, err := backend.ConsensusInfoDB.ConsensusInfos(fromEpoch)
+func (b *Backend) ConsensusInfoByEpochRange(fromEpoch uint64) ([]*types.MinimalEpochConsensusInfoV2, error) {
+	consensusInfosV2, err := b.ConsensusInfoDB.ConsensusInfos(fromEpoch)
 	if err != nil {
 		return nil, err
 	}
@@ -54,24 +55,56 @@ func (backend *Backend) ConsensusInfoByEpochRange(fromEpoch uint64) ([]*types.Mi
 	return epochInfos, nil
 }
 
-func (backend *Backend) VerifiedSlotInfos(fromSlot uint64) map[uint64]*types.SlotInfo {
-	slotInfos, err := backend.VerifiedSlotInfoDB.VerifiedSlotInfos(fromSlot)
+func (b *Backend) StepId(slot uint64) uint64 {
+	stepId, err := b.verifiedShardInfoDB.GetStepIdBySlot(slot)
 	if err != nil {
-		return nil
+		return 0
 	}
-	return slotInfos
+	return stepId
 }
 
-func (backend *Backend) LatestEpoch() uint64 {
-	return backend.ConsensusInfoDB.LatestSavedEpoch()
+func (b *Backend) LatestStepId() uint64 {
+	return b.verifiedShardInfoDB.LatestStepID()
 }
 
-func (backend *Backend) LatestVerifiedSlot() uint64 {
-	return backend.VerifiedSlotInfoDB.LatestSavedVerifiedSlot()
+func (b *Backend) VerifiedSlotInfos(fromSlot uint64) (map[uint64]*types.BlockStatus, error) {
+	// Short circuit for slot zero
+	if fromSlot == 0 {
+		return nil, nil
+	}
+
+	// Removing slot infos from verified slot info db
+	stepId, err := b.verifiedShardInfoDB.GetStepIdBySlot(fromSlot)
+	if err != nil {
+		log.WithError(err).WithField("fromSlot", fromSlot).WithField("stepId", stepId).Error("Could not found step id from DB")
+		return nil, errors.Wrap(err, "Could not found step id from DB")
+	}
+
+	shardInfos, err := b.verifiedShardInfoDB.VerifiedShardInfos(stepId)
+	if err != nil {
+		return nil, errors.Wrap(err, "Could not found verified shard infos from DB")
+	}
+
+	latestStepId := b.verifiedShardInfoDB.LatestStepID()
+	finalizedSlot := b.verifiedShardInfoDB.FinalizedSlot()
+	blockStatus := make(map[uint64]*types.BlockStatus)
+
+	for si := stepId; si <= latestStepId; si++ {
+		shardInfo := shardInfos[si]
+		if shardInfo != nil {
+			blockStatus[si] = utils.ConvertShardInfoToBlockStatus(shardInfo, types.Verified, finalizedSlot)
+		}
+	}
+
+	return blockStatus, nil
 }
 
-func (backed *Backend) PendingPandoraHeaders() []*eth1Types.Header {
-	headers, err := backed.PandoraPendingHeaderCache.GetAll()
+func (b *Backend) LatestEpoch() uint64 {
+	return b.ConsensusInfoDB.LatestSavedEpoch()
+}
+
+func (b *Backend) PendingPandoraHeaders() []*eth1Types.Header {
+	headers, err := b.PandoraPendingHeaderCache.GetAll()
 	if err != nil {
 		return nil
 	}
@@ -79,50 +112,55 @@ func (backed *Backend) PendingPandoraHeaders() []*eth1Types.Header {
 }
 
 func (backend *Backend) LatestFinalizedSlot() uint64 {
-	return backend.VerifiedSlotInfoDB.LatestLatestFinalizedSlot()
+	return backend.verifiedShardInfoDB.FinalizedSlot()
 }
 
 // GetSlotStatus
-func (backend *Backend) GetSlotStatus(ctx context.Context, slot uint64, hash common.Hash, requestFrom bool) types.Status {
+func (b *Backend) GetSlotStatus(ctx context.Context, slot uint64, hash common.Hash, requestFrom bool) types.Status {
 	// by default if nothing is found then return skipped
 	status := types.Pending
-
-	//when requested slot is greater than latest verified slot
-	latestVerifiedSlot := backend.VerifiedSlotInfoDB.LatestSavedVerifiedSlot()
 	var slotInfo *types.SlotInfo
-
 	logPrinter := func(stat types.Status) {
 		log.WithField("slot", slot).
-			WithField("latestVerifiedSlot", latestVerifiedSlot).
 			WithField("status", stat).
 			Debug("Verification status")
 	}
-	// finally found in the database so return immediately so that no other db call happens
-	if slotInfo, _ = backend.VerifiedSlotInfoDB.VerifiedSlotInfo(slot); slotInfo != nil {
-		panHeaderHash := slotInfo.PandoraHeaderHash
-		vanHeaderHash := slotInfo.VanguardBlockHash
 
-		if requestFrom && panHeaderHash != hash {
-			log.WithError(ErrHeaderHashMisMatch).
-				Warn("Failed to match header hash with requested header hash from pandora node")
-			logPrinter(types.Invalid)
-			return types.Invalid
-		}
-
-		if !requestFrom && vanHeaderHash != hash {
-			log.WithError(ErrHeaderHashMisMatch).
-				Warn("Failed to match header hash with requested header hash from vanguard node")
-			logPrinter(types.Invalid)
-			return types.Invalid
-		}
-
-		status = types.Verified
-		logPrinter(types.Verified)
-		return status
+	// Removing slot infos from verified slot info db
+	stepId, err := b.verifiedShardInfoDB.GetStepIdBySlot(slot)
+	if err != nil {
+		log.WithError(err).WithField("slot", slot).WithField("stepId", stepId).Error("Could not found step id from DB")
+		return types.Invalid
 	}
 
 	// finally found in the database so return immediately so that no other db call happens
-	if slotInfo, _ = backend.InvalidSlotInfoDB.InvalidSlotInfo(slot); slotInfo != nil {
+	if shardInfo, _ := b.verifiedShardInfoDB.VerifiedShardInfo(stepId); shardInfo != nil {
+		if len(shardInfo.Shards) > 0 && len(shardInfo.Shards[0].Blocks) > 0 {
+			panHeaderHash := shardInfo.Shards[0].Blocks[0].HeaderRoot
+			vanHeaderHash := shardInfo.SlotInfo.BlockRoot
+
+			if requestFrom && panHeaderHash != hash {
+				log.WithError(ErrHeaderHashMisMatch).
+					Warn("Failed to match header hash with requested header hash from pandora node")
+				logPrinter(types.Invalid)
+				return types.Invalid
+			}
+
+			if !requestFrom && vanHeaderHash != hash {
+				log.WithError(ErrHeaderHashMisMatch).
+					Warn("Failed to match header hash with requested header hash from vanguard node")
+				logPrinter(types.Invalid)
+				return types.Invalid
+			}
+
+			status = types.Verified
+			logPrinter(types.Verified)
+			return status
+		}
+	}
+
+	// finally found in the database so return immediately so that no other db call happens
+	if slotInfo, _ = b.InvalidSlotInfoDB.InvalidSlotInfo(slot); slotInfo != nil {
 		status = types.Invalid
 		logPrinter(types.Invalid)
 		return status

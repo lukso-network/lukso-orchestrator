@@ -6,7 +6,7 @@ import (
 )
 
 // SaveLatestFinalizedSlot
-func (s *Store) SaveLatestFinalizedSlot(latestFinalizedSlot uint64) error {
+func (s *Store) SaveFinalizedSlot(latestFinalizedSlot uint64) error {
 	// storing latest finalized slot number into db
 	return s.db.Update(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(latestInfoMarkerBucket)
@@ -19,7 +19,7 @@ func (s *Store) SaveLatestFinalizedSlot(latestFinalizedSlot uint64) error {
 }
 
 // LatestLatestFinalizedSlot
-func (s *Store) LatestLatestFinalizedSlot() uint64 {
+func (s *Store) FinalizedSlot() uint64 {
 	var latestFinalizedSlot uint64
 	// Db is not prepared yet. Retrieve latest saved finalized slot number from db
 	if !s.isRunning {
@@ -41,7 +41,7 @@ func (s *Store) LatestLatestFinalizedSlot() uint64 {
 }
 
 // SaveLatestFinalizedEpoch
-func (s *Store) SaveLatestFinalizedEpoch(latestFinalizedEpoch uint64) error {
+func (s *Store) SaveFinalizedEpoch(latestFinalizedEpoch uint64) error {
 	// storing latest finalized slot number into db
 	return s.db.Update(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(latestInfoMarkerBucket)
@@ -54,7 +54,7 @@ func (s *Store) SaveLatestFinalizedEpoch(latestFinalizedEpoch uint64) error {
 }
 
 // LatestLatestFinalizedEpoch
-func (s *Store) LatestLatestFinalizedEpoch() uint64 {
+func (s *Store) FinalizedEpoch() uint64 {
 	var latestFinalizedEpoch uint64
 	// Db is not prepared yet. Retrieve latest saved finalized slot number from db
 	if !s.isRunning {

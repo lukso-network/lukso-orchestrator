@@ -191,8 +191,6 @@ func (o *OrchestratorNode) registerConsensusService(cliCtx *cli.Context) error {
 	}
 
 	svc := consensus.New(o.ctx, &consensus.Config{
-		VerifiedSlotInfoDB:           o.db,
-		InvalidSlotInfoDB:            o.db,
 		VerifiedShardInfoDB:          o.db,
 		VanguardPendingShardingCache: o.vanShardInfoCache,
 		PandoraPendingHeaderCache:    o.pandoraInfoCache,

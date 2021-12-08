@@ -110,13 +110,13 @@ func (s *Service) verifyShardingInfo(vanShardInfo *types.VanguardShardInfo, head
 
 func (s *Service) getShardingInfoInDB(slot uint64) *types.MultiShardInfo {
 	// Removing slot infos from verified slot info db
-	stepId, err := s.verifiedShardInfoDB.GetStepIdBySlot(slot)
+	stepId, err := s.db.GetStepIdBySlot(slot)
 	if err != nil {
 		log.WithError(err).WithField("slot", slot).Error("Could not found step id from DB")
 		return nil
 	}
 
-	shardInfo, err := s.verifiedShardInfoDB.VerifiedShardInfo(stepId)
+	shardInfo, err := s.db.VerifiedShardInfo(stepId)
 	if err != nil {
 		log.WithError(err).WithField("stepId", stepId).Error("Could not found shard info from DB during reorg")
 		return nil
@@ -134,17 +134,17 @@ func (s *Service) getShardingInfoInDB(slot uint64) *types.MultiShardInfo {
 // Store multiShardingInfo into db
 // Update stepId into db
 func (s *Service) writeShardInfoInDB(shardInfo *types.MultiShardInfo) error {
-	latestStepId := s.verifiedShardInfoDB.LatestStepID()
+	latestStepId := s.db.LatestStepID()
 	nextStepId := latestStepId + 1
-	if err := s.verifiedShardInfoDB.SaveVerifiedShardInfo(nextStepId, shardInfo); err != nil {
+	if err := s.db.SaveVerifiedShardInfo(nextStepId, shardInfo); err != nil {
 		return err
 	}
 
-	if err := s.verifiedShardInfoDB.SaveLatestStepID(nextStepId); err != nil {
+	if err := s.db.SaveLatestStepID(nextStepId); err != nil {
 		return err
 	}
 
-	if err := s.verifiedShardInfoDB.SaveSlotStepIndex(shardInfo.SlotInfo.Slot, nextStepId); err != nil {
+	if err := s.db.SaveSlotStepIndex(shardInfo.SlotInfo.Slot, nextStepId); err != nil {
 		return err
 	}
 
@@ -154,16 +154,16 @@ func (s *Service) writeShardInfoInDB(shardInfo *types.MultiShardInfo) error {
 
 // writeFinalizeInfo method store latest finalize slot and epoch if needed
 func (s *Service) writeFinalizeInfo(finalizeSlot, finalizeEpoch uint64) {
-	curFinalizeSlot := s.verifiedSlotInfoDB.LatestLatestFinalizedSlot()
+	curFinalizeSlot := s.db.FinalizedSlot()
 	if finalizeSlot > curFinalizeSlot {
-		if err := s.verifiedSlotInfoDB.SaveLatestFinalizedSlot(finalizeSlot); err != nil {
+		if err := s.db.SaveFinalizedSlot(finalizeSlot); err != nil {
 			log.WithError(err).Warn("Failed to store new finalized info")
 		}
 	}
 
-	curFinalizeEpoch := s.verifiedSlotInfoDB.LatestLatestFinalizedEpoch()
+	curFinalizeEpoch := s.db.FinalizedEpoch()
 	if finalizeEpoch > curFinalizeEpoch {
-		if err := s.verifiedSlotInfoDB.SaveLatestFinalizedEpoch(finalizeEpoch); err != nil {
+		if err := s.db.SaveFinalizedEpoch(finalizeEpoch); err != nil {
 			log.WithError(err).Warn("Failed to store new finalized epoch")
 		}
 	}
@@ -172,26 +172,26 @@ func (s *Service) writeFinalizeInfo(finalizeSlot, finalizeEpoch uint64) {
 // reorgDB
 func (s *Service) reorgDB(revertSlot uint64) error {
 	// Removing slot infos from verified slot info db
-	stepId, err := s.verifiedShardInfoDB.GetStepIdBySlot(revertSlot)
+	stepId, err := s.db.GetStepIdBySlot(revertSlot)
 	if err != nil {
 		log.WithError(err).WithField("revertSlot", revertSlot).Error("Could not found step id from DB during reorg")
 		return err
 	}
 
-	shardInfo, err := s.verifiedShardInfoDB.VerifiedShardInfo(stepId)
+	shardInfo, err := s.db.VerifiedShardInfo(stepId)
 	if err != nil {
 		log.WithError(err).WithField("stepId", stepId).Error("Could not found shard info from DB during reorg")
 		return err
 	}
 
 	if stepId > 0 && shardInfo != nil {
-		if err := s.verifiedShardInfoDB.RemoveShardingInfos(stepId); err != nil {
+		if err := s.db.RemoveShardingInfos(stepId); err != nil {
 			log.WithError(err).Error("Could not revert shard info from DB during reorg")
 			return err
 		}
 	}
 
-	if err := s.verifiedShardInfoDB.SaveLatestStepID(stepId); err != nil {
+	if err := s.db.SaveLatestStepID(stepId); err != nil {
 		log.WithError(err).Error("Could not store latest step id during reorg")
 		return err
 	}

@@ -38,3 +38,28 @@ func PrepareMultiShardData(
 
 	return shardInfo
 }
+
+// ConvertShardInfoToBlockStatus converts sharding info to blockStatus
+func ConvertShardInfoToBlockStatus(
+	shardInfo *types.MultiShardInfo,
+	verifiedStatus types.Status, finalizedSlot uint64) (blockStatus *types.BlockStatus) {
+
+	if shardInfo == nil {
+		return nil
+	}
+
+	if len(shardInfo.Shards) == 0 {
+		return nil
+	}
+
+	if len(shardInfo.Shards[0].Blocks) == 0 {
+		return nil
+	}
+
+	shardData := shardInfo.Shards[0].Blocks[0]
+	return &types.BlockStatus{
+		Hash:          shardData.HeaderRoot,
+		Status:        verifiedStatus,
+		FinalizedSlot: finalizedSlot,
+	}
+}

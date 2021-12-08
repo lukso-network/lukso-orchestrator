@@ -19,38 +19,28 @@ const (
 )
 
 type Config struct {
-	VerifiedSlotInfoDB  db.VerifiedSlotInfoDB
-	InvalidSlotInfoDB   db.InvalidSlotInfoDB
-	VerifiedShardInfoDB db.VerifiedShardInfoDB
-
+	VerifiedShardInfoDB          db.VerifiedShardInfoDB
 	VanguardPendingShardingCache cache.VanguardShardCache
 	PandoraPendingHeaderCache    cache.PandoraHeaderCache
-
-	VanguardShardFeed iface.VanguardService
-	PandoraHeaderFeed iface2.PandoraService
+	VanguardShardFeed            iface.VanguardService
+	PandoraHeaderFeed            iface2.PandoraService
 }
 
 // Service This part could be moved to other place during refactor, might be registered as a service
 type Service struct {
-	isRunning      bool
-	processingLock sync.Mutex
-	ctx            context.Context
-	cancel         context.CancelFunc
-	runError       error
-
-	scope event.SubscriptionScope
-
-	verifiedSlotInfoDB  db.VerifiedSlotInfoDB
-	invalidSlotInfoDB   db.InvalidSlotInfoDB
-	verifiedShardInfoDB db.VerifiedShardInfoDB
-
+	isRunning                    bool
+	processingLock               sync.Mutex
+	ctx                          context.Context
+	cancel                       context.CancelFunc
+	runError                     error
+	scope                        event.SubscriptionScope
+	db                           db.VerifiedShardInfoDB
 	vanguardPendingShardingCache cache.VanguardShardCache
 	pandoraPendingHeaderCache    cache.PandoraHeaderCache
-
-	vanguardService      iface.VanguardService
-	pandoraService       iface2.PandoraService
-	verifiedSlotInfoFeed event.Feed
-	reorgInProgress      bool
+	vanguardService              iface.VanguardService
+	pandoraService               iface2.PandoraService
+	verifiedSlotInfoFeed         event.Feed
+	reorgInProgress              bool
 }
 
 //
@@ -61,9 +51,7 @@ func New(ctx context.Context, cfg *Config) (service *Service) {
 	return &Service{
 		ctx:                          ctx,
 		cancel:                       cancel,
-		verifiedSlotInfoDB:           cfg.VerifiedSlotInfoDB,
-		verifiedShardInfoDB:          cfg.VerifiedShardInfoDB,
-		invalidSlotInfoDB:            cfg.InvalidSlotInfoDB,
+		db:                           cfg.VerifiedShardInfoDB,
 		vanguardPendingShardingCache: cfg.VanguardPendingShardingCache,
 		pandoraPendingHeaderCache:    cfg.PandoraPendingHeaderCache,
 		vanguardService:              cfg.VanguardShardFeed,
@@ -118,8 +106,8 @@ func (s *Service) Start() {
 				}
 				s.reorgInProgress = true
 				// reorg happened. So remove info from database
-				finalizedSlot := s.verifiedSlotInfoDB.LatestLatestFinalizedSlot()
-				finalizedEpoch := s.verifiedSlotInfoDB.LatestLatestFinalizedEpoch()
+				finalizedSlot := s.db.FinalizedSlot()
+				finalizedEpoch := s.db.FinalizedEpoch()
 				log.WithField("curSlot", reorgInfo.NewSlot).WithField("revertSlot", finalizedSlot).
 					WithField("finalizedEpoch", finalizedEpoch).Warn("Triggered reorg event")
 
