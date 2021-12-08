@@ -3,6 +3,7 @@ package cache
 import (
 	"github.com/pkg/errors"
 	"math"
+	"time"
 )
 
 var (
@@ -12,6 +13,8 @@ var (
 	// need to define maximum size. It will take maximum latest 100 epochs
 	maxInt = math.MaxInt32 - 1
 
+	cacheRemovalInterval = time.Second * 8
+
 	// errInvalidSlot
 	errInvalidSlot = errors.New("Invalid slot")
 
@@ -20,4 +23,6 @@ var (
 
 	// errRemoveCache is error while removing invalid slot number from the cache
 	errRemoveCache = errors.New("invalid slot removal")
+
+	errAlreadyInProgress = errors.New("requested slot number is already in progress")
 )
