@@ -15,10 +15,10 @@ import (
 
 // Config
 type Config struct {
-	ConsensusInfoFeed            iface.ConsensusInfoFeed
-	VerifiedSlotInfoFeed         conIface.VerifiedSlotInfoFeed
-	Db                           db.Database
-	PendingInfoCache             cache.QueueInterface
+	ConsensusInfoFeed    iface.ConsensusInfoFeed
+	VerifiedSlotInfoFeed conIface.VerifiedSlotInfoFeed
+	Db                   db.Database
+	PendingInfoCache     cache.QueueInterface
 	// ipc config
 	IPCPath string
 	// http config
@@ -70,7 +70,6 @@ func NewService(ctx context.Context, cfg *Config) (*Service, error) {
 		backend: &api.Backend{
 			ConsensusInfoFeed:    cfg.ConsensusInfoFeed,
 			ConsensusInfoDB:      cfg.Db,
-			VerifiedSlotInfoDB:   cfg.Db,
 			InvalidSlotInfoDB:    cfg.Db,
 			PendingInfoCache:     cfg.PendingInfoCache,
 			VerifiedSlotInfoFeed: cfg.VerifiedSlotInfoFeed,

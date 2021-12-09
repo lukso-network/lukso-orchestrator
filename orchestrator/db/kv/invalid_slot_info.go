@@ -23,9 +23,6 @@ func (s *Store) InvalidSlotInfo(slot uint64) (*types.SlotInfo, error) {
 
 // SaveInvalidSlotInfo
 func (s *Store) SaveInvalidSlotInfo(slot uint64, slotInfo *types.SlotInfo) error {
-	s.Mutex.Lock()
-	defer s.Mutex.Unlock()
-
 	// storing consensus info into cache and db
 	return s.db.Update(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(invalidSlotInfosBucket)

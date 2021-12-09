@@ -52,7 +52,7 @@ func (s *Service) subscribeVanNewPendingBlockHash(ctx context.Context, fromSlot 
 						log.WithError(err).Infof("Trying to restart connection. rpc status: %v", e.Code())
 						s.waitForConnection()
 						// Re-try subscription from latest finalized slot
-						latestFinalizedSlot := s.db.LatestLatestFinalizedSlot()
+						latestFinalizedSlot := s.verifiedShardInfoDB.FinalizedSlot()
 						stream, err = s.beaconClient.StreamNewPendingBlocks(ctx,
 							&ethpb.StreamPendingBlocksRequest{
 								BlockRoot: blockRoot,
@@ -113,7 +113,7 @@ func (s *Service) subscribeNewConsensusInfoGRPC(ctx context.Context, fromEpoch u
 					case codes.Canceled, codes.Internal, codes.Unavailable:
 						log.WithError(err).Infof("Trying to restart connection. rpc status: %v", e.Code())
 						s.waitForConnection()
-						latestFinalizedEpoch := s.db.LatestLatestFinalizedEpoch()
+						latestFinalizedEpoch := s.verifiedShardInfoDB.FinalizedEpoch()
 						stream, err = s.beaconClient.StreamMinimalConsensusInfo(ctx, &ethpb.MinimalConsensusInfoRequest{FromEpoch: eth2Types.Epoch(latestFinalizedEpoch)})
 						if nil != err {
 							log.WithError(err).Error("Failed to subscribe to stream of new consensus info, Exiting go routine")
@@ -145,21 +145,22 @@ func (s *Service) subscribeNewConsensusInfoGRPC(ctx context.Context, fromEpoch u
 				ValidatorList:    vanMinimalConsensusInfo.ValidatorList,
 				EpochStartTime:   vanMinimalConsensusInfo.EpochTimeStart,
 				SlotTimeDuration: time.Duration(vanMinimalConsensusInfo.SlotTimeDuration.Seconds),
-				FinalizedSlot:    s.db.LatestLatestFinalizedSlot(),
+				FinalizedSlot:    s.verifiedShardInfoDB.FinalizedSlot(),
 			}
 
 			// if re-org happens then we get this info not nil
-			if vanMinimalConsensusInfo.ReorgInfo != nil {
-				reorgInfo := &types.Reorg{
-					VanParentHash: vanMinimalConsensusInfo.ReorgInfo.VanParentHash,
-					PanParentHash: vanMinimalConsensusInfo.ReorgInfo.PanParentHash,
-					NewSlot:       uint64(vanMinimalConsensusInfo.ReorgInfo.NewSlot),
-				}
-				consensusInfo.ReorgInfo = reorgInfo
+			if s.reorgInfo != nil {
+				consensusInfo.ReorgInfo = s.reorgInfo
+
+				s.processingLock.Lock()
+				s.reorgInfo = nil
+				s.processingLock.Unlock()
 			}
 
-			log.WithField("epoch", vanMinimalConsensusInfo.Epoch).WithField("epochInfo", fmt.Sprintf("%+v", vanMinimalConsensusInfo)).
+			log.WithField("epoch", consensusInfo.Epoch).
+				WithField("epochInfo", fmt.Sprintf("%+v", consensusInfo)).
 				Debug("Received new consensus info")
+
 			if err := s.onNewConsensusInfo(ctx, consensusInfo); err != nil {
 				log.WithError(err).Error("Failed to handle consensus info. Closing epoch info subscription, Exiting go routine")
 				return err

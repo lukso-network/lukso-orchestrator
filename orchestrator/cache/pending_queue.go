@@ -9,19 +9,18 @@ import (
 )
 
 // NewPendingDataContainer creates PendingQueueCache with expected size
-func NewPendingDataContainer (containerSize int) *PendingQueueCache {
+func NewPendingDataContainer(containerSize int) *PendingQueueCache {
 	cache, err := lru.New(containerSize)
 	if err != nil {
 		panic(err)
 	}
 	return &PendingQueueCache{
-		pendingCache: cache,
+		pendingCache:    cache,
 		inProgressSlots: make(map[uint64]bool),
 	}
 }
 
-
-func (p *PendingQueueCache) MarkInProgress (slot uint64) error {
+func (p *PendingQueueCache) MarkInProgress(slot uint64) error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
@@ -32,7 +31,7 @@ func (p *PendingQueueCache) MarkInProgress (slot uint64) error {
 	return nil
 }
 
-func (p *PendingQueueCache) MarkNotInProgress (slot uint64) error {
+func (p *PendingQueueCache) MarkNotInProgress(slot uint64) error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
@@ -40,7 +39,7 @@ func (p *PendingQueueCache) MarkNotInProgress (slot uint64) error {
 	return nil
 }
 
-func (p *PendingQueueCache) PutPandoraHeader (slot uint64, header *eth1Types.Header)  {
+func (p *PendingQueueCache) PutPandoraHeader(slot uint64, header *eth1Types.Header) {
 	panHeader := types.CopyHeader(header)
 	val, found := p.pendingCache.Get(slot)
 	if val != nil && found {
@@ -52,13 +51,13 @@ func (p *PendingQueueCache) PutPandoraHeader (slot uint64, header *eth1Types.Hea
 		p.pendingCache.Add(slot, queueData)
 	} else {
 		p.pendingCache.Add(slot, &PendingQueue{
-			panHeader: panHeader,
+			panHeader:      panHeader,
 			entryTimestamp: time.Now(),
 		})
 	}
 }
 
-func (p *PendingQueueCache) PutVanguardShardingInfo (slot uint64, vanShardInfo *types.VanguardShardInfo, disDel bool) {
+func (p *PendingQueueCache) PutVanguardShardingInfo(slot uint64, vanShardInfo *types.VanguardShardInfo, disDel bool) {
 	val, found := p.pendingCache.Get(slot)
 	if val != nil && found {
 		// slot is already in the database.
@@ -69,14 +68,14 @@ func (p *PendingQueueCache) PutVanguardShardingInfo (slot uint64, vanShardInfo *
 		p.pendingCache.Add(slot, queueData)
 	} else {
 		p.pendingCache.Add(slot, &PendingQueue{
-			vanShardInfo: vanShardInfo,
+			vanShardInfo:   vanShardInfo,
 			entryTimestamp: time.Now(),
-			disableDelete: disDel,
+			disableDelete:  disDel,
 		})
 	}
 }
 
-func (p *PendingQueueCache) GetSlot (slot uint64) (info *PendingQueue, found bool) {
+func (p *PendingQueueCache) GetSlot(slot uint64) (info *PendingQueue, found bool) {
 	data, found := p.pendingCache.Get(slot)
 	if found {
 		return data.(*PendingQueue), found
@@ -84,7 +83,7 @@ func (p *PendingQueueCache) GetSlot (slot uint64) (info *PendingQueue, found boo
 	return nil, found
 }
 
-func (p *PendingQueueCache) ForceDelSlot (slot uint64) {
+func (p *PendingQueueCache) ForceDelSlot(slot uint64) {
 	for i := slot; i > 0; i-- {
 		if p.pendingCache.Contains(i) {
 			// removed all the previous slot number from cache. Now return
@@ -93,11 +92,11 @@ func (p *PendingQueueCache) ForceDelSlot (slot uint64) {
 	}
 }
 
-func (p *PendingQueueCache) Purge () {
+func (p *PendingQueueCache) Purge() {
 	p.pendingCache.Purge()
 }
 
-func (p *PendingQueueCache) RemoveByTime (timeStamp time.Time) []*PendingQueue {
+func (p *PendingQueueCache) RemoveByTime(timeStamp time.Time) []*PendingQueue {
 	keys := p.pendingCache.Keys()
 	var retVal []*PendingQueue
 

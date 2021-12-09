@@ -53,10 +53,13 @@ type Service struct {
 	scope                    event.SubscriptionScope
 	vanguardShardingInfoFeed event.Feed
 	subscriptionShutdownFeed event.Feed
+	// db support
+	verifiedShardInfoDB db.ROnlyVerifiedShardInfoDB // db support
+	consensusInfoDB     db.ConsensusInfoAccessDB    // db support
 
-	db                  db.Database              // db support
 	stopPendingBlkSubCh chan struct{}
 	stopEpochInfoSubCh  chan struct{}
+	reorgInfo           *types.Reorg
 }
 
 // NewService creates new service with vanguard endpoint, vanguard namespace and consensusInfoDB
@@ -73,7 +76,8 @@ func NewService(
 		ctx:                 ctx,
 		cancel:              cancel,
 		vanGRPCEndpoint:     vanGRPCEndpoint,
-		db:                  db,
+		verifiedShardInfoDB: db,
+		consensusInfoDB:     db,
 		stopPendingBlkSubCh: make(chan struct{}),
 		stopEpochInfoSubCh:  make(chan struct{}),
 	}, nil
@@ -123,13 +127,13 @@ func (s *Service) run() {
 
 	s.waitForConnection()
 
-	latestFinalizedEpoch := s.db.LatestLatestFinalizedEpoch()
-	latestFinalizedSlot := s.db.LatestLatestFinalizedSlot()
+	latestFinalizedEpoch := s.verifiedShardInfoDB.FinalizedEpoch()
+	latestFinalizedSlot := s.verifiedShardInfoDB.FinalizedSlot()
 	fromEpoch := latestFinalizedEpoch
 
 	// checking consensus info db
 	for i := latestFinalizedEpoch; i >= 0; {
-		epochInfo, _ := s.db.ConsensusInfo(s.ctx, i)
+		epochInfo, _ := s.consensusInfoDB.ConsensusInfo(s.ctx, i)
 		if epochInfo == nil {
 			// epoch info is missing. so subscribe from here. maybe db operation was wrong
 			fromEpoch = i
@@ -194,6 +198,18 @@ func (s *Service) SubscribeShutdownSignalEvent(ch chan<- *types.Reorg) event.Sub
 	return s.scope.Track(s.subscriptionShutdownFeed.Subscribe(ch))
 }
 
+func (s *Service) StopSubscription(reorgInfo *types.Reorg) {
+	defer s.processingLock.Unlock()
+	s.processingLock.Lock()
+
+	s.reorgInfo = reorgInfo
+	if s.conn != nil {
+		s.conn.Close()
+		s.conn = nil
+	}
+	log.Info("Stopped vanguard gRPC subscription due to reorg")
+}
+
 // dialConn method creates connection with vanguard grpc server
 func (s *Service) dialConn() error {
 	s.processingLock.Lock()
@@ -251,9 +267,9 @@ func constructDialOptions(
 		transportSecurity = grpc.WithTransportCredentials(creds)
 	} else {
 		transportSecurity = grpc.WithInsecure()
-		log.Warn("You are using an insecure gRPC connection. If you are running your beacon node and " +
-			"validator on the same machines, you can ignore this message. If you want to know " +
-			"how to enable secure connections, see: https://docs.prylabs.network/docs/prysm-usage/secure-grpc")
+		log.Warn("You are using an insecure gRPC connection. If you are running your orchestrator, vanguard, pandora and " +
+			"validator node on the same machines, you can ignore this message. If you want to know " +
+			"how to enable secure connections, see: https://docs.lukso.tech/networks/l15-testnet")
 	}
 
 	if maxCallRecvMsgSize == 0 {

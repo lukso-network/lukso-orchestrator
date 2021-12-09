@@ -28,7 +28,6 @@ func setup(t *testing.T) (*Config, error) {
 		context.Background(),
 		&consensus.Config{
 			orchestratorDB,
-			orchestratorDB,
 			cache.NewPendingDataContainer(1 << 10),
 			nil,
 			nil,

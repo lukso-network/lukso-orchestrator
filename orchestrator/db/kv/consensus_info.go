@@ -33,9 +33,7 @@ func (s *Store) ConsensusInfo(ctx context.Context, epoch uint64) (*eventTypes.Mi
 }
 
 // ConsensusInfos
-func (s *Store) ConsensusInfos(fromEpoch uint64) (
-	[]*eventTypes.MinimalEpochConsensusInfo, error,
-) {
+func (s *Store) ConsensusInfos(fromEpoch uint64) ([]*eventTypes.MinimalEpochConsensusInfo, error) {
 	latestEpoch := s.LatestSavedEpoch()
 	// when requested epoch is greater than stored latest epoch
 	if fromEpoch > latestEpoch {
@@ -76,9 +74,6 @@ func (s *Store) SaveConsensusInfo(
 	ctx context.Context,
 	consensusInfo *eventTypes.MinimalEpochConsensusInfo,
 ) error {
-	s.Mutex.Lock()
-	defer s.Mutex.Unlock()
-
 	// storing consensus info into cache and db
 	return s.db.Update(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(consensusInfosBucket)
@@ -99,8 +94,6 @@ func (s *Store) SaveConsensusInfo(
 }
 
 func (s *Store) RemoveRangeConsensusInfo(startEpoch, endEpoch uint64) error {
-	s.Mutex.Lock()
-	defer s.Mutex.Unlock()
 
 	return s.db.Update(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(consensusInfosBucket)
@@ -139,9 +132,6 @@ func (s *Store) LatestSavedEpoch() uint64 {
 
 // SaveLatestEpoch
 func (s *Store) SaveLatestEpoch(ctx context.Context, epoch uint64) error {
-	s.Mutex.Lock()
-	defer s.Mutex.Unlock()
-
 	// storing latest epoch number into db
 	return s.db.Update(func(tx *bolt.Tx) error {
 		bkt := tx.Bucket(latestInfoMarkerBucket)
