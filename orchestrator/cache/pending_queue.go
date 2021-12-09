@@ -47,8 +47,6 @@ func (p *PendingQueueCache) PutPandoraHeader (slot uint64, header *eth1Types.Hea
 		// slot is already in the database.
 		queueData := val.(*PendingQueue)
 		queueData.panHeader = panHeader
-		// update the time as info is updated
-		queueData.entryTimestamp = time.Now()
 
 		// update cache
 		p.pendingCache.Add(slot, queueData)
@@ -66,8 +64,6 @@ func (p *PendingQueueCache) PutVanguardShardingInfo (slot uint64, vanShardInfo *
 		// slot is already in the database.
 		queueData := val.(*PendingQueue)
 		queueData.vanShardInfo = vanShardInfo
-		// update the time as info is updated
-		queueData.entryTimestamp = time.Now()
 
 		// update cache
 		p.pendingCache.Add(slot, queueData)
