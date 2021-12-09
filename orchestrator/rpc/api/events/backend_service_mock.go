@@ -1,10 +1,9 @@
-package api
+package events
 
 import (
 	"context"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
 	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
 	"time"
 )
@@ -22,7 +21,7 @@ type MockBackend struct {
 	CurEpoch          uint64
 }
 
-var _ events.Backend = &MockBackend{}
+var _ Backend = &MockBackend{}
 
 func (b *MockBackend) ConsensusInfoByEpochRange(fromEpoch uint64) ([]*eventTypes.MinimalEpochConsensusInfoV2, error) {
 	consensusInfos := make([]*eventTypes.MinimalEpochConsensusInfoV2, 0)

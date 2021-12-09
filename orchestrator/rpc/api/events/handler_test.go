@@ -1,7 +1,6 @@
 package events
 
 import (
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
 	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
@@ -10,18 +9,18 @@ import (
 )
 
 // setup
-func setup(t *testing.T) (*api.MockBackend, *PublicFilterAPI) {
+func setup(t *testing.T) (*MockBackend, *PublicFilterAPI) {
 	consensusInfos := make([]*eventTypes.MinimalEpochConsensusInfoV2, 0)
 	for i := 0; i < 5; i++ {
 		consensusInfos = append(consensusInfos, testutil.NewMinimalConsensusInfo(uint64(i)))
 	}
 
-	backend := &api.MockBackend{
+	backend := &MockBackend{
 		ConsensusInfos: consensusInfos,
 		CurEpoch:       4,
 	}
 
-	eventApi := NewPublicFilterAPI(backend, api.Deadline)
+	eventApi := NewPublicFilterAPI(backend, Deadline)
 	return backend, eventApi
 }
 
