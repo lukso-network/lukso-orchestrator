@@ -40,11 +40,11 @@ func (mc *mockFeedService) SubscribeShardInfoEvent(ch chan<- *types.VanguardShar
 }
 
 func setup(ctx context.Context, t *testing.T) (*Service, *mockFeedService) {
-	testDB := testDB.SetupDB(t)
+	setupDB := testDB.SetupDB(t)
 	mfs := new(mockFeedService)
 
 	cfg := &Config{
-		VerifiedShardInfoDB:          testDB,
+		VerifiedShardInfoDB:          setupDB,
 		VanguardPendingShardingCache: cache.NewVanShardInfoCache(1024),
 		PandoraPendingHeaderCache:    cache.NewPanHeaderCache(),
 		VanguardShardFeed:            mfs,
