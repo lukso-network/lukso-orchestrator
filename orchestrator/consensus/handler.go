@@ -39,12 +39,12 @@ func (s *Service) processPandoraHeader(headerInfo *types.PandoraHeaderInfo) erro
 	}
 	defer s.pendingInfoCache.MarkNotInProgress(slot)
 
-	vanShardInfo, _ := s.pendingInfoCache.GetSlot(slot)
-	if vanShardInfo == nil {
-		return nil
+	pendingShardInfo, _ := s.pendingInfoCache.GetSlot(slot)
+	if pendingShardInfo != nil && pendingShardInfo.GetVanShard() != nil {
+		return s.insertIntoChain(pendingShardInfo.GetVanShard(), headerInfo.Header)
 	}
 
-	return s.insertIntoChain(vanShardInfo.GetVanShard(), headerInfo.Header)
+	return nil
 }
 
 // processVanguardShardInfo
@@ -69,12 +69,12 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 	}
 	defer s.pendingInfoCache.MarkNotInProgress(slot)
 
-	slotInfo, _ := s.pendingInfoCache.GetSlot(slot)
-	if slotInfo.GetPanHeader() == nil {
-		return nil
+	pendingShardInfo, _ := s.pendingInfoCache.GetSlot(slot)
+	if pendingShardInfo != nil && pendingShardInfo.GetPanHeader() != nil {
+		return s.insertIntoChain(vanShardInfo, pendingShardInfo.GetPanHeader())
 	}
 
-	return s.insertIntoChain(vanShardInfo, slotInfo.GetPanHeader())
+	return nil
 }
 
 // insertIntoChain method
@@ -147,12 +147,12 @@ func (s *Service) getShardingInfo(slot uint64) *types.MultiShardInfo {
 
 	shardInfo, err := s.db.VerifiedShardInfo(stepId)
 	if err != nil {
-		log.WithError(err).WithField("stepId", stepId).Error("Could not found shard info from DB during reorg")
+		log.WithError(err).WithField("stepId", stepId).Error("Could not found shard info from DB")
 		return nil
 	}
 
 	if shardInfo == nil {
-		log.WithField("stepId", stepId).Debug("Could not found shard info from DB during reorg")
+		log.WithField("stepId", stepId).Debug("Could not found shard info from DB")
 		return nil
 	}
 
