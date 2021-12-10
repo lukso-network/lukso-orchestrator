@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"fmt"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/utils"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -18,7 +19,7 @@ func (s *Service) processPandoraHeader(headerInfo *types.PandoraHeaderInfo) erro
 	// short circuit check, if this header is already in verified sharding info db then send confirmation instantly
 	if shardInfo := s.getShardingInfo(slot); shardInfo != nil {
 		if len(shardInfo.Shards) > 0 && len(shardInfo.Shards[0].Blocks) > 0 && shardInfo.Shards[0].Blocks[0].HeaderRoot == headerInfo.Header.Hash() {
-			log.WithField("shardInfo", shardInfo).Debug("Pandora shard header is already in verified shard info db")
+			log.WithField("shardInfo", fmt.Sprintf("%+v", shardInfo)).Debug("Pandora shard header is already in verified shard info db")
 			s.verifiedSlotInfoFeed.Send(&types.SlotInfoWithStatus{
 				VanguardBlockHash: shardInfo.SlotInfo.BlockRoot,
 				PandoraHeaderHash: shardInfo.Shards[0].Blocks[0].HeaderRoot,
@@ -54,7 +55,7 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 	// short circuit check, if this header is already in verified sharding info db then send confirmation instantly
 	if shardInfo := s.getShardingInfo(slot); shardInfo != nil {
 		if shardInfo.SlotInfo != nil && shardInfo.SlotInfo.BlockRoot != common.BytesToHash(vanShardInfo.BlockHash) {
-			log.WithField("shardInfo", shardInfo).Debug("Van header is already in verified shard info db")
+			log.WithField("shardInfo", fmt.Sprintf("%+v", shardInfo)).Debug("Van header is already in verified shard info db")
 			return nil
 		}
 	}
@@ -126,12 +127,13 @@ func (s *Service) verifyShardingInfo(vanShardInfo *types.VanguardShardInfo, head
 
 	if verificationStatus, triggerReorg := s.verifyConsecutiveHashes(header, vanShardInfo); !verificationStatus {
 		if triggerReorg {
-			log.Info("Reorg triggered")
+			log.Info("Reorg triggered!")
 			if err := s.processReorg(common.BytesToHash(vanShardInfo.ParentHash)); err != nil {
-
+				log.WithError(err).Error("Failed to process reorg")
 				return false, err
 			}
 		}
+		return false, nil
 	}
 
 	return true, nil
@@ -141,18 +143,15 @@ func (s *Service) getShardingInfo(slot uint64) *types.MultiShardInfo {
 	// Removing slot infos from verified slot info db
 	stepId, err := s.db.GetStepIdBySlot(slot)
 	if err != nil {
-		log.WithError(err).WithField("slot", slot).Error("Could not found step id from DB")
 		return nil
 	}
 
 	shardInfo, err := s.db.VerifiedShardInfo(stepId)
 	if err != nil {
-		log.WithError(err).WithField("stepId", stepId).Error("Could not found shard info from DB")
 		return nil
 	}
 
 	if shardInfo == nil {
-		log.WithField("stepId", stepId).Debug("Could not found shard info from DB")
 		return nil
 	}
 
@@ -177,7 +176,7 @@ func (s *Service) writeShardInfoInDB(shardInfo *types.MultiShardInfo) error {
 		return err
 	}
 
-	log.WithField("stepId", nextStepId).WithField("shardInfo", shardInfo).Info("Inserted sharding info into verified DB")
+	log.WithField("stepId", nextStepId).WithField("shardInfo", fmt.Sprintf("%+v", shardInfo)).Info("Inserted sharding info into verified DB")
 	return nil
 }
 
