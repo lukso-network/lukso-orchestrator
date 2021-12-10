@@ -112,7 +112,7 @@ func (s *Service) verifyConsecutiveHashes(ph *eth1Types.Header, vs *types.Vangua
 		return false, true
 	}
 
-	if len(shardInfo.Shards) > 0 && len(shardInfo.Shards[0].Blocks) > 0 && shardInfo.Shards[0].Blocks[0].HeaderRoot == pParentHash {
+	if len(shardInfo.Shards) > 0 && len(shardInfo.Shards[0].Blocks) > 0 && shardInfo.Shards[0].Blocks[0].HeaderRoot != pParentHash {
 		log.WithField("lastVerifiedPanHash", shardInfo.Shards[0].Blocks[0].HeaderRoot).
 			WithField("curPanParentHash", pParentHash).Debug("Invalid pandora parent hash")
 		return false, false
