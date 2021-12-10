@@ -107,7 +107,7 @@ func (p *PendingQueueCache) RemoveByTime(timeStamp time.Time) []*PendingQueue {
 		slot := key.(uint64)
 		queueInfo, _ := p.GetSlot(slot)
 		if queueInfo != nil && !p.inProgressSlots[slot] && !queueInfo.disableDelete && timeStamp.Sub(queueInfo.entryTimestamp) >= cacheRemovalInterval {
-			log.Debug("RemoveByTime", "slot number", slot)
+			log.WithField("slot number", slot).Debug("Removing expired slot info from cache")
 			retVal = append(retVal, queueInfo)
 			p.pendingCache.Remove(slot)
 			delete(p.inProgressSlots, slot)
