@@ -22,6 +22,7 @@ type Backend interface {
 	LatestFinalizedSlot() uint64
 	StepId(slot uint64) uint64
 	LatestStepId() uint64
+	VerifiedShardInfos(fromSlot uint64) (map[uint64]*generalTypes.MultiShardInfo, error)
 }
 
 // PublicFilterAPI offers support to create and manage filters. This will allow external clients to retrieve various
@@ -103,4 +104,15 @@ func (api *PublicFilterAPI) ConfirmVanBlockHashes(
 		})
 	}
 	return res, nil
+}
+
+// GetShardInfos is a debug api for getting latest shard infos from verified shard info db
+func (api *PublicFilterAPI) GetShardInfos(ctx context.Context) (response map[uint64]*generalTypes.MultiShardInfo, err error) {
+	finalizedSlot := api.backend.LatestFinalizedSlot()
+	shardInfos, err := api.backend.VerifiedShardInfos(finalizedSlot)
+	if err != nil {
+		return nil, err
+	}
+
+	return shardInfos, nil
 }

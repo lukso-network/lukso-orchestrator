@@ -62,3 +62,7 @@ func (mb *MockBackend) StepId(slot uint64) uint64 {
 func (mb *MockBackend) LatestStepId() uint64 {
 	return 0
 }
+
+func (mb *MockBackend) VerifiedShardInfos(fromSlot uint64) (map[uint64]*eventTypes.MultiShardInfo, error) {
+	return nil, nil
+}

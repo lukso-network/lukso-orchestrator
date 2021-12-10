@@ -158,3 +158,28 @@ func (b *Backend) GetSlotStatus(ctx context.Context, slot uint64, hash common.Ha
 	logPrinter(status)
 	return status
 }
+
+// VerifiedShardInfos retrieves shard infos from verified shard info db
+func (b *Backend) VerifiedShardInfos(fromSlot uint64) (map[uint64]*types.MultiShardInfo, error) {
+	// Short circuit for slot zero
+	if fromSlot == 0 {
+		return nil, nil
+	}
+
+	// Removing slot infos from verified slot info db
+	stepId, err := b.VerifiedShardInfoDB.GetStepIdBySlot(fromSlot)
+	if err != nil {
+		log.WithError(err).WithField("fromSlot", fromSlot).Error("Could not found step id from DB")
+		return nil, errors.Wrap(err, "Could not found step id from DB")
+	}
+
+	shardInfos, err := b.VerifiedShardInfoDB.VerifiedShardInfos(stepId)
+	if err != nil {
+		return nil, errors.Wrap(err, "Could not found verified shard infos from DB")
+	}
+
+	log.WithField("finalizedSlot", fromSlot).WithField("fromStepId", stepId).
+		WithField("lenShardInfo", len(shardInfos)).Debug("Serving shard infos from verified db")
+
+	return shardInfos, nil
+}
