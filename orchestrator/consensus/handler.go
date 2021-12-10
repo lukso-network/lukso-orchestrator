@@ -37,7 +37,7 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 	slot := vanShardInfo.Slot
 	// first push the shardInfo into the cache.
 	// it will update the cache if already present or enter a new info
-	s.pendingInfoCache.PutVanguardShardingInfo(slot, vanShardInfo, false)
+	s.pendingInfoCache.PutVanguardShardingInfo(slot, vanShardInfo, vanShardInfo.IsSyncing)
 	// now mark it as we are making a decision on it
 	err := s.pendingInfoCache.MarkInProgress(slot)
 	if err != nil {

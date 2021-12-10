@@ -58,6 +58,7 @@ func (s *Service) onNewPendingVanguardBlock(ctx context.Context, blockInfo *eth.
 		ShardInfo:      shardInfo,
 		FinalizedSlot:  uint64(blockInfo.FinalizedSlot),
 		FinalizedEpoch: uint64(blockInfo.FinalizedEpoch),
+		IsSyncing: blockInfo.IsSyncing,
 	}
 
 	log.WithField("slot", block.Slot).WithField("panBlockNum", shardInfo.BlockNumber).
