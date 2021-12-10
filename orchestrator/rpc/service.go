@@ -71,6 +71,7 @@ func NewService(ctx context.Context, cfg *Config) (*Service, error) {
 			ConsensusInfoFeed:    cfg.ConsensusInfoFeed,
 			ConsensusInfoDB:      cfg.Db,
 			InvalidSlotInfoDB:    cfg.Db,
+			VerifiedShardInfoDB:  cfg.Db,
 			PendingInfoCache:     cfg.PendingInfoCache,
 			VerifiedSlotInfoFeed: cfg.VerifiedSlotInfoFeed,
 		},

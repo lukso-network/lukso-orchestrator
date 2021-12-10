@@ -24,7 +24,7 @@ type Backend struct {
 
 	// db reference
 	ConsensusInfoDB     db.ROnlyConsensusInfoDB
-	verifiedShardInfoDB db.ROnlyVerifiedShardInfoDB
+	VerifiedShardInfoDB db.ROnlyVerifiedShardInfoDB
 	InvalidSlotInfoDB   db.ROnlyInvalidSlotInfoDB
 
 	// cache reference
@@ -54,7 +54,7 @@ func (b *Backend) ConsensusInfoByEpochRange(fromEpoch uint64) ([]*types.MinimalE
 }
 
 func (b *Backend) StepId(slot uint64) uint64 {
-	stepId, err := b.verifiedShardInfoDB.GetStepIdBySlot(slot)
+	stepId, err := b.VerifiedShardInfoDB.GetStepIdBySlot(slot)
 	if err != nil {
 		return 0
 	}
@@ -62,7 +62,7 @@ func (b *Backend) StepId(slot uint64) uint64 {
 }
 
 func (b *Backend) LatestStepId() uint64 {
-	return b.verifiedShardInfoDB.LatestStepID()
+	return b.VerifiedShardInfoDB.LatestStepID()
 }
 
 func (b *Backend) VerifiedSlotInfos(fromSlot uint64) (map[uint64]*types.BlockStatus, error) {
@@ -72,19 +72,19 @@ func (b *Backend) VerifiedSlotInfos(fromSlot uint64) (map[uint64]*types.BlockSta
 	}
 
 	// Removing slot infos from verified slot info db
-	stepId, err := b.verifiedShardInfoDB.GetStepIdBySlot(fromSlot)
+	stepId, err := b.VerifiedShardInfoDB.GetStepIdBySlot(fromSlot)
 	if err != nil {
 		log.WithError(err).WithField("fromSlot", fromSlot).WithField("stepId", stepId).Error("Could not found step id from DB")
 		return nil, errors.Wrap(err, "Could not found step id from DB")
 	}
 
-	shardInfos, err := b.verifiedShardInfoDB.VerifiedShardInfos(stepId)
+	shardInfos, err := b.VerifiedShardInfoDB.VerifiedShardInfos(stepId)
 	if err != nil {
 		return nil, errors.Wrap(err, "Could not found verified shard infos from DB")
 	}
 
-	latestStepId := b.verifiedShardInfoDB.LatestStepID()
-	finalizedSlot := b.verifiedShardInfoDB.FinalizedSlot()
+	latestStepId := b.VerifiedShardInfoDB.LatestStepID()
+	finalizedSlot := b.VerifiedShardInfoDB.FinalizedSlot()
 	blockStatus := make(map[uint64]*types.BlockStatus)
 
 	for si := stepId; si <= latestStepId; si++ {
@@ -102,7 +102,7 @@ func (b *Backend) LatestEpoch() uint64 {
 }
 
 func (b *Backend) LatestFinalizedSlot() uint64 {
-	return b.verifiedShardInfoDB.FinalizedSlot()
+	return b.VerifiedShardInfoDB.FinalizedSlot()
 }
 
 // GetSlotStatus
@@ -123,14 +123,14 @@ func (b *Backend) GetSlotStatus(ctx context.Context, slot uint64, hash common.Ha
 	}
 
 	// Removing slot infos from verified slot info db
-	stepId, err := b.verifiedShardInfoDB.GetStepIdBySlot(slot)
+	stepId, err := b.VerifiedShardInfoDB.GetStepIdBySlot(slot)
 	if err != nil {
 		log.WithError(err).WithField("slot", slot).WithField("stepId", stepId).Error("Could not found step id from DB")
 		return types.Invalid
 	}
 
 	// finally found in the database so return immediately so that no other db call happens
-	if shardInfo, _ := b.verifiedShardInfoDB.VerifiedShardInfo(stepId); shardInfo != nil {
+	if shardInfo, _ := b.VerifiedShardInfoDB.VerifiedShardInfo(stepId); shardInfo != nil {
 		if len(shardInfo.Shards) > 0 && len(shardInfo.Shards[0].Blocks) > 0 {
 			panHeaderHash := shardInfo.Shards[0].Blocks[0].HeaderRoot
 			vanHeaderHash := shardInfo.SlotInfo.BlockRoot
