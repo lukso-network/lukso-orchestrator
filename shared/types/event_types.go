@@ -1,10 +1,11 @@
 package types
 
 import (
+	"time"
+
 	"github.com/ethereum/go-ethereum/common"
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	eth2Types "github.com/prysmaticlabs/prysm/proto/eth/v1alpha1"
-	"time"
 )
 
 const BLSSignatureSize = 96
@@ -66,6 +67,7 @@ type VanguardShardInfo struct {
 	FinalizedSlot  uint64
 	FinalizedEpoch uint64
 	ParentHash     []byte
+	IsSyncing      bool
 }
 
 type BlsSignatureBytes [BLSSignatureSize]byte
