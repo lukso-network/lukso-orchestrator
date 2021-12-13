@@ -29,6 +29,14 @@ func (s *Service) processPandoraHeader(headerInfo *types.PandoraHeaderInfo) erro
 		}
 	}
 
+	// skipping this pandora shard if it's slot is less than latest finalized slot
+	finalizedSlot := s.db.FinalizedSlot()
+	if headerInfo.Slot <= finalizedSlot {
+		log.WithField("finalizedSlot", finalizedSlot).WithField("slot", headerInfo.Slot).
+			Debug("Pandora shard slot is less than finalized slot so discarding this shard info")
+		return nil
+	}
+
 	// first push the header into the cache.
 	// it will update the cache if already present or enter a new info
 	s.pendingInfoCache.PutPandoraHeader(slot, headerInfo.Header)
@@ -58,6 +66,14 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 			log.WithField("shardInfo", fmt.Sprintf("%+v", shardInfo)).Debug("Van header is already in verified shard info db")
 			return nil
 		}
+	}
+
+	// skipping this pandora shard if it's slot is less than latest finalized slot
+	finalizedSlot := s.db.FinalizedSlot()
+	if vanShardInfo.Slot <= finalizedSlot {
+		log.WithField("finalizedSlot", finalizedSlot).WithField("slot", vanShardInfo.Slot).
+			Debug("Vanguard shard slot is less than finalized slot so discarding this shard info")
+		return nil
 	}
 
 	// if reorg triggers here, orc will start processing reorg

@@ -153,7 +153,7 @@ func (s *Store) SaveSlotStepIndex(slot, stepId uint64) error {
 
 // GetStepIdBySlot
 func (s *Store) GetStepIdBySlot(slot uint64) (uint64, error) {
-	if v, ok := s.multiShardsInfoCache.Get(slot); v != nil && ok {
+	if v, ok := s.slotStepIndexCache.Get(slot); v != nil && ok {
 		return v.(uint64), nil
 	}
 
