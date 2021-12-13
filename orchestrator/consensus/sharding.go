@@ -120,3 +120,38 @@ func (s *Service) verifyConsecutiveHashes(ph *eth1Types.Header, vs *types.Vangua
 
 	return true, false
 }
+
+// verifySlotConsecutive checks vanguard block's parent hash with latest verified shard info. If vanguard block's parent
+// hash does not match with latest verified vanguard block's hash, then orc will trigger reorg.
+// when
+func (s *Service) verifySlotConsecutive(vs *types.VanguardShardInfo) (triggerReorg bool) {
+	latestStepId := s.db.LatestStepID()
+	// short circuit when latest step id is 0 and 1. For latest first step id, we can not verify consecutiveness
+	// so returning true here
+	if latestStepId <= 1 {
+		return false
+	}
+
+	shardInfo, err := s.db.VerifiedShardInfo(latestStepId)
+	if err != nil {
+		log.WithError(err).WithField("latestStepId", latestStepId).
+			Error("Could not found latest verified shard info from DB")
+		return true
+	}
+
+	if shardInfo == nil {
+		log.WithField("latestStepId", latestStepId).
+			Debug("Could not found latest verified shard info from DB")
+		return true
+	}
+
+	vParentHash := common.BytesToHash(vs.ParentHash)
+
+	if shardInfo.SlotInfo.BlockRoot != vParentHash {
+		log.WithField("lastVerifiedVanHash", shardInfo.SlotInfo.BlockRoot).WithField("curVanParentHash", vParentHash).
+			Debug("Invalid vanguard parent hash")
+		return true
+	}
+
+	return false
+}

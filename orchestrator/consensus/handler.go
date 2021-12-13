@@ -60,6 +60,15 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 		}
 	}
 
+	// if reorg triggers here, orc will start processing reorg
+	if s.verifySlotConsecutive(vanShardInfo) {
+		log.Info("Reorg triggered!")
+		if err := s.processReorg(common.BytesToHash(vanShardInfo.ParentHash)); err != nil {
+			log.WithError(err).Error("Failed to process reorg")
+			return err
+		}
+	}
+
 	// first push the shardInfo into the cache.
 	// it will update the cache if already present or enter a new info
 	s.pendingInfoCache.PutVanguardShardingInfo(slot, vanShardInfo, vanShardInfo.IsSyncing)
@@ -127,7 +136,7 @@ func (s *Service) verifyShardingInfo(vanShardInfo *types.VanguardShardInfo, head
 
 	if verificationStatus, triggerReorg := s.verifyConsecutiveHashes(header, vanShardInfo); !verificationStatus {
 		if triggerReorg {
-			log.Info("Reorg triggered!")
+			log.Info("Shard info comparision success and reorg triggered!")
 			if err := s.processReorg(common.BytesToHash(vanShardInfo.ParentHash)); err != nil {
 				log.WithError(err).Error("Failed to process reorg")
 				return false, err
