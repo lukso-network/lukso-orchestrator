@@ -127,12 +127,25 @@ func (s *Service) run() {
 
 	s.waitForConnection()
 
-	latestFinalizedEpoch := s.verifiedShardInfoDB.FinalizedEpoch()
-	latestFinalizedSlot := s.verifiedShardInfoDB.FinalizedSlot()
-	fromEpoch := latestFinalizedEpoch
+	finalizeEpoch := s.verifiedShardInfoDB.FinalizedEpoch()
+	latestEpoch := s.consensusInfoDB.LatestSavedEpoch()
+	fromSlot := s.verifiedShardInfoDB.FinalizedSlot()
+
+	curStepId := s.verifiedShardInfoDB.LatestStepID()
+	latestShardInfo, _ := s.verifiedShardInfoDB.VerifiedShardInfo(curStepId)
+
+	if latestShardInfo != nil && latestShardInfo.SlotInfo.Slot < fromSlot {
+		fromSlot = latestShardInfo.SlotInfo.Slot
+	}
+
+	if latestEpoch < finalizeEpoch {
+		finalizeEpoch = latestEpoch
+	}
+
+	fromEpoch := finalizeEpoch
 
 	// checking consensus info db
-	for i := latestFinalizedEpoch; i >= 0; {
+	for i := finalizeEpoch; i >= 0; {
 		epochInfo, _ := s.consensusInfoDB.ConsensusInfo(s.ctx, i)
 		if epochInfo == nil {
 			// epoch info is missing. so subscribe from here. maybe db operation was wrong
@@ -147,7 +160,7 @@ func (s *Service) run() {
 	}
 
 	go s.subscribeNewConsensusInfoGRPC(s.ctx, fromEpoch)
-	go s.subscribeVanNewPendingBlockHash(s.ctx, latestFinalizedSlot)
+	go s.subscribeVanNewPendingBlockHash(s.ctx, fromSlot)
 }
 
 // waitForConnection waits for a connection with vanguard chain. Until a successful with

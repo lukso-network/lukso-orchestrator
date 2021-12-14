@@ -52,17 +52,24 @@ func (s *Service) subscribeVanNewPendingBlockHash(ctx context.Context, fromSlot 
 						log.WithError(err).Infof("Trying to restart connection. rpc status: %v", e.Code())
 						s.waitForConnection()
 						// Re-try subscription from latest finalized slot
-						latestFinalizedSlot := s.verifiedShardInfoDB.FinalizedSlot()
+						finalizedSlot := s.verifiedShardInfoDB.FinalizedSlot()
+						curStepId := s.verifiedShardInfoDB.LatestStepID()
+						latestShardInfo, _ := s.verifiedShardInfoDB.VerifiedShardInfo(curStepId)
+
+						if latestShardInfo != nil && latestShardInfo.SlotInfo.Slot < finalizedSlot {
+							finalizedSlot = latestShardInfo.SlotInfo.Slot
+						}
+
 						stream, err = s.beaconClient.StreamNewPendingBlocks(ctx,
 							&ethpb.StreamPendingBlocksRequest{
 								BlockRoot: blockRoot,
-								FromSlot:  eth2Types.Slot(latestFinalizedSlot),
+								FromSlot:  eth2Types.Slot(finalizedSlot),
 							})
 						if err != nil {
 							log.WithError(err).Error("Failed to subscribe to new pending blocks stream")
 							return err
 						}
-						log.WithField("finalizedSlot", latestFinalizedSlot).Info("Successfully re-subscribed to vanguard blocks")
+						log.WithField("fromSlot", finalizedSlot).Info("Successfully re-subscribed to vanguard blocks")
 						continue
 					}
 				} else {
@@ -113,13 +120,22 @@ func (s *Service) subscribeNewConsensusInfoGRPC(ctx context.Context, fromEpoch u
 					case codes.Canceled, codes.Internal, codes.Unavailable:
 						log.WithError(err).Infof("Trying to restart connection. rpc status: %v", e.Code())
 						s.waitForConnection()
-						latestFinalizedEpoch := s.verifiedShardInfoDB.FinalizedEpoch()
-						stream, err = s.beaconClient.StreamMinimalConsensusInfo(ctx, &ethpb.MinimalConsensusInfoRequest{FromEpoch: eth2Types.Epoch(latestFinalizedEpoch)})
+
+						finalizedEpoch := s.verifiedShardInfoDB.FinalizedEpoch()
+						latestEpoch := s.consensusInfoDB.LatestSavedEpoch()
+						if latestEpoch < finalizedEpoch {
+							finalizedEpoch = latestEpoch
+						}
+
+						stream, err = s.beaconClient.StreamMinimalConsensusInfo(ctx,
+							&ethpb.MinimalConsensusInfoRequest{
+								FromEpoch: eth2Types.Epoch(finalizedEpoch),
+							})
 						if nil != err {
 							log.WithError(err).Error("Failed to subscribe to stream of new consensus info, Exiting go routine")
 							return err
 						}
-						log.WithField("finalizedEpoch", latestFinalizedEpoch).Info("Successfully re-subscribed to vanguard epoch infos")
+						log.WithField("finalizedEpoch", finalizedEpoch).Info("Successfully re-subscribed to vanguard epoch infos")
 						continue
 					}
 				} else {

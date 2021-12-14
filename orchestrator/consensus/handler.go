@@ -76,6 +76,7 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 		return nil
 	}
 
+	// TODO: Need a condition to identify the reorg properly.
 	// if reorg triggers here, orc will start processing reorg
 	if s.verifySlotConsecutive(vanShardInfo) {
 		log.Info("Reorg triggered!")

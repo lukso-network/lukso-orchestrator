@@ -217,23 +217,36 @@ func (s *Service) retryToConnectAndSubscribe(err error) {
 
 // subscribe subscribes to pandora events
 func (s *Service) subscribe() error {
+	curStepId := s.db.LatestStepID()
+	latestShardInfo, _ := s.db.VerifiedShardInfo(curStepId)
+	var (
+		latestPanHeaderHash    common.Hash
+		finalizedPanHeaderHash common.Hash
+	)
+
+	if latestShardInfo != nil && len(latestShardInfo.Shards) > 0 && len(latestShardInfo.Shards[0].Blocks) > 0 {
+		latestPanHeaderHash = latestShardInfo.Shards[0].Blocks[0].HeaderRoot
+	}
 
 	finalizedSlot := s.db.FinalizedSlot()
 	finalizedStepId, _ := s.db.GetStepIdBySlot(finalizedSlot)
 
-	shardInfo, _ := s.db.VerifiedShardInfo(finalizedStepId)
+	finalizedShardInfo, _ := s.db.VerifiedShardInfo(finalizedStepId)
+	if finalizedShardInfo != nil && len(finalizedShardInfo.Shards) > 0 && len(finalizedShardInfo.Shards[0].Blocks) > 0 {
+		finalizedPanHeaderHash = finalizedShardInfo.Shards[0].Blocks[0].HeaderRoot
+	}
+
 	filter := &types.PandoraPendingHeaderFilter{
 		FromBlockHash: EmptyHash,
 	}
 
-	if shardInfo != nil && len(shardInfo.Shards) > 0 && len(shardInfo.Shards[0].Blocks) > 0 {
-		filter.FromBlockHash = shardInfo.Shards[0].Blocks[0].HeaderRoot
+	if latestShardInfo.SlotInfo.Slot <= finalizedSlot {
+		filter.FromBlockHash = latestPanHeaderHash
+	} else {
+		filter.FromBlockHash = finalizedPanHeaderHash
 	}
 
-	log.WithField("finalizedSlot", finalizedSlot).WithField("finalizedStepId", finalizedStepId).
-		WithField("finalizedShardInfo", shardInfo).WithField("fromPanHash", filter.FromBlockHash).
-		Debug("Start subscribing to pandora client for pending headers")
-
+	log.WithField("fromPanHash", filter.FromBlockHash).Debug("Start subscribing to pandora client for pending headers")
 	// subscribe to pandora client for pending headers
 	sub, err := s.SubscribePendingHeaders(s.ctx, filter, s.namespace, s.rpcClient)
 	if err != nil {
