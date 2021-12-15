@@ -45,6 +45,7 @@ type Service struct {
 	vanguardService      iface.VanguardService
 	pandoraService       iface2.PandoraService
 	verifiedSlotInfoFeed event.Feed
+	reorgInfoFeed        event.Feed
 	reorgInProgress      uint32
 }
 
@@ -157,4 +158,8 @@ func (s *Service) Status() error {
 
 func (s *Service) SubscribeVerifiedSlotInfoEvent(ch chan<- *types.SlotInfoWithStatus) event.Subscription {
 	return s.scope.Track(s.verifiedSlotInfoFeed.Subscribe(ch))
+}
+
+func (s *Service) SubscribeReorgInfoEvent(ch chan<- *types.Reorg) event.Subscription {
+	return s.scope.Track(s.reorgInfoFeed.Subscribe(ch))
 }

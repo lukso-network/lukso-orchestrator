@@ -21,6 +21,7 @@ type Backend struct {
 	// feed
 	ConsensusInfoFeed    iface.ConsensusInfoFeed
 	VerifiedSlotInfoFeed conIface.VerifiedSlotInfoFeed
+	ReorgFeed            conIface.ReorgInfoFeed
 
 	// db reference
 	ConsensusInfoDB     db.ROnlyConsensusInfoDB
@@ -39,18 +40,36 @@ func (b *Backend) SubscribeNewVerifiedSlotInfoEvent(ch chan<- *types.SlotInfoWit
 	return b.VerifiedSlotInfoFeed.SubscribeVerifiedSlotInfoEvent(ch)
 }
 
+func (b *Backend) SubscribeNewReorgInfoEvent(ch chan<- *types.Reorg) event.Subscription {
+	return b.ReorgFeed.SubscribeReorgInfoEvent(ch)
+}
+
 func (b *Backend) ConsensusInfoByEpochRange(fromEpoch uint64) ([]*types.MinimalEpochConsensusInfoV2, error) {
-	consensusInfosV2, err := b.ConsensusInfoDB.ConsensusInfos(fromEpoch)
+	consensusInfos, err := b.ConsensusInfoDB.ConsensusInfos(fromEpoch)
 	if err != nil {
 		return nil, err
 	}
 
-	epochInfos := make([]*types.MinimalEpochConsensusInfoV2, len(consensusInfosV2))
-	for i, epochInfo := range consensusInfosV2 {
+	epochInfos := make([]*types.MinimalEpochConsensusInfoV2, len(consensusInfos))
+	for i, epochInfo := range consensusInfos {
 		epochInfoV1 := epochInfo.ConvertToEpochInfoV2()
 		epochInfos[i] = epochInfoV1
 	}
 	return epochInfos, nil
+}
+
+func (b *Backend) LatestEpochInfo(ctx context.Context) (*types.MinimalEpochConsensusInfoV2, error) {
+	latestEpoch := b.LatestEpoch()
+	latestEpochInfo, err := b.ConsensusInfoDB.ConsensusInfo(ctx, latestEpoch)
+	if err != nil {
+		return nil, err
+	}
+
+	if latestEpochInfo == nil {
+		return nil, nil
+	}
+
+	return latestEpochInfo.ConvertToEpochInfoV2(), nil
 }
 
 func (b *Backend) StepId(slot uint64) uint64 {

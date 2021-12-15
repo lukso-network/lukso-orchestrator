@@ -48,14 +48,10 @@ func (s *Service) processReorg(parentVanBlkHash common.Hash) error {
 
 	s.pendingInfoCache.Purge()
 
-	reorgInfo := &types.Reorg{
+	// Publish reorg info for rpc service for notifying pandora client
+	s.reorgInfoFeed.Send(&types.Reorg{
 		VanParentHash: parentShardInfo.SlotInfo.BlockRoot.Bytes(),
 		PanParentHash: parentShardInfo.Shards[0].Blocks[0].HeaderRoot.Bytes(),
-	}
-
-	// disconnect subscription
-	s.pandoraService.Resubscribe()
-	s.vanguardService.StopSubscription(reorgInfo)
-
+	})
 	return nil
 }

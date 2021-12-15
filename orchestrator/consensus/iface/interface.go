@@ -8,3 +8,7 @@ import (
 type VerifiedSlotInfoFeed interface {
 	SubscribeVerifiedSlotInfoEvent(chan<- *types.SlotInfoWithStatus) event.Subscription
 }
+
+type ReorgInfoFeed interface {
+	SubscribeReorgInfoEvent(chan<- *types.Reorg) event.Subscription
+}

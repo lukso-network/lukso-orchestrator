@@ -164,15 +164,6 @@ func (s *Service) subscribeNewConsensusInfoGRPC(ctx context.Context, fromEpoch u
 				FinalizedSlot:    s.verifiedShardInfoDB.FinalizedSlot(),
 			}
 
-			// if re-org happens then we get this info not nil
-			if s.reorgInfo != nil {
-				consensusInfo.ReorgInfo = s.reorgInfo
-
-				s.processingLock.Lock()
-				s.reorgInfo = nil
-				s.processingLock.Unlock()
-			}
-
 			log.WithField("epoch", consensusInfo.Epoch).
 				WithField("epochInfo", fmt.Sprintf("%+v", consensusInfo)).
 				Debug("Received new consensus info")

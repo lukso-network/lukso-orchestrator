@@ -7,5 +7,4 @@ import (
 
 type PandoraService interface {
 	SubscribeHeaderInfoEvent(chan<- *types.PandoraHeaderInfo) event.Subscription
-	Resubscribe()
 }

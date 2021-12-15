@@ -17,8 +17,10 @@ import (
 type Config struct {
 	ConsensusInfoFeed    iface.ConsensusInfoFeed
 	VerifiedSlotInfoFeed conIface.VerifiedSlotInfoFeed
-	Db                   db.Database
-	PendingInfoCache     cache.QueueInterface
+	ReorgInfoFeed        conIface.ReorgInfoFeed
+
+	Db               db.Database
+	PendingInfoCache cache.QueueInterface
 	// ipc config
 	IPCPath string
 	// http config
@@ -74,6 +76,7 @@ func NewService(ctx context.Context, cfg *Config) (*Service, error) {
 			VerifiedShardInfoDB:  cfg.Db,
 			PendingInfoCache:     cfg.PendingInfoCache,
 			VerifiedSlotInfoFeed: cfg.VerifiedSlotInfoFeed,
+			ReorgFeed:            cfg.ReorgInfoFeed,
 		},
 	}
 	// Configure RPC servers.
