@@ -227,17 +227,11 @@ func (s *Service) subscribe() error {
 	finalizedStepId, _ := s.db.GetStepIdBySlot(finalizedSlot)
 	finalizedShardInfo, _ := s.db.VerifiedShardInfo(finalizedStepId)
 
-	if latestShardInfo != nil && finalizedShardInfo != nil {
+	if latestShardInfo.NotNil() && finalizedShardInfo.NotNil() {
 		if latestShardInfo.SlotInfo.Slot < finalizedShardInfo.SlotInfo.Slot {
-			shards := latestShardInfo.Shards
-			if len(shards) > 0 && len(shards[0].Blocks) > 0 {
-				filter.FromBlockHash = shards[0].Blocks[0].HeaderRoot
-			}
+				filter.FromBlockHash = latestShardInfo.Shards[0].Blocks[0].HeaderRoot
 		} else {
-			shards := finalizedShardInfo.Shards
-			if len(shards) > 0 && len(shards[0].Blocks) > 0 {
-				filter.FromBlockHash = shards[0].Blocks[0].HeaderRoot
-			}
+			filter.FromBlockHash = finalizedShardInfo.Shards[0].Blocks[0].HeaderRoot
 		}
 	}
 
