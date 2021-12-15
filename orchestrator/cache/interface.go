@@ -15,14 +15,14 @@ type CacheAPIs interface {
 
 type VanguardCacheAPIs interface {
 	CacheAPIs
-	Put(slot uint64, insertParams *VanCacheInsertParams)
+	Put(slot uint64, insertParams *VanCacheInsertParams) error
 	Get(slot uint64) *VanguardCacheData
 	RemoveByTime(timeStamp time.Time)
 }
 
 type PandoraCacheAPIs interface {
 	CacheAPIs
-	Put(slot uint64, insertParams *PanCacheInsertParams)
+	Put(slot uint64, insertParams *PanCacheInsertParams) error
 	Get(slot uint64) *PandoraCacheData
 	RemoveByTime(timeStamp time.Time) []*eth1Types.Header
 }

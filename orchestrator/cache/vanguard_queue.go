@@ -44,10 +44,10 @@ func (vc *VanguardCache) MarkNotInProgress(slot uint64) error {
 	return nil
 }
 
-func (vc *VanguardCache) Put(slot uint64, insertParams *VanCacheInsertParams) {
+func (vc *VanguardCache) Put(slot uint64, insertParams *VanCacheInsertParams) error {
 	if err := vc.VerifyVanguardCache(insertParams); err != nil {
 		log.WithError(err).Error("cache insertion failed in vanguardCache")
-		return
+		return err
 	}
 
 	val, found := vc.cache.Get(slot)
@@ -63,6 +63,7 @@ func (vc *VanguardCache) Put(slot uint64, insertParams *VanCacheInsertParams) {
 	}
 	vc.stack.Push(insertParams.CurrentShardInfo.BlockHash)
 	vc.cache.Add(slot, queueData)
+	return nil
 }
 
 func (vc *VanguardCache) Get(slot uint64) *VanguardCacheData {

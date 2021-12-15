@@ -41,8 +41,8 @@ func (s *Service) processPandoraHeader(headerInfo *types.PandoraHeaderInfo) erro
 	// first push the header into the cache.
 	// it will update the cache if already present or enter a new info
 	s.panHeaderCache.Put(slot, &cache.PanCacheInsertParams{
-		CurrentVerifiedHeader: headerInfo.Header,
-		LastVerifiedHeader:    s.db, // TODO: NEED TO SET VERIFIED HEADER
+		CurrentVerifiedHeader:  headerInfo.Header,
+		LastVerifiedHeaderHash: s.db, // TODO: NEED TO SET VERIFIED HEADER
 	})
 
 	// now mark it as we are making a decision on it
@@ -100,7 +100,7 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 	s.vanShardCache.Put(slot, &cache.VanCacheInsertParams{
 		DisableDelete:    disableDelete,
 		CurrentShardInfo: vanShardInfo,
-		LastVerifiedShardInfo:, // TODO: NEED TO SETUP LATEST VERFIEID SHARD
+		LastVerfiedShardRoot:, // TODO: NEED TO SETUP LATEST VERFIEID SHARD
 	})
 	// now mark it as we are making a decision on it
 	err := s.vanShardCache.MarkInProgress(slot)
