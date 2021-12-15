@@ -2,17 +2,27 @@ package cache
 
 import (
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
-	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	"time"
 )
 
-type PendingQueueInterface interface {
+type CacheAPIs interface {
 	MarkInProgress(slot uint64) error
 	MarkNotInProgress(slot uint64) error
-	PutVanguardShardingInfo(slot uint64, vanShardInfo *types.VanguardShardInfo, disDel bool)
-	PutPandoraHeader(slot uint64, panHeader *eth1Types.Header)
-	GetSlot(slot uint64) (info *PendingQueue, found bool)
-	ForceDelSlot(slot uint64)
-	RemoveByTime(timeStamp time.Time) []*PendingQueue
 	Purge()
+	ForceDelSlot(slot uint64)
+	ContainsHash(hash []byte) bool
+}
+
+type VanguardCacheAPIs interface {
+	CacheAPIs
+	Put(slot uint64, insertParams *VanCacheInsertParams)
+	Get(slot uint64) *VanguardCacheData
+	RemoveByTime(timeStamp time.Time)
+}
+
+type PandoraCacheAPIs interface {
+	CacheAPIs
+	Put(slot uint64, insertParams *PanCacheInsertParams)
+	Get(slot uint64) *PandoraCacheData
+	RemoveByTime(timeStamp time.Time) []*eth1Types.Header
 }

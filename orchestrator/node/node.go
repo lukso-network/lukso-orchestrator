@@ -2,6 +2,12 @@ package node
 
 import (
 	"context"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"sync"
+	"syscall"
+
 	"github.com/ethereum/go-ethereum/common/math"
 	ethRpc "github.com/ethereum/go-ethereum/rpc"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
@@ -18,11 +24,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
-	"os"
-	"os/signal"
-	"path/filepath"
-	"sync"
-	"syscall"
 )
 
 // OrchestratorNode
@@ -41,7 +42,8 @@ type OrchestratorNode struct {
 	db db.Database
 
 	// lru caches
-	pendingInfoCache *cache.PendingQueueCache
+	pandoraPendingCache *cache.PandoraCache
+	vanPendingCache     *cache.VanguardCache
 }
 
 // New creates a new node instance, sets up configuration options, and registers
@@ -51,12 +53,13 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 	ctx, cancel := context.WithCancel(cliCtx.Context)
 
 	orchestrator := &OrchestratorNode{
-		cliCtx:           cliCtx,
-		ctx:              ctx,
-		cancel:           cancel,
-		services:         registry,
-		stop:             make(chan struct{}),
-		pendingInfoCache: cache.NewPendingDataContainer(math.MaxInt32),
+		cliCtx:              cliCtx,
+		ctx:                 ctx,
+		cancel:              cancel,
+		services:            registry,
+		stop:                make(chan struct{}),
+		pandoraPendingCache: cache.NewPandoraCache(math.MaxInt32, cliCtx.Uint64(cmd.VanguardGenesisTime.Name), cliCtx.Uint64(cmd.SecondsPerSlot.Name)),
+		vanPendingCache:     cache.NewVanguardCache(math.MaxInt32, cliCtx.Uint64(cmd.VanguardGenesisTime.Name), cliCtx.Uint64(cmd.SecondsPerSlot.Name)),
 	}
 
 	if err := orchestrator.startDB(orchestrator.cliCtx); err != nil {
@@ -197,7 +200,8 @@ func (o *OrchestratorNode) registerConsensusService(cliCtx *cli.Context) error {
 
 	svc := consensus.New(o.ctx, &consensus.Config{
 		VerifiedShardInfoDB: o.db,
-		PendingHeaderCache:  o.pendingInfoCache,
+		PanHeaderCache:      o.pandoraPendingCache,
+		VanShardCache:       o.vanPendingCache,
 		VanguardShardFeed:   vanguardShardFeed,
 		PandoraHeaderFeed:   pandoraHeaderFeed,
 	})
@@ -249,7 +253,8 @@ func (o *OrchestratorNode) registerRPCService(cliCtx *cli.Context) error {
 		WSHost:            wsListenerAddr,
 		WSPort:            wsPort,
 
-		PendingInfoCache:     o.pendingInfoCache,
+		PandoraHeaderCache:   o.pandoraPendingCache,
+		VangShardCache:       o.vanPendingCache,
 		VerifiedSlotInfoFeed: verifiedSlotInfoFeed,
 	})
 	if err != nil {

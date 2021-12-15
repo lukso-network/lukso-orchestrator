@@ -18,7 +18,8 @@ type Config struct {
 	ConsensusInfoFeed    iface.ConsensusInfoFeed
 	VerifiedSlotInfoFeed conIface.VerifiedSlotInfoFeed
 	Db                   db.Database
-	PendingInfoCache     cache.QueueInterface
+	PandoraHeaderCache   cache.PandoraInterface
+	VangShardCache       cache.VanguardInterface
 	// ipc config
 	IPCPath string
 	// http config
@@ -72,7 +73,8 @@ func NewService(ctx context.Context, cfg *Config) (*Service, error) {
 			ConsensusInfoDB:      cfg.Db,
 			InvalidSlotInfoDB:    cfg.Db,
 			VerifiedShardInfoDB:  cfg.Db,
-			PendingInfoCache:     cfg.PendingInfoCache,
+			PanHeaderCache:       cfg.PandoraHeaderCache,
+			VanShardCache:        cfg.VangShardCache,
 			VerifiedSlotInfoFeed: cfg.VerifiedSlotInfoFeed,
 		},
 	}

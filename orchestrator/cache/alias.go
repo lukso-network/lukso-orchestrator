@@ -1,4 +1,5 @@
 package cache
 
-// QueueInterface interface for pending queue
-type QueueInterface = PendingQueueInterface
+type PandoraInterface = PandoraCacheAPIs
+
+type VanguardInterface = VanguardCacheAPIs

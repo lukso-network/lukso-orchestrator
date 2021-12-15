@@ -101,4 +101,15 @@ var (
 		Name:  "log-file",
 		Usage: "Specify log file name, relative or absolute",
 	}
+
+	// VanguardGenesisTime specifies time when vanguard node has started
+	VanguardGenesisTime = &cli.Uint64Flag{
+		Name:  "genesis-time",
+		Usage: "Genesis timestamp of vanguard node",
+	}
+
+	SecondsPerSlot = &cli.Uint64Flag{
+		Name:  "seconds-per-slot",
+		Usage: "Seconds per slot",
+	}
 )

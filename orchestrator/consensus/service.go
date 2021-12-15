@@ -27,7 +27,8 @@ const (
 
 type Config struct {
 	VerifiedShardInfoDB db.VerifiedShardInfoDB
-	PendingHeaderCache  cache.QueueInterface
+	PanHeaderCache      cache.PandoraInterface
+	VanShardCache       cache.VanguardInterface
 	VanguardShardFeed   iface.VanguardService
 	PandoraHeaderFeed   iface2.PandoraService
 }
@@ -41,7 +42,8 @@ type Service struct {
 	runError             error
 	scope                event.SubscriptionScope
 	db                   db.VerifiedShardInfoDB
-	pendingInfoCache     cache.QueueInterface
+	panHeaderCache       cache.PandoraInterface
+	vanShardCache        cache.VanguardInterface
 	vanguardService      iface.VanguardService
 	pandoraService       iface2.PandoraService
 	verifiedSlotInfoFeed event.Feed
@@ -54,25 +56,26 @@ func New(ctx context.Context, cfg *Config) (service *Service) {
 	_ = cancel // govet fix for lost cancel. Cancel is handled in service.Stop()
 
 	return &Service{
-		ctx:              ctx,
-		cancel:           cancel,
-		db:               cfg.VerifiedShardInfoDB,
-		pendingInfoCache: cfg.PendingHeaderCache,
-		vanguardService:  cfg.VanguardShardFeed,
-		pandoraService:   cfg.PandoraHeaderFeed,
+		ctx:             ctx,
+		cancel:          cancel,
+		db:              cfg.VerifiedShardInfoDB,
+		panHeaderCache:  cfg.PanHeaderCache,
+		vanShardCache:   cfg.VanShardCache,
+		vanguardService: cfg.VanguardShardFeed,
+		pandoraService:  cfg.PandoraHeaderFeed,
 	}
 }
 
-func (s *Service) cacheClearanceLoop() {
+func (s *Service) panCacheClearanceLoop() {
 	ticker := time.NewTicker(1 * time.Second)
 
 	for {
 		select {
 		case currentTime := <-ticker.C:
-			removedInfo := s.pendingInfoCache.RemoveByTime(currentTime)
-			for _, info := range removedInfo {
-				if panHeader := info.GetPanHeader(); panHeader != nil {
-					// so for this slot we've pandora info. need to notify pandora now
+			removedInfo := s.panHeaderCache.RemoveByTime(currentTime)
+			// notify pandora node about this deletion because pandora is waiting for reply
+			for _, panHeader := range removedInfo {
+				if panHeader != nil {
 					s.verifiedSlotInfoFeed.Send(&types.SlotInfoWithStatus{
 						PandoraHeaderHash: panHeader.Hash(),
 						Status:            types.Invalid,
@@ -81,7 +84,22 @@ func (s *Service) cacheClearanceLoop() {
 			}
 
 		case <-s.ctx.Done():
-			log.Info("cacheClearLoop terminating due to context close")
+			log.Info("panCacheClearLoop terminating due to context close")
+			return
+		}
+	}
+}
+
+func (s *Service) vanCacheClearanceLoop() {
+	ticker := time.NewTicker(1 * time.Second)
+
+	for {
+		select {
+		case currentTime := <-ticker.C:
+			s.vanShardCache.RemoveByTime(currentTime)
+
+		case <-s.ctx.Done():
+			log.Info("vanCacheClearLoop terminating due to context close")
 			return
 		}
 	}
@@ -92,7 +110,9 @@ func (s *Service) Start() {
 		log.Error("Attempted to start consensus service when it was already started")
 		return
 	}
-	go s.cacheClearanceLoop()
+	go s.panCacheClearanceLoop()
+	go s.vanCacheClearanceLoop()
+
 	s.isRunning = true
 	go func() {
 		log.Info("Starting consensus service")

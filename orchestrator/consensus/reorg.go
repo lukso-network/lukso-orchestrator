@@ -46,7 +46,8 @@ func (s *Service) processReorg(parentVanBlkHash common.Hash) error {
 		return err
 	}
 
-	s.pendingInfoCache.Purge()
+	s.panHeaderCache.Purge()
+	s.vanShardCache.Purge()
 
 	reorgInfo := &types.Reorg{
 		VanParentHash: parentShardInfo.SlotInfo.BlockRoot.Bytes(),

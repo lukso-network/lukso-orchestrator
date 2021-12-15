@@ -28,7 +28,8 @@ type Backend struct {
 	InvalidSlotInfoDB   db.ROnlyInvalidSlotInfoDB
 
 	// cache reference
-	PendingInfoCache cache.QueueInterface
+	PanHeaderCache cache.PandoraInterface
+	VanShardCache  cache.VanguardInterface
 }
 
 func (b *Backend) SubscribeNewEpochEvent(ch chan<- *types.MinimalEpochConsensusInfoV2) event.Subscription {
@@ -116,10 +117,22 @@ func (b *Backend) GetSlotStatus(ctx context.Context, slot uint64, hash common.Ha
 			Debug("Verification status")
 	}
 
-	if queueInfo, _ := b.PendingInfoCache.GetSlot(slot); queueInfo != nil {
-		// data found in the queue. So it's pending
-		logPrinter(types.Pending)
-		return types.Pending
+	if !requestFrom {
+		// if request is from vanguard, check the slot is in vanguard cache.
+		// if so return pending
+		if queueInfo := b.VanShardCache.Get(slot); queueInfo != nil {
+			// data found in the queue. So it's pending
+			logPrinter(types.Pending)
+			return types.Pending
+		}
+	} else {
+		// if request is from pandora, check the slot is in pandora cache
+		// if so return pending
+		if queueInfo := b.PanHeaderCache.Get(slot); queueInfo != nil {
+			// data found in the queue. So it's pending
+			logPrinter(types.Pending)
+			return types.Pending
+		}
 	}
 
 	// Removing slot infos from verified slot info db

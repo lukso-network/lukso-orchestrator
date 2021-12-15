@@ -45,7 +45,8 @@ func setup(ctx context.Context, t *testing.T) (*Service, *mockFeedService) {
 
 	cfg := &Config{
 		VerifiedShardInfoDB: testDB,
-		PendingHeaderCache:  cache.NewPendingDataContainer(1024),
+		PanHeaderCache:      cache.NewPandoraCache(1024, 0, 6),
+		VanShardCache:       cache.NewVanguardCache(1024, 0, 6),
 		VanguardShardFeed:   mfs,
 		PandoraHeaderFeed:   mfs,
 	}

@@ -27,10 +27,9 @@ func setup(t *testing.T) (*Config, error) {
 	consensusSvr := consensus.New(
 		context.Background(),
 		&consensus.Config{
-			orchestratorDB,
-			cache.NewPendingDataContainer(1 << 10),
-			nil,
-			nil,
+			VerifiedShardInfoDB: orchestratorDB,
+			PanHeaderCache:      cache.NewPandoraCache(1<<10, 0, 6),
+			VanShardCache:       cache.NewVanguardCache(1<<10, 0, 6),
 		})
 
 	return &Config{

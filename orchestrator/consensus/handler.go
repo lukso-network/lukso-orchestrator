@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"fmt"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/utils"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -39,18 +40,21 @@ func (s *Service) processPandoraHeader(headerInfo *types.PandoraHeaderInfo) erro
 
 	// first push the header into the cache.
 	// it will update the cache if already present or enter a new info
-	s.pendingInfoCache.PutPandoraHeader(slot, headerInfo.Header)
+	s.panHeaderCache.Put(slot, &cache.PanCacheInsertParams{
+		CurrentVerifiedHeader: headerInfo.Header,
+		LastVerifiedHeader:    s.db, // TODO: NEED TO SET VERIFIED HEADER
+	})
 
 	// now mark it as we are making a decision on it
-	err := s.pendingInfoCache.MarkInProgress(slot)
+	err := s.panHeaderCache.MarkInProgress(slot)
 	if err != nil {
 		return err
 	}
-	defer s.pendingInfoCache.MarkNotInProgress(slot)
+	defer s.panHeaderCache.MarkNotInProgress(slot)
 
-	pendingShardInfo, _ := s.pendingInfoCache.GetSlot(slot)
-	if pendingShardInfo != nil && pendingShardInfo.GetVanShard() != nil {
-		return s.insertIntoChain(pendingShardInfo.GetVanShard(), headerInfo.Header)
+	vanShardInfo := s.vanShardCache.Get(slot)
+	if vanShardInfo != nil && vanShardInfo.GetVanShard() != nil {
+		return s.insertIntoChain(vanShardInfo.GetVanShard(), headerInfo.Header)
 	}
 
 	return nil
@@ -86,19 +90,28 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 		}
 	}
 
+	disableDelete := false
+	if slot <= finalizedSlot {
+		// if slot number is less than finalized slot then initial sync is happening
+		disableDelete = true
+	}
 	// first push the shardInfo into the cache.
 	// it will update the cache if already present or enter a new info
-	s.pendingInfoCache.PutVanguardShardingInfo(slot, vanShardInfo, vanShardInfo.IsSyncing)
+	s.vanShardCache.Put(slot, &cache.VanCacheInsertParams{
+		DisableDelete:    disableDelete,
+		CurrentShardInfo: vanShardInfo,
+		LastVerifiedShardInfo:, // TODO: NEED TO SETUP LATEST VERFIEID SHARD
+	})
 	// now mark it as we are making a decision on it
-	err := s.pendingInfoCache.MarkInProgress(slot)
+	err := s.vanShardCache.MarkInProgress(slot)
 	if err != nil {
 		return err
 	}
-	defer s.pendingInfoCache.MarkNotInProgress(slot)
+	defer s.vanShardCache.MarkNotInProgress(slot)
 
-	pendingShardInfo, _ := s.pendingInfoCache.GetSlot(slot)
-	if pendingShardInfo != nil && pendingShardInfo.GetPanHeader() != nil {
-		return s.insertIntoChain(vanShardInfo, pendingShardInfo.GetPanHeader())
+	pandoraHeaderInfo := s.panHeaderCache.Get(slot)
+	if pandoraHeaderInfo != nil && pandoraHeaderInfo.GetPanHeader() != nil {
+		return s.insertIntoChain(vanShardInfo, pandoraHeaderInfo.GetPanHeader())
 	}
 
 	return nil
@@ -129,7 +142,8 @@ func (s *Service) insertIntoChain(vanShardInfo *types.VanguardShardInfo, header 
 		s.writeFinalizeInfo(vanShardInfo.FinalizedSlot, vanShardInfo.FinalizedEpoch)
 		confirmationStatus.Status = types.Verified
 		//removing slot that is already verified
-		s.pendingInfoCache.ForceDelSlot(vanShardInfo.Slot)
+		s.panHeaderCache.ForceDelSlot(vanShardInfo.Slot)
+		s.vanShardCache.ForceDelSlot(vanShardInfo.Slot)
 
 	} else {
 		confirmationStatus.Status = types.Invalid

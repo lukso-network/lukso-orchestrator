@@ -1,12 +1,9 @@
 package cache
 
 import (
-	"github.com/pkg/errors"
 	"time"
 )
 
-var (
+const (
 	cacheRemovalInterval = time.Second * 8
-
-	errAlreadyInProgress = errors.New("requested slot number is already in progress")
 )
