@@ -3,6 +3,7 @@ package consensus
 import (
 	"fmt"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/utils"
+	"github.com/pkg/errors"
 
 	"github.com/ethereum/go-ethereum/common"
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
@@ -29,12 +30,10 @@ func (s *Service) processPandoraHeader(headerInfo *types.PandoraHeaderInfo) erro
 		}
 	}
 
-	// skipping this pandora shard if it's slot is less than latest finalized slot
-	finalizedSlot := s.db.FinalizedSlot()
-	if headerInfo.Slot <= finalizedSlot {
-		log.WithField("finalizedSlot", finalizedSlot).WithField("slot", headerInfo.Slot).
-			Debug("Pandora shard slot is less than finalized slot so discarding this shard info")
-		return nil
+	latestStepId := s.db.LatestStepID()
+	latestShardInfo, err := s.db.VerifiedShardInfo(latestStepId)
+	if err != nil {
+		return errors.Wrap(err, "DB is corrupted! Failed to retrieve latest shard info")
 	}
 
 	// first push the header into the cache.
@@ -42,7 +41,7 @@ func (s *Service) processPandoraHeader(headerInfo *types.PandoraHeaderInfo) erro
 	s.pendingInfoCache.PutPandoraHeader(slot, headerInfo.Header)
 
 	// now mark it as we are making a decision on it
-	err := s.pendingInfoCache.MarkInProgress(slot)
+	err = s.pendingInfoCache.MarkInProgress(slot)
 	if err != nil {
 		return err
 	}
@@ -50,7 +49,7 @@ func (s *Service) processPandoraHeader(headerInfo *types.PandoraHeaderInfo) erro
 
 	pendingShardInfo, _ := s.pendingInfoCache.GetSlot(slot)
 	if pendingShardInfo != nil && pendingShardInfo.GetVanShard() != nil {
-		return s.insertIntoChain(pendingShardInfo.GetVanShard(), headerInfo.Header)
+		return s.insertIntoChain(pendingShardInfo.GetVanShard(), headerInfo.Header, latestShardInfo)
 	}
 
 	return nil
@@ -68,20 +67,22 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 		}
 	}
 
-	// skipping this pandora shard if it's slot is less than latest finalized slot
-	finalizedSlot := s.db.FinalizedSlot()
-	if vanShardInfo.Slot <= finalizedSlot {
-		log.WithField("finalizedSlot", finalizedSlot).WithField("slot", vanShardInfo.Slot).
-			Debug("Vanguard shard slot is less than finalized slot so discarding this shard info")
-		return nil
+	latestStepId := s.db.LatestStepID()
+	latestShardInfo, err := s.db.VerifiedShardInfo(latestStepId)
+	if err != nil {
+		return errors.Wrap(err, "DB is corrupted! Failed to retrieve latest shard info")
 	}
 
-	// TODO: Need a condition to identify the reorg properly.
 	// if reorg triggers here, orc will start processing reorg
-	if s.verifySlotConsecutive(vanShardInfo) {
-		log.Info("Reorg triggered!")
-		if err := s.processReorg(common.BytesToHash(vanShardInfo.ParentHash)); err != nil {
-			log.WithError(err).Error("Failed to process reorg")
+	parentShardInfo, parentStepId, err := s.checkReorg(vanShardInfo, latestShardInfo, latestStepId)
+	if err != nil {
+		return errors.Wrap(err, "Failed to check reorg!")
+	}
+
+	if parentShardInfo != nil {
+		log.Info("Start processing reorg!")
+		if err := s.processReorg(parentStepId, parentShardInfo); err != nil {
+			log.WithError(err).Error("Failed to process reorg!")
 			return err
 		}
 	}
@@ -90,7 +91,7 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 	// it will update the cache if already present or enter a new info
 	s.pendingInfoCache.PutVanguardShardingInfo(slot, vanShardInfo, vanShardInfo.IsSyncing)
 	// now mark it as we are making a decision on it
-	err := s.pendingInfoCache.MarkInProgress(slot)
+	err = s.pendingInfoCache.MarkInProgress(slot)
 	if err != nil {
 		return err
 	}
@@ -98,7 +99,7 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 
 	pendingShardInfo, _ := s.pendingInfoCache.GetSlot(slot)
 	if pendingShardInfo != nil && pendingShardInfo.GetPanHeader() != nil {
-		return s.insertIntoChain(vanShardInfo, pendingShardInfo.GetPanHeader())
+		return s.insertIntoChain(vanShardInfo, pendingShardInfo.GetPanHeader(), latestShardInfo)
 	}
 
 	return nil
@@ -108,21 +109,22 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 //	- verifies shard info and pandora header
 //  - write into db
 //  - send status to pandora chain
-func (s *Service) insertIntoChain(vanShardInfo *types.VanguardShardInfo, header *eth1Types.Header) error {
-	status, err := s.verifyShardingInfo(vanShardInfo, header)
-	if err != nil {
-		return err
-	}
+func (s *Service) insertIntoChain(
+	vanShardInfo *types.VanguardShardInfo,
+	header *eth1Types.Header,
+	latestShardInfo *types.MultiShardInfo,
+) error {
 
 	confirmationStatus := &types.SlotInfoWithStatus{
 		PandoraHeaderHash: header.Hash(),
 		VanguardBlockHash: common.BytesToHash(vanShardInfo.BlockHash[:]),
+		Status:            types.Invalid,
 	}
 
-	if status {
-		shardInfo := utils.PrepareMultiShardData(vanShardInfo, header, TotalExecutionShardCount, ShardsPerVanBlock)
+	if compareShardingInfo(header, vanShardInfo.ShardInfo) && s.verifyShardInfo(latestShardInfo, header, vanShardInfo) {
+		newShardInfo := utils.PrepareMultiShardData(vanShardInfo, header, TotalExecutionShardCount, ShardsPerVanBlock)
 		// Write shard info into db
-		if err := s.writeShardInfoInDB(shardInfo); err != nil {
+		if err := s.writeShardInfoInDB(newShardInfo); err != nil {
 			return err
 		}
 		// write finalize info into db
@@ -131,38 +133,11 @@ func (s *Service) insertIntoChain(vanShardInfo *types.VanguardShardInfo, header 
 		//removing slot that is already verified
 		s.pendingInfoCache.ForceDelSlot(vanShardInfo.Slot)
 
-	} else {
-		confirmationStatus.Status = types.Invalid
-		log.WithField("slot", vanShardInfo.Slot).Info("Invalid sharding info")
 	}
 
 	// sending confirmation status to pandora
 	s.verifiedSlotInfoFeed.Send(confirmationStatus)
 	return nil
-}
-
-// verifyShardingInfo checks
-//	- sharding info between incoming vanguard and pandora sharding infos
-// 	- checks consecutive parent hash of vanguard and pandora sharding hash
-// 	- if parent hash of vanguard block does not match with latest verified slot then trigger reorg
-func (s *Service) verifyShardingInfo(vanShardInfo *types.VanguardShardInfo, header *eth1Types.Header) (bool, error) {
-	// Here comparing sharding info with vanguard and pandora block's header
-	if !compareShardingInfo(header, vanShardInfo.ShardInfo) {
-		return false, nil
-	}
-
-	if verificationStatus, triggerReorg := s.verifyConsecutiveHashes(header, vanShardInfo); !verificationStatus {
-		if triggerReorg {
-			log.Info("Shard info comparision success and reorg triggered!")
-			if err := s.processReorg(common.BytesToHash(vanShardInfo.ParentHash)); err != nil {
-				log.WithError(err).Error("Failed to process reorg")
-				return false, err
-			}
-		}
-		return false, nil
-	}
-
-	return true, nil
 }
 
 func (s *Service) getShardingInfo(slot uint64) *types.MultiShardInfo {

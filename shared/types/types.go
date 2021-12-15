@@ -1,7 +1,9 @@
 package types
 
 import (
+	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
@@ -67,4 +69,74 @@ func CopyHeader(h *eth1Types.Header) *eth1Types.Header {
 		copy(cpy.Extra, h.Extra)
 	}
 	return &cpy
+}
+
+func (si *MultiShardInfo) DeepEqual(nsi *MultiShardInfo) bool {
+	if nsi == nil {
+		return false
+	}
+
+	if nsi.IsNil() && si.NotNil() {
+		return false
+	}
+
+	if nsi.NotNil() && si.IsNil() {
+		return false
+	}
+
+	if nsi.SlotInfo.Slot != si.SlotInfo.Slot && nsi.SlotInfo.BlockRoot != si.SlotInfo.BlockRoot {
+		return false
+	}
+
+	if len(nsi.Shards) != len(si.Shards) {
+		return false
+	}
+
+	nsiShard := nsi.Shards[0]
+	siShard := si.Shards[0]
+
+	if nsiShard.Id != siShard.Id || len(nsiShard.Blocks) != len(siShard.Blocks) {
+		return false
+	}
+
+	nsiShardBlock := nsiShard.Blocks[0]
+	siShardBlock := siShard.Blocks[0]
+
+	if nsiShardBlock.Number != siShardBlock.Number || siShardBlock.HeaderRoot != nsiShardBlock.HeaderRoot {
+		return false
+	}
+
+	return true
+}
+
+func (si *MultiShardInfo) NotNil() bool {
+	return si.SlotInfo != nil && len(si.Shards) > 0 && len(si.Shards[0].Blocks) > 0
+}
+
+func (si *MultiShardInfo) IsNil() bool {
+	if si.SlotInfo == nil || len(si.Shards) == 0 {
+		return true
+	}
+
+	if len(si.Shards[0].Blocks) == 0 {
+		return true
+	}
+
+	if si.Shards[0].Blocks[0] == nil {
+		return true
+	}
+	return false
+}
+
+func (si *MultiShardInfo) FormattedStr() string {
+	if si.IsNil() {
+		return ""
+	}
+	s := strings.Join([]string{`ShardInfo{`,
+		`SlotInfo:{ Slot: ` + fmt.Sprintf("%d", si.SlotInfo.Slot) + `, BlockRoot: ` + fmt.Sprintf("%v", si.SlotInfo.BlockRoot) + ` }`,
+		`Shards:{ ShardId: ` + fmt.Sprintf("%v", si.Shards[0].Id) + `, ShardData: {`,
+		`{Number: ` + fmt.Sprintf("%d", si.Shards[0].Blocks[0].Number) + `, HeaderRoot: ` + fmt.Sprintf("%v", si.Shards[0].Blocks[0].HeaderRoot),
+		`}`,
+	}, "")
+	return s
 }

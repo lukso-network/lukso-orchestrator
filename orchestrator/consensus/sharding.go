@@ -82,76 +82,30 @@ func compareShardingInfo(ph *eth1Types.Header, vs *eth2Types.PandoraShard) bool 
 	return true
 }
 
-// verifyConsecutiveHashes method checks parent hash of vanguard and pandora current block header
+// verifyParentShardInfo method checks parent hash of vanguard and pandora current block header
 // Retrieves latest verified slot info and then checks the incoming vanguard and pandora blocks parent hash
-func (s *Service) verifyConsecutiveHashes(ph *eth1Types.Header, vs *types.VanguardShardInfo) (verificationStatus, triggerReorg bool) {
-	latestStepId := s.db.LatestStepID()
-	// short circuit when latest step id is 0 and 1. For latest first step id, we can not verify consecutiveness
-	// so returning true here
-	if latestStepId <= 1 {
-		return true, false
+func (s *Service) verifyShardInfo(latestShardInfo *types.MultiShardInfo, panHeader *eth1Types.Header, vanShardInfo *types.VanguardShardInfo) (status bool) {
+
+	if latestShardInfo == nil || latestShardInfo.IsNil() {
+		return true
 	}
 
-	shardInfo, err := s.db.VerifiedShardInfo(latestStepId)
-	if err != nil {
-		log.WithError(err).WithField("latestStepId", latestStepId).Error("Could not found shard info from DB")
-		return false, false
-	}
+	vParentHash := common.BytesToHash(vanShardInfo.ParentHash)
+	pParentHash := panHeader.ParentHash
+	pBlock := latestShardInfo.Shards[0].Blocks[0]
 
-	if shardInfo == nil {
-		log.WithField("latestStepId", latestStepId).Debug("Could not found shard info from DB")
-		return false, false
-	}
-
-	vParentHash := common.BytesToHash(vs.ParentHash)
-	pParentHash := ph.ParentHash
-
-	if shardInfo.SlotInfo.BlockRoot != vParentHash {
-		log.WithField("lastVerifiedVanHash", shardInfo.SlotInfo.BlockRoot).WithField("curVanParentHash", vParentHash).
+	if latestShardInfo.SlotInfo.BlockRoot != vParentHash {
+		log.WithField("lastVerifiedVanHash", latestShardInfo.SlotInfo.BlockRoot).WithField("curVanParentHash", vParentHash).
 			Debug("Invalid vanguard parent hash")
-		return false, true
-	}
-
-	if len(shardInfo.Shards) > 0 && len(shardInfo.Shards[0].Blocks) > 0 && shardInfo.Shards[0].Blocks[0].HeaderRoot != pParentHash {
-		log.WithField("lastVerifiedPanHash", shardInfo.Shards[0].Blocks[0].HeaderRoot).
-			WithField("curPanParentHash", pParentHash).Debug("Invalid pandora parent hash")
-		return false, false
-	}
-
-	return true, false
-}
-
-// verifySlotConsecutive checks vanguard block's parent hash with latest verified shard info. If vanguard block's parent
-// hash does not match with latest verified vanguard block's hash, then orc will trigger reorg.
-// when
-func (s *Service) verifySlotConsecutive(vs *types.VanguardShardInfo) (triggerReorg bool) {
-	latestStepId := s.db.LatestStepID()
-	// short circuit when latest step id is 0 and 1. For latest first step id, we can not verify consecutiveness
-	// so returning true here
-	if latestStepId <= 1 {
 		return false
 	}
 
-	shardInfo, err := s.db.VerifiedShardInfo(latestStepId)
-	if err != nil {
-		log.WithError(err).WithField("latestStepId", latestStepId).
-			Error("Could not found latest verified shard info from DB")
-		return true
+	if pBlock.HeaderRoot != pParentHash || pBlock.Number+1 == panHeader.Number.Uint64() {
+		log.WithField("lastVerifiedPanHash", pBlock.HeaderRoot).WithField("curPanParentHash", pParentHash).
+			WithField("latestVerifiedPanBlockNum", pBlock.Number).WithField("curPanBlockNum", panHeader.Number).
+			Debug("Invalid pandora parent hash")
+		return false
 	}
 
-	if shardInfo == nil {
-		log.WithField("latestStepId", latestStepId).
-			Debug("Could not found latest verified shard info from DB")
-		return true
-	}
-
-	vParentHash := common.BytesToHash(vs.ParentHash)
-
-	if shardInfo.SlotInfo.BlockRoot != vParentHash {
-		log.WithField("lastVerifiedVanHash", shardInfo.SlotInfo.BlockRoot).WithField("curVanParentHash", vParentHash).
-			Debug("Invalid vanguard parent hash")
-		return true
-	}
-
-	return false
+	return true
 }

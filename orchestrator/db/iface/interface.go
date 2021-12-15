@@ -29,7 +29,7 @@ type ReadOnlyVerifiedShardInfoDatabase interface {
 	GetStepIdBySlot(slot uint64) (uint64, error)
 	FinalizedSlot() uint64
 	FinalizedEpoch() uint64
-	FindAncestor(fromStepId, toStepId uint64, blockHash common.Hash) (*types.MultiShardInfo, error)
+	FindAncestor(fromStepId, toStepId uint64, blockHash common.Hash) (*types.MultiShardInfo, uint64, error)
 }
 
 type VerifiedShardInfoDatabase interface {
