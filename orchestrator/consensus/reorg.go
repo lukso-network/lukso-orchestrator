@@ -15,15 +15,15 @@ func (s *Service) checkReorg(
 ) (*types.MultiShardInfo, uint64, error) {
 
 	// when latest verified shard info is nil, just return nil
-	if latestVerifiedShardInfo.IsNil() {
-		return nil, 0, nil
+	if latestVerifiedShardInfo == nil || latestVerifiedShardInfo.IsNil() {
+		return nil, 0, errors.New("nil latest shard info, reorg checking failed")
 	}
 
-	// ff this slot is less than finalized slot then it does not check reorg
-	if vanShardInfo.Slot < vanShardInfo.FinalizedSlot {
+	// if this slot is less than finalized slot then it does not check reorg
+	if vanShardInfo.Slot <= vanShardInfo.FinalizedSlot {
 		log.WithField("slot", vanShardInfo.Slot).
 			WithField("finalizedSlot", vanShardInfo.FinalizedSlot).
-			Debug("Skipped reorg checking in initial-syncing")
+			Info("Skipped reorg checking in initial-syncing")
 		return nil, 0, nil
 	}
 
@@ -33,13 +33,13 @@ func (s *Service) checkReorg(
 		log.WithError(err).WithField("finalizedSlotInDB", finalizedSlotInDB).
 			WithField("latestFinalizedStepId", finalizedStepId).
 			Error("Could not found step id from DB")
-		return nil, 0, err
+		return nil, 0, errors.Wrap(err, "could not found step id from DB")
 	}
 
 	if finalizedSlotInDB > latestVerifiedShardInfo.SlotInfo.Slot {
-		log.WithField("latestVerifiedSlo", latestVerifiedShardInfo.SlotInfo.Slot).
+		log.WithField("latestSlot", latestVerifiedShardInfo.SlotInfo.Slot).
 			WithField("finalizedSlotInDB", finalizedSlotInDB).
-			Debug("Skipped reorg checking in initial-syncing")
+			Info("Skipped reorg checking in initial-syncing")
 		return nil, 0, nil
 	}
 
@@ -51,17 +51,19 @@ func (s *Service) checkReorg(
 			vanShardInfo.Slot, parentHash, stepId)
 	}
 
-	// TODO- if slot parent  does not exist in verified db then should check in cache
-	// TODO- if slot parent does not exist in cache too, then return unknown parent error
 	// if parent shard info does not find in db
-	if parentShardInfo.IsNil() {
+	if parentShardInfo == nil || parentShardInfo.IsNil() {
+		if !s.vanShardCache.ContainsHash(parentHash.Bytes()) {
+			log.WithField("parentHash", parentHash).WithField("slot", vanShardInfo.Slot).Info("Unknown parent")
+			return nil, 0, errUnknownParent
+		}
 		return nil, 0, nil
 	}
 
 	// parent slot found in db now checking with latest verified slot
 	// if they are mis-matched, then trigger reorg
 	if !latestVerifiedShardInfo.DeepEqual(parentShardInfo) {
-		log.WithField("latestVerifiedShardInfo", latestVerifiedShardInfo.FormattedStr()).
+		log.WithField("latestShardInfo", latestVerifiedShardInfo.FormattedStr()).
 			WithField("parentShardInfo", parentShardInfo.FormattedStr()).Info("Triggering reorg!")
 		return parentShardInfo, stepId, nil
 	}
@@ -88,8 +90,8 @@ func (s *Service) processReorg(parentStepId uint64, parentShardInfo *types.Multi
 
 	// Publish reorg info for rpc service for notifying pandora client
 	s.reorgInfoFeed.Send(&types.Reorg{
-		VanParentHash: parentShardInfo.SlotInfo.BlockRoot.Bytes(),
-		PanParentHash: parentShardInfo.Shards[0].Blocks[0].HeaderRoot.Bytes(),
+		VanParentHash: parentShardInfo.GetVanSlotRootBytes(),
+		PanParentHash: parentShardInfo.GetPanShardRootBytes(),
 	})
 	return nil
 }

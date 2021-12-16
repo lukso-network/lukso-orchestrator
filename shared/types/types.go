@@ -141,14 +141,26 @@ func (si *MultiShardInfo) FormattedStr() string {
 	return s
 }
 
-func (si *MultiShardInfo) GetPandoraShardRoot() []byte {
+func (si *MultiShardInfo) GetPanShardRootBytes() []byte {
 	return si.Shards[0].Blocks[0].HeaderRoot.Bytes()
 }
 
-func (si *MultiShardInfo) GetVanSlotRoot() []byte {
+func (si *MultiShardInfo) GetPanShardRoot() common.Hash {
+	return si.Shards[0].Blocks[0].HeaderRoot
+}
+
+func (si *MultiShardInfo) GetVanSlotRootBytes() []byte {
 	return si.SlotInfo.BlockRoot.Bytes()
+}
+
+func (si *MultiShardInfo) GetVanSlotRoot() common.Hash {
+	return si.SlotInfo.BlockRoot
 }
 
 func (si *MultiShardInfo) GetSlot() uint64 {
 	return si.SlotInfo.Slot
+}
+
+func (si *MultiShardInfo) GetPanBlockNumber() uint64 {
+	return si.Shards[0].Blocks[0].Number
 }

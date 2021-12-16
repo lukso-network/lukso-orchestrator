@@ -19,12 +19,12 @@ import (
 func (s *Service) processPandoraHeader(headerInfo *types.PandoraHeaderInfo) error {
 	slot := headerInfo.Slot
 	// short circuit check, if this header is already in verified sharding info db then send confirmation instantly
-	if shardInfo := s.getShardingInfo(slot); shardInfo != nil {
-		if len(shardInfo.Shards) > 0 && len(shardInfo.Shards[0].Blocks) > 0 && shardInfo.Shards[0].Blocks[0].HeaderRoot == headerInfo.Header.Hash() {
-			log.WithField("shardInfo", fmt.Sprintf("%+v", shardInfo)).Debug("Pandora shard header is already in verified shard info db")
+	if shardInfo := s.getShardingInfo(slot); shardInfo != nil && shardInfo.NotNil() {
+		if shardInfo.GetPanShardRoot() == headerInfo.Header.Hash() {
+			log.WithField("shardInfo", shardInfo.FormattedStr()).Debug("Pandora shard header is already in verified shard info db")
 			s.verifiedSlotInfoFeed.Send(&types.SlotInfoWithStatus{
-				VanguardBlockHash: shardInfo.SlotInfo.BlockRoot,
-				PandoraHeaderHash: shardInfo.Shards[0].Blocks[0].HeaderRoot,
+				VanguardBlockHash: shardInfo.GetVanSlotRoot(),
+				PandoraHeaderHash: shardInfo.GetPanShardRoot(),
 				Status:            types.Verified,
 			})
 			return nil
@@ -43,10 +43,16 @@ func (s *Service) processPandoraHeader(headerInfo *types.PandoraHeaderInfo) erro
 
 	// first push the header into the cache.
 	// it will update the cache if already present or enter a new info
-	s.panHeaderCache.Put(slot, &cache.PanCacheInsertParams{
+	if err := s.panHeaderCache.Put(slot, &cache.PanCacheInsertParams{
 		CurrentVerifiedHeader:  headerInfo.Header,
-		LastVerifiedHeaderHash: latestShardInfo.GetPandoraShardRoot(), // TODO: NEED TO SET VERIFIED HEADER
-	})
+		LastVerifiedHeaderHash: latestShardInfo.GetPanShardRootBytes(),
+	}); err != nil {
+		log.WithError(err).WithField("blockNumber", headerInfo.Header.Number).
+			WithField("slot", headerInfo.Slot).WithField("headerRoot", headerInfo.Header.Hash()).
+			Info("Unknown parent in db and cache so discarding this pandora header")
+
+		return nil
+	}
 
 	// now mark it as we are making a decision on it
 	err = s.panHeaderCache.MarkInProgress(slot)
@@ -68,9 +74,9 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 	slot := vanShardInfo.Slot
 
 	// short circuit check, if this header is already in verified sharding info db then send confirmation instantly
-	if shardInfo := s.getShardingInfo(slot); shardInfo != nil {
-		if shardInfo.SlotInfo != nil && shardInfo.SlotInfo.BlockRoot != common.BytesToHash(vanShardInfo.BlockHash) {
-			log.WithField("shardInfo", fmt.Sprintf("%+v", shardInfo)).Debug("Van header is already in verified shard info db")
+	if shardInfo := s.getShardingInfo(slot); shardInfo != nil && shardInfo.NotNil() {
+		if shardInfo.GetVanSlotRoot() != common.BytesToHash(vanShardInfo.BlockHash) {
+			log.WithField("shardInfo", shardInfo.FormattedStr()).Debug("Van header is already in verified shard info db")
 			return nil
 		}
 	}
@@ -88,14 +94,14 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 	// if reorg triggers here, orc will start processing reorg
 	parentShardInfo, parentStepId, err := s.checkReorg(vanShardInfo, latestShardInfo, latestStepId)
 	if err != nil {
-		return errors.Wrap(err, "Failed to check reorg!")
+		return errors.Wrap(err, "failed to check reorg!")
 	}
 
 	if parentShardInfo != nil {
 		log.Info("Start processing reorg!")
 		if err := s.processReorg(parentStepId, parentShardInfo); err != nil {
-			log.WithError(err).Error("Failed to process reorg!")
-			return err
+			log.WithError(err).Error("failed to process reorg!")
+			return errors.Wrap(err, "failed to process reorg!")
 		}
 	}
 
@@ -104,13 +110,20 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 		// if slot number is less than finalized slot then initial sync is happening
 		disableDelete = true
 	}
+
 	// first push the shardInfo into the cache.
 	// it will update the cache if already present or enter a new info
-	s.vanShardCache.Put(slot, &cache.VanCacheInsertParams{
+	if err := s.vanShardCache.Put(slot, &cache.VanCacheInsertParams{
 		DisableDelete:        disableDelete,
 		CurrentShardInfo:     vanShardInfo,
-		LastVerfiedShardRoot: latestShardInfo.GetVanSlotRoot(), // TODO: NEED TO SETUP LATEST VERFIEID SHARD
-	})
+		LastVerfiedShardRoot: latestShardInfo.GetVanSlotRootBytes(),
+	}); err != nil {
+		log.WithError(err).WithField("slot", vanShardInfo.Slot).WithField("blockRoot", common.BytesToHash(vanShardInfo.BlockHash)).
+			Info("Unknown parent in db and cache so discarding this vanguard block")
+
+		return nil
+	}
+
 	// now mark it as we are making a decision on it
 	err = s.vanShardCache.MarkInProgress(slot)
 	if err != nil {
@@ -146,7 +159,7 @@ func (s *Service) insertIntoChain(
 		newShardInfo := utils.PrepareMultiShardData(vanShardInfo, header, TotalExecutionShardCount, ShardsPerVanBlock)
 		// Write shard info into db
 		if err := s.writeShardInfoInDB(newShardInfo); err != nil {
-			return err
+			return errors.Wrap(err, "failed to write shard info in db")
 		}
 		// write finalize info into db
 		s.writeFinalizeInfo(vanShardInfo.FinalizedSlot, vanShardInfo.FinalizedEpoch)
@@ -171,10 +184,6 @@ func (s *Service) getShardingInfo(slot uint64) *types.MultiShardInfo {
 
 	shardInfo, err := s.db.VerifiedShardInfo(stepId)
 	if err != nil {
-		return nil
-	}
-
-	if shardInfo == nil {
 		return nil
 	}
 

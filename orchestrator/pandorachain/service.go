@@ -229,10 +229,10 @@ func (s *Service) subscribe() error {
 
 	if latestShardInfo != nil && latestShardInfo.NotNil() {
 		if latestShardInfo.GetSlot() < finalizedSlot {
-			filter.FromBlockHash = common.BytesToHash(latestShardInfo.GetPandoraShardRoot())
+			filter.FromBlockHash = common.BytesToHash(latestShardInfo.GetPanShardRootBytes())
 		} else {
 			if finalizedShardInfo != nil && finalizedShardInfo.NotNil() {
-				filter.FromBlockHash = common.BytesToHash(finalizedShardInfo.GetPandoraShardRoot())
+				filter.FromBlockHash = common.BytesToHash(finalizedShardInfo.GetPanShardRootBytes())
 			}
 		}
 	}
