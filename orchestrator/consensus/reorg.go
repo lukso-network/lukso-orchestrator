@@ -14,6 +14,14 @@ func (s *Service) checkReorg(
 	latestStepId uint64,
 ) (*types.MultiShardInfo, uint64, error) {
 
+	// Reorg checking starts from stepId 2
+	if latestStepId < 2 {
+		log.WithField("slot", vanShardInfo.Slot).
+			WithField("latestStepId", latestStepId).
+			Info("Early exiting from reorg checking for first step id")
+		return nil, 0, nil
+	}
+
 	// when latest verified shard info is nil, just return nil
 	if latestVerifiedShardInfo == nil || latestVerifiedShardInfo.IsNil() {
 		return nil, 0, errors.New("nil latest shard info, reorg checking failed")
@@ -92,7 +100,7 @@ func (s *Service) processReorg(parentStepId uint64, parentShardInfo *types.Multi
 	s.reorgInfoFeed.Send(&types.Reorg{
 		VanParentHash: parentShardInfo.GetVanSlotRootBytes(),
 		PanParentHash: parentShardInfo.GetPanShardRootBytes(),
-		NewSlot: parentShardInfo.GetSlot(),
+		NewSlot:       parentShardInfo.GetSlot(),
 	})
 	return nil
 }

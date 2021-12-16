@@ -84,7 +84,7 @@ func (si *MultiShardInfo) DeepEqual(nsi *MultiShardInfo) bool {
 		return false
 	}
 
-	if nsi.SlotInfo.Slot != si.SlotInfo.Slot && nsi.SlotInfo.BlockRoot != si.SlotInfo.BlockRoot {
+	if nsi.SlotInfo.Slot != si.SlotInfo.Slot || nsi.SlotInfo.BlockRoot != si.SlotInfo.BlockRoot {
 		return false
 	}
 
@@ -132,11 +132,11 @@ func (si *MultiShardInfo) FormattedStr() string {
 	if si.IsNil() {
 		return ""
 	}
-	s := strings.Join([]string{`ShardInfo{`,
-		`SlotInfo:{ Slot: ` + fmt.Sprintf("%d", si.SlotInfo.Slot) + `, BlockRoot: ` + fmt.Sprintf("%v", si.SlotInfo.BlockRoot) + ` }`,
-		`Shards:{ ShardId: ` + fmt.Sprintf("%v", si.Shards[0].Id) + `, ShardData: {`,
-		`{Number: ` + fmt.Sprintf("%d", si.Shards[0].Blocks[0].Number) + `, HeaderRoot: ` + fmt.Sprintf("%v", si.Shards[0].Blocks[0].HeaderRoot),
-		`}`,
+	s := strings.Join([]string{`shardInfo: { `,
+		`slotInfo: { slot: ` + fmt.Sprintf("%d", si.SlotInfo.Slot) + `, blockRoot: ` + fmt.Sprintf("%v", si.SlotInfo.BlockRoot) + `} `,
+		`shards: { shardId: ` + fmt.Sprintf("%v", si.Shards[0].Id) + `, shardData: { `,
+		`{ number: ` + fmt.Sprintf("%d", si.Shards[0].Blocks[0].Number) + `, headerRoot: ` + fmt.Sprintf("%v", si.Shards[0].Blocks[0].HeaderRoot),
+		` }`,
 	}, "")
 	return s
 }
