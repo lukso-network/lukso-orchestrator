@@ -2,6 +2,8 @@ package node
 
 import (
 	"context"
+	"github.com/lukso-network/lukso-orchestrator/shared/version"
+	"github.com/prysmaticlabs/prysm/shared/sliceutil"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -20,7 +22,6 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/shared"
 	"github.com/lukso-network/lukso-orchestrator/shared/cmd"
 	"github.com/lukso-network/lukso-orchestrator/shared/fileutil"
-	"github.com/lukso-network/lukso-orchestrator/shared/version"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -52,14 +53,17 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 	registry := shared.NewServiceRegistry()
 	ctx, cancel := context.WithCancel(cliCtx.Context)
 
+	genesisTime := cliCtx.Uint64(cmd.VanguardGenesisTime.Name)
+	secPerSlot := cliCtx.Uint64(cmd.SecondsPerSlot.Name)
+
 	orchestrator := &OrchestratorNode{
 		cliCtx:              cliCtx,
 		ctx:                 ctx,
 		cancel:              cancel,
 		services:            registry,
 		stop:                make(chan struct{}),
-		pandoraPendingCache: cache.NewPandoraCache(math.MaxInt32, cliCtx.Uint64(cmd.VanguardGenesisTime.Name), cliCtx.Uint64(cmd.SecondsPerSlot.Name)),
-		vanPendingCache:     cache.NewVanguardCache(math.MaxInt32, cliCtx.Uint64(cmd.VanguardGenesisTime.Name), cliCtx.Uint64(cmd.SecondsPerSlot.Name)),
+		pandoraPendingCache: cache.NewPandoraCache(math.MaxInt32, genesisTime, secPerSlot),
+		vanPendingCache:     cache.NewVanguardCache(math.MaxInt32, genesisTime, secPerSlot),
 	}
 
 	if err := orchestrator.startDB(orchestrator.cliCtx); err != nil {
@@ -101,6 +105,8 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 	if err := orchestrator.registerRPCService(cliCtx); err != nil {
 		return nil, err
 	}
+
+	log.WithField("genesisTime", genesisTime).WithField("secPerSlot", secPerSlot).Info("Started orchestrator node")
 
 	return orchestrator, nil
 }
@@ -249,6 +255,7 @@ func (o *OrchestratorNode) registerRPCService(cliCtx *cli.Context) error {
 		HTTPEnable:        httpEnable,
 		HTTPHost:          httpListenAddr,
 		HTTPPort:          httpPort,
+		HTTPVirtualHosts:  sliceutil.SplitCommaSeparated(cliCtx.StringSlice(cmd.HTTPVirtualHosts.Name)),
 		WSEnable:          wsEnable,
 		WSHost:            wsListenerAddr,
 		WSPort:            wsPort,

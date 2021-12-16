@@ -112,6 +112,7 @@ func (api *PublicFilterAPI) ConfirmVanBlockHashes(
 
 // GetShardInfos is a debug api for getting latest shard infos from verified shard info db
 func (api *PublicFilterAPI) GetShardInfos(ctx context.Context) (response map[uint64]*generalTypes.MultiShardInfo, err error) {
+	log.Debug("Serving response for GetShardInfos api....")
 	finalizedSlot := api.backend.LatestFinalizedSlot()
 	shardInfos, err := api.backend.VerifiedShardInfos(finalizedSlot)
 	if err != nil {

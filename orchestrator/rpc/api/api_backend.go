@@ -5,7 +5,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/utils"
 	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
 
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"

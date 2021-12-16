@@ -4,6 +4,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+// TODO(Atif)- Need to have more options for http and ws for security purpose
 var (
 	// DataDirFlag defines a path on disk.
 	DataDirFlag = &cli.StringFlag{
@@ -43,6 +44,12 @@ var (
 		Name:  "http.port",
 		Usage: "HTTP-RPC server listening port",
 		Value: DefaultHTTPPort,
+	}
+
+	HTTPVirtualHosts = &cli.StringSliceFlag{
+		Name:  "http.vhosts",
+		Usage: "Comma separated list of virtual hostnames from which to accept requests (server enforced). Accepts '*' wildcard.",
+		Value: cli.NewStringSlice("localhost"),
 	}
 
 	WSEnabledFlag = &cli.BoolFlag{

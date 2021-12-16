@@ -150,7 +150,7 @@ func (s *Service) startRPC() error {
 	if s.config.HTTPEnable && s.config.HTTPHost != "" {
 		config := httpConfig{
 			CorsAllowedOrigins: nil,
-			Vhosts:             nil,
+			Vhosts:             s.config.HTTPVirtualHosts,
 			Modules:            nil,
 			prefix:             "",
 		}
