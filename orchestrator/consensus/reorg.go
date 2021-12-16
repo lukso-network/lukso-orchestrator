@@ -92,6 +92,7 @@ func (s *Service) processReorg(parentStepId uint64, parentShardInfo *types.Multi
 	s.reorgInfoFeed.Send(&types.Reorg{
 		VanParentHash: parentShardInfo.GetVanSlotRootBytes(),
 		PanParentHash: parentShardInfo.GetPanShardRootBytes(),
+		NewSlot: parentShardInfo.GetSlot(),
 	})
 	return nil
 }

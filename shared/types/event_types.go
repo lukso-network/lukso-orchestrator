@@ -67,7 +67,6 @@ type VanguardShardInfo struct {
 	FinalizedSlot  uint64
 	FinalizedEpoch uint64
 	ParentHash     []byte
-	IsSyncing      bool
 }
 
 type BlsSignatureBytes [BLSSignatureSize]byte

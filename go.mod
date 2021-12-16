@@ -32,5 +32,5 @@ require (
 
 replace (
 	github.com/grpc-ecosystem/grpc-gateway/v2 => github.com/prysmaticlabs/grpc-gateway/v2 v2.3.1-0.20210622145107-ca3041e1b380
-	github.com/prysmaticlabs/prysm => github.com/lukso-network/vanguard-consensus-engine v0.6.1-develop.0.20211210105000-067f75a66be8
+	github.com/prysmaticlabs/prysm => github.com/lukso-network/vanguard-consensus-engine v0.6.1-develop.0.20211216121750-721411c02cb3
 )
