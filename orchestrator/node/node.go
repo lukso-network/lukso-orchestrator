@@ -217,8 +217,8 @@ func (o *OrchestratorNode) registerRPCService(cliCtx *cli.Context) error {
 		return err
 	}
 
-	var verifiedSlotInfoFeed *consensus.Service
-	if err := o.services.FetchService(&verifiedSlotInfoFeed); err != nil {
+	var consensusSvc *consensus.Service
+	if err := o.services.FetchService(&consensusSvc); err != nil {
 		return err
 	}
 
@@ -255,7 +255,8 @@ func (o *OrchestratorNode) registerRPCService(cliCtx *cli.Context) error {
 
 		PandoraHeaderCache:   o.pandoraPendingCache,
 		VangShardCache:       o.vanPendingCache,
-		VerifiedSlotInfoFeed: verifiedSlotInfoFeed,
+		VerifiedSlotInfoFeed: consensusSvc,
+		ReorgInfoFeed:        consensusSvc,
 	})
 	if err != nil {
 		return nil

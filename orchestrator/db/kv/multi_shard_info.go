@@ -249,8 +249,12 @@ func (s *Store) FinalizedEpoch() uint64 {
 }
 
 // FindAncestor
-func (s *Store) FindAncestor(fromStepId, toStepId uint64, blockHash common.Hash) (*types.MultiShardInfo, error) {
-	var ancestorShardInfo *types.MultiShardInfo
+func (s *Store) FindAncestor(fromStepId, toStepId uint64, blockHash common.Hash) (*types.MultiShardInfo, uint64, error) {
+	var (
+		ancestorShardInfo *types.MultiShardInfo
+		stepId            uint64
+	)
+
 	err := s.db.View(func(tx *bolt.Tx) error {
 		for step := fromStepId; step > toStepId; step-- {
 			shardInfo, err := s.VerifiedShardInfo(step)
@@ -260,6 +264,7 @@ func (s *Store) FindAncestor(fromStepId, toStepId uint64, blockHash common.Hash)
 			}
 			if shardInfo.SlotInfo.BlockRoot == blockHash {
 				ancestorShardInfo = shardInfo
+				stepId = step
 				log.WithField("fromStepId", fromStepId).WithField("toStepId", toStepId).
 					WithField("blockHash", blockHash).WithField("ancestorShardInfo", ancestorShardInfo).
 					Info("Found common ancestor")
@@ -270,8 +275,8 @@ func (s *Store) FindAncestor(fromStepId, toStepId uint64, blockHash common.Hash)
 	})
 	// the query not successful
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return ancestorShardInfo, nil
+	return ancestorShardInfo, stepId, nil
 }

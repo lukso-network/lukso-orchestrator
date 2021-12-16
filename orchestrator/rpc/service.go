@@ -17,9 +17,11 @@ import (
 type Config struct {
 	ConsensusInfoFeed    iface.ConsensusInfoFeed
 	VerifiedSlotInfoFeed conIface.VerifiedSlotInfoFeed
-	Db                   db.Database
-	PandoraHeaderCache   cache.PandoraInterface
-	VangShardCache       cache.VanguardInterface
+	ReorgInfoFeed        conIface.ReorgInfoFeed
+
+	Db                 db.Database
+	PandoraHeaderCache cache.PandoraInterface
+	VangShardCache     cache.VanguardInterface
 	// ipc config
 	IPCPath string
 	// http config
@@ -76,6 +78,7 @@ func NewService(ctx context.Context, cfg *Config) (*Service, error) {
 			PanHeaderCache:       cfg.PandoraHeaderCache,
 			VanShardCache:        cfg.VangShardCache,
 			VerifiedSlotInfoFeed: cfg.VerifiedSlotInfoFeed,
+			ReorgFeed:            cfg.ReorgInfoFeed,
 		},
 	}
 	// Configure RPC servers.

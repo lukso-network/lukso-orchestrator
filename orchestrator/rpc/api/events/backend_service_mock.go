@@ -15,6 +15,7 @@ var (
 type MockBackend struct {
 	ConsensusInfoFeed    event.Feed
 	verifiedSlotInfoFeed event.Feed
+	reorgInfoFeed        event.Feed
 
 	ConsensusInfos    []*eventTypes.MinimalEpochConsensusInfoV2
 	verifiedSlotInfos map[uint64]*eventTypes.SlotInfo
@@ -39,12 +40,20 @@ func (b *MockBackend) SubscribeNewVerifiedSlotInfoEvent(ch chan<- *eventTypes.Sl
 	return b.verifiedSlotInfoFeed.Subscribe(ch)
 }
 
+func (b *MockBackend) SubscribeNewReorgInfoEvent(ch chan<- *eventTypes.Reorg) event.Subscription {
+	return b.reorgInfoFeed.Subscribe(ch)
+}
+
 func (mb *MockBackend) GetSlotStatus(ctx context.Context, slot uint64, hash common.Hash, requestType bool) eventTypes.Status {
 	return eventTypes.Pending
 }
 
 func (mb *MockBackend) LatestEpoch() uint64 {
 	return 100
+}
+
+func (mb *MockBackend) LatestEpochInfo(ctx context.Context) (*eventTypes.MinimalEpochConsensusInfoV2, error) {
+	return nil, nil
 }
 
 func (mb *MockBackend) VerifiedSlotInfos(fromSlot uint64) (map[uint64]*eventTypes.BlockStatus, error) {

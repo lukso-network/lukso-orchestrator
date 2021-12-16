@@ -1,8 +1,8 @@
 package utils
 
 import (
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
-	"github.com/status-im/keycard-go/hexutils"
 	"sync"
 )
 
@@ -23,7 +23,7 @@ func NewStack() *Stack {
 func (stk *Stack) Push(value []byte) {
 	stk.lock.Lock()
 	defer stk.lock.Unlock()
-	hex := hexutils.BytesToHex(value)
+	hex := common.Bytes2Hex(value)
 	stk.indexes[hex] = len(stk.data)
 	stk.data = append(stk.data, hex)
 }
@@ -40,7 +40,7 @@ func (stk *Stack) Pop() ([]byte, error) {
 	retVal := stk.data[l-1]
 	stk.data = stk.data[:l-1]
 	delete(stk.indexes, retVal)
-	return hexutils.HexToBytes(retVal), nil
+	return common.Hex2Bytes(retVal), nil
 }
 
 // Top - the latest element in the cache
@@ -53,14 +53,14 @@ func (stk *Stack) Top() ([]byte, error) {
 	}
 
 	retVal := stk.data[l-1]
-	return hexutils.HexToBytes(retVal), nil
+	return common.Hex2Bytes(retVal), nil
 }
 
 // Contains - refers if key is inside stack or not
 func (stk *Stack) Contains(hash []byte) bool {
 	stk.lock.Lock()
 	defer stk.lock.Unlock()
-	_, found := stk.indexes[hexutils.BytesToHex(hash)]
+	_, found := stk.indexes[common.Bytes2Hex(hash)]
 	return found
 }
 
@@ -68,7 +68,7 @@ func (stk *Stack) Contains(hash []byte) bool {
 func (stk *Stack) Delete(hash []byte) {
 	stk.lock.Lock()
 	defer stk.lock.Unlock()
-	key := hexutils.BytesToHex(hash)
+	key := common.Bytes2Hex(hash)
 	index, found := stk.indexes[key]
 	if found {
 		delete(stk.indexes, key)

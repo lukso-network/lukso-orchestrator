@@ -11,6 +11,4 @@ type ConsensusInfoFeed interface {
 
 type VanguardService interface {
 	SubscribeShardInfoEvent(chan<- *types.VanguardShardInfo) event.Subscription
-	SubscribeShutdownSignalEvent(chan<- *types.Reorg) event.Subscription
-	StopSubscription(reorgInfo *types.Reorg)
 }

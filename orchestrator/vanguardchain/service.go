@@ -59,7 +59,6 @@ type Service struct {
 
 	stopPendingBlkSubCh chan struct{}
 	stopEpochInfoSubCh  chan struct{}
-	reorgInfo           *types.Reorg
 }
 
 // NewService creates new service with vanguard endpoint, vanguard namespace and consensusInfoDB
@@ -134,8 +133,10 @@ func (s *Service) run() {
 	curStepId := s.verifiedShardInfoDB.LatestStepID()
 	latestShardInfo, _ := s.verifiedShardInfoDB.VerifiedShardInfo(curStepId)
 
-	if latestShardInfo != nil && latestShardInfo.SlotInfo.Slot < fromSlot {
-		fromSlot = latestShardInfo.SlotInfo.Slot
+	if latestShardInfo != nil && latestShardInfo.NotNil() {
+		if latestShardInfo.SlotInfo.Slot < fromSlot {
+			fromSlot = latestShardInfo.SlotInfo.Slot
+		}
 	}
 
 	if latestEpoch < finalizeEpoch {
@@ -205,22 +206,6 @@ func (s *Service) SubscribeMinConsensusInfoEvent(ch chan<- *types.MinimalEpochCo
 
 func (s *Service) SubscribeShardInfoEvent(ch chan<- *types.VanguardShardInfo) event.Subscription {
 	return s.scope.Track(s.vanguardShardingInfoFeed.Subscribe(ch))
-}
-
-func (s *Service) SubscribeShutdownSignalEvent(ch chan<- *types.Reorg) event.Subscription {
-	return s.scope.Track(s.subscriptionShutdownFeed.Subscribe(ch))
-}
-
-func (s *Service) StopSubscription(reorgInfo *types.Reorg) {
-	defer s.processingLock.Unlock()
-	s.processingLock.Lock()
-
-	s.reorgInfo = reorgInfo
-	if s.conn != nil {
-		s.conn.Close()
-		s.conn = nil
-	}
-	log.Info("Stopped vanguard gRPC subscription due to reorg")
 }
 
 // dialConn method creates connection with vanguard grpc server

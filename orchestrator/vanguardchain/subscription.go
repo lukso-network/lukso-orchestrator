@@ -56,8 +56,10 @@ func (s *Service) subscribeVanNewPendingBlockHash(ctx context.Context, fromSlot 
 						curStepId := s.verifiedShardInfoDB.LatestStepID()
 						latestShardInfo, _ := s.verifiedShardInfoDB.VerifiedShardInfo(curStepId)
 
-						if latestShardInfo != nil && latestShardInfo.SlotInfo.Slot < finalizedSlot {
-							finalizedSlot = latestShardInfo.SlotInfo.Slot
+						if latestShardInfo != nil && latestShardInfo.NotNil() {
+							if latestShardInfo.GetSlot() < finalizedSlot {
+								finalizedSlot = latestShardInfo.GetSlot()
+							}
 						}
 
 						stream, err = s.beaconClient.StreamNewPendingBlocks(ctx,
@@ -162,15 +164,6 @@ func (s *Service) subscribeNewConsensusInfoGRPC(ctx context.Context, fromEpoch u
 				EpochStartTime:   vanMinimalConsensusInfo.EpochTimeStart,
 				SlotTimeDuration: time.Duration(vanMinimalConsensusInfo.SlotTimeDuration.Seconds),
 				FinalizedSlot:    s.verifiedShardInfoDB.FinalizedSlot(),
-			}
-
-			// if re-org happens then we get this info not nil
-			if s.reorgInfo != nil {
-				consensusInfo.ReorgInfo = s.reorgInfo
-
-				s.processingLock.Lock()
-				s.reorgInfo = nil
-				s.processingLock.Unlock()
 			}
 
 			log.WithField("epoch", consensusInfo.Epoch).
