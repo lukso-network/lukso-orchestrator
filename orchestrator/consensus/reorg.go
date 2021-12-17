@@ -44,7 +44,7 @@ func (s *Service) checkReorg(
 		return nil, 0, errors.Wrap(err, "could not found step id from DB")
 	}
 
-	if finalizedSlotInDB > latestVerifiedShardInfo.SlotInfo.Slot {
+	if finalizedSlotInDB > latestVerifiedShardInfo.GetSlot() {
 		log.WithField("latestSlot", latestVerifiedShardInfo.SlotInfo.Slot).
 			WithField("finalizedSlotInDB", finalizedSlotInDB).
 			Info("Skipped reorg checking in initial-syncing")

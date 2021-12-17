@@ -17,6 +17,10 @@ import (
 // - If vanguard shard is already into pending cache, then calls insertIntoChain method to verify the sharding info and
 // checks consecutiveness and trigger reorg if vanguard block's parent hash does not match with latest verified slot's hash
 func (s *Service) processPandoraHeader(headerInfo *types.PandoraHeaderInfo) error {
+	if headerInfo == nil {
+		return nil
+	}
+
 	slot := headerInfo.Slot
 	// short circuit check, if this header is already in verified sharding info db then send confirmation instantly
 	if shardInfo := s.getShardingInfo(slot); shardInfo != nil && shardInfo.NotNil() {
@@ -44,8 +48,8 @@ func (s *Service) processPandoraHeader(headerInfo *types.PandoraHeaderInfo) erro
 	// first push the header into the cache.
 	// it will update the cache if already present or enter a new info
 	if err := s.panHeaderCache.Put(slot, &cache.PanCacheInsertParams{
-		CurrentVerifiedHeader:  headerInfo.Header,
-		LastVerifiedHeaderHash: latestShardInfo.GetPanShardRootBytes(),
+		CurrentVerifiedHeader: headerInfo.Header,
+		LastVerifiedShardInfo: latestShardInfo,
 	}); err != nil {
 		log.WithError(err).WithField("blockNumber", headerInfo.Header.Number).
 			WithField("slot", headerInfo.Slot).WithField("headerRoot", headerInfo.Header.Hash()).
@@ -71,6 +75,10 @@ func (s *Service) processPandoraHeader(headerInfo *types.PandoraHeaderInfo) erro
 
 // processVanguardShardInfo
 func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo) error {
+	if vanShardInfo == nil {
+		return nil
+	}
+
 	slot := vanShardInfo.Slot
 
 	// short circuit check, if this header is already in verified sharding info db then send confirmation instantly
@@ -97,7 +105,7 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 		return errors.Wrap(err, "failed to check reorg!")
 	}
 
-	if parentShardInfo != nil {
+	if parentShardInfo != nil && parentShardInfo.NotNil() {
 		log.Info("Start processing reorg!")
 		if err := s.processReorg(parentStepId, parentShardInfo); err != nil {
 			log.WithError(err).Error("failed to process reorg!")
@@ -114,9 +122,9 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 	// first push the shardInfo into the cache.
 	// it will update the cache if already present or enter a new info
 	if err := s.vanShardCache.Put(slot, &cache.VanCacheInsertParams{
-		DisableDelete:        disableDelete,
-		CurrentShardInfo:     vanShardInfo,
-		LastVerfiedShardRoot: latestShardInfo.GetVanSlotRootBytes(),
+		DisableDelete:         disableDelete,
+		CurrentShardInfo:      vanShardInfo,
+		LastVerifiedShardInfo: latestShardInfo,
 	}); err != nil {
 		log.WithError(err).WithField("slot", vanShardInfo.Slot).WithField("blockRoot", common.BytesToHash(vanShardInfo.BlockHash)).
 			Info("Unknown parent in db and cache so discarding this vanguard block")

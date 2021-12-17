@@ -12,10 +12,10 @@ func (pc *PandoraCache) VerifyPandoraCache(verifyParams *PanCacheInsertParams) e
 	if verifyParams == nil {
 		return errInvalidElement
 	}
-	return pc.verifyPanCacheOrder(verifyParams.CurrentVerifiedHeader, verifyParams.LastVerifiedHeaderHash)
+	return pc.verifyPanCacheOrder(verifyParams.CurrentVerifiedHeader, verifyParams.LastVerifiedShardInfo)
 }
 
-func (pc *PandoraCache) verifyPanCacheOrder(currentHeader *eth1Types.Header, lastVerifiedHeaderHash []byte) error {
+func (pc *PandoraCache) verifyPanCacheOrder(currentHeader *eth1Types.Header, lastVerifiedShardInfo *types.MultiShardInfo) error {
 	if currentHeader == nil {
 		return errInvalidElement
 	}
@@ -23,11 +23,11 @@ func (pc *PandoraCache) verifyPanCacheOrder(currentHeader *eth1Types.Header, las
 	keys := pc.cache.Keys()
 	if len(keys) == 0 {
 		// the cache has no element so compare with the latestVerifiedHeader
-		if lastVerifiedHeaderHash == nil {
+		if lastVerifiedShardInfo == nil || lastVerifiedShardInfo.IsNil() {
 			// for fresh start there will be nothing inside database. So accept this header
 			return nil
 		}
-		if bytes.Equal(currentHeader.ParentHash.Bytes(), lastVerifiedHeaderHash) {
+		if bytes.Equal(currentHeader.ParentHash.Bytes(), lastVerifiedShardInfo.GetPanShardRootBytes()) {
 			return nil
 		}
 		return errParentHashMismatch
@@ -47,22 +47,22 @@ func (vc *VanguardCache) VerifyVanguardCache(verifyParams *VanCacheInsertParams)
 	if verifyParams == nil {
 		return errInvalidElement
 	}
-	return vc.verifyVanCacheOrder(verifyParams.CurrentShardInfo, verifyParams.LastVerfiedShardRoot)
+	return vc.verifyVanCacheOrder(verifyParams.CurrentShardInfo, verifyParams.LastVerifiedShardInfo)
 }
 
-func (vc *VanguardCache) verifyVanCacheOrder(currentShard *types.VanguardShardInfo, lastVerifiedShardRoot []byte) error {
+func (vc *VanguardCache) verifyVanCacheOrder(currentShard *types.VanguardShardInfo, lastVerifiedShardInfo *types.MultiShardInfo) error {
 	if currentShard == nil {
 		return errInvalidElement
 	}
 
 	keys := vc.cache.Keys()
 	if len(keys) == 0 {
-		if lastVerifiedShardRoot == nil {
+		if lastVerifiedShardInfo == nil || lastVerifiedShardInfo.IsNil() {
 			// first element in the whole system. accept it
 			return nil
 		}
 		// the cache has no element so compare with the latestVerifiedHeader
-		if bytes.Equal(currentShard.ParentHash, lastVerifiedShardRoot) {
+		if bytes.Equal(currentShard.ParentHash, lastVerifiedShardInfo.GetVanSlotRootBytes()) {
 			return nil
 		}
 		return errParentHashMismatch

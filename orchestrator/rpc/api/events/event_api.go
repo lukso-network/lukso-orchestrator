@@ -16,6 +16,7 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, requestedE
 		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported
 	}
 	rpcSub := notifier.CreateSubscription()
+	log.WithField("subscriptionId", rpcSub.ID).Info("New client has subscribed to minimal consensus info streaming api")
 
 	go func() {
 
@@ -153,6 +154,7 @@ func (api *PublicFilterAPI) SteamConfirmedPanBlockHashes(
 		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported
 	}
 	rpcSub := notifier.CreateSubscription()
+	log.WithField("subscriptionId", rpcSub.ID).Info("New client has subscribed to pandora block hash confirmation streaming api")
 
 	go func() {
 

@@ -38,14 +38,14 @@ type VanguardCache struct {
 }
 
 type PanCacheInsertParams struct {
-	CurrentVerifiedHeader  *eth1Types.Header
-	LastVerifiedHeaderHash []byte
+	CurrentVerifiedHeader *eth1Types.Header
+	LastVerifiedShardInfo *types.MultiShardInfo
 }
 
 type VanCacheInsertParams struct {
-	CurrentShardInfo     *types.VanguardShardInfo
-	LastVerfiedShardRoot []byte
-	DisableDelete        bool
+	CurrentShardInfo      *types.VanguardShardInfo
+	LastVerifiedShardInfo *types.MultiShardInfo
+	DisableDelete         bool
 }
 
 func (q *PandoraCacheData) GetPanHeader() *eth1Types.Header {
