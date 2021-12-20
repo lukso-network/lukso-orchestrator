@@ -128,7 +128,7 @@ func (s *Store) RemoveShardingInfos(fromStepId uint64) error {
 				return err
 			}
 		}
-		log.WithField("fromStep", fromStepId).WithField("latestStepIdKey", latestStepId).Info("Reverted shard infos from DB")
+		log.WithField("fromStep", latestStepId).WithField("toStep", fromStepId).Info("Reverted shard infos from DB")
 		return nil
 	})
 }

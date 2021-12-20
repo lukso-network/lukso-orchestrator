@@ -37,7 +37,7 @@ func (s *Service) processPandoraHeader(headerInfo *types.PandoraHeaderInfo) erro
 	latestStepId := s.db.LatestStepID()
 	latestShardInfo, err := s.db.VerifiedShardInfo(latestStepId)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "DB is corrupted! Failed to retrieve latest shard info")
 	}
 
 	if latestStepId > 0 && (latestShardInfo == nil || latestShardInfo.IsNil()) {
@@ -101,15 +101,18 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 	// if reorg triggers here, orc will start processing reorg
 	parentShardInfo, parentStepId, err := s.checkReorg(vanShardInfo, latestShardInfo, latestStepId)
 	if err != nil {
-		return errors.Wrap(err, "failed to check reorg!")
+		log.WithError(err).Error("Failed to check reorg")
+		return nil
 	}
 
 	if parentShardInfo != nil && parentShardInfo.NotNil() {
 		log.Info("Start processing reorg!")
 		if err := s.processReorg(parentStepId, parentShardInfo); err != nil {
-			log.WithError(err).Error("failed to process reorg!")
-			return errors.Wrap(err, "failed to process reorg!")
+			log.WithError(err).Error("Failed to process reorg!")
+			return nil
 		}
+		latestShardInfo = parentShardInfo
+		latestStepId = parentStepId
 	}
 
 	disableDelete := false
