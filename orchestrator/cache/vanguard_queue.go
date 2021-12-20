@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func NewVanguardCache(size int, genesisTimestamp uint64, secondsPerSlot uint64) *VanguardCache {
+func NewVanguardCache(size int, genesisTimestamp uint64, secondsPerSlot uint64, stack *utils.Stack) *VanguardCache {
 	cache, err := lru.New(size)
 	if err != nil {
 		panic(err)
@@ -17,7 +17,7 @@ func NewVanguardCache(size int, genesisTimestamp uint64, secondsPerSlot uint64) 
 	return &VanguardCache{
 		GenericCache{
 			cache:            cache,
-			stack:            utils.NewStack(),
+			stack:            stack,
 			genesisStartTime: genesisTimestamp,
 			secondsPerSlot:   secondsPerSlot,
 			inProgressSlots:  make(map[uint64]bool),
@@ -61,7 +61,7 @@ func (vc *VanguardCache) Put(slot uint64, insertParams *VanCacheInsertParams) er
 		queueData = val.(*VanguardCacheData)
 		queueData.vanShardInfo = insertParams.CurrentShardInfo
 	}
-	vc.stack.Push(insertParams.CurrentShardInfo.BlockHash)
+	vc.stack.Push(insertParams.CurrentShardInfo.BlockRoot[:])
 	vc.cache.Add(slot, queueData)
 	return nil
 }
@@ -96,7 +96,7 @@ func (vc *VanguardCache) RemoveByTime(timeStamp time.Time) {
 			if queueInfo.vanShardInfo != nil {
 				log.WithField("slot number", slot).Debug("Removing expired slot info from vanguard cache")
 				vc.cache.Remove(slot)
-				vc.stack.Delete(queueInfo.vanShardInfo.BlockHash)
+				vc.stack.Delete(queueInfo.vanShardInfo.BlockRoot[:])
 				delete(vc.inProgressSlots, slot)
 			}
 		}
@@ -108,7 +108,7 @@ func (vc *VanguardCache) ForceDelSlot(slot uint64) {
 		// removed all the previous slot number from cache. Now return
 		if slotInfo.vanShardInfo != nil {
 			vc.cache.Remove(slot)
-			vc.stack.Delete(slotInfo.vanShardInfo.BlockHash)
+			vc.stack.Delete(slotInfo.vanShardInfo.BlockRoot[:])
 			delete(vc.inProgressSlots, slot)
 		}
 	}

@@ -84,14 +84,23 @@ func compareShardingInfo(ph *eth1Types.Header, vs *eth2Types.PandoraShard) bool 
 
 // verifyParentShardInfo method checks parent hash of vanguard and pandora current block header
 // Retrieves latest verified slot info and then checks the incoming vanguard and pandora blocks parent hash
-func (s *Service) verifyShardInfo(latestShardInfo *types.MultiShardInfo, panHeader *eth1Types.Header, vanShardInfo *types.VanguardShardInfo) bool {
+func (s *Service) verifyShardInfo(
+	latestShardInfo *types.MultiShardInfo,
+	panHeader *eth1Types.Header,
+	vanShardInfo *types.VanguardShardInfo,
+	latestStepId uint64,
+) bool {
+
+	if latestStepId == 0 {
+		return true
+	}
 
 	if latestShardInfo == nil || latestShardInfo.IsNil() {
 		log.Debug("Nil latest shard info so verification of shard info is failed")
 		return false
 	}
 
-	vParentHash := common.BytesToHash(vanShardInfo.ParentHash)
+	vParentHash := common.BytesToHash(vanShardInfo.ParentRoot[:])
 	pParentHash := panHeader.ParentHash
 
 	if latestShardInfo.GetVanSlotRoot() != vParentHash {
@@ -100,10 +109,10 @@ func (s *Service) verifyShardInfo(latestShardInfo *types.MultiShardInfo, panHead
 		return false
 	}
 
-	if latestShardInfo.GetPanShardRoot() != pParentHash || latestShardInfo.GetPanBlockNumber()+1 == panHeader.Number.Uint64() {
+	if latestShardInfo.GetPanShardRoot() != pParentHash || latestShardInfo.GetPanBlockNumber()+1 != panHeader.Number.Uint64() {
 		log.WithField("lastPanHash", latestShardInfo.GetPanShardRoot()).WithField("curPanParentHash", pParentHash).
 			WithField("latestPanBlockNum", latestShardInfo.GetPanBlockNumber()).WithField("curPanBlockNum", panHeader.Number).
-			Debug("Invalid pandora parent hash")
+			Info("Invalid pandora parent hash")
 		return false
 	}
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/lukso-network/lukso-orchestrator/shared/bytesutil"
 
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	eth "github.com/prysmaticlabs/prysm/proto/eth/v1alpha1"
@@ -49,11 +50,11 @@ func (s *Service) onNewPendingVanguardBlock(ctx context.Context, blockInfo *eth.
 	shardInfo := pandoraShards[0]
 	cachedShardInfo := &types.VanguardShardInfo{
 		Slot:           uint64(block.Slot),
-		BlockHash:      blockHash[:],
+		BlockRoot:      blockHash,
 		ShardInfo:      shardInfo,
 		FinalizedSlot:  uint64(blockInfo.FinalizedSlot),
 		FinalizedEpoch: uint64(blockInfo.FinalizedEpoch),
-		ParentHash:     blockInfo.GetBlock().ParentRoot[:],
+		ParentRoot:     bytesutil.ToBytes32(blockInfo.GetBlock().ParentRoot),
 	}
 
 	log.WithField("slot", block.Slot).WithField("panBlockNum", shardInfo.BlockNumber).

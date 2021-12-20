@@ -63,10 +63,10 @@ type ShutDownSignal struct {
 type VanguardShardInfo struct {
 	Slot           uint64
 	ShardInfo      *eth2Types.PandoraShard
-	BlockHash      []byte
+	BlockRoot      [32]byte
 	FinalizedSlot  uint64
 	FinalizedEpoch uint64
-	ParentHash     []byte
+	ParentRoot     [32]byte
 }
 
 type BlsSignatureBytes [BLSSignatureSize]byte

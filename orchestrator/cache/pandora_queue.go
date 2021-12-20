@@ -11,7 +11,7 @@ import (
 )
 
 // NewPandoraCache creates a pandora cache
-func NewPandoraCache(size int, genesisTimestamp uint64, secondsPerSlot uint64) *PandoraCache {
+func NewPandoraCache(size int, genesisTimestamp uint64, secondsPerSlot uint64, stack *utils.Stack) *PandoraCache {
 	cache, err := lru.New(size)
 	if err != nil {
 		panic(err)
@@ -20,7 +20,7 @@ func NewPandoraCache(size int, genesisTimestamp uint64, secondsPerSlot uint64) *
 	return &PandoraCache{
 		GenericCache{
 			cache:            cache,
-			stack:            utils.NewStack(),
+			stack:            stack,
 			genesisStartTime: genesisTimestamp,
 			secondsPerSlot:   secondsPerSlot,
 			inProgressSlots:  make(map[uint64]bool),

@@ -95,13 +95,13 @@ func SealHash(header *eth1Types.Header) (hash common.Hash) {
 }
 
 // NewBeaconBlock
-func NewVanguardShardInfo(slot uint64, header *eth1Types.Header) *types.VanguardShardInfo {
+func NewVanguardShardInfo(slot uint64, header *eth1Types.Header, finalizedSlot, finalizedEpoch uint64) *types.VanguardShardInfo {
 	return &types.VanguardShardInfo{
 		Slot:           slot,
 		ShardInfo:      NewPandoraShard(header),
-		BlockHash:      []byte("0xd2302fac5c5f370575a70bcbab9fdaeb8f7e892f381d648ce1f2ad07ad17f20e"),
-		FinalizedEpoch: 0,
-		FinalizedSlot:  slot,
+		BlockRoot:      [32]byte{byte(slot)},
+		FinalizedEpoch: finalizedEpoch,
+		FinalizedSlot:  finalizedSlot,
 	}
 }
 

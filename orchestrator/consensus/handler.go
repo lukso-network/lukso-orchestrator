@@ -1,7 +1,6 @@
 package consensus
 
 import (
-	"fmt"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/utils"
 	"github.com/pkg/errors"
@@ -41,7 +40,7 @@ func (s *Service) processPandoraHeader(headerInfo *types.PandoraHeaderInfo) erro
 		return err
 	}
 
-	if latestStepId > 1 && (latestShardInfo == nil || latestShardInfo.IsNil()) {
+	if latestStepId > 0 && (latestShardInfo == nil || latestShardInfo.IsNil()) {
 		return errors.New("nil latest shard info")
 	}
 
@@ -67,7 +66,7 @@ func (s *Service) processPandoraHeader(headerInfo *types.PandoraHeaderInfo) erro
 
 	vanShardInfo := s.vanShardCache.Get(slot)
 	if vanShardInfo != nil && vanShardInfo.GetVanShard() != nil {
-		return s.insertIntoChain(vanShardInfo.GetVanShard(), headerInfo.Header, latestShardInfo)
+		return s.insertIntoChain(vanShardInfo.GetVanShard(), headerInfo.Header, latestShardInfo, latestStepId)
 	}
 
 	return nil
@@ -83,7 +82,7 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 
 	// short circuit check, if this header is already in verified sharding info db then send confirmation instantly
 	if shardInfo := s.getShardingInfo(slot); shardInfo != nil && shardInfo.NotNil() {
-		if shardInfo.GetVanSlotRoot() != common.BytesToHash(vanShardInfo.BlockHash) {
+		if shardInfo.GetVanSlotRoot() != common.BytesToHash(vanShardInfo.BlockRoot[:]) {
 			log.WithField("shardInfo", shardInfo.FormattedStr()).Debug("Van header is already in verified shard info db")
 			return nil
 		}
@@ -95,7 +94,7 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 		return errors.Wrap(err, "DB is corrupted! Failed to retrieve latest shard info")
 	}
 
-	if latestStepId > 1 && (latestShardInfo == nil || latestShardInfo.IsNil()) {
+	if latestStepId > 0 && (latestShardInfo == nil || latestShardInfo.IsNil()) {
 		return errors.New("nil latest shard info")
 	}
 
@@ -126,7 +125,7 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 		CurrentShardInfo:      vanShardInfo,
 		LastVerifiedShardInfo: latestShardInfo,
 	}); err != nil {
-		log.WithError(err).WithField("slot", vanShardInfo.Slot).WithField("blockRoot", common.BytesToHash(vanShardInfo.BlockHash)).
+		log.WithError(err).WithField("slot", vanShardInfo.Slot).WithField("blockRoot", common.BytesToHash(vanShardInfo.BlockRoot[:])).
 			Info("Unknown parent in db and cache so discarding this vanguard block")
 
 		return nil
@@ -141,7 +140,7 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 
 	pandoraHeaderInfo := s.panHeaderCache.Get(slot)
 	if pandoraHeaderInfo != nil && pandoraHeaderInfo.GetPanHeader() != nil {
-		return s.insertIntoChain(vanShardInfo, pandoraHeaderInfo.GetPanHeader(), latestShardInfo)
+		return s.insertIntoChain(vanShardInfo, pandoraHeaderInfo.GetPanHeader(), latestShardInfo, latestStepId)
 	}
 
 	return nil
@@ -155,15 +154,16 @@ func (s *Service) insertIntoChain(
 	vanShardInfo *types.VanguardShardInfo,
 	header *eth1Types.Header,
 	latestShardInfo *types.MultiShardInfo,
+	latestStepId uint64,
 ) error {
 
 	confirmationStatus := &types.SlotInfoWithStatus{
 		PandoraHeaderHash: header.Hash(),
-		VanguardBlockHash: common.BytesToHash(vanShardInfo.BlockHash[:]),
+		VanguardBlockHash: common.BytesToHash(vanShardInfo.BlockRoot[:]),
 		Status:            types.Invalid,
 	}
 
-	if compareShardingInfo(header, vanShardInfo.ShardInfo) && s.verifyShardInfo(latestShardInfo, header, vanShardInfo) {
+	if compareShardingInfo(header, vanShardInfo.ShardInfo) && s.verifyShardInfo(latestShardInfo, header, vanShardInfo, latestStepId) {
 		newShardInfo := utils.PrepareMultiShardData(vanShardInfo, header, TotalExecutionShardCount, ShardsPerVanBlock)
 		// Write shard info into db
 		if err := s.writeShardInfoInDB(newShardInfo); err != nil {
@@ -216,7 +216,8 @@ func (s *Service) writeShardInfoInDB(shardInfo *types.MultiShardInfo) error {
 		return err
 	}
 
-	log.WithField("stepId", nextStepId).WithField("shardInfo", fmt.Sprintf("%+v", shardInfo)).Info("Inserted sharding info into verified DB")
+	log.WithField("stepId", nextStepId).WithField("shardInfo", shardInfo.FormattedStr()).
+		Info("Inserted sharding info into verified DB")
 	return nil
 }
 

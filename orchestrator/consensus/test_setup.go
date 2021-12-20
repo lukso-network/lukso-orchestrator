@@ -2,8 +2,10 @@ package consensus
 
 import (
 	"context"
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/utils"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
@@ -39,36 +41,42 @@ func (mc *mockFeedService) SubscribeShardInfoEvent(ch chan<- *types.VanguardShar
 	return mc.scope.Track(mc.shardInfoFeed.Subscribe(ch))
 }
 
-func setup(ctx context.Context, t *testing.T) (*Service, *mockFeedService) {
+func setup(ctx context.Context, t *testing.T) (*Service, *mockFeedService, db.Database, *utils.Stack, *utils.Stack) {
 	testDB := testDB.SetupDB(t)
 	mfs := new(mockFeedService)
+	now := uint64(time.Now().Unix())
+	panStack := utils.NewStack()
+	vanStack := utils.NewStack()
 
 	cfg := &Config{
 		VerifiedShardInfoDB: testDB,
-		PanHeaderCache:      cache.NewPandoraCache(1024, 0, 6),
-		VanShardCache:       cache.NewVanguardCache(1024, 0, 6),
+		PanHeaderCache:      cache.NewPandoraCache(1024, now, 6, panStack),
+		VanShardCache:       cache.NewVanguardCache(1024, now, 6, vanStack),
 		VanguardShardFeed:   mfs,
 		PandoraHeaderFeed:   mfs,
 	}
 
-	return New(ctx, cfg), mfs
+	return New(ctx, cfg), mfs, testDB, panStack, vanStack
 }
 
 func getHeaderInfosAndShardInfos(fromSlot uint64, num uint64) ([]*types.PandoraHeaderInfo, []*types.VanguardShardInfo) {
 	headerInfos := make([]*types.PandoraHeaderInfo, 0)
 	vanShardInfos := make([]*types.VanguardShardInfo, 0)
 
-	for i := fromSlot; i < num; i++ {
+	for i := fromSlot; i <= num; i++ {
 		headerInfo := new(types.PandoraHeaderInfo)
 		headerInfo.Header = testutil.NewEth1Header(i)
 		headerInfo.Slot = i
-		headerInfo.Header.ParentHash = common.BytesToHash([]byte{uint8(i - 1)})
-		headerInfos = append(headerInfos, headerInfo)
+		if i > 1 {
+			headerInfo.Header.ParentHash = headerInfos[i-2].Header.Hash()
+		}
 
-		vanShardInfo := testutil.NewVanguardShardInfo(i, headerInfo.Header)
-		vanShardInfo.ParentHash = []byte{uint8(i - 1)}
+		vanShardInfo := testutil.NewVanguardShardInfo(i, headerInfo.Header, 0, 0)
+		if i > 1 {
+			vanShardInfo.ParentRoot = vanShardInfos[i-2].BlockRoot
+		}
 		vanShardInfos = append(vanShardInfos, vanShardInfo)
-
+		headerInfos = append(headerInfos, headerInfo)
 	}
 	return headerInfos, vanShardInfos
 }

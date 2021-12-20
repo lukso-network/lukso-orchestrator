@@ -62,7 +62,7 @@ func (vc *VanguardCache) verifyVanCacheOrder(currentShard *types.VanguardShardIn
 			return nil
 		}
 		// the cache has no element so compare with the latestVerifiedHeader
-		if bytes.Equal(currentShard.ParentHash, lastVerifiedShardInfo.GetVanSlotRootBytes()) {
+		if bytes.Equal(currentShard.ParentRoot[:], lastVerifiedShardInfo.GetVanSlotRootBytes()) {
 			return nil
 		}
 		return errParentHashMismatch
@@ -72,7 +72,7 @@ func (vc *VanguardCache) verifyVanCacheOrder(currentShard *types.VanguardShardIn
 	if err != nil {
 		return err
 	}
-	if bytes.Equal(currentShard.ParentHash, lastCachedElement) {
+	if bytes.Equal(currentShard.ParentRoot[:], lastCachedElement) {
 		return nil
 	}
 	return errParentHashMismatch

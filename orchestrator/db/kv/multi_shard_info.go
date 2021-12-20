@@ -266,7 +266,7 @@ func (s *Store) FindAncestor(fromStepId, toStepId uint64, blockHash common.Hash)
 				ancestorShardInfo = shardInfo
 				stepId = step
 				log.WithField("fromStepId", fromStepId).WithField("toStepId", toStepId).
-					WithField("blockHash", blockHash).WithField("ancestorShardInfo", ancestorShardInfo).
+					WithField("blockHash", blockHash).WithField("ancestorShardInfo", ancestorShardInfo.FormattedStr()).
 					Info("Found common ancestor")
 				return nil
 			}

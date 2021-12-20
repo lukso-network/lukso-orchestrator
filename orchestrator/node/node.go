@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/utils"
 	"github.com/lukso-network/lukso-orchestrator/shared/version"
 	"github.com/prysmaticlabs/prysm/shared/sliceutil"
 	"os"
@@ -62,8 +63,8 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 		cancel:              cancel,
 		services:            registry,
 		stop:                make(chan struct{}),
-		pandoraPendingCache: cache.NewPandoraCache(math.MaxInt32, genesisTime, secPerSlot),
-		vanPendingCache:     cache.NewVanguardCache(math.MaxInt32, genesisTime, secPerSlot),
+		pandoraPendingCache: cache.NewPandoraCache(math.MaxInt32, genesisTime, secPerSlot, utils.NewStack()),
+		vanPendingCache:     cache.NewVanguardCache(math.MaxInt32, genesisTime, secPerSlot, utils.NewStack()),
 	}
 
 	if err := orchestrator.startDB(orchestrator.cliCtx); err != nil {

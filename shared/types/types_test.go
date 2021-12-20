@@ -4,6 +4,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
+	"github.com/prysmaticlabs/prysm/shared/bytesutil"
 	"math/big"
 	"testing"
 )
@@ -17,7 +18,7 @@ func TestTypes_DeepEqual(t *testing.T) {
 	}
 	vanShardInfo := &VanguardShardInfo{
 		Slot:      1,
-		BlockHash: []byte{'A'},
+		BlockRoot: bytesutil.ToBytes32([]byte{'A'}),
 	}
 
 	shardInfo1 := prepareMultiShardData(vanShardInfo, panHeader1, 1, 1)
@@ -51,7 +52,7 @@ func prepareMultiShardData(
 	shardInfo := new(MultiShardInfo)
 	shardInfo.SlotInfo = &NewSlotInfo{
 		Slot:      vanShardInfo.Slot,
-		BlockRoot: common.BytesToHash(vanShardInfo.BlockHash),
+		BlockRoot: common.BytesToHash(vanShardInfo.BlockRoot[:]),
 	}
 	shardInfo.Shards = shards
 

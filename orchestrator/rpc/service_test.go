@@ -5,6 +5,7 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/consensus"
 	testDB "github.com/lukso-network/lukso-orchestrator/orchestrator/db/testing"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/utils"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain"
 	"github.com/lukso-network/lukso-orchestrator/shared/cmd"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
@@ -28,8 +29,8 @@ func setup(t *testing.T) (*Config, error) {
 		context.Background(),
 		&consensus.Config{
 			VerifiedShardInfoDB: orchestratorDB,
-			PanHeaderCache:      cache.NewPandoraCache(1<<10, 0, 6),
-			VanShardCache:       cache.NewVanguardCache(1<<10, 0, 6),
+			PanHeaderCache:      cache.NewPandoraCache(1<<10, 0, 6, utils.NewStack()),
+			VanShardCache:       cache.NewVanguardCache(1<<10, 0, 6, utils.NewStack()),
 		})
 
 	return &Config{

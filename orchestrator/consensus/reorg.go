@@ -15,7 +15,7 @@ func (s *Service) checkReorg(
 ) (*types.MultiShardInfo, uint64, error) {
 
 	// Reorg checking starts from stepId 2
-	if latestStepId < 2 {
+	if latestStepId == 0 {
 		log.WithField("slot", vanShardInfo.Slot).
 			WithField("latestStepId", latestStepId).
 			Info("Early exiting from reorg checking for first step id")
@@ -51,7 +51,7 @@ func (s *Service) checkReorg(
 		return nil, 0, nil
 	}
 
-	parentHash := common.BytesToHash(vanShardInfo.ParentHash)
+	parentHash := common.BytesToHash(vanShardInfo.ParentRoot[:])
 	parentShardInfo, stepId, err := s.db.FindAncestor(latestStepId, finalizedStepId, parentHash)
 	if err != nil {
 		return nil, 0, errors.Wrapf(err,
