@@ -48,7 +48,8 @@ func (s *Service) processPandoraHeader(headerInfo *types.PandoraHeaderInfo) erro
 	}); err != nil {
 		log.WithError(err).WithField("blockNumber", headerInfo.Header.Number).
 			WithField("slot", headerInfo.Slot).WithField("headerRoot", headerInfo.Header.Hash()).
-			Info("Unknown parent in db and cache so discarding this pandora header")
+			WithField("parentRoot", headerInfo.Header.ParentHash).
+			Info("Parent not found in db and cache, discarding the pandora header")
 
 		s.publishBlockConfirmation(headerInfo.Header.Hash(), common.Hash{}, types.Invalid)
 		return nil
