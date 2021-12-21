@@ -29,8 +29,7 @@ func TestService_CheckingFirstStepVerification(t *testing.T) {
 	svc, _, db, _, _ := setup(ctx, t)
 	defer svc.Stop()
 
-	time.Sleep(1 * time.Second)
-	headerInfos, shardInfos := getHeaderInfosAndShardInfos(1, 1)
+	headerInfos, shardInfos := testutil.GetHeaderInfosAndShardInfos(1, 1)
 	assert.NoError(t, svc.processVanguardShardInfo(shardInfos[0]))
 	time.Sleep(1 * time.Second)
 	assert.NoError(t, svc.processPandoraHeader(headerInfos[0]))
@@ -48,7 +47,7 @@ func TestService_CheckingWithoutReorg(t *testing.T) {
 	svc, _, db, _, _ := setup(ctx, t)
 	defer svc.Stop()
 
-	headerInfos, shardInfos := getHeaderInfosAndShardInfos(1, 2)
+	headerInfos, shardInfos := testutil.GetHeaderInfosAndShardInfos(1, 2)
 	multiShardInfo := utils.PrepareMultiShardData(shardInfos[0], headerInfos[0].Header, 1, 1)
 
 	assert.NoError(t, svc.db.SaveVerifiedShardInfo(1, multiShardInfo))
@@ -71,7 +70,7 @@ func TestService_TriggerReorgAndCheckDBConsistency(t *testing.T) {
 	svc, _, _, _, _ := setup(ctx, t)
 	defer svc.Stop()
 
-	headerInfos, shardInfos := getHeaderInfosAndShardInfos(1, 10)
+	headerInfos, shardInfos := testutil.GetHeaderInfosAndShardInfos(1, 10)
 	for i := 0; i < 9; i++ {
 		stepId := uint64(i + 1)
 		multiShardInfo := utils.PrepareMultiShardData(shardInfos[i], headerInfos[i].Header, 1, 1)
@@ -101,7 +100,7 @@ func TestService_TriggerReorgAndVerifyNextShard(t *testing.T) {
 	svc, _, _, _, _ := setup(ctx, t)
 	defer svc.Stop()
 
-	headerInfos, shardInfos := getHeaderInfosAndShardInfos(1, 10)
+	headerInfos, shardInfos := testutil.GetHeaderInfosAndShardInfos(1, 10)
 	for i := 0; i < 9; i++ {
 		stepId := uint64(i + 1)
 		multiShardInfo := utils.PrepareMultiShardData(shardInfos[i], headerInfos[i].Header, 1, 1)

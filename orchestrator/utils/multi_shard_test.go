@@ -15,7 +15,7 @@ func TestUtils_PrepareMultiShardData(t *testing.T) {
 	expectedShardInfo := new(types.MultiShardInfo)
 	expectedShardInfo.SlotInfo = &types.NewSlotInfo{
 		Slot:      1,
-		BlockRoot: common.BytesToHash(vanShardInfo.BlockRoot),
+		BlockRoot: common.BytesToHash(vanShardInfo.BlockRoot[:]),
 	}
 
 	shards := make([]*types.Shard, 1)

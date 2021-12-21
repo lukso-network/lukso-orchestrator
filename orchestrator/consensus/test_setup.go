@@ -10,7 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
 	testDB "github.com/lukso-network/lukso-orchestrator/orchestrator/db/testing"
-	"github.com/lukso-network/lukso-orchestrator/shared/testutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 )
 
@@ -57,26 +56,4 @@ func setup(ctx context.Context, t *testing.T) (*Service, *mockFeedService, db.Da
 	}
 
 	return New(ctx, cfg), mfs, testDB, panStack, vanStack
-}
-
-func getHeaderInfosAndShardInfos(fromSlot uint64, num uint64) ([]*types.PandoraHeaderInfo, []*types.VanguardShardInfo) {
-	headerInfos := make([]*types.PandoraHeaderInfo, 0)
-	vanShardInfos := make([]*types.VanguardShardInfo, 0)
-
-	for i := fromSlot; i <= num; i++ {
-		headerInfo := new(types.PandoraHeaderInfo)
-		headerInfo.Header = testutil.NewEth1Header(i)
-		headerInfo.Slot = i
-		if i > 1 {
-			headerInfo.Header.ParentHash = headerInfos[i-2].Header.Hash()
-		}
-
-		vanShardInfo := testutil.NewVanguardShardInfo(i, headerInfo.Header, 0, 0)
-		if i > 1 {
-			vanShardInfo.ParentRoot = vanShardInfos[i-2].BlockRoot
-		}
-		vanShardInfos = append(vanShardInfos, vanShardInfo)
-		headerInfos = append(headerInfos, headerInfo)
-	}
-	return headerInfos, vanShardInfos
 }

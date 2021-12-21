@@ -139,3 +139,25 @@ func NewBeaconBlock(slot uint64) *ethpb.BeaconBlock {
 		},
 	}
 }
+
+func GetHeaderInfosAndShardInfos(fromSlot uint64, num uint64) ([]*types.PandoraHeaderInfo, []*types.VanguardShardInfo) {
+	headerInfos := make([]*types.PandoraHeaderInfo, 0)
+	vanShardInfos := make([]*types.VanguardShardInfo, 0)
+
+	for i := fromSlot; i <= num; i++ {
+		headerInfo := new(types.PandoraHeaderInfo)
+		headerInfo.Header = NewEth1Header(i)
+		headerInfo.Slot = i
+		if i > 1 {
+			headerInfo.Header.ParentHash = headerInfos[i-2].Header.Hash()
+		}
+
+		vanShardInfo := NewVanguardShardInfo(i, headerInfo.Header, 0, 0)
+		if i > 1 {
+			vanShardInfo.ParentRoot = vanShardInfos[i-2].BlockRoot
+		}
+		vanShardInfos = append(vanShardInfos, vanShardInfo)
+		headerInfos = append(headerInfos, headerInfo)
+	}
+	return headerInfos, vanShardInfos
+}
