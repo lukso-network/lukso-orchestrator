@@ -13,7 +13,7 @@ func TestPandoraCache_RemoveByTime(t *testing.T) {
 	pc := NewPandoraCache(1024, 0, 6, utils.NewStack())
 	headerInfos, _ := testutil.GetHeaderInfosAndShardInfos(1, 25)
 	for i := 0; i < 25; i++ {
-		slot := uint64(i+1)
+		slot := uint64(i + 1)
 		queueData := &PandoraCacheData{
 			panHeader:      headerInfos[i].Header,
 			entryTimestamp: SlotStartTime(pc.genesisStartTime, eth2Types.Slot(slot), pc.secondsPerSlot),
