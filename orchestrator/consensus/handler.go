@@ -25,11 +25,7 @@ func (s *Service) processPandoraHeader(headerInfo *types.PandoraHeaderInfo) erro
 	if shardInfo := s.getShardingInfo(slot); shardInfo != nil && shardInfo.NotNil() {
 		if shardInfo.GetPanShardRoot() == headerInfo.Header.Hash() {
 			log.WithField("shardInfo", shardInfo.FormattedStr()).Debug("Pandora shard header is already in verified shard info db")
-			s.verifiedSlotInfoFeed.Send(&types.SlotInfoWithStatus{
-				VanguardBlockHash: shardInfo.GetVanSlotRoot(),
-				PandoraHeaderHash: shardInfo.GetPanShardRoot(),
-				Status:            types.Verified,
-			})
+			s.publishBlockConfirmation(shardInfo.GetPanShardRoot(), shardInfo.GetVanSlotRoot(), types.Verified)
 			return nil
 		}
 	}
@@ -54,6 +50,7 @@ func (s *Service) processPandoraHeader(headerInfo *types.PandoraHeaderInfo) erro
 			WithField("slot", headerInfo.Slot).WithField("headerRoot", headerInfo.Header.Hash()).
 			Info("Unknown parent in db and cache so discarding this pandora header")
 
+		s.publishBlockConfirmation(headerInfo.Header.Hash(), common.Hash{}, types.Invalid)
 		return nil
 	}
 
@@ -160,12 +157,7 @@ func (s *Service) insertIntoChain(
 	latestStepId uint64,
 ) error {
 
-	confirmationStatus := &types.SlotInfoWithStatus{
-		PandoraHeaderHash: header.Hash(),
-		VanguardBlockHash: common.BytesToHash(vanShardInfo.BlockRoot[:]),
-		Status:            types.Invalid,
-	}
-
+	status := types.Invalid
 	if compareShardingInfo(header, vanShardInfo.ShardInfo) && s.verifyShardInfo(latestShardInfo, header, vanShardInfo, latestStepId) {
 		newShardInfo := utils.PrepareMultiShardData(vanShardInfo, header, TotalExecutionShardCount, ShardsPerVanBlock)
 		// Write shard info into db
@@ -174,7 +166,8 @@ func (s *Service) insertIntoChain(
 		}
 		// write finalize info into db
 		s.writeFinalizeInfo(vanShardInfo.FinalizedSlot, vanShardInfo.FinalizedEpoch)
-		confirmationStatus.Status = types.Verified
+		status = types.Verified
+
 		//removing slot that is already verified
 		s.panHeaderCache.ForceDelSlot(vanShardInfo.Slot)
 		s.vanShardCache.ForceDelSlot(vanShardInfo.Slot)
@@ -182,7 +175,7 @@ func (s *Service) insertIntoChain(
 	}
 
 	// sending confirmation status to pandora
-	s.verifiedSlotInfoFeed.Send(confirmationStatus)
+	s.publishBlockConfirmation(header.Hash(), common.BytesToHash(vanShardInfo.BlockRoot[:]), status)
 	return nil
 }
 
@@ -239,4 +232,13 @@ func (s *Service) writeFinalizeInfo(finalizeSlot, finalizeEpoch uint64) {
 			log.WithError(err).Warn("Failed to store new finalized epoch")
 		}
 	}
+}
+
+// publishBlockConfirmation
+func (s *Service) publishBlockConfirmation(blockHash, slotHash common.Hash, status types.Status) {
+	s.verifiedSlotInfoFeed.Send(&types.SlotInfoWithStatus{
+		PandoraHeaderHash: blockHash,
+		VanguardBlockHash: slotHash,
+		Status:            status,
+	})
 }

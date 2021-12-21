@@ -6,7 +6,6 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/utils"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	eth2Types "github.com/prysmaticlabs/eth2-types"
-	log "github.com/sirupsen/logrus"
 	"time"
 )
 

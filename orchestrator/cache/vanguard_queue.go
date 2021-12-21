@@ -4,7 +4,6 @@ import (
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/utils"
 	eth2Types "github.com/prysmaticlabs/eth2-types"
-	log "github.com/sirupsen/logrus"
 	"time"
 )
 
