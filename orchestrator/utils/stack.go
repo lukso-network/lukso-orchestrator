@@ -7,15 +7,15 @@ import (
 )
 
 type Stack struct {
-	data    []string       // container where data will reside
-	indexes map[string]int // where our data are located
-	lock    sync.Mutex     // mutex lock
+	data    []string        // container where data will reside
+	indexes map[string]bool // where our data are located
+	lock    sync.Mutex      // mutex lock
 }
 
 func NewStack() *Stack {
 	return &Stack{
 		data:    make([]string, 0),
-		indexes: make(map[string]int),
+		indexes: make(map[string]bool),
 	}
 }
 
@@ -24,7 +24,7 @@ func (stk *Stack) Push(value []byte) {
 	stk.lock.Lock()
 	defer stk.lock.Unlock()
 	hex := common.Bytes2Hex(value)
-	stk.indexes[hex] = len(stk.data)
+	stk.indexes[hex] = true
 	stk.data = append(stk.data, hex)
 }
 
@@ -32,15 +32,21 @@ func (stk *Stack) Push(value []byte) {
 func (stk *Stack) Pop() ([]byte, error) {
 	stk.lock.Lock()
 	defer stk.lock.Unlock()
-	l := len(stk.data)
-	if l == 0 {
-		return nil, errors.New("Pop(): Attempted pop from empty stack")
-	}
+	for {
+		l := len(stk.data)
+		if l == 0 {
+			return nil, errors.New("Pop(): Attempted pop from empty stack")
+		}
+		retVal := stk.data[l-1]
+		stk.data = stk.data[:l-1]
 
-	retVal := stk.data[l-1]
-	stk.data = stk.data[:l-1]
-	delete(stk.indexes, retVal)
-	return common.Hex2Bytes(retVal), nil
+		if _, ok := stk.indexes[retVal]; !ok {
+			// the top item is already deleted. so wait for a valid item to pop
+			continue
+		}
+		delete(stk.indexes, retVal)
+		return common.Hex2Bytes(retVal), nil
+	}
 }
 
 // Top - the latest element in the cache
@@ -52,8 +58,15 @@ func (stk *Stack) Top() ([]byte, error) {
 		return nil, errors.New("Top(): Attempted read from empty stack")
 	}
 
-	retVal := stk.data[l-1]
-	return common.Hex2Bytes(retVal), nil
+	for i := l - 1; i >= 0; i-- {
+		retVal := stk.data[i]
+		if _, ok := stk.indexes[retVal]; !ok {
+			// the top item is already deleted. so wait for a valid item to select as top
+			continue
+		}
+		return common.Hex2Bytes(retVal), nil
+	}
+	return nil, errors.New("Top(): Attempted read from empty stack")
 }
 
 // Contains - refers if key is inside stack or not
@@ -69,10 +82,9 @@ func (stk *Stack) Delete(hash []byte) {
 	stk.lock.Lock()
 	defer stk.lock.Unlock()
 	key := common.Bytes2Hex(hash)
-	index, found := stk.indexes[key]
+	_, found := stk.indexes[key]
 	if found {
 		delete(stk.indexes, key)
-		stk.data = append(stk.data[:index], stk.data[index+1:]...)
 	}
 }
 
@@ -82,5 +94,5 @@ func (stk *Stack) Purge() {
 	defer stk.lock.Unlock()
 
 	stk.data = make([]string, 0)
-	stk.indexes = make(map[string]int)
+	stk.indexes = make(map[string]bool)
 }
