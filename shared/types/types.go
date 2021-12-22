@@ -164,3 +164,25 @@ func (si *MultiShardInfo) GetSlot() uint64 {
 func (si *MultiShardInfo) GetPanBlockNumber() uint64 {
 	return si.Shards[0].Blocks[0].Number
 }
+
+// reorgStatus holds current reorg status for a certain slot
+type ReorgStatus struct {
+	Slot            uint64
+	BlockRoot       [32]byte
+	ParentStepId    uint64
+	ParentShardInfo *MultiShardInfo
+	PandoraHash     common.Hash
+	HasResolved     bool
+}
+
+func (rs *ReorgStatus) FormattedStr() string {
+	s := strings.Join([]string{`reorgStatus: { `,
+		`slot: ` + fmt.Sprintf("%d", rs.Slot) +
+			`, blockRoot: ` + fmt.Sprintf("%v", common.BytesToHash(rs.BlockRoot[:])) +
+			`, parentStepId: ` + fmt.Sprintf("%v", rs.ParentStepId) +
+			`, parentShardInfo: ` + fmt.Sprintf("%v", rs.ParentShardInfo.FormattedStr()) +
+			`, pandoraHash: ` + fmt.Sprintf("%v", rs.PandoraHash) +
+			`, hasResolved: ` + fmt.Sprintf("%v", rs.HasResolved) + `} `,
+	}, "")
+	return s
+}

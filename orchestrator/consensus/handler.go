@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"bytes"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/utils"
 	"github.com/pkg/errors"
@@ -38,6 +39,14 @@ func (s *Service) processPandoraHeader(headerInfo *types.PandoraHeaderInfo) erro
 
 	if latestStepId > 0 && (latestShardInfo == nil || latestShardInfo.IsNil()) {
 		return errors.New("nil latest shard info")
+	}
+
+	// Checking if current reorg slot contains this pandora block then latest shard info will be updated
+	if s.curReorgStatus != nil && s.curReorgStatus.PandoraHash == headerInfo.Header.Hash() {
+		log.WithField("reorgStatus", s.curReorgStatus.FormattedStr()).WithField("panParentHash", headerInfo.Header.ParentHash).
+			Info("Got new pandora header for the reorg slot")
+		latestShardInfo = s.curReorgStatus.ParentShardInfo
+		latestStepId = s.curReorgStatus.ParentStepId
 	}
 
 	// first push the header into the cache.
@@ -104,11 +113,17 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 	}
 
 	if parentShardInfo != nil && parentShardInfo.NotNil() {
-		log.Info("Start processing reorg!")
-		if err := s.processReorg(parentStepId, parentShardInfo); err != nil {
-			log.WithError(err).Error("Failed to process reorg!")
-			return nil
+		if s.curReorgStatus == nil || bytes.Equal(s.curReorgStatus.BlockRoot[:], vanShardInfo.BlockRoot[:]) {
+			s.curReorgStatus = &types.ReorgStatus{
+				Slot:            slot,
+				BlockRoot:       vanShardInfo.BlockRoot,
+				ParentStepId:    parentStepId,
+				ParentShardInfo: parentShardInfo,
+				PandoraHash:     common.BytesToHash(vanShardInfo.ShardInfo.Hash),
+				HasResolved:     false,
+			}
 		}
+
 		latestShardInfo = parentShardInfo
 		latestStepId = parentStepId
 	}
@@ -160,6 +175,18 @@ func (s *Service) insertIntoChain(
 
 	status := types.Invalid
 	if compareShardingInfo(header, vanShardInfo.ShardInfo) && s.verifyShardInfo(latestShardInfo, header, vanShardInfo, latestStepId) {
+
+		if s.curReorgStatus != nil && s.curReorgStatus.Slot == vanShardInfo.Slot &&
+			bytes.Equal(s.curReorgStatus.BlockRoot[:], vanShardInfo.BlockRoot[:]) && !s.curReorgStatus.HasResolved {
+
+			log.WithField("reorgStatus", s.curReorgStatus.FormattedStr()).Info("Reverting db due reorg!")
+			if err := s.processReorg(s.curReorgStatus.ParentStepId, s.curReorgStatus.ParentShardInfo); err != nil {
+				log.WithError(err).Error("Failed to process reorg!")
+				return nil
+			}
+			s.curReorgStatus.HasResolved = true
+		}
+
 		newShardInfo := utils.PrepareMultiShardData(vanShardInfo, header, TotalExecutionShardCount, ShardsPerVanBlock)
 		// Write shard info into db
 		if err := s.writeShardInfoInDB(newShardInfo); err != nil {

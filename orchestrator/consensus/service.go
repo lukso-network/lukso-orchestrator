@@ -49,6 +49,7 @@ type Service struct {
 	verifiedSlotInfoFeed event.Feed
 	reorgInfoFeed        event.Feed
 	reorgInProgress      uint32
+	curReorgStatus       *types.ReorgStatus
 }
 
 //

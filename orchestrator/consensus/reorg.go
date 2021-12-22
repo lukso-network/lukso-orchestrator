@@ -72,7 +72,7 @@ func (s *Service) checkReorg(
 	// if they are mis-matched, then trigger reorg
 	if !latestVerifiedShardInfo.DeepEqual(parentShardInfo) {
 		log.WithField("latestShardInfo", latestVerifiedShardInfo.FormattedStr()).
-			WithField("parentShardInfo", parentShardInfo.FormattedStr()).Info("Triggering reorg!")
+			WithField("parentShardInfo", parentShardInfo.FormattedStr()).Info("Chain reorg occurred!")
 		return parentShardInfo, stepId, nil
 	}
 
