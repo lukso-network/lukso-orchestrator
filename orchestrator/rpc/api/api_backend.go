@@ -136,10 +136,10 @@ func (b *Backend) GetSlotStatus(ctx context.Context, slot uint64, hash common.Ha
 		// if request is from vanguard, check the slot is in vanguard cache.
 		// if so return pending
 		if queueInfo := b.VanShardCache.Get(slot); queueInfo != nil {
-			if queueInfo.IsFinalizedSlot() {
-				logPrinter(types.Verified)
-				return types.Verified
-			}
+			//if queueInfo.IsFinalizedSlot() {
+			//	logPrinter(types.Verified)
+			//	return types.Verified
+			//}
 
 			// data found in the queue. So it's pending
 			logPrinter(types.Pending)

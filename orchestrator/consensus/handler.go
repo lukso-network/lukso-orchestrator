@@ -5,6 +5,7 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/utils"
 	"github.com/pkg/errors"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
@@ -95,23 +96,24 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 		}
 	}
 
-	latestStepId := s.db.LatestStepID()
-	latestShardInfo, err := s.db.VerifiedShardInfo(latestStepId)
+	headStepId := s.db.LatestStepID()
+	headShardInfo, err := s.db.VerifiedShardInfo(headStepId)
 	if err != nil {
 		return errors.Wrap(err, "DB is corrupted! Failed to retrieve latest shard info")
 	}
 
-	if latestStepId > 0 && (latestShardInfo == nil || latestShardInfo.IsNil()) {
+	if headStepId > 0 && (headShardInfo == nil || headShardInfo.IsNil()) {
 		return errors.New("nil latest shard info")
 	}
 
 	// if reorg triggers here, orc will start processing reorg
-	parentShardInfo, parentStepId, err := s.checkReorg(vanShardInfo, latestShardInfo, latestStepId)
+	parentShardInfo, parentStepId, err := s.checkReorg(vanShardInfo, headShardInfo, headStepId)
 	if err != nil {
 		log.WithError(err).Error("Failed to check reorg")
 		return nil
 	}
 
+	// If any reorg is detected by previous checkReorg method, then update in-memory reorg status and reset the headShardInfo and headStepId
 	if parentShardInfo != nil && parentShardInfo.NotNil() {
 		if s.curReorgStatus == nil || bytes.Equal(s.curReorgStatus.BlockRoot[:], vanShardInfo.BlockRoot[:]) {
 			s.curReorgStatus = &types.ReorgStatus{
@@ -124,22 +126,29 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 			}
 		}
 
-		latestShardInfo = parentShardInfo
-		latestStepId = parentStepId
+		headShardInfo = parentShardInfo
+		headStepId = parentStepId
 	}
 
 	disableDelete := false
-	if slot <= vanShardInfo.FinalizedSlot {
-		// if slot number is less than finalized slot then initial sync is happening
+	nowTime := uint64(time.Now().Unix())
+	currentSlot := (nowTime - s.genesisTime) / s.secondsPerSlot
+
+	// if incoming vanguard block's slot is less than current slot time then we do not delete
+	// still orchestrator can resolve reorg if any reorg triggers
+	if vanShardInfo.Slot < currentSlot {
 		disableDelete = true
 	}
+
+	log.WithField("currentSlot", currentSlot).WithField("blockSlot", vanShardInfo.Slot).
+		WithField("disableDelete", disableDelete).Debug("Caching incoming slot into vanguard cache")
 
 	// first push the shardInfo into the cache.
 	// it will update the cache if already present or enter a new info
 	if err := s.vanShardCache.Put(slot, &cache.VanCacheInsertParams{
 		DisableDelete:         disableDelete,
 		CurrentShardInfo:      vanShardInfo,
-		LastVerifiedShardInfo: latestShardInfo,
+		LastVerifiedShardInfo: headShardInfo,
 	}); err != nil {
 		log.WithError(err).WithField("slot", vanShardInfo.Slot).WithField("blockRoot", common.BytesToHash(vanShardInfo.BlockRoot[:])).
 			Info("Unknown parent in db and cache so discarding this vanguard block")
@@ -156,7 +165,7 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 
 	pandoraHeaderInfo := s.panHeaderCache.Get(slot)
 	if pandoraHeaderInfo != nil && pandoraHeaderInfo.GetPanHeader() != nil {
-		return s.insertIntoChain(vanShardInfo, pandoraHeaderInfo.GetPanHeader(), latestShardInfo, latestStepId)
+		return s.insertIntoChain(vanShardInfo, pandoraHeaderInfo.GetPanHeader(), headShardInfo, headStepId)
 	}
 
 	return nil
@@ -185,6 +194,8 @@ func (s *Service) insertIntoChain(
 				return nil
 			}
 			s.curReorgStatus.HasResolved = true
+			//TODO(Atif): Need to clear cache of pandora and vanguard after a successful reorg.
+			// For clearing pandora and vanguard cache we need to check MarkInProgress logic
 		}
 
 		newShardInfo := utils.PrepareMultiShardData(vanShardInfo, header, TotalExecutionShardCount, ShardsPerVanBlock)

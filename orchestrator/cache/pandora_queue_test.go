@@ -16,7 +16,7 @@ func TestPandoraCache_RemoveByTime(t *testing.T) {
 		slot := uint64(i + 1)
 		queueData := &PandoraCacheData{
 			panHeader:      headerInfos[i].Header,
-			entryTimestamp: SlotStartTime(pc.genesisStartTime, eth2Types.Slot(slot), pc.secondsPerSlot),
+			entryTimestamp: utils.SlotStartTime(pc.genesisStartTime, eth2Types.Slot(slot), pc.secondsPerSlot),
 		}
 		pc.stack.Push(headerInfos[i].Header.Hash().Bytes())
 		pc.cache.Add(slot, queueData)

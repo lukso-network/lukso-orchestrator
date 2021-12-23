@@ -4,8 +4,6 @@ import (
 	"bytes"
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
-	types2 "github.com/prysmaticlabs/eth2-types"
-	"time"
 )
 
 func (pc *PandoraCache) VerifyPandoraCache(verifyParams *PanCacheInsertParams) error {
@@ -76,10 +74,4 @@ func (vc *VanguardCache) verifyVanCacheOrder(currentShard *types.VanguardShardIn
 		return nil
 	}
 	return errParentHashMismatch
-}
-
-func SlotStartTime(genesis uint64, slot types2.Slot, secondsPerSlot uint64) time.Time {
-	duration := time.Second * time.Duration(slot.Mul(secondsPerSlot))
-	startTime := time.Unix(int64(genesis), 0).Add(duration)
-	return startTime
 }

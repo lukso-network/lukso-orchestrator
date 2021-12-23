@@ -52,7 +52,7 @@ func (vc *VanguardCache) Put(slot uint64, insertParams *VanCacheInsertParams) er
 	val, found := vc.cache.Get(slot)
 	queueData := &VanguardCacheData{
 		vanShardInfo:   insertParams.CurrentShardInfo,
-		entryTimestamp: SlotStartTime(vc.genesisStartTime, eth2Types.Slot(slot), vc.secondsPerSlot),
+		entryTimestamp: utils.SlotStartTime(vc.genesisStartTime, eth2Types.Slot(slot), vc.secondsPerSlot),
 		disableDelete:  insertParams.DisableDelete,
 	}
 	if val != nil && found {

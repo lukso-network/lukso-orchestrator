@@ -211,6 +211,8 @@ func (o *OrchestratorNode) registerConsensusService(cliCtx *cli.Context) error {
 		VanShardCache:       o.vanPendingCache,
 		VanguardShardFeed:   vanguardShardFeed,
 		PandoraHeaderFeed:   pandoraHeaderFeed,
+		GenesisTime:         cliCtx.Uint64(cmd.VanguardGenesisTime.Name),
+		SecondsPerSlot:      cliCtx.Uint64(cmd.SecondsPerSlot.Name),
 	})
 
 	log.Info("Registered consensus service")

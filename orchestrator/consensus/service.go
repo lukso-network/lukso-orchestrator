@@ -31,6 +31,8 @@ type Config struct {
 	VanShardCache       cache.VanguardInterface
 	VanguardShardFeed   iface.VanguardService
 	PandoraHeaderFeed   iface2.PandoraService
+	GenesisTime         uint64
+	SecondsPerSlot      uint64
 }
 
 // Service This part could be moved to other place during refactor, might be registered as a service
@@ -50,6 +52,8 @@ type Service struct {
 	reorgInfoFeed        event.Feed
 	reorgInProgress      uint32
 	curReorgStatus       *types.ReorgStatus
+	genesisTime          uint64
+	secondsPerSlot       uint64
 }
 
 //
@@ -65,6 +69,8 @@ func New(ctx context.Context, cfg *Config) (service *Service) {
 		vanShardCache:   cfg.VanShardCache,
 		vanguardService: cfg.VanguardShardFeed,
 		pandoraService:  cfg.PandoraHeaderFeed,
+		genesisTime:     cfg.GenesisTime,
+		secondsPerSlot:  cfg.SecondsPerSlot,
 	}
 }
 

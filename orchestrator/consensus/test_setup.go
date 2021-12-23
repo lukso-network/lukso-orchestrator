@@ -53,6 +53,8 @@ func setup(ctx context.Context, t *testing.T) (*Service, *mockFeedService, db.Da
 		VanShardCache:       cache.NewVanguardCache(1024, now, 6, vanStack),
 		VanguardShardFeed:   mfs,
 		PandoraHeaderFeed:   mfs,
+		GenesisTime:         uint64(time.Now().Unix()),
+		SecondsPerSlot:      6,
 	}
 
 	return New(ctx, cfg), mfs, testDB, panStack, vanStack
