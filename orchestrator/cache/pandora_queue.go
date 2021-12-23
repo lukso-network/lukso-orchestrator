@@ -5,7 +5,6 @@ import (
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/utils"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
-	eth2Types "github.com/prysmaticlabs/eth2-types"
 	"time"
 )
 
@@ -54,7 +53,7 @@ func (pc *PandoraCache) Put(slot uint64, insertParams *PanCacheInsertParams) err
 	panHeader := types.CopyHeader(insertParams.CurrentVerifiedHeader)
 	queueData := &PandoraCacheData{
 		panHeader:      panHeader,
-		entryTimestamp: SlotStartTime(pc.genesisStartTime, eth2Types.Slot(slot), pc.secondsPerSlot),
+		entryTimestamp: time.Now(),
 	}
 	val, found := pc.cache.Get(slot)
 	if val != nil && found {
