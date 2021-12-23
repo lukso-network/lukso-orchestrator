@@ -126,9 +126,6 @@ func (b *Backend) LatestFinalizedSlot() uint64 {
 
 // GetSlotStatus
 func (b *Backend) GetSlotStatus(ctx context.Context, slot uint64, hash common.Hash, requestFrom bool) types.Status {
-	// by default if nothing is found then return Invalid
-	status := types.Invalid
-
 	logPrinter := func(stat types.Status) {
 		log.WithField("slot", slot).
 			WithField("status", stat).
@@ -139,6 +136,11 @@ func (b *Backend) GetSlotStatus(ctx context.Context, slot uint64, hash common.Ha
 		// if request is from vanguard, check the slot is in vanguard cache.
 		// if so return pending
 		if queueInfo := b.VanShardCache.Get(slot); queueInfo != nil {
+			if queueInfo.IsFinalizedSlot() {
+				logPrinter(types.Verified)
+				return types.Verified
+			}
+
 			// data found in the queue. So it's pending
 			logPrinter(types.Pending)
 			return types.Pending
@@ -161,33 +163,24 @@ func (b *Backend) GetSlotStatus(ctx context.Context, slot uint64, hash common.Ha
 	}
 
 	// finally found in the database so return immediately so that no other db call happens
-	if shardInfo, _ := b.VerifiedShardInfoDB.VerifiedShardInfo(stepId); shardInfo != nil {
-		if len(shardInfo.Shards) > 0 && len(shardInfo.Shards[0].Blocks) > 0 {
-			panHeaderHash := shardInfo.Shards[0].Blocks[0].HeaderRoot
-			vanHeaderHash := shardInfo.SlotInfo.BlockRoot
+	if shardInfo, _ := b.VerifiedShardInfoDB.VerifiedShardInfo(stepId); shardInfo != nil && shardInfo.NotNil() {
+		panHeaderHash := shardInfo.GetPanShardRoot()
+		vanHeaderHash := shardInfo.GetVanSlotRoot()
 
-			if requestFrom && panHeaderHash != hash {
-				log.WithError(ErrHeaderHashMisMatch).
-					Warn("Failed to match header hash with requested header hash from pandora node")
-				logPrinter(types.Invalid)
-				return types.Invalid
-			}
-
-			if !requestFrom && vanHeaderHash != hash {
-				log.WithError(ErrHeaderHashMisMatch).
-					Warn("Failed to match header hash with requested header hash from vanguard node")
-				logPrinter(types.Invalid)
-				return types.Invalid
-			}
-
-			status = types.Verified
+		if requestFrom && panHeaderHash == hash {
 			logPrinter(types.Verified)
-			return status
+			return types.Verified
+		}
+
+		if !requestFrom && vanHeaderHash == hash {
+			logPrinter(types.Verified)
+			return types.Verified
 		}
 	}
 
-	logPrinter(status)
-	return status
+	log.WithError(ErrHeaderHashMisMatch).Warn("Failed to match hash with verified slot's hash")
+	logPrinter(types.Invalid)
+	return types.Invalid
 }
 
 // VerifiedShardInfos retrieves shard infos from verified shard info db

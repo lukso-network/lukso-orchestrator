@@ -62,3 +62,7 @@ func (q *VanguardCacheData) GetVanShardSlotNumber() uint64 {
 	}
 	return 0
 }
+
+func (q *VanguardCacheData) IsFinalizedSlot() bool {
+	return q.disableDelete
+}
