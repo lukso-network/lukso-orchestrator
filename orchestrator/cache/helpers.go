@@ -73,5 +73,21 @@ func (vc *VanguardCache) verifyVanCacheOrder(currentShard *types.VanguardShardIn
 	if bytes.Equal(currentShard.ParentRoot[:], lastCachedElement) {
 		return nil
 	}
+	if vc.ContainsHash(currentShard.ParentRoot[:]) {
+		// the parent hash resides into the cache but it is not the latest one.
+		// so we need to delete all the hashes between it
+		targetRoot := currentShard.ParentRoot
+		indexSlot := currentShard.Slot - 1
+		for indexSlot > 0 {
+			if slotInfo := vc.Get(indexSlot); slotInfo != nil && slotInfo.GetVanShard() != nil {
+				if bytes.Equal(slotInfo.GetVanShard().BlockRoot[:], targetRoot[:]) {
+					break
+				}
+			}
+			vc.ForceDelSlot(indexSlot)
+			indexSlot--
+		}
+		return nil
+	}
 	return errParentHashMismatch
 }

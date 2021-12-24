@@ -46,10 +46,10 @@ func (pc *PandoraCache) MarkNotInProgress(slot uint64) error {
 }
 
 func (pc *PandoraCache) Put(slot uint64, insertParams *PanCacheInsertParams) error {
-	if err := pc.VerifyPandoraCache(insertParams); err != nil {
-		log.WithError(err).Error("cache insertion failed in pandoraCache")
-		return err
-	}
+	//if err := pc.VerifyPandoraCache(insertParams); err != nil {
+	//	log.WithError(err).Error("cache insertion failed in pandoraCache")
+	//	return err
+	//}
 	panHeader := types.CopyHeader(insertParams.CurrentVerifiedHeader)
 	queueData := &PandoraCacheData{
 		panHeader:      panHeader,
