@@ -20,9 +20,13 @@ var (
 	errUnknownParent = errors.New("unknown parent")
 )
 
+type SyncMode string
+
 const (
-	TotalExecutionShardCount = 1
-	ShardsPerVanBlock        = 1
+	TotalExecutionShardCount          = 1
+	ShardsPerVanBlock                 = 1
+	InitialSync              SyncMode = "initial-sync"
+	LiveSync                 SyncMode = "live-sync"
 )
 
 type Config struct {
@@ -38,7 +42,7 @@ type Config struct {
 // Service This part could be moved to other place during refactor, might be registered as a service
 type Service struct {
 	isRunning            bool
-	processingLock       sync.Mutex
+	processingLock       sync.RWMutex
 	ctx                  context.Context
 	cancel               context.CancelFunc
 	runError             error
@@ -54,6 +58,7 @@ type Service struct {
 	curReorgStatus       *types.ReorgStatus
 	genesisTime          uint64
 	secondsPerSlot       uint64
+	syncStatus           SyncMode
 }
 
 //
@@ -71,6 +76,7 @@ func New(ctx context.Context, cfg *Config) (service *Service) {
 		pandoraService:  cfg.PandoraHeaderFeed,
 		genesisTime:     cfg.GenesisTime,
 		secondsPerSlot:  cfg.SecondsPerSlot,
+		syncStatus:      InitialSync,
 	}
 }
 
