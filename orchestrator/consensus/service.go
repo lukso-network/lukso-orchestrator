@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/ethereum/go-ethereum/event"
@@ -54,7 +53,6 @@ type Service struct {
 	pandoraService       iface2.PandoraService
 	verifiedSlotInfoFeed event.Feed
 	reorgInfoFeed        event.Feed
-	reorgInProgress      uint32
 	curReorgStatus       *types.ReorgStatus
 	genesisTime          uint64
 	secondsPerSlot       uint64
@@ -139,22 +137,12 @@ func (s *Service) Start() {
 		for {
 			select {
 			case newPanHeaderInfo := <-panHeaderInfoCh:
-				if atomic.LoadUint32(&s.reorgInProgress) == 1 {
-					log.WithField("slot", newPanHeaderInfo.Slot).Info("Reorg is progressing, so skipping new pandora header")
-					continue
-				}
-
 				if err := s.processPandoraHeader(newPanHeaderInfo); err != nil {
 					log.WithField("error", err).Error("Could not process pandora shard info, exiting consensus service")
 					return
 				}
 
 			case newVanShardInfo := <-vanShardInfoCh:
-				if atomic.LoadUint32(&s.reorgInProgress) == 1 {
-					log.WithField("slot", newVanShardInfo.Slot).Info("Reorg is progressing, so skipping new vanguard shard")
-					continue
-				}
-
 				if err := s.processVanguardShardInfo(newVanShardInfo); err != nil {
 					log.WithField("error", err).Error("Could not process vanguard shard info, exiting consensus service")
 					return

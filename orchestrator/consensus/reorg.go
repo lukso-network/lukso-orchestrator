@@ -4,7 +4,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	"github.com/pkg/errors"
-	"sync/atomic"
 )
 
 // checkReorg checks the incoming vanguard slot's consecutiveness with db head.
@@ -80,12 +79,7 @@ func (s *Service) checkReorg(
 }
 
 // processReorg
-func (s *Service) processReorg(parentStepId uint64, parentShardInfo *types.MultiShardInfo) error {
-	atomic.StoreUint32(&s.reorgInProgress, 1)
-	defer func() {
-		atomic.StoreUint32(&s.reorgInProgress, 0)
-	}()
-
+func (s *Service) processReorg(parentStepId uint64) error {
 	if err := s.db.RemoveShardingInfos(parentStepId + 1); err != nil {
 		log.WithError(err).Error("Could not revert shard info from DB during reorg")
 		return err
@@ -96,11 +90,5 @@ func (s *Service) processReorg(parentStepId uint64, parentShardInfo *types.Multi
 		return err
 	}
 
-	// Publish reorg info for rpc service for notifying pandora client
-	s.reorgInfoFeed.Send(&types.Reorg{
-		VanParentHash: parentShardInfo.GetVanSlotRootBytes(),
-		PanParentHash: parentShardInfo.GetPanShardRootBytes(),
-		NewSlot:       parentShardInfo.GetSlot(),
-	})
 	return nil
 }

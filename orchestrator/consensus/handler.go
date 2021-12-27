@@ -43,9 +43,16 @@ func (s *Service) processPandoraHeader(headerInfo *types.PandoraHeaderInfo) erro
 	}
 
 	// Checking if current reorg slot contains this pandora block then latest shard info will be updated
-	if s.curReorgStatus != nil && s.curReorgStatus.PandoraHash == headerInfo.Header.Hash() {
-		log.WithField("reorgStatus", s.curReorgStatus.FormattedStr()).WithField("panParentHash", headerInfo.Header.ParentHash).
-			Info("Got new pandora header for the reorg slot")
+	if s.curReorgStatus != nil && !s.curReorgStatus.HasResolved {
+		reorgLog := log.WithField("reorgStatus", s.curReorgStatus.FormattedStr()).WithField("panShardSlot", headerInfo.Slot).
+			WithField("panParentHash", headerInfo.Header.ParentHash)
+
+		if s.curReorgStatus.Slot != headerInfo.Slot && s.curReorgStatus.PandoraHash != headerInfo.Header.Hash() {
+			reorgLog.Info("Invalid pandora shard for executing reorg, discarding pandora shard!")
+			return nil
+		}
+
+		reorgLog.Info("Valid pandora shard for executing reorg!")
 		latestShardInfo = s.curReorgStatus.ParentShardInfo
 		latestStepId = s.curReorgStatus.ParentStepId
 	}
@@ -128,6 +135,13 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 
 		headShardInfo = parentShardInfo
 		headStepId = parentStepId
+
+		// Publish reorg info for rpc service for notifying pandora client
+		s.reorgInfoFeed.Send(&types.Reorg{
+			VanParentHash: parentShardInfo.GetVanSlotRootBytes(),
+			PanParentHash: parentShardInfo.GetPanShardRootBytes(),
+			NewSlot:       parentShardInfo.GetSlot(),
+		})
 	}
 
 	disableDelete := false
@@ -181,16 +195,21 @@ func (s *Service) insertIntoChain(
 ) error {
 
 	status := types.Invalid
-	if compareShardingInfo(header, vanShardInfo.ShardInfo) && s.verifyShardInfo(latestShardInfo, header, vanShardInfo, latestStepId) {
 
-		if s.curReorgStatus != nil && s.curReorgStatus.Slot == vanShardInfo.Slot &&
-			bytes.Equal(s.curReorgStatus.BlockRoot[:], vanShardInfo.BlockRoot[:]) && !s.curReorgStatus.HasResolved {
+	if compareShardingInfo(header, vanShardInfo.ShardInfo) &&
+		s.verifyShardInfo(latestShardInfo, header, vanShardInfo, latestStepId) {
 
-			log.WithField("reorgStatus", s.curReorgStatus.FormattedStr()).Info("Reverting db due reorg!")
-			if err := s.processReorg(s.curReorgStatus.ParentStepId, s.curReorgStatus.ParentShardInfo); err != nil {
+		// Resetting db
+		if s.curReorgStatus != nil && !s.curReorgStatus.HasResolved &&
+			s.curReorgStatus.Slot == vanShardInfo.Slot &&
+			bytes.Equal(s.curReorgStatus.BlockRoot[:], vanShardInfo.BlockRoot[:]) {
+
+			log.WithField("reorgStatus", s.curReorgStatus.FormattedStr()).Info("Reverting db!")
+			if err := s.processReorg(s.curReorgStatus.ParentStepId); err != nil {
 				log.WithError(err).Error("Failed to process reorg!")
 				return nil
 			}
+
 			s.curReorgStatus.HasResolved = true
 		}
 
@@ -208,10 +227,12 @@ func (s *Service) insertIntoChain(
 		currentSlot := (nowTime - s.genesisTime) / s.secondsPerSlot
 		if s.isSyncing() && vanShardInfo.Slot == currentSlot {
 			s.setSyncingStatus(LiveSync)
+			log.Info("Orchestrator is fully synced!")
 		}
 
 		if !s.isSyncing() && vanShardInfo.Slot < currentSlot {
 			s.setSyncingStatus(InitialSync)
+			log.Info("Orchestrator is going to re-sync mode!")
 		}
 
 		//removing slot that is already verified
