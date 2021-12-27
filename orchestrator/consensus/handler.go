@@ -23,12 +23,15 @@ func (s *Service) processPandoraHeader(headerInfo *types.PandoraHeaderInfo) erro
 	}
 
 	slot := headerInfo.Slot
-	// short circuit check, if this header is already in verified sharding info db then send confirmation instantly
-	if shardInfo := s.getShardingInfo(slot); shardInfo != nil && shardInfo.NotNil() {
-		if shardInfo.GetPanShardRoot() == headerInfo.Header.Hash() {
-			log.WithField("shardInfo", shardInfo.FormattedStr()).Debug("Pandora shard header has already verified")
-			s.publishBlockConfirmation(shardInfo.GetPanShardRoot(), shardInfo.GetVanSlotRoot(), types.Verified)
-			return nil
+	headerHash := headerInfo.Header.Hash()
+	if  s.curReorgStatus == nil || s.curReorgStatus.HasResolved {
+		// short circuit check, if this header is already in verified sharding info db then send confirmation instantly
+		if shardInfo := s.getShardingInfo(slot); shardInfo != nil && shardInfo.NotNil() {
+			if shardInfo.GetPanShardRoot() == headerHash {
+				log.WithField("shardInfo", shardInfo.FormattedStr()).Debug("Pandora shard header has already verified")
+				s.publishBlockConfirmation(shardInfo.GetPanShardRoot(), shardInfo.GetVanSlotRoot(), types.Verified)
+				return nil
+			}
 		}
 	}
 
@@ -49,6 +52,7 @@ func (s *Service) processPandoraHeader(headerInfo *types.PandoraHeaderInfo) erro
 
 		if s.curReorgStatus.Slot != headerInfo.Slot && s.curReorgStatus.PandoraHash != headerInfo.Header.Hash() {
 			reorgLog.Info("Invalid pandora shard for executing reorg, discarding pandora shard!")
+			s.publishBlockConfirmation(headerHash, common.Hash{}, types.Invalid)
 			return nil
 		}
 
@@ -121,6 +125,7 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 		return nil
 	}
 
+	s.curReorgStatus = nil
 	// If any reorg is detected by previous checkReorg method, then update in-memory reorg status and reset the headShardInfo and headStepId
 	if parentShardInfo != nil && parentShardInfo.NotNil() {
 		if s.curReorgStatus == nil || bytes.Equal(s.curReorgStatus.BlockRoot[:], vanShardInfo.BlockRoot[:]) {
