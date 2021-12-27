@@ -172,7 +172,6 @@ type ReorgStatus struct {
 	ParentStepId    uint64
 	ParentShardInfo *MultiShardInfo
 	PandoraHash     common.Hash
-	HasResolved     bool
 }
 
 func (rs *ReorgStatus) FormattedStr() string {
@@ -181,8 +180,7 @@ func (rs *ReorgStatus) FormattedStr() string {
 			`, blockRoot: ` + fmt.Sprintf("%v", common.BytesToHash(rs.BlockRoot[:])) +
 			`, parentStepId: ` + fmt.Sprintf("%v", rs.ParentStepId) +
 			`, parentShardInfo: ` + fmt.Sprintf("%v", rs.ParentShardInfo.FormattedStr()) +
-			`, pandoraHash: ` + fmt.Sprintf("%v", rs.PandoraHash) +
-			`, hasResolved: ` + fmt.Sprintf("%v", rs.HasResolved) + `} `,
+			`, pandoraHash: ` + fmt.Sprintf("%v", rs.PandoraHash) + `} `,
 	}, "")
 	return s
 }

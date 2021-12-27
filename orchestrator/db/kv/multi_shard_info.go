@@ -256,7 +256,7 @@ func (s *Store) FindAncestor(fromStepId, toStepId uint64, blockHash common.Hash)
 	)
 
 	err := s.db.View(func(tx *bolt.Tx) error {
-		for step := fromStepId; step > toStepId; step-- {
+		for step := fromStepId; step > 0 && step >= toStepId; step-- {
 			shardInfo, err := s.VerifiedShardInfo(step)
 			if err != nil {
 				log.WithField("step", step).Warn("DB is corrupted")

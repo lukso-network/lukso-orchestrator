@@ -24,7 +24,7 @@ func (s *Service) processPandoraHeader(headerInfo *types.PandoraHeaderInfo) erro
 
 	slot := headerInfo.Slot
 	headerHash := headerInfo.Header.Hash()
-	if  s.curReorgStatus == nil || s.curReorgStatus.HasResolved {
+	if s.curReorgStatus == nil {
 		// short circuit check, if this header is already in verified sharding info db then send confirmation instantly
 		if shardInfo := s.getShardingInfo(slot); shardInfo != nil && shardInfo.NotNil() {
 			if shardInfo.GetPanShardRoot() == headerHash {
@@ -46,7 +46,7 @@ func (s *Service) processPandoraHeader(headerInfo *types.PandoraHeaderInfo) erro
 	}
 
 	// Checking if current reorg slot contains this pandora block then latest shard info will be updated
-	if s.curReorgStatus != nil && !s.curReorgStatus.HasResolved {
+	if s.curReorgStatus != nil {
 		reorgLog := log.WithField("reorgStatus", s.curReorgStatus.FormattedStr()).WithField("panShardSlot", headerInfo.Slot).
 			WithField("panParentHash", headerInfo.Header.ParentHash)
 
@@ -135,7 +135,6 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 				ParentStepId:    parentStepId,
 				ParentShardInfo: parentShardInfo,
 				PandoraHash:     common.BytesToHash(vanShardInfo.ShardInfo.Hash),
-				HasResolved:     false,
 			}
 		}
 
@@ -213,8 +212,7 @@ func (s *Service) insertIntoChain(
 		s.verifyShardInfo(latestShardInfo, header, vanShardInfo, latestStepId) {
 
 		// Resetting db
-		if s.curReorgStatus != nil && !s.curReorgStatus.HasResolved &&
-			s.curReorgStatus.Slot == vanShardInfo.Slot &&
+		if s.curReorgStatus != nil && s.curReorgStatus.Slot == vanShardInfo.Slot &&
 			bytes.Equal(s.curReorgStatus.BlockRoot[:], vanShardInfo.BlockRoot[:]) {
 
 			log.WithField("reorgStatus", s.curReorgStatus.FormattedStr()).Info("Reverting db!")
@@ -222,8 +220,6 @@ func (s *Service) insertIntoChain(
 				log.WithError(err).Error("Failed to process reorg!")
 				return nil
 			}
-
-			s.curReorgStatus.HasResolved = true
 		}
 
 		newShardInfo := utils.PrepareMultiShardData(vanShardInfo, header, TotalExecutionShardCount, ShardsPerVanBlock)
