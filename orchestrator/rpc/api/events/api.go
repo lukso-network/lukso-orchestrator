@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	generalTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
 	"github.com/pkg/errors"
+	"os"
 	"time"
 )
 
@@ -92,8 +93,15 @@ func (api *PublicFilterAPI) ConfirmVanBlockHashes(
 	res := make([]*BlockStatus, 0)
 	for _, req := range requests {
 		status := api.backend.GetSlotStatus(ctx, req.Slot, req.Hash, false)
+
 		log.WithField("slot", req.Slot).WithField("status", status).WithField(
 			"api", "ConfirmVanBlockHashes").Debug("Status of the requested slot")
+
+		if "true" == os.Getenv("HARDCODE_PAN_CONFIRMATION") {
+			status = generalTypes.Verified
+			log.WithField("slot", req.Slot).Debug("Fallback because of the hardcode")
+		}
+
 		hash := req.Hash
 		res = append(res, &BlockStatus{
 			BlockHash: BlockHash{
