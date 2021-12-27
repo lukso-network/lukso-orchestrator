@@ -5,5 +5,5 @@ import (
 )
 
 const (
-	cacheRemovalInterval = time.Second * 12
+	cacheRemovalInterval = time.Second * 10
 )

@@ -40,6 +40,7 @@ type VanguardCache struct {
 type PanCacheInsertParams struct {
 	CurrentVerifiedHeader *eth1Types.Header
 	LastVerifiedShardInfo *types.MultiShardInfo
+	IsSyncing             bool
 }
 
 type VanCacheInsertParams struct {

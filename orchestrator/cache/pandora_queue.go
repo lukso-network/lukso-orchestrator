@@ -5,6 +5,7 @@ import (
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/utils"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
+	eth2Types "github.com/prysmaticlabs/eth2-types"
 	"time"
 )
 
@@ -46,14 +47,17 @@ func (pc *PandoraCache) MarkNotInProgress(slot uint64) error {
 }
 
 func (pc *PandoraCache) Put(slot uint64, insertParams *PanCacheInsertParams) error {
-	//if err := pc.VerifyPandoraCache(insertParams); err != nil {
-	//	log.WithError(err).Error("cache insertion failed in pandoraCache")
-	//	return err
-	//}
+	slotStartTime := utils.SlotStartTime(pc.genesisStartTime, eth2Types.Slot(slot), pc.secondsPerSlot)
+
+	// In initial syncing mode, pandora sends previous slots which may have already exceeded 8 secs from slot start time
+	if insertParams.IsSyncing {
+		slotStartTime = time.Now()
+	}
+
 	panHeader := types.CopyHeader(insertParams.CurrentVerifiedHeader)
 	queueData := &PandoraCacheData{
 		panHeader:      panHeader,
-		entryTimestamp: time.Now(),
+		entryTimestamp: slotStartTime,
 	}
 	val, found := pc.cache.Get(slot)
 	if val != nil && found {

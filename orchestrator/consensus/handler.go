@@ -62,6 +62,7 @@ func (s *Service) processPandoraHeader(headerInfo *types.PandoraHeaderInfo) erro
 	if err := s.panHeaderCache.Put(slot, &cache.PanCacheInsertParams{
 		CurrentVerifiedHeader: headerInfo.Header,
 		LastVerifiedShardInfo: latestShardInfo,
+		IsSyncing:             s.isSyncing(),
 	}); err != nil {
 		log.WithError(err).WithField("blockNumber", headerInfo.Header.Number).
 			WithField("slot", headerInfo.Slot).WithField("headerRoot", headerInfo.Header.Hash()).
@@ -142,6 +143,13 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 			PanParentHash: parentShardInfo.GetPanShardRootBytes(),
 			NewSlot:       parentShardInfo.GetSlot(),
 		})
+	}
+
+	nowTime := uint64(time.Now().Unix())
+	currentSlot := (nowTime - s.genesisTime) / s.secondsPerSlot
+	if !s.isSyncing() && vanShardInfo.Slot < currentSlot {
+		s.setSyncingStatus(InitialSync)
+		log.Info("Orchestrator is going to re-sync mode!")
 	}
 
 	disableDelete := false
@@ -228,11 +236,6 @@ func (s *Service) insertIntoChain(
 		if s.isSyncing() && vanShardInfo.Slot == currentSlot {
 			s.setSyncingStatus(LiveSync)
 			log.Info("Orchestrator is fully synced!")
-		}
-
-		if !s.isSyncing() && vanShardInfo.Slot < currentSlot {
-			s.setSyncingStatus(InitialSync)
-			log.Info("Orchestrator is going to re-sync mode!")
 		}
 
 		//removing slot that is already verified

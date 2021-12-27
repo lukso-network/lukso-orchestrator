@@ -19,10 +19,3 @@ func TestVanguardCache_Put(t *testing.T) {
 	}
 	assert.Equal(t, 25, len(pc.cache.Keys()))
 }
-
-func TestVanguardCache_PutInConsecutiveShard(t *testing.T) {
-	pc := NewVanguardCache(1024, 0, 6, utils.NewStack())
-	_, vanShardInfos := testutil.GetHeaderInfosAndShardInfos(1, 25)
-	curShardInfo := vanShardInfos[24]
-
-}
