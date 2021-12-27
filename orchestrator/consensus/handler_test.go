@@ -5,6 +5,8 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/utils"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
+	"github.com/lukso-network/lukso-orchestrator/shared/testutil/require"
+	logTest "github.com/sirupsen/logrus/hooks/test"
 	"math/big"
 	"testing"
 	"time"
@@ -80,4 +82,28 @@ func TestService_TriggerReorgAndVerifyNextShard(t *testing.T) {
 	actualShardInfo, err := svc.db.VerifiedShardInfo(6)
 	assert.NoError(t, err)
 	assert.Equal(t, true, expectedShardInfo.DeepEqual(actualShardInfo))
+}
+
+func TestService_EarlyExitIfAlreadyInDB(t *testing.T) {
+	hook := logTest.NewGlobal()
+	ctx := context.Background()
+	svc, _, _, _, _ := setup(ctx, t)
+
+	headerInfos, shardInfos := testutil.GetHeaderInfosAndShardInfos(1, 10)
+	for i := 0; i < 10; i++ {
+		stepId := uint64(i + 1)
+		multiShardInfo := utils.PrepareMultiShardData(shardInfos[i], headerInfos[i].Header, 1, 1)
+		assert.NoError(t, svc.db.SaveVerifiedShardInfo(stepId, multiShardInfo))
+		assert.NoError(t, svc.db.SaveLatestStepID(stepId))
+		assert.NoError(t, svc.db.SaveSlotStepIndex(multiShardInfo.SlotInfo.Slot, stepId))
+	}
+
+	newPanHeaderInfo := headerInfos[5]
+	newVanShardInfo := shardInfos[5]
+
+	assert.NoError(t, svc.processVanguardShardInfo(newVanShardInfo))
+	require.LogsContain(t, hook, "Vanguard block root has already verified")
+
+	assert.NoError(t, svc.processPandoraHeader(newPanHeaderInfo))
+	require.LogsContain(t, hook, "Pandora shard header has already verified")
 }

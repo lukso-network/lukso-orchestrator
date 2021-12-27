@@ -26,7 +26,7 @@ func (s *Service) processPandoraHeader(headerInfo *types.PandoraHeaderInfo) erro
 	// short circuit check, if this header is already in verified sharding info db then send confirmation instantly
 	if shardInfo := s.getShardingInfo(slot); shardInfo != nil && shardInfo.NotNil() {
 		if shardInfo.GetPanShardRoot() == headerInfo.Header.Hash() {
-			log.WithField("shardInfo", shardInfo.FormattedStr()).Debug("Pandora shard header is already in verified shard info db")
+			log.WithField("shardInfo", shardInfo.FormattedStr()).Debug("Pandora shard header has already verified")
 			s.publishBlockConfirmation(shardInfo.GetPanShardRoot(), shardInfo.GetVanSlotRoot(), types.Verified)
 			return nil
 		}
@@ -91,7 +91,7 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 	// short circuit check, if this header is already in verified sharding info db then send confirmation instantly
 	if shardInfo := s.getShardingInfo(slot); shardInfo != nil && shardInfo.NotNil() {
 		if shardInfo.GetVanSlotRoot() == common.BytesToHash(vanShardInfo.BlockRoot[:]) {
-			log.WithField("shardInfo", shardInfo.FormattedStr()).Debug("Vanguard block root is already in verified shard info db")
+			log.WithField("shardInfo", shardInfo.FormattedStr()).Info("Vanguard block root has already verified")
 			return nil
 		}
 	}

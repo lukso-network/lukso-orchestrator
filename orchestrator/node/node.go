@@ -81,14 +81,16 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 		return nil, err
 	}
 
-	if err := orchestrator.db.RemoveShardingInfos(stepId + 1); err != nil {
-		log.WithError(err).Error("Failed to remove latest verified shard infos from db")
-		return nil, err
-	}
+	if stepId > 0 {
+		if err := orchestrator.db.RemoveShardingInfos(stepId + 1); err != nil {
+			log.WithError(err).Error("Failed to remove latest verified shard infos from db")
+			return nil, err
+		}
 
-	if err := orchestrator.db.SaveLatestStepID(stepId); err != nil {
-		log.WithError(err).Error("Failed to update latest step id into db")
-		return nil, err
+		if err := orchestrator.db.SaveLatestStepID(stepId); err != nil {
+			log.WithError(err).Error("Failed to update latest step id into db")
+			return nil, err
+		}
 	}
 
 	if err := orchestrator.registerVanguardChainService(cliCtx); err != nil {
