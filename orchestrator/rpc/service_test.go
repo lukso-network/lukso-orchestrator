@@ -44,6 +44,7 @@ func setup(t *testing.T) (*Config, error) {
 		WSEnable:             true,
 		WSHost:               cmd.DefaultWSHost,
 		WSPort:               9875,
+		ReorgInfoFeed:        consensusSvr,
 	}, nil
 }
 
