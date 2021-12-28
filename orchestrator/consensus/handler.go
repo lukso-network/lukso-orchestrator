@@ -220,6 +220,7 @@ func (s *Service) insertIntoChain(
 				log.WithError(err).Error("Failed to process reorg!")
 				return nil
 			}
+			s.curReorgStatus = nil
 		}
 
 		newShardInfo := utils.PrepareMultiShardData(vanShardInfo, header, TotalExecutionShardCount, ShardsPerVanBlock)
