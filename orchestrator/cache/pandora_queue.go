@@ -47,6 +47,9 @@ func (pc *PandoraCache) MarkNotInProgress(slot uint64) error {
 }
 
 func (pc *PandoraCache) Put(slot uint64, insertParams *PanCacheInsertParams) error {
+	if insertParams == nil || insertParams.CurrentVerifiedHeader == nil {
+		return errInvalidElement
+	}
 	slotStartTime := utils.SlotStartTime(pc.genesisStartTime, eth2Types.Slot(slot), pc.secondsPerSlot)
 
 	// In initial syncing mode, pandora sends previous slots which may have already exceeded 8 secs from slot start time
