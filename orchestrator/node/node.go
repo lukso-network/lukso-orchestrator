@@ -2,7 +2,9 @@ package node
 
 import (
 	"context"
+	"fmt"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/utils"
+	"github.com/lukso-network/lukso-orchestrator/shared/prometheus"
 	"github.com/lukso-network/lukso-orchestrator/shared/version"
 	"github.com/prysmaticlabs/prysm/shared/sliceutil"
 	"os"
@@ -107,6 +109,12 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 
 	if err := orchestrator.registerRPCService(cliCtx); err != nil {
 		return nil, err
+	}
+
+	if !cliCtx.Bool(cmd.DisableMonitoringFlag.Name) {
+		if err := orchestrator.registerPrometheusService(cliCtx); err != nil {
+			return nil, err
+		}
 	}
 
 	log.WithField("genesisTime", genesisTime).WithField("secPerSlot", secPerSlot).Info("Started orchestrator node")
@@ -278,6 +286,17 @@ func (o *OrchestratorNode) registerRPCService(cliCtx *cli.Context) error {
 	return o.services.RegisterService(svc)
 }
 
+func (o *OrchestratorNode) registerPrometheusService(cliCtx *cli.Context) error {
+	var additionalHandlers []prometheus.Handler
+	service := prometheus.NewService(
+		fmt.Sprintf("%s:%d", o.cliCtx.String(cmd.MonitoringHostFlag.Name), o.cliCtx.Int(cmd.MonitoringPortFlag.Name)),
+		o.services,
+		additionalHandlers...,
+	)
+	logrus.AddHook(prometheus.NewLogrusCollector())
+	return o.services.RegisterService(service)
+}
+
 // Start the OrchestratorNode and kicks off every registered service.
 func (o *OrchestratorNode) Start() {
 	o.lock.Lock()
@@ -312,15 +331,15 @@ func (o *OrchestratorNode) Start() {
 }
 
 // Close handles graceful shutdown of the system.
-func (b *OrchestratorNode) Close() {
-	b.lock.Lock()
-	defer b.lock.Unlock()
+func (o *OrchestratorNode) Close() {
+	o.lock.Lock()
+	defer o.lock.Unlock()
 
 	log.Info("Stopping orchestrator node")
-	b.services.StopAll()
-	if err := b.db.Close(); err != nil {
+	o.services.StopAll()
+	if err := o.db.Close(); err != nil {
 		log.Errorf("Failed to close database: %v", err)
 	}
-	b.cancel()
-	close(b.stop)
+	o.cancel()
+	close(o.stop)
 }

@@ -8,6 +8,7 @@ require (
 	github.com/dgraph-io/ristretto v0.0.4-0.20210318174700-74754f61e018
 	github.com/ethereum/go-ethereum v1.10.2
 	github.com/gogo/protobuf v1.3.2
+	github.com/golang/gddo v0.0.0-20200528160355-8d077c1d8f4c
 	github.com/golang/mock v1.6.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.2
@@ -17,6 +18,7 @@ require (
 	github.com/kr/text v0.2.0 // indirect
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
 	github.com/pkg/errors v0.9.1
+	github.com/prometheus/client_golang v1.9.0
 	github.com/prysmaticlabs/eth2-types v0.0.0-20210303084904-c9735a06829d
 	github.com/prysmaticlabs/prysm v1.4.4
 	github.com/rs/cors v1.7.0

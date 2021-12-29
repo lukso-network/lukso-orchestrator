@@ -46,6 +46,13 @@ var appHelpFlagGroups = []flagGroup{
 			cmd.ForceClearDB,
 			cmd.ClearDB,
 			cmd.BoltMMapInitialSizeFlag,
+			cmd.DisableMonitoringFlag,
+			cmd.MonitoringHostFlag,
+			cmd.MonitoringPortFlag,
+			cmd.EnableTracingFlag,
+			cmd.TracingProcessNameFlag,
+			cmd.TraceSampleFractionFlag,
+			cmd.TracingEndpointFlag,
 		},
 	},
 	{

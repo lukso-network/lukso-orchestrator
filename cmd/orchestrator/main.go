@@ -35,6 +35,13 @@ var appFlags = []cli.Flag{
 	cmd.LogFormat,
 	cmd.VanguardGenesisTime,
 	cmd.SecondsPerSlot,
+	cmd.DisableMonitoringFlag,
+	cmd.MonitoringHostFlag,
+	cmd.MonitoringPortFlag,
+	cmd.EnableTracingFlag,
+	cmd.TracingEndpointFlag,
+	cmd.TraceSampleFractionFlag,
+	cmd.TracingProcessNameFlag,
 }
 
 func init() {
