@@ -54,7 +54,7 @@ func TestService_CheckingWithoutReorg(t *testing.T) {
 	assert.Equal(t, true, expectedShardInfo.DeepEqual(actualShardInfo))
 }
 
-func TestService_TriggerReorgAndVerifyNextShard(t *testing.T) {
+func TestService_TriggerReorg(t *testing.T) {
 	ctx := context.Background()
 	svc, _, _, _, _ := setup(ctx, t)
 	defer svc.Stop()
@@ -106,4 +106,70 @@ func TestService_EarlyExitIfAlreadyInDB(t *testing.T) {
 
 	assert.NoError(t, svc.processPandoraHeader(newPanHeaderInfo))
 	//require.LogsContain(t, hook, "Pandora shard header has already verified")
+}
+
+func TestService_TriggerReorg_ResolveAndValidateNext(t *testing.T) {
+	hook := logTest.NewGlobal()
+	ctx := context.Background()
+	svc, _, _, _, _ := setup(ctx, t)
+
+	headerInfos, shardInfos := testutil.GetHeaderInfosAndShardInfos(1, 20)
+	for i := 0; i < 9; i++ {
+		stepId := uint64(i + 1)
+		multiShardInfo := utils.PrepareMultiShardData(shardInfos[i], headerInfos[i].Header, 1, 1)
+		assert.NoError(t, svc.db.SaveVerifiedShardInfo(stepId, multiShardInfo))
+		assert.NoError(t, svc.db.SaveLatestStepID(stepId))
+		assert.NoError(t, svc.db.SaveSlotStepIndex(multiShardInfo.SlotInfo.Slot, stepId))
+	}
+
+	newPanHeaderInfo := headerInfos[9]
+	newPanHeaderInfo.Header.ParentHash = headerInfos[4].Header.Hash()
+	newPanHeaderInfo.Header.Number = big.NewInt(6)
+	newVanShardInfo := testutil.NewVanguardShardInfo(10, newPanHeaderInfo.Header, 0, 0)
+	newVanShardInfo.ParentRoot = shardInfos[4].BlockRoot
+
+	assert.NoError(t, svc.processVanguardShardInfo(newVanShardInfo))
+	// when pandora sends invalid header after reorg
+	assert.NoError(t, svc.processPandoraHeader(headerInfos[6]))
+	require.LogsContain(t, hook, "Invalid pandora shard for executing reorg, discarding pandora shard!")
+	assert.NoError(t, svc.processPandoraHeader(newPanHeaderInfo))
+
+	headerInfo := headerInfos[10]
+	headerInfo.Header.ParentHash = newPanHeaderInfo.Header.Hash()
+	headerInfo.Header.Number = big.NewInt(7)
+	vanShardInfo := testutil.NewVanguardShardInfo(11, headerInfo.Header, 0, 0)
+	vanShardInfo.ParentRoot = shardInfos[9].BlockRoot
+	assert.NoError(t, svc.processPandoraHeader(headerInfo))
+	assert.NoError(t, svc.processVanguardShardInfo(vanShardInfo))
+
+	assert.Equal(t, uint64(7), svc.db.LatestStepID())
+	expectedShardInfo := utils.PrepareMultiShardData(vanShardInfo, headerInfo.Header, 1, 1)
+	actualShardInfo, err := svc.db.VerifiedShardInfo(7)
+	assert.NoError(t, err)
+	assert.Equal(t, true, expectedShardInfo.DeepEqual(actualShardInfo))
+}
+
+func TestService_TriggerReorg_NotResolveAndReceiveNextSlot(t *testing.T) {
+	ctx := context.Background()
+	svc, _, _, _, _ := setup(ctx, t)
+
+	headerInfos, shardInfos := testutil.GetHeaderInfosAndShardInfos(1, 20)
+	for i := 0; i < 9; i++ {
+		stepId := uint64(i + 1)
+		multiShardInfo := utils.PrepareMultiShardData(shardInfos[i], headerInfos[i].Header, 1, 1)
+		assert.NoError(t, svc.db.SaveVerifiedShardInfo(stepId, multiShardInfo))
+		assert.NoError(t, svc.db.SaveLatestStepID(stepId))
+		assert.NoError(t, svc.db.SaveSlotStepIndex(multiShardInfo.SlotInfo.Slot, stepId))
+	}
+
+	newPanHeaderInfo := headerInfos[9]
+	newPanHeaderInfo.Header.ParentHash = headerInfos[4].Header.Hash()
+	newPanHeaderInfo.Header.Number = big.NewInt(6)
+	newVanShardInfo := testutil.NewVanguardShardInfo(10, newPanHeaderInfo.Header, 0, 0)
+	newVanShardInfo.ParentRoot = shardInfos[4].BlockRoot
+
+	assert.NoError(t, svc.processVanguardShardInfo(newVanShardInfo))
+	nextVanShardInfo := shardInfos[10]
+	nextVanShardInfo.ParentRoot = newVanShardInfo.BlockRoot
+	assert.NoError(t, svc.processVanguardShardInfo(nextVanShardInfo))
 }

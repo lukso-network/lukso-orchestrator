@@ -10,9 +10,8 @@ import (
 )
 
 func compareShardingInfo(ph *eth1Types.Header, vs *eth2Types.PandoraShard) bool {
-	if ph == nil && vs == nil {
-		// in existing code this will happen. as some part may have no sharding info for testing.
-		return true
+	if ph == nil || vs == nil {
+		return false
 	}
 
 	if vs.BlockNumber != ph.Number.Uint64() {
@@ -105,7 +104,7 @@ func (s *Service) verifyShardInfo(
 
 	if latestShardInfo.GetVanSlotRoot() != vParentHash {
 		log.WithField("lastVerifiedVanHash", latestShardInfo.SlotInfo.BlockRoot).WithField("curVanParentHash", vParentHash).
-			Debug("Invalid vanguard parent hash")
+			Info("Invalid vanguard parent hash")
 		return false
 	}
 
