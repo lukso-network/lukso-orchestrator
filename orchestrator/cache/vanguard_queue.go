@@ -85,18 +85,15 @@ func (vc *VanguardCache) ContainsHash(hash []byte) bool {
 func (vc *VanguardCache) RemoveByTime(timeStamp time.Time) {
 	keys := vc.cache.Keys()
 
-	vc.lock.Lock()
-	defer vc.lock.Unlock()
-
 	for _, key := range keys {
 		slot := key.(uint64)
 		queueInfo := vc.Get(slot)
-		if queueInfo != nil && !vc.inProgressSlots[slot] && !queueInfo.disableDelete && timeStamp.Sub(queueInfo.entryTimestamp) >= cacheRemovalInterval {
+		if queueInfo != nil && !vc.GetInProgressSlot(slot) && !queueInfo.disableDelete && timeStamp.Sub(queueInfo.entryTimestamp) >= cacheRemovalInterval {
 			if queueInfo.vanShardInfo != nil {
 				log.WithField("slot number", slot).Debug("Removing expired slot info from vanguard cache")
 				vc.cache.Remove(slot)
 				vc.stack.Delete(queueInfo.vanShardInfo.BlockRoot[:])
-				delete(vc.inProgressSlots, slot)
+				vc.MarkNotInProgress(slot)
 			}
 		}
 	}
@@ -108,7 +105,13 @@ func (vc *VanguardCache) ForceDelSlot(slot uint64) {
 		if slotInfo.vanShardInfo != nil {
 			vc.cache.Remove(slot)
 			vc.stack.Delete(slotInfo.vanShardInfo.BlockRoot[:])
-			delete(vc.inProgressSlots, slot)
+			vc.MarkNotInProgress(slot)
 		}
 	}
+}
+
+func (vc *VanguardCache) GetInProgressSlot(slot uint64) bool {
+	vc.lock.Lock()
+	defer vc.lock.Unlock()
+	return vc.inProgressSlots[slot]
 }

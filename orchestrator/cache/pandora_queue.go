@@ -94,9 +94,6 @@ func (pc *PandoraCache) RemoveByTime(timeStamp time.Time) []*eth1Types.Header {
 	keys := pc.cache.Keys()
 	var retVal []*eth1Types.Header
 
-	pc.lock.Lock()
-	defer pc.lock.Unlock()
-
 	for _, key := range keys {
 		slot := key.(uint64)
 		queueInfo := pc.Get(slot)
@@ -106,7 +103,8 @@ func (pc *PandoraCache) RemoveByTime(timeStamp time.Time) []*eth1Types.Header {
 			if queueInfo.panHeader != nil {
 				pc.cache.Remove(slot)
 				pc.stack.Delete(queueInfo.panHeader.Hash().Bytes())
-				delete(pc.inProgressSlots, slot)
+				pc.MarkNotInProgress(slot)
+
 			}
 		}
 	}
@@ -119,7 +117,13 @@ func (pc *PandoraCache) ForceDelSlot(slot uint64) {
 		if slotInfo.panHeader != nil {
 			pc.cache.Remove(slot)
 			pc.stack.Delete(slotInfo.panHeader.Hash().Bytes())
-			delete(pc.inProgressSlots, slot)
+			pc.MarkNotInProgress(slot)
 		}
 	}
+}
+
+func (pc *PandoraCache) GetInProgressSlot(slot uint64) bool {
+	pc.lock.Lock()
+	defer pc.lock.Unlock()
+	return pc.inProgressSlots[slot]
 }
