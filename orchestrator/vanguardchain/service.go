@@ -188,7 +188,7 @@ func (s *Service) waitForConnection() {
 		select {
 		case <-ticker.C:
 			if _, err := s.beaconClient.GetChainHead(s.ctx, &emptypb.Empty{}); err != nil {
-				log.WithField("vanguardEndpoint", s.vanGRPCEndpoint).Warn("Could not connect or subscribe to vanguard chain")
+				log.WithField("vanguardEndpoint", s.vanGRPCEndpoint).Info("Could not connect or subscribe to vanguard chain")
 				IsVanConnected.Set(float64(0))
 				continue
 			}

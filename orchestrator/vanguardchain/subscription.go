@@ -86,7 +86,8 @@ func (s *Service) subscribeVanNewPendingBlockHash(ctx context.Context, fromSlot 
 			}
 
 			if err := s.onNewPendingVanguardBlock(ctx, vanBlockInfo); err != nil {
-				log.WithError(err).Error("Failed to process the pending vanguard shardInfo. Exiting vanguard pending header subscription")
+				log.WithError(err).Error("Failed to process the pending vanguard shardInfo. " +
+					"Exiting vanguard pending block subscription")
 				return errConsensusInfoProcess
 			}
 		}
@@ -120,6 +121,7 @@ func (s *Service) subscribeNewConsensusInfoGRPC(ctx context.Context, fromEpoch u
 				if e, ok := status.FromError(err); ok {
 					switch e.Code() {
 					case codes.Canceled, codes.Internal, codes.Unavailable:
+
 						log.WithError(err).Infof("Trying to restart connection. rpc status: %v", e.Code())
 						s.waitForConnection()
 
@@ -129,15 +131,17 @@ func (s *Service) subscribeNewConsensusInfoGRPC(ctx context.Context, fromEpoch u
 							finalizedEpoch = latestEpoch
 						}
 
-						stream, err = s.beaconClient.StreamMinimalConsensusInfo(ctx,
+						if stream, err = s.beaconClient.StreamMinimalConsensusInfo(ctx,
 							&ethpb.MinimalConsensusInfoRequest{
 								FromEpoch: eth2Types.Epoch(finalizedEpoch),
-							})
-						if nil != err {
+							}); err != nil {
+
 							log.WithError(err).Error("Failed to subscribe to stream of new consensus info, Exiting go routine")
 							return err
 						}
-						log.WithField("finalizedEpoch", finalizedEpoch).Info("Successfully re-subscribed to vanguard epoch infos")
+
+						log.WithField("finalizedEpoch", finalizedEpoch).
+							Info("Successfully re-subscribed to vanguard epoch infos")
 						continue
 					}
 				} else {
@@ -145,7 +149,6 @@ func (s *Service) subscribeNewConsensusInfoGRPC(ctx context.Context, fromEpoch u
 					return err
 				}
 			}
-
 			if vanMinimalConsensusInfo == nil {
 				log.Error("Received nil consensus info, Exiting go routine")
 				return errConsensusInfoNil

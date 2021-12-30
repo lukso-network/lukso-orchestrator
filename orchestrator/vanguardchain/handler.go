@@ -19,12 +19,12 @@ func (s *Service) onNewConsensusInfo(ctx context.Context, consensusInfo *types.M
 	log.WithField("nsent", nsent).Trace("Send consensus info to subscribers")
 
 	if err := s.consensusInfoDB.SaveConsensusInfo(ctx, consensusInfo.ConvertToEpochInfo()); err != nil {
-		log.WithError(err).Warn("failed to save consensus info into consensusInfoDB!")
+		log.WithError(err).Debug("failed to save consensus info into consensusInfoDB!")
 		return err
 	}
 
 	if err := s.consensusInfoDB.SaveLatestEpoch(ctx, consensusInfo.Epoch); err != nil {
-		log.WithError(err).Warn("failed to save latest epoch into consensusInfoDB!")
+		log.WithError(err).Debug("failed to save latest epoch into consensusInfoDB!")
 		return err
 	}
 
@@ -36,14 +36,14 @@ func (s *Service) onNewPendingVanguardBlock(ctx context.Context, blockInfo *eth.
 	block := blockInfo.Block
 	blockHash, err := block.HashTreeRoot()
 	if nil != err {
-		log.WithError(err).Warn("failed to retrieve vanguard block hash from HashTreeRoot")
+		log.WithError(err).Debug("failed to retrieve vanguard block hash from HashTreeRoot")
 		return err
 	}
 	wrappedPhase0Blk := wrapper.WrappedPhase0BeaconBlock(block)
 	pandoraShards := wrappedPhase0Blk.Body().PandoraShards()
 	if len(pandoraShards) < 1 {
 		// The first value is the sharding info. If not present throw error
-		log.WithField("pandoraShard length", len(pandoraShards)).Error("pandora sharding info not present")
+		log.WithField("pandoraShard length", len(pandoraShards)).Debug("pandora sharding info not present")
 		return errors.New("invalid shard info length in vanguard block body")
 	}
 

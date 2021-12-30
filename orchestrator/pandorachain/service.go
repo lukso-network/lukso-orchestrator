@@ -131,7 +131,7 @@ func (s *Service) waitForConnection() {
 		s.runError = nil
 		return
 	}
-	log.WithError(err).Warn("Could not connect or subscribe to pandora chain")
+	log.WithError(err).Info("Could not connect or subscribe to pandora chain")
 	s.runError = err
 	ticker := time.NewTicker(reConPeriod)
 	defer ticker.Stop()
@@ -142,7 +142,7 @@ func (s *Service) waitForConnection() {
 			log.WithField("endpoint", s.endpoint).Debug("Dialing pandora node")
 			var errConnect error
 			if errConnect = s.connectToChain(); errConnect != nil {
-				log.WithError(errConnect).Warn("Could not connect or subscribe to pandora chain")
+				log.WithError(errConnect).Info("Could not connect or subscribe to pandora chain")
 				s.runError = errConnect
 				continue
 			}
@@ -249,7 +249,7 @@ func (s *Service) subscribe() error {
 	// subscribe to pandora client for pending headers
 	sub, err := s.SubscribePendingHeaders(s.ctx, filter, s.namespace, s.rpcClient)
 	if err != nil {
-		log.WithError(err).Warn("Could not subscribe to pandora client for new pending headers")
+		log.WithError(err).Info("Could not subscribe to pandora client for new pending headers")
 		return err
 	}
 
