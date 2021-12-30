@@ -109,7 +109,6 @@ func (vc *VanguardCache) ForceDelSlot(slot uint64) {
 		if slotInfo.vanShardInfo != nil {
 			vc.cache.Remove(slot)
 			vc.stack.Delete(slotInfo.vanShardInfo.BlockRoot[:])
-			delete(vc.inProgressSlots, slot)
 		}
 	}
 }

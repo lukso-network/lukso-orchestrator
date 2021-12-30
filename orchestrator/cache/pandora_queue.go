@@ -119,7 +119,6 @@ func (pc *PandoraCache) ForceDelSlot(slot uint64) {
 		if slotInfo.panHeader != nil {
 			pc.cache.Remove(slot)
 			pc.stack.Delete(slotInfo.panHeader.Hash().Bytes())
-			delete(pc.inProgressSlots, slot)
 		}
 	}
 }
