@@ -66,7 +66,13 @@ func (api *PublicFilterAPI) ConfirmPanBlockHashes(
 	}
 	res := make([]*BlockStatus, 0)
 	for _, req := range requests {
-		status := api.backend.GetSlotStatus(ctx, req.Slot, req.Hash, true)
+		status := api.backend.GetSlotStatus(ctx, req.Slot, req.Hash, false)
+
+		if "true" == os.Getenv("HARDCODE_PAN_CONFIRMATION") {
+			status = generalTypes.Verified
+			log.WithField("slot", req.Slot).Warn("Fallback because of the hardcode")
+		}
+
 		log.WithField("slot", req.Slot).WithField("status", status).WithField(
 			"api", "ConfirmPanBlockHashes").Debug("status of the requested slot")
 		hash := req.Hash
@@ -99,7 +105,7 @@ func (api *PublicFilterAPI) ConfirmVanBlockHashes(
 
 		if "true" == os.Getenv("HARDCODE_PAN_CONFIRMATION") {
 			status = generalTypes.Verified
-			log.WithField("slot", req.Slot).Debug("Fallback because of the hardcode")
+			log.WithField("slot", req.Slot).Warn("Fallback because of the hardcode")
 		}
 
 		hash := req.Hash
