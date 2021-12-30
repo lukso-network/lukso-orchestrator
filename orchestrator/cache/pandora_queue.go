@@ -100,7 +100,7 @@ func (pc *PandoraCache) RemoveByTime(timeStamp time.Time) []*eth1Types.Header {
 			continue
 		}
 		queueInfo := pc.Get(slot)
-		if queueInfo != nil && !pc.inProgressSlots[slot] && timeStamp.Sub(queueInfo.entryTimestamp) >= cacheRemovalInterval {
+		if queueInfo != nil && timeStamp.Sub(queueInfo.entryTimestamp) >= cacheRemovalInterval {
 			log.WithField("slot number", slot).Debug("Removing expired slot info from pandora cache")
 			retVal = append(retVal, queueInfo.panHeader)
 			if queueInfo.panHeader != nil {
