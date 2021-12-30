@@ -16,8 +16,8 @@ var (
 		Help: "Total invalid status count for pandora",
 	})
 
-	RequestedFromEpoch = promauto.NewGauge(prometheus.GaugeOpts{
-		Name: "requested_from_epoch",
-		Help: "Requested from epoch in which orchestrator subscribe for minimal consensus infos",
+	RequestedPandoraFromEpoch = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "requested_pandora_from_epoch",
+		Help: "Requested from epoch in which pandora subscribes for minimal consensus infos",
 	})
 )

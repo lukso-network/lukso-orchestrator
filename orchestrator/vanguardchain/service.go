@@ -162,6 +162,9 @@ func (s *Service) run() {
 
 	go s.subscribeNewConsensusInfoGRPC(s.ctx, fromEpoch)
 	go s.subscribeVanNewPendingBlockHash(s.ctx, fromSlot)
+
+	RequestedFromSlot.Set(float64(fromSlot))
+	RequestedFromEpoch.Set(float64(fromEpoch))
 }
 
 // waitForConnection waits for a connection with vanguard chain. Until a successful with
@@ -186,11 +189,15 @@ func (s *Service) waitForConnection() {
 		case <-ticker.C:
 			if _, err := s.beaconClient.GetChainHead(s.ctx, &emptypb.Empty{}); err != nil {
 				log.WithField("vanguardEndpoint", s.vanGRPCEndpoint).Warn("Could not connect or subscribe to vanguard chain")
+				IsVanConnected.Set(float64(0))
 				continue
 			}
 			s.connectedVanguard = true
 			s.runError = nil
 			log.WithField("vanguardEndpoint", s.vanGRPCEndpoint).Info("Connected vanguard chain")
+
+			IsVanConnected.Set(float64(1))
+
 			return
 		case <-s.ctx.Done():
 			log.Info("Received cancelled context, closing existing go routine: waitForConnection")

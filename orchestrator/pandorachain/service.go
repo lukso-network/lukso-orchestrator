@@ -227,17 +227,25 @@ func (s *Service) subscribe() error {
 	finalizedStepId, _ := s.db.GetStepIdBySlot(finalizedSlot)
 	finalizedShardInfo, _ := s.db.VerifiedShardInfo(finalizedStepId)
 
+	var (
+		fromBlockNumber uint64
+		fromSlot        uint64
+	)
+
 	if latestShardInfo != nil && latestShardInfo.NotNil() {
 		if latestShardInfo.GetSlot() < finalizedSlot {
 			filter.FromBlockHash = common.BytesToHash(latestShardInfo.GetPanShardRootBytes())
+			fromBlockNumber = latestShardInfo.GetPanBlockNumber()
+			fromSlot = latestShardInfo.GetSlot()
 		} else {
 			if finalizedShardInfo != nil && finalizedShardInfo.NotNil() {
 				filter.FromBlockHash = common.BytesToHash(finalizedShardInfo.GetPanShardRootBytes())
+				fromBlockNumber = finalizedShardInfo.GetPanBlockNumber()
+				fromSlot = finalizedShardInfo.GetSlot()
 			}
 		}
 	}
 
-	log.WithField("fromPanHash", filter.FromBlockHash).Debug("Start subscribing to pandora client for pending headers")
 	// subscribe to pandora client for pending headers
 	sub, err := s.SubscribePendingHeaders(s.ctx, filter, s.namespace, s.rpcClient)
 	if err != nil {
@@ -245,7 +253,16 @@ func (s *Service) subscribe() error {
 		return err
 	}
 
+	log.WithField("fromPanHash", filter.FromBlockHash).WithField("fromBlockNumber", fromBlockNumber).
+		WithField("fromSlot", fromSlot).Debug("Subscribed to pandora chain for pending block headers")
+
 	s.conInfoSub = sub
+
+	// metrics
+	IsPandoraConnected.Set(float64(1))
+	RequestedFromBlockNumber.Set(float64(fromBlockNumber))
+	RequestedFromSlot.Set(float64(fromSlot))
+
 	return nil
 }
 

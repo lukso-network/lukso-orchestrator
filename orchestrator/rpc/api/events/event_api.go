@@ -16,7 +16,9 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, requestedE
 		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported
 	}
 	rpcSub := notifier.CreateSubscription()
-	log.WithField("subscriptionId", rpcSub.ID).Info("New client has subscribed to minimal consensus info streaming api")
+	log.WithField("subscriptionId", rpcSub.ID).WithField("requestedEpoch", requestedEpoch).
+		Info("New client has subscribed to minimal consensus info streaming api")
+	RequestedPandoraFromEpoch.Set(float64(requestedEpoch))
 
 	go func() {
 

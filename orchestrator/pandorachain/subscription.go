@@ -25,7 +25,6 @@ func (s *Service) SubscribePendingHeaders(
 	if nil != err {
 		return nil, err
 	}
-	log.WithField("filterCriteria", crit).Info("subscribed to pandora chain for pending block headers")
 
 	// Start up a dispatcher to feed into the callback
 	go func() {
@@ -37,6 +36,8 @@ func (s *Service) SubscribePendingHeaders(
 				if nil != err {
 					log.WithError(err).Error("Failed to process the pending pandora header")
 					s.conInfoSubErrCh <- errPandoraHeaderProcessing
+
+					IsPandoraConnected.Set(float64(0))
 					return
 				}
 			case err := <-sub.Err():

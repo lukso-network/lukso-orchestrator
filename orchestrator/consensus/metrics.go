@@ -7,7 +7,7 @@ import (
 
 var (
 	ReorgDetectedCnt = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "reorg_detect_count",
+		Name: "reorg_count",
 		Help: "Reorg detected count after inserting any vanguard slot",
 	})
 
