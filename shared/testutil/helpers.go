@@ -95,13 +95,13 @@ func SealHash(header *eth1Types.Header) (hash common.Hash) {
 }
 
 // NewBeaconBlock
-func NewVanguardShardInfo(slot uint64, header *eth1Types.Header) *types.VanguardShardInfo {
+func NewVanguardShardInfo(slot uint64, header *eth1Types.Header, finalizedSlot, finalizedEpoch uint64) *types.VanguardShardInfo {
 	return &types.VanguardShardInfo{
 		Slot:           slot,
 		ShardInfo:      NewPandoraShard(header),
-		BlockHash:      []byte("0xd2302fac5c5f370575a70bcbab9fdaeb8f7e892f381d648ce1f2ad07ad17f20e"),
-		FinalizedEpoch: 0,
-		FinalizedSlot:  slot,
+		BlockRoot:      [32]byte{byte(slot)},
+		FinalizedEpoch: finalizedEpoch,
+		FinalizedSlot:  finalizedSlot,
 	}
 }
 
@@ -138,4 +138,26 @@ func NewBeaconBlock(slot uint64) *ethpb.BeaconBlock {
 			PandoraShard:      []*ethpb.PandoraShard{NewPandoraShard(NewEth1Header(slot))},
 		},
 	}
+}
+
+func GetHeaderInfosAndShardInfos(fromSlot uint64, num uint64) ([]*types.PandoraHeaderInfo, []*types.VanguardShardInfo) {
+	headerInfos := make([]*types.PandoraHeaderInfo, 0)
+	vanShardInfos := make([]*types.VanguardShardInfo, 0)
+
+	for i := fromSlot; i <= num; i++ {
+		headerInfo := new(types.PandoraHeaderInfo)
+		headerInfo.Header = NewEth1Header(i)
+		headerInfo.Slot = i
+		if i > 1 {
+			headerInfo.Header.ParentHash = headerInfos[i-2].Header.Hash()
+		}
+
+		vanShardInfo := NewVanguardShardInfo(i, headerInfo.Header, 0, 0)
+		if i > 1 {
+			vanShardInfo.ParentRoot = vanShardInfos[i-2].BlockRoot
+		}
+		vanShardInfos = append(vanShardInfos, vanShardInfo)
+		headerInfos = append(headerInfos, headerInfo)
+	}
+	return headerInfos, vanShardInfos
 }

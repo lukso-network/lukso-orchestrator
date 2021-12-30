@@ -24,6 +24,7 @@ var appFlags = []cli.Flag{
 	cmd.HTTPEnabledFlag,
 	cmd.HTTPListenAddrFlag,
 	cmd.HTTPPortFlag,
+	cmd.HTTPVirtualHosts,
 	cmd.WSEnabledFlag,
 	cmd.WSListenAddrFlag,
 	cmd.WSPortFlag,
@@ -32,6 +33,15 @@ var appFlags = []cli.Flag{
 	cmd.ForceClearDB,
 	cmd.LogFileName,
 	cmd.LogFormat,
+	cmd.VanguardGenesisTime,
+	cmd.SecondsPerSlot,
+	cmd.DisableMonitoringFlag,
+	cmd.MonitoringHostFlag,
+	cmd.MonitoringPortFlag,
+	cmd.EnableTracingFlag,
+	cmd.TracingEndpointFlag,
+	cmd.TraceSampleFractionFlag,
+	cmd.TracingProcessNameFlag,
 }
 
 func init() {

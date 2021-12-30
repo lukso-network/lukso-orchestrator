@@ -1,11 +1,9 @@
-package api
+package events
 
 import (
 	"context"
 	"github.com/ethereum/go-ethereum/common"
-	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
 	eventTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
 	"time"
 )
@@ -17,13 +15,14 @@ var (
 type MockBackend struct {
 	ConsensusInfoFeed    event.Feed
 	verifiedSlotInfoFeed event.Feed
+	reorgInfoFeed        event.Feed
 
 	ConsensusInfos    []*eventTypes.MinimalEpochConsensusInfoV2
 	verifiedSlotInfos map[uint64]*eventTypes.SlotInfo
 	CurEpoch          uint64
 }
 
-var _ events.Backend = &MockBackend{}
+var _ Backend = &MockBackend{}
 
 func (b *MockBackend) ConsensusInfoByEpochRange(fromEpoch uint64) ([]*eventTypes.MinimalEpochConsensusInfoV2, error) {
 	consensusInfos := make([]*eventTypes.MinimalEpochConsensusInfoV2, 0)
@@ -41,6 +40,10 @@ func (b *MockBackend) SubscribeNewVerifiedSlotInfoEvent(ch chan<- *eventTypes.Sl
 	return b.verifiedSlotInfoFeed.Subscribe(ch)
 }
 
+func (b *MockBackend) SubscribeNewReorgInfoEvent(ch chan<- *eventTypes.Reorg) event.Subscription {
+	return b.reorgInfoFeed.Subscribe(ch)
+}
+
 func (mb *MockBackend) GetSlotStatus(ctx context.Context, slot uint64, hash common.Hash, requestType bool) eventTypes.Status {
 	return eventTypes.Pending
 }
@@ -49,8 +52,8 @@ func (mb *MockBackend) LatestEpoch() uint64 {
 	return 100
 }
 
-func (mb *MockBackend) PendingPandoraHeaders() []*eth1Types.Header {
-	return nil
+func (mb *MockBackend) LatestEpochInfo(ctx context.Context) (*eventTypes.MinimalEpochConsensusInfoV2, error) {
+	return nil, nil
 }
 
 func (mb *MockBackend) VerifiedSlotInfos(fromSlot uint64) (map[uint64]*eventTypes.BlockStatus, error) {
@@ -67,4 +70,8 @@ func (mb *MockBackend) StepId(slot uint64) uint64 {
 
 func (mb *MockBackend) LatestStepId() uint64 {
 	return 0
+}
+
+func (mb *MockBackend) VerifiedShardInfos(fromSlot uint64) (map[uint64]*eventTypes.MultiShardInfo, error) {
+	return nil, nil
 }

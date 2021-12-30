@@ -4,7 +4,6 @@ import (
 	"context"
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
 	testDB "github.com/lukso-network/lukso-orchestrator/orchestrator/db/testing"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
@@ -85,7 +84,6 @@ func SetupPandoraSvc(ctx context.Context, t *testing.T, dialRPCFn DialRPCFn) *Se
 		"ws://127.0.0.1:8546",
 		"eth",
 		testDB.SetupDB(t),
-		cache.NewPanHeaderCache(),
 		dialRPCFn)
 	if err != nil {
 		t.Fatalf("failed to create protocol stack: %v", err)

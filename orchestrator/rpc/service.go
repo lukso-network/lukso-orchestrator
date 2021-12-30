@@ -15,11 +15,13 @@ import (
 
 // Config
 type Config struct {
-	ConsensusInfoFeed            iface.ConsensusInfoFeed
-	VerifiedSlotInfoFeed         conIface.VerifiedSlotInfoFeed
-	Db                           db.Database
-	VanguardPendingShardingCache cache.VanguardShardCache
-	PandoraPendingHeaderCache    cache.PandoraHeaderCache
+	ConsensusInfoFeed    iface.ConsensusInfoFeed
+	VerifiedSlotInfoFeed conIface.VerifiedSlotInfoFeed
+	ReorgInfoFeed        conIface.ReorgInfoFeed
+
+	Db                 db.Database
+	PandoraHeaderCache cache.PandoraInterface
+	VangShardCache     cache.VanguardInterface
 	// ipc config
 	IPCPath string
 	// http config
@@ -69,12 +71,14 @@ func NewService(ctx context.Context, cfg *Config) (*Service, error) {
 		config:        cfg,
 		inprocHandler: rpc.NewServer(),
 		backend: &api.Backend{
-			ConsensusInfoFeed:            cfg.ConsensusInfoFeed,
-			ConsensusInfoDB:              cfg.Db,
-			InvalidSlotInfoDB:            cfg.Db,
-			PandoraPendingHeaderCache:    cfg.PandoraPendingHeaderCache,
-			VanguardPendingShardingCache: cfg.VanguardPendingShardingCache,
-			VerifiedSlotInfoFeed:         cfg.VerifiedSlotInfoFeed,
+			ConsensusInfoFeed:    cfg.ConsensusInfoFeed,
+			ConsensusInfoDB:      cfg.Db,
+			InvalidSlotInfoDB:    cfg.Db,
+			VerifiedShardInfoDB:  cfg.Db,
+			PanHeaderCache:       cfg.PandoraHeaderCache,
+			VanShardCache:        cfg.VangShardCache,
+			VerifiedSlotInfoFeed: cfg.VerifiedSlotInfoFeed,
+			ReorgFeed:            cfg.ReorgInfoFeed,
 		},
 	}
 	// Configure RPC servers.
@@ -146,7 +150,7 @@ func (s *Service) startRPC() error {
 	if s.config.HTTPEnable && s.config.HTTPHost != "" {
 		config := httpConfig{
 			CorsAllowedOrigins: nil,
-			Vhosts:             nil,
+			Vhosts:             s.config.HTTPVirtualHosts,
 			Modules:            nil,
 			prefix:             "",
 		}

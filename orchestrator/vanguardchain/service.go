@@ -13,7 +13,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/event"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 	ethpb "github.com/prysmaticlabs/prysm/proto/eth/v1alpha1"
@@ -54,13 +53,12 @@ type Service struct {
 	scope                    event.SubscriptionScope
 	vanguardShardingInfoFeed event.Feed
 	subscriptionShutdownFeed event.Feed
-
+	// db support
 	verifiedShardInfoDB db.ROnlyVerifiedShardInfoDB // db support
 	consensusInfoDB     db.ConsensusInfoAccessDB    // db support
-	shardingInfoCache   cache.VanguardShardCache    // lru cache support
+
 	stopPendingBlkSubCh chan struct{}
 	stopEpochInfoSubCh  chan struct{}
-	reorgInfo           *types.Reorg
 }
 
 // NewService creates new service with vanguard endpoint, vanguard namespace and consensusInfoDB
@@ -68,7 +66,6 @@ func NewService(
 	ctx context.Context,
 	vanGRPCEndpoint string,
 	db db.Database,
-	cache cache.VanguardShardCache,
 ) (*Service, error) {
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -80,7 +77,6 @@ func NewService(
 		vanGRPCEndpoint:     vanGRPCEndpoint,
 		verifiedShardInfoDB: db,
 		consensusInfoDB:     db,
-		shardingInfoCache:   cache,
 		stopPendingBlkSubCh: make(chan struct{}),
 		stopEpochInfoSubCh:  make(chan struct{}),
 	}, nil
@@ -130,12 +126,27 @@ func (s *Service) run() {
 
 	s.waitForConnection()
 
-	latestFinalizedEpoch := s.verifiedShardInfoDB.FinalizedEpoch()
-	latestFinalizedSlot := s.verifiedShardInfoDB.FinalizedSlot()
-	fromEpoch := latestFinalizedEpoch
+	finalizeEpoch := s.verifiedShardInfoDB.FinalizedEpoch()
+	latestEpoch := s.consensusInfoDB.LatestSavedEpoch()
+	fromSlot := s.verifiedShardInfoDB.FinalizedSlot()
+
+	curStepId := s.verifiedShardInfoDB.LatestStepID()
+	latestShardInfo, _ := s.verifiedShardInfoDB.VerifiedShardInfo(curStepId)
+
+	if latestShardInfo != nil && latestShardInfo.NotNil() {
+		if latestShardInfo.SlotInfo.Slot < fromSlot {
+			fromSlot = latestShardInfo.SlotInfo.Slot
+		}
+	}
+
+	if latestEpoch < finalizeEpoch {
+		finalizeEpoch = latestEpoch
+	}
+
+	fromEpoch := finalizeEpoch
 
 	// checking consensus info db
-	for i := latestFinalizedEpoch; i >= 0; {
+	for i := finalizeEpoch; i >= 0; {
 		epochInfo, _ := s.consensusInfoDB.ConsensusInfo(s.ctx, i)
 		if epochInfo == nil {
 			// epoch info is missing. so subscribe from here. maybe db operation was wrong
@@ -150,7 +161,10 @@ func (s *Service) run() {
 	}
 
 	go s.subscribeNewConsensusInfoGRPC(s.ctx, fromEpoch)
-	go s.subscribeVanNewPendingBlockHash(s.ctx, latestFinalizedSlot)
+	go s.subscribeVanNewPendingBlockHash(s.ctx, fromSlot)
+
+	RequestedFromSlot.Set(float64(fromSlot))
+	RequestedFromEpoch.Set(float64(fromEpoch))
 }
 
 // waitForConnection waits for a connection with vanguard chain. Until a successful with
@@ -174,12 +188,16 @@ func (s *Service) waitForConnection() {
 		select {
 		case <-ticker.C:
 			if _, err := s.beaconClient.GetChainHead(s.ctx, &emptypb.Empty{}); err != nil {
-				log.WithField("vanguardEndpoint", s.vanGRPCEndpoint).Warn("Could not connect or subscribe to vanguard chain")
+				log.WithField("vanguardEndpoint", s.vanGRPCEndpoint).Info("Could not connect or subscribe to vanguard chain")
+				IsVanConnected.Set(float64(0))
 				continue
 			}
 			s.connectedVanguard = true
 			s.runError = nil
 			log.WithField("vanguardEndpoint", s.vanGRPCEndpoint).Info("Connected vanguard chain")
+
+			IsVanConnected.Set(float64(1))
+
 			return
 		case <-s.ctx.Done():
 			log.Info("Received cancelled context, closing existing go routine: waitForConnection")
@@ -195,22 +213,6 @@ func (s *Service) SubscribeMinConsensusInfoEvent(ch chan<- *types.MinimalEpochCo
 
 func (s *Service) SubscribeShardInfoEvent(ch chan<- *types.VanguardShardInfo) event.Subscription {
 	return s.scope.Track(s.vanguardShardingInfoFeed.Subscribe(ch))
-}
-
-func (s *Service) SubscribeShutdownSignalEvent(ch chan<- *types.Reorg) event.Subscription {
-	return s.scope.Track(s.subscriptionShutdownFeed.Subscribe(ch))
-}
-
-func (s *Service) StopSubscription(reorgInfo *types.Reorg) {
-	defer s.processingLock.Unlock()
-	s.processingLock.Lock()
-
-	s.reorgInfo = reorgInfo
-	if s.conn != nil {
-		s.conn.Close()
-		s.conn = nil
-	}
-	log.Info("Stopped vanguard gRPC subscription due to reorg")
 }
 
 // dialConn method creates connection with vanguard grpc server

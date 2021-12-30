@@ -2,6 +2,17 @@ package node
 
 import (
 	"context"
+	"fmt"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/utils"
+	"github.com/lukso-network/lukso-orchestrator/shared/prometheus"
+	"github.com/lukso-network/lukso-orchestrator/shared/version"
+	"github.com/prysmaticlabs/prysm/shared/sliceutil"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"sync"
+	"syscall"
+
 	"github.com/ethereum/go-ethereum/common/math"
 	ethRpc "github.com/ethereum/go-ethereum/rpc"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
@@ -14,15 +25,9 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/shared"
 	"github.com/lukso-network/lukso-orchestrator/shared/cmd"
 	"github.com/lukso-network/lukso-orchestrator/shared/fileutil"
-	"github.com/lukso-network/lukso-orchestrator/shared/version"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
-	"os"
-	"os/signal"
-	"path/filepath"
-	"sync"
-	"syscall"
 )
 
 // OrchestratorNode
@@ -41,8 +46,8 @@ type OrchestratorNode struct {
 	db db.Database
 
 	// lru caches
-	pandoraInfoCache  *cache.PanHeaderCache
-	vanShardInfoCache *cache.VanShardingInfoCache
+	pandoraPendingCache *cache.PandoraCache
+	vanPendingCache     *cache.VanguardCache
 }
 
 // New creates a new node instance, sets up configuration options, and registers
@@ -51,14 +56,17 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 	registry := shared.NewServiceRegistry()
 	ctx, cancel := context.WithCancel(cliCtx.Context)
 
+	genesisTime := cliCtx.Uint64(cmd.VanguardGenesisTime.Name)
+	secPerSlot := cliCtx.Uint64(cmd.SecondsPerSlot.Name)
+
 	orchestrator := &OrchestratorNode{
-		cliCtx:            cliCtx,
-		ctx:               ctx,
-		cancel:            cancel,
-		services:          registry,
-		stop:              make(chan struct{}),
-		pandoraInfoCache:  cache.NewPanHeaderCache(),
-		vanShardInfoCache: cache.NewVanShardInfoCache(math.MaxInt32),
+		cliCtx:              cliCtx,
+		ctx:                 ctx,
+		cancel:              cancel,
+		services:            registry,
+		stop:                make(chan struct{}),
+		pandoraPendingCache: cache.NewPandoraCache(math.MaxInt32, genesisTime, secPerSlot, utils.NewStack()),
+		vanPendingCache:     cache.NewVanguardCache(math.MaxInt32, genesisTime, secPerSlot, utils.NewStack()),
 	}
 
 	if err := orchestrator.startDB(orchestrator.cliCtx); err != nil {
@@ -75,14 +83,16 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 		return nil, err
 	}
 
-	if err := orchestrator.db.RemoveShardingInfos(stepId + 1); err != nil {
-		log.WithError(err).Error("Failed to remove latest verified shard infos from db")
-		return nil, err
-	}
+	if stepId > 0 {
+		if err := orchestrator.db.RemoveShardingInfos(stepId + 1); err != nil {
+			log.WithError(err).Error("Failed to remove latest verified shard infos from db")
+			return nil, err
+		}
 
-	if err := orchestrator.db.SaveLatestStepID(stepId); err != nil {
-		log.WithError(err).Error("Failed to update latest step id into db")
-		return nil, err
+		if err := orchestrator.db.SaveLatestStepID(stepId); err != nil {
+			log.WithError(err).Error("Failed to update latest step id into db")
+			return nil, err
+		}
 	}
 
 	if err := orchestrator.registerVanguardChainService(cliCtx); err != nil {
@@ -100,6 +110,14 @@ func New(cliCtx *cli.Context) (*OrchestratorNode, error) {
 	if err := orchestrator.registerRPCService(cliCtx); err != nil {
 		return nil, err
 	}
+
+	if !cliCtx.Bool(cmd.DisableMonitoringFlag.Name) {
+		if err := orchestrator.registerPrometheusService(cliCtx); err != nil {
+			return nil, err
+		}
+	}
+
+	log.WithField("genesisTime", genesisTime).WithField("secPerSlot", secPerSlot).Info("Started orchestrator node")
 
 	return orchestrator, nil
 }
@@ -158,7 +176,6 @@ func (o *OrchestratorNode) registerVanguardChainService(cliCtx *cli.Context) err
 		o.ctx,
 		vanguardGRPCUrl,
 		o.db,
-		o.vanShardInfoCache,
 	)
 	if err != nil {
 		return nil
@@ -178,7 +195,7 @@ func (o *OrchestratorNode) registerPandoraChainService(cliCtx *cli.Context) erro
 		return rpcClient, nil
 	}
 	namespace := "eth"
-	svc, err := pandorachain.NewService(o.ctx, pandoraRPCUrl, namespace, o.db, o.pandoraInfoCache, dialRPCClient)
+	svc, err := pandorachain.NewService(o.ctx, pandoraRPCUrl, namespace, o.db, dialRPCClient)
 	if err != nil {
 		return nil
 	}
@@ -199,11 +216,13 @@ func (o *OrchestratorNode) registerConsensusService(cliCtx *cli.Context) error {
 	}
 
 	svc := consensus.New(o.ctx, &consensus.Config{
-		VerifiedShardInfoDB:          o.db,
-		VanguardPendingShardingCache: o.vanShardInfoCache,
-		PandoraPendingHeaderCache:    o.pandoraInfoCache,
-		VanguardShardFeed:            vanguardShardFeed,
-		PandoraHeaderFeed:            pandoraHeaderFeed,
+		VerifiedShardInfoDB: o.db,
+		PanHeaderCache:      o.pandoraPendingCache,
+		VanShardCache:       o.vanPendingCache,
+		VanguardShardFeed:   vanguardShardFeed,
+		PandoraHeaderFeed:   pandoraHeaderFeed,
+		GenesisTime:         cliCtx.Uint64(cmd.VanguardGenesisTime.Name),
+		SecondsPerSlot:      cliCtx.Uint64(cmd.SecondsPerSlot.Name),
 	})
 
 	log.Info("Registered consensus service")
@@ -217,8 +236,8 @@ func (o *OrchestratorNode) registerRPCService(cliCtx *cli.Context) error {
 		return err
 	}
 
-	var verifiedSlotInfoFeed *consensus.Service
-	if err := o.services.FetchService(&verifiedSlotInfoFeed); err != nil {
+	var consensusSvc *consensus.Service
+	if err := o.services.FetchService(&consensusSvc); err != nil {
 		return err
 	}
 
@@ -249,13 +268,15 @@ func (o *OrchestratorNode) registerRPCService(cliCtx *cli.Context) error {
 		HTTPEnable:        httpEnable,
 		HTTPHost:          httpListenAddr,
 		HTTPPort:          httpPort,
+		HTTPVirtualHosts:  sliceutil.SplitCommaSeparated(cliCtx.StringSlice(cmd.HTTPVirtualHosts.Name)),
 		WSEnable:          wsEnable,
 		WSHost:            wsListenerAddr,
 		WSPort:            wsPort,
 
-		VanguardPendingShardingCache: o.vanShardInfoCache,
-		PandoraPendingHeaderCache:    o.pandoraInfoCache,
-		VerifiedSlotInfoFeed:         verifiedSlotInfoFeed,
+		PandoraHeaderCache:   o.pandoraPendingCache,
+		VangShardCache:       o.vanPendingCache,
+		VerifiedSlotInfoFeed: consensusSvc,
+		ReorgInfoFeed:        consensusSvc,
 	})
 	if err != nil {
 		return nil
@@ -263,6 +284,17 @@ func (o *OrchestratorNode) registerRPCService(cliCtx *cli.Context) error {
 
 	log.Info("Registered RPC service")
 	return o.services.RegisterService(svc)
+}
+
+func (o *OrchestratorNode) registerPrometheusService(cliCtx *cli.Context) error {
+	var additionalHandlers []prometheus.Handler
+	service := prometheus.NewService(
+		fmt.Sprintf("%s:%d", o.cliCtx.String(cmd.MonitoringHostFlag.Name), o.cliCtx.Int(cmd.MonitoringPortFlag.Name)),
+		o.services,
+		additionalHandlers...,
+	)
+	logrus.AddHook(prometheus.NewLogrusCollector())
+	return o.services.RegisterService(service)
 }
 
 // Start the OrchestratorNode and kicks off every registered service.
@@ -299,15 +331,15 @@ func (o *OrchestratorNode) Start() {
 }
 
 // Close handles graceful shutdown of the system.
-func (b *OrchestratorNode) Close() {
-	b.lock.Lock()
-	defer b.lock.Unlock()
+func (o *OrchestratorNode) Close() {
+	o.lock.Lock()
+	defer o.lock.Unlock()
 
 	log.Info("Stopping orchestrator node")
-	b.services.StopAll()
-	if err := b.db.Close(); err != nil {
+	o.services.StopAll()
+	if err := o.db.Close(); err != nil {
 		log.Errorf("Failed to close database: %v", err)
 	}
-	b.cancel()
-	close(b.stop)
+	o.cancel()
+	close(o.stop)
 }

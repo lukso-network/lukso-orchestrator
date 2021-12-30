@@ -5,6 +5,7 @@ import (
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/consensus"
 	testDB "github.com/lukso-network/lukso-orchestrator/orchestrator/db/testing"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/utils"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/vanguardchain"
 	"github.com/lukso-network/lukso-orchestrator/shared/cmd"
 	"github.com/lukso-network/lukso-orchestrator/shared/testutil/assert"
@@ -19,7 +20,6 @@ func setup(t *testing.T) (*Config, error) {
 		context.Background(),
 		cmd.DefaultVanguardGRPCEndpoint,
 		orchestratorDB,
-		cache.NewVanShardInfoCache(1<<10),
 	)
 	if err != nil {
 		return nil, err
@@ -28,11 +28,9 @@ func setup(t *testing.T) (*Config, error) {
 	consensusSvr := consensus.New(
 		context.Background(),
 		&consensus.Config{
-			orchestratorDB,
-			cache.NewVanShardInfoCache(1 << 10),
-			cache.NewPanHeaderCache(),
-			nil,
-			nil,
+			VerifiedShardInfoDB: orchestratorDB,
+			PanHeaderCache:      cache.NewPandoraCache(1<<10, 0, 6, utils.NewStack()),
+			VanShardCache:       cache.NewVanguardCache(1<<10, 0, 6, utils.NewStack()),
 		})
 
 	return &Config{
@@ -46,6 +44,7 @@ func setup(t *testing.T) (*Config, error) {
 		WSEnable:             true,
 		WSHost:               cmd.DefaultWSHost,
 		WSPort:               9875,
+		ReorgInfoFeed:        consensusSvr,
 	}, nil
 }
 

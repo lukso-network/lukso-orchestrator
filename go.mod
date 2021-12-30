@@ -8,6 +8,7 @@ require (
 	github.com/dgraph-io/ristretto v0.0.4-0.20210318174700-74754f61e018
 	github.com/ethereum/go-ethereum v1.10.2
 	github.com/gogo/protobuf v1.3.2
+	github.com/golang/gddo v0.0.0-20200528160355-8d077c1d8f4c
 	github.com/golang/mock v1.6.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.2
@@ -17,6 +18,7 @@ require (
 	github.com/kr/text v0.2.0 // indirect
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
 	github.com/pkg/errors v0.9.1
+	github.com/prometheus/client_golang v1.9.0
 	github.com/prysmaticlabs/eth2-types v0.0.0-20210303084904-c9735a06829d
 	github.com/prysmaticlabs/prysm v1.4.4
 	github.com/rs/cors v1.7.0
@@ -32,5 +34,5 @@ require (
 
 replace (
 	github.com/grpc-ecosystem/grpc-gateway/v2 => github.com/prysmaticlabs/grpc-gateway/v2 v2.3.1-0.20210622145107-ca3041e1b380
-	github.com/prysmaticlabs/prysm => github.com/lukso-network/vanguard-consensus-engine v0.2.0-rc.1.0.20211112151950-3fd69111ecc3
+	github.com/prysmaticlabs/prysm => github.com/lukso-network/vanguard-consensus-engine v0.6.1-develop.0.20211216121750-721411c02cb3
 )

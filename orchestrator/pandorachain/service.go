@@ -9,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/lukso-network/lukso-orchestrator/orchestrator/cache"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/db"
 	"github.com/lukso-network/lukso-orchestrator/shared/types"
 )
@@ -47,8 +46,7 @@ type Service struct {
 	vanguardSubscription event.Subscription
 
 	// db support
-	db    db.ROnlyVerifiedShardInfoDB
-	cache cache.PandoraHeaderCache
+	db db.ROnlyVerifiedShardInfoDB
 
 	scope                 event.SubscriptionScope
 	pandoraHeaderInfoFeed event.Feed
@@ -60,7 +58,6 @@ func NewService(
 	endpoint string,
 	namespace string,
 	db db.ROnlyVerifiedShardInfoDB,
-	cache cache.PandoraHeaderCache,
 	dialRPCFn DialRPCFn,
 ) (*Service, error) {
 
@@ -74,7 +71,6 @@ func NewService(
 		namespace:       namespace,
 		conInfoSubErrCh: make(chan error),
 		db:              db,
-		cache:           cache,
 	}, nil
 }
 
@@ -135,7 +131,7 @@ func (s *Service) waitForConnection() {
 		s.runError = nil
 		return
 	}
-	log.WithError(err).Warn("Could not connect or subscribe to pandora chain")
+	log.WithError(err).Info("Could not connect or subscribe to pandora chain")
 	s.runError = err
 	ticker := time.NewTicker(reConPeriod)
 	defer ticker.Stop()
@@ -146,7 +142,7 @@ func (s *Service) waitForConnection() {
 			log.WithField("endpoint", s.endpoint).Debug("Dialing pandora node")
 			var errConnect error
 			if errConnect = s.connectToChain(); errConnect != nil {
-				log.WithError(errConnect).Warn("Could not connect or subscribe to pandora chain")
+				log.WithError(errConnect).Info("Could not connect or subscribe to pandora chain")
 				s.runError = errConnect
 				continue
 			}
@@ -221,31 +217,52 @@ func (s *Service) retryToConnectAndSubscribe(err error) {
 
 // subscribe subscribes to pandora events
 func (s *Service) subscribe() error {
-
-	finalizedSlot := s.db.FinalizedSlot()
-	finalizedStepId, _ := s.db.GetStepIdBySlot(finalizedSlot)
-
-	shardInfo, _ := s.db.VerifiedShardInfo(finalizedStepId)
 	filter := &types.PandoraPendingHeaderFilter{
 		FromBlockHash: EmptyHash,
 	}
 
-	if shardInfo != nil && len(shardInfo.Shards) > 0 && len(shardInfo.Shards[0].Blocks) > 0 {
-		filter.FromBlockHash = shardInfo.Shards[0].Blocks[0].HeaderRoot
-	}
+	curStepId := s.db.LatestStepID()
+	latestShardInfo, _ := s.db.VerifiedShardInfo(curStepId)
+	finalizedSlot := s.db.FinalizedSlot()
+	finalizedStepId, _ := s.db.GetStepIdBySlot(finalizedSlot)
+	finalizedShardInfo, _ := s.db.VerifiedShardInfo(finalizedStepId)
 
-	log.WithField("finalizedSlot", finalizedSlot).WithField("finalizedStepId", finalizedStepId).
-		WithField("finalizedShardInfo", shardInfo).WithField("fromPanHash", filter.FromBlockHash).
-		Debug("Start subscribing to pandora client for pending headers")
+	var (
+		fromBlockNumber uint64
+		fromSlot        uint64
+	)
+
+	if latestShardInfo != nil && latestShardInfo.NotNil() {
+		if latestShardInfo.GetSlot() < finalizedSlot {
+			filter.FromBlockHash = common.BytesToHash(latestShardInfo.GetPanShardRootBytes())
+			fromBlockNumber = latestShardInfo.GetPanBlockNumber()
+			fromSlot = latestShardInfo.GetSlot()
+		} else {
+			if finalizedShardInfo != nil && finalizedShardInfo.NotNil() {
+				filter.FromBlockHash = common.BytesToHash(finalizedShardInfo.GetPanShardRootBytes())
+				fromBlockNumber = finalizedShardInfo.GetPanBlockNumber()
+				fromSlot = finalizedShardInfo.GetSlot()
+			}
+		}
+	}
 
 	// subscribe to pandora client for pending headers
 	sub, err := s.SubscribePendingHeaders(s.ctx, filter, s.namespace, s.rpcClient)
 	if err != nil {
-		log.WithError(err).Warn("Could not subscribe to pandora client for new pending headers")
+		log.WithError(err).Info("Could not subscribe to pandora client for new pending headers")
 		return err
 	}
 
+	log.WithField("fromPanHash", filter.FromBlockHash).WithField("fromBlockNumber", fromBlockNumber).
+		WithField("fromSlot", fromSlot).Debug("Subscribed to pandora chain for pending block headers")
+
 	s.conInfoSub = sub
+
+	// metrics
+	IsPandoraConnected.Set(float64(1))
+	RequestedFromBlockNumber.Set(float64(fromBlockNumber))
+	RequestedFromSlot.Set(float64(fromSlot))
+
 	return nil
 }
 

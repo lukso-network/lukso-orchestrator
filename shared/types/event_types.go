@@ -1,10 +1,11 @@
 package types
 
 import (
+	"time"
+
 	"github.com/ethereum/go-ethereum/common"
 	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	eth2Types "github.com/prysmaticlabs/prysm/proto/eth/v1alpha1"
-	"time"
 )
 
 const BLSSignatureSize = 96
@@ -62,10 +63,25 @@ type ShutDownSignal struct {
 type VanguardShardInfo struct {
 	Slot           uint64
 	ShardInfo      *eth2Types.PandoraShard
-	BlockHash      []byte
+	BlockRoot      [32]byte
 	FinalizedSlot  uint64
 	FinalizedEpoch uint64
-	ParentHash     []byte
+	ParentRoot     [32]byte
+}
+
+func CopyVanguardShardInfo(data *VanguardShardInfo) *VanguardShardInfo {
+	cpy := *data
+	if cpy.ShardInfo = new(eth2Types.PandoraShard); data.ShardInfo != nil {
+		cpy.ShardInfo.Hash = data.ShardInfo.GetHash()
+		cpy.ShardInfo.ParentHash = data.ShardInfo.GetParentHash()
+		cpy.ShardInfo.BlockNumber = data.ShardInfo.GetBlockNumber()
+		cpy.ShardInfo.ReceiptHash = data.ShardInfo.GetReceiptHash()
+		cpy.ShardInfo.SealHash = data.ShardInfo.GetSealHash()
+		cpy.ShardInfo.TxHash = data.ShardInfo.GetTxHash()
+		cpy.ShardInfo.StateRoot = data.ShardInfo.GetStateRoot()
+		cpy.ShardInfo.Signature = data.ShardInfo.GetSignature()
+	}
+	return &cpy
 }
 
 type BlsSignatureBytes [BLSSignatureSize]byte

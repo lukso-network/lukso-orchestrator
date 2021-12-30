@@ -52,17 +52,26 @@ func (s *Service) subscribeVanNewPendingBlockHash(ctx context.Context, fromSlot 
 						log.WithError(err).Infof("Trying to restart connection. rpc status: %v", e.Code())
 						s.waitForConnection()
 						// Re-try subscription from latest finalized slot
-						latestFinalizedSlot := s.verifiedShardInfoDB.FinalizedSlot()
+						finalizedSlot := s.verifiedShardInfoDB.FinalizedSlot()
+						curStepId := s.verifiedShardInfoDB.LatestStepID()
+						latestShardInfo, _ := s.verifiedShardInfoDB.VerifiedShardInfo(curStepId)
+
+						if latestShardInfo != nil && latestShardInfo.NotNil() {
+							if latestShardInfo.GetSlot() < finalizedSlot {
+								finalizedSlot = latestShardInfo.GetSlot()
+							}
+						}
+
 						stream, err = s.beaconClient.StreamNewPendingBlocks(ctx,
 							&ethpb.StreamPendingBlocksRequest{
 								BlockRoot: blockRoot,
-								FromSlot:  eth2Types.Slot(latestFinalizedSlot),
+								FromSlot:  eth2Types.Slot(finalizedSlot),
 							})
 						if err != nil {
 							log.WithError(err).Error("Failed to subscribe to new pending blocks stream")
 							return err
 						}
-						log.WithField("finalizedSlot", latestFinalizedSlot).Info("Successfully re-subscribed to vanguard blocks")
+						log.WithField("fromSlot", finalizedSlot).Info("Successfully re-subscribed to vanguard blocks")
 						continue
 					}
 				} else {
@@ -77,7 +86,8 @@ func (s *Service) subscribeVanNewPendingBlockHash(ctx context.Context, fromSlot 
 			}
 
 			if err := s.onNewPendingVanguardBlock(ctx, vanBlockInfo); err != nil {
-				log.WithError(err).Error("Failed to process the pending vanguard shardInfo. Exiting vanguard pending header subscription")
+				log.WithError(err).Error("Failed to process the pending vanguard shardInfo. " +
+					"Exiting vanguard pending block subscription")
 				return errConsensusInfoProcess
 			}
 		}
@@ -111,15 +121,27 @@ func (s *Service) subscribeNewConsensusInfoGRPC(ctx context.Context, fromEpoch u
 				if e, ok := status.FromError(err); ok {
 					switch e.Code() {
 					case codes.Canceled, codes.Internal, codes.Unavailable:
+
 						log.WithError(err).Infof("Trying to restart connection. rpc status: %v", e.Code())
 						s.waitForConnection()
-						latestFinalizedEpoch := s.verifiedShardInfoDB.FinalizedEpoch()
-						stream, err = s.beaconClient.StreamMinimalConsensusInfo(ctx, &ethpb.MinimalConsensusInfoRequest{FromEpoch: eth2Types.Epoch(latestFinalizedEpoch)})
-						if nil != err {
+
+						finalizedEpoch := s.verifiedShardInfoDB.FinalizedEpoch()
+						latestEpoch := s.consensusInfoDB.LatestSavedEpoch()
+						if latestEpoch < finalizedEpoch {
+							finalizedEpoch = latestEpoch
+						}
+
+						if stream, err = s.beaconClient.StreamMinimalConsensusInfo(ctx,
+							&ethpb.MinimalConsensusInfoRequest{
+								FromEpoch: eth2Types.Epoch(finalizedEpoch),
+							}); err != nil {
+
 							log.WithError(err).Error("Failed to subscribe to stream of new consensus info, Exiting go routine")
 							return err
 						}
-						log.WithField("finalizedEpoch", latestFinalizedEpoch).Info("Successfully re-subscribed to vanguard epoch infos")
+
+						log.WithField("finalizedEpoch", finalizedEpoch).
+							Info("Successfully re-subscribed to vanguard epoch infos")
 						continue
 					}
 				} else {
@@ -127,7 +149,6 @@ func (s *Service) subscribeNewConsensusInfoGRPC(ctx context.Context, fromEpoch u
 					return err
 				}
 			}
-
 			if vanMinimalConsensusInfo == nil {
 				log.Error("Received nil consensus info, Exiting go routine")
 				return errConsensusInfoNil
@@ -146,15 +167,6 @@ func (s *Service) subscribeNewConsensusInfoGRPC(ctx context.Context, fromEpoch u
 				EpochStartTime:   vanMinimalConsensusInfo.EpochTimeStart,
 				SlotTimeDuration: time.Duration(vanMinimalConsensusInfo.SlotTimeDuration.Seconds),
 				FinalizedSlot:    s.verifiedShardInfoDB.FinalizedSlot(),
-			}
-
-			// if re-org happens then we get this info not nil
-			if s.reorgInfo != nil {
-				consensusInfo.ReorgInfo = s.reorgInfo
-
-				s.processingLock.Lock()
-				s.reorgInfo = nil
-				s.processingLock.Unlock()
 			}
 
 			log.WithField("epoch", consensusInfo.Epoch).

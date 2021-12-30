@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
-	"sync/atomic"
+	"time"
 
 	"github.com/ethereum/go-ethereum/event"
 
@@ -19,34 +19,44 @@ var (
 	errUnknownParent = errors.New("unknown parent")
 )
 
+type SyncMode string
+
 const (
-	TotalExecutionShardCount = 1
-	ShardsPerVanBlock        = 1
+	TotalExecutionShardCount          = 1
+	ShardsPerVanBlock                 = 1
+	InitialSync              SyncMode = "initial-sync"
+	LiveSync                 SyncMode = "live-sync"
 )
 
 type Config struct {
-	VerifiedShardInfoDB          db.VerifiedShardInfoDB
-	VanguardPendingShardingCache cache.VanguardShardCache
-	PandoraPendingHeaderCache    cache.PandoraHeaderCache
-	VanguardShardFeed            iface.VanguardService
-	PandoraHeaderFeed            iface2.PandoraService
+	VerifiedShardInfoDB db.VerifiedShardInfoDB
+	PanHeaderCache      cache.PandoraInterface
+	VanShardCache       cache.VanguardInterface
+	VanguardShardFeed   iface.VanguardService
+	PandoraHeaderFeed   iface2.PandoraService
+	GenesisTime         uint64
+	SecondsPerSlot      uint64
 }
 
 // Service This part could be moved to other place during refactor, might be registered as a service
 type Service struct {
-	isRunning                    bool
-	processingLock               sync.Mutex
-	ctx                          context.Context
-	cancel                       context.CancelFunc
-	runError                     error
-	scope                        event.SubscriptionScope
-	db                           db.VerifiedShardInfoDB
-	vanguardPendingShardingCache cache.VanguardShardCache
-	pandoraPendingHeaderCache    cache.PandoraHeaderCache
-	vanguardService              iface.VanguardService
-	pandoraService               iface2.PandoraService
-	verifiedSlotInfoFeed         event.Feed
-	reorgInProgress              uint32
+	isRunning            bool
+	processingLock       sync.RWMutex
+	ctx                  context.Context
+	cancel               context.CancelFunc
+	runError             error
+	scope                event.SubscriptionScope
+	db                   db.VerifiedShardInfoDB
+	panHeaderCache       cache.PandoraInterface
+	vanShardCache        cache.VanguardInterface
+	vanguardService      iface.VanguardService
+	pandoraService       iface2.PandoraService
+	verifiedSlotInfoFeed event.Feed
+	reorgInfoFeed        event.Feed
+	curReorgStatus       *types.ReorgStatus
+	genesisTime          uint64
+	secondsPerSlot       uint64
+	syncStatus           SyncMode
 }
 
 //
@@ -55,13 +65,55 @@ func New(ctx context.Context, cfg *Config) (service *Service) {
 	_ = cancel // govet fix for lost cancel. Cancel is handled in service.Stop()
 
 	return &Service{
-		ctx:                          ctx,
-		cancel:                       cancel,
-		db:                           cfg.VerifiedShardInfoDB,
-		vanguardPendingShardingCache: cfg.VanguardPendingShardingCache,
-		pandoraPendingHeaderCache:    cfg.PandoraPendingHeaderCache,
-		vanguardService:              cfg.VanguardShardFeed,
-		pandoraService:               cfg.PandoraHeaderFeed,
+		ctx:             ctx,
+		cancel:          cancel,
+		db:              cfg.VerifiedShardInfoDB,
+		panHeaderCache:  cfg.PanHeaderCache,
+		vanShardCache:   cfg.VanShardCache,
+		vanguardService: cfg.VanguardShardFeed,
+		pandoraService:  cfg.PandoraHeaderFeed,
+		genesisTime:     cfg.GenesisTime,
+		secondsPerSlot:  cfg.SecondsPerSlot,
+		syncStatus:      InitialSync,
+	}
+}
+
+func (s *Service) panCacheClearanceLoop() {
+	ticker := time.NewTicker(1 * time.Second)
+
+	for {
+		select {
+		case currentTime := <-ticker.C:
+			removedInfo := s.panHeaderCache.RemoveByTime(currentTime)
+			// notify pandora node about this deletion because pandora is waiting for reply
+			for _, panHeader := range removedInfo {
+				if panHeader != nil {
+					s.verifiedSlotInfoFeed.Send(&types.SlotInfoWithStatus{
+						PandoraHeaderHash: panHeader.Hash(),
+						Status:            types.Invalid,
+					})
+				}
+			}
+
+		case <-s.ctx.Done():
+			log.Info("panCacheClearLoop terminating due to context close")
+			return
+		}
+	}
+}
+
+func (s *Service) vanCacheClearanceLoop() {
+	ticker := time.NewTicker(1 * time.Second)
+
+	for {
+		select {
+		case currentTime := <-ticker.C:
+			s.vanShardCache.RemoveByTime(currentTime)
+
+		case <-s.ctx.Done():
+			log.Info("vanCacheClearLoop terminating due to context close")
+			return
+		}
 	}
 }
 
@@ -70,6 +122,9 @@ func (s *Service) Start() {
 		log.Error("Attempted to start consensus service when it was already started")
 		return
 	}
+	go s.panCacheClearanceLoop()
+	go s.vanCacheClearanceLoop()
+
 	s.isRunning = true
 	go func() {
 		log.Info("Starting consensus service")
@@ -82,22 +137,12 @@ func (s *Service) Start() {
 		for {
 			select {
 			case newPanHeaderInfo := <-panHeaderInfoCh:
-				if atomic.LoadUint32(&s.reorgInProgress) == 1 {
-					log.WithField("slot", newPanHeaderInfo.Slot).Info("Reorg is progressing, so skipping new pandora header")
-					continue
-				}
-
 				if err := s.processPandoraHeader(newPanHeaderInfo); err != nil {
 					log.WithField("error", err).Error("Could not process pandora shard info, exiting consensus service")
 					return
 				}
 
 			case newVanShardInfo := <-vanShardInfoCh:
-				if atomic.LoadUint32(&s.reorgInProgress) == 1 {
-					log.WithField("slot", newVanShardInfo.Slot).Info("Reorg is progressing, so skipping new vanguard shard")
-					continue
-				}
-
 				if err := s.processVanguardShardInfo(newVanShardInfo); err != nil {
 					log.WithField("error", err).Error("Could not process vanguard shard info, exiting consensus service")
 					return
@@ -134,4 +179,8 @@ func (s *Service) Status() error {
 
 func (s *Service) SubscribeVerifiedSlotInfoEvent(ch chan<- *types.SlotInfoWithStatus) event.Subscription {
 	return s.scope.Track(s.verifiedSlotInfoFeed.Subscribe(ch))
+}
+
+func (s *Service) SubscribeReorgInfoEvent(ch chan<- *types.Reorg) event.Subscription {
+	return s.scope.Track(s.reorgInfoFeed.Subscribe(ch))
 }

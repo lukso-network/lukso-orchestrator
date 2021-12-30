@@ -2,6 +2,7 @@ package events
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/ethereum/go-ethereum/rpc"
 	generalTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
@@ -15,6 +16,9 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, requestedE
 		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported
 	}
 	rpcSub := notifier.CreateSubscription()
+	log.WithField("subscriptionId", rpcSub.ID).WithField("requestedEpoch", requestedEpoch).
+		Info("New client has subscribed to minimal consensus info streaming api")
+	RequestedPandoraFromEpoch.Set(float64(requestedEpoch))
 
 	go func() {
 
@@ -55,7 +59,9 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, requestedE
 		}
 
 		consensusInfo := make(chan *generalTypes.MinimalEpochConsensusInfoV2)
+		reorgInfo := make(chan *generalTypes.Reorg)
 		consensusInfoSub := api.events.SubscribeConsensusInfo(consensusInfo, requestedEpoch)
+		reorgInfoSub := api.events.SubscribeReorgInfo(reorgInfo)
 		firstTime := true
 
 		for {
@@ -97,13 +103,40 @@ func (api *PublicFilterAPI) MinimalConsensusInfo(ctx context.Context, requestedE
 				log.WithField("epoch", currentEpochInfo.Epoch).WithField("latestFinalizedSlot", currentEpochInfo.FinalizedSlot).
 					Info("published epoch info to pandora")
 
+			case ri := <-reorgInfo:
+				log.WithField("newPanHash", common.Bytes2Hex(ri.PanParentHash)).
+					WithField("newVanHash", common.Bytes2Hex(ri.VanParentHash)).
+					Info("ReorgInfo has arrived from consensus service, sending reorgInfo to pandora")
+
+				latestEpochInfo, err := api.backend.LatestEpochInfo(ctx)
+				if err != nil || latestEpochInfo == nil {
+					log.WithField("latestEpoch", api.backend.LatestEpoch()).WithError(err).
+						Error("Failed to notify reorg, exiting go routine of MinimalConsensusInfo api")
+					return
+				}
+
+				if err := notifier.Notify(rpcSub.ID, &generalTypes.MinimalEpochConsensusInfoV2{
+					Epoch:            latestEpochInfo.Epoch,
+					ValidatorList:    latestEpochInfo.ValidatorList,
+					EpochStartTime:   latestEpochInfo.EpochStartTime,
+					SlotTimeDuration: latestEpochInfo.SlotTimeDuration,
+					ReorgInfo:        ri,
+					FinalizedSlot:    latestEpochInfo.FinalizedSlot,
+				}); err != nil {
+					log.WithField("epoch", latestEpochInfo.Epoch).WithError(err).
+						Error("Failed to notify reorg, exiting go routine of MinimalConsensusInfo api")
+					return
+				}
+
 			case <-rpcSub.Err():
 				log.Info("Unsubscribing registered pandora client")
 				consensusInfoSub.Unsubscribe()
+				reorgInfoSub.Unsubscribe()
 				return
 			case <-notifier.Closed():
 				log.Info("Closing notifier. Unsubscribing registered pandora subscriber")
 				consensusInfoSub.Unsubscribe()
+				reorgInfoSub.Unsubscribe()
 				return
 			}
 		}
@@ -123,6 +156,7 @@ func (api *PublicFilterAPI) SteamConfirmedPanBlockHashes(
 		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported
 	}
 	rpcSub := notifier.CreateSubscription()
+	log.WithField("subscriptionId", rpcSub.ID).Info("New client has subscribed to pandora block hash confirmation streaming api")
 
 	go func() {
 
@@ -187,6 +221,10 @@ func (api *PublicFilterAPI) SteamConfirmedPanBlockHashes(
 				}); err != nil {
 					log.WithField("hash", slotInfoWithStatus.PandoraHeaderHash).Error("Failed to notify slot info status. Could not send over stream.")
 					return
+				}
+
+				if slotInfoWithStatus.Status == generalTypes.Invalid {
+					TotalPanInvalidStatusCnt.Inc()
 				}
 			case <-rpcSub.Err():
 				log.Info("Unsubscribing registered subscriber from SteamConfirmedPanBlockHashes")

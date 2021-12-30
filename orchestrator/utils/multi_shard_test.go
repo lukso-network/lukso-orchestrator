@@ -10,12 +10,12 @@ import (
 
 func TestUtils_PrepareMultiShardData(t *testing.T) {
 	panHeader := testutil.NewEth1Header(1)
-	vanShardInfo := testutil.NewVanguardShardInfo(1, panHeader)
+	vanShardInfo := testutil.NewVanguardShardInfo(1, panHeader, 0, 0)
 
 	expectedShardInfo := new(types.MultiShardInfo)
 	expectedShardInfo.SlotInfo = &types.NewSlotInfo{
 		Slot:      1,
-		BlockRoot: common.BytesToHash(vanShardInfo.BlockHash),
+		BlockRoot: common.BytesToHash(vanShardInfo.BlockRoot[:]),
 	}
 
 	shards := make([]*types.Shard, 1)

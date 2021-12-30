@@ -128,7 +128,7 @@ func (s *Store) RemoveShardingInfos(fromStepId uint64) error {
 				return err
 			}
 		}
-		log.WithField("fromStep", fromStepId).WithField("latestStepIdKey", latestStepId).Info("Reverted shard infos from DB")
+		log.WithField("fromStep", latestStepId).WithField("toStep", fromStepId).Info("Reverted shard infos from DB")
 		return nil
 	})
 }
@@ -153,7 +153,7 @@ func (s *Store) SaveSlotStepIndex(slot, stepId uint64) error {
 
 // GetStepIdBySlot
 func (s *Store) GetStepIdBySlot(slot uint64) (uint64, error) {
-	if v, ok := s.multiShardsInfoCache.Get(slot); v != nil && ok {
+	if v, ok := s.slotStepIndexCache.Get(slot); v != nil && ok {
 		return v.(uint64), nil
 	}
 
@@ -249,10 +249,14 @@ func (s *Store) FinalizedEpoch() uint64 {
 }
 
 // FindAncestor
-func (s *Store) FindAncestor(fromStepId, toStepId uint64, blockHash common.Hash) (*types.MultiShardInfo, error) {
-	var ancestorShardInfo *types.MultiShardInfo
+func (s *Store) FindAncestor(fromStepId, toStepId uint64, blockHash common.Hash) (*types.MultiShardInfo, uint64, error) {
+	var (
+		ancestorShardInfo *types.MultiShardInfo
+		stepId            uint64
+	)
+
 	err := s.db.View(func(tx *bolt.Tx) error {
-		for step := fromStepId; step > toStepId; step-- {
+		for step := fromStepId; step > 0 && step >= toStepId; step-- {
 			shardInfo, err := s.VerifiedShardInfo(step)
 			if err != nil {
 				log.WithField("step", step).Warn("DB is corrupted")
@@ -260,8 +264,9 @@ func (s *Store) FindAncestor(fromStepId, toStepId uint64, blockHash common.Hash)
 			}
 			if shardInfo.SlotInfo.BlockRoot == blockHash {
 				ancestorShardInfo = shardInfo
+				stepId = step
 				log.WithField("fromStepId", fromStepId).WithField("toStepId", toStepId).
-					WithField("blockHash", blockHash).WithField("ancestorShardInfo", ancestorShardInfo).
+					WithField("blockHash", blockHash).WithField("ancestorShardInfo", ancestorShardInfo.FormattedStr()).
 					Info("Found common ancestor")
 				return nil
 			}
@@ -270,8 +275,8 @@ func (s *Store) FindAncestor(fromStepId, toStepId uint64, blockHash common.Hash)
 	})
 	// the query not successful
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return ancestorShardInfo, nil
+	return ancestorShardInfo, stepId, nil
 }

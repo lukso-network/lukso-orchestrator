@@ -32,7 +32,7 @@ func PrepareMultiShardData(
 	shardInfo := new(types.MultiShardInfo)
 	shardInfo.SlotInfo = &types.NewSlotInfo{
 		Slot:      vanShardInfo.Slot,
-		BlockRoot: common.BytesToHash(vanShardInfo.BlockHash),
+		BlockRoot: common.BytesToHash(vanShardInfo.BlockRoot[:]),
 	}
 	shardInfo.Shards = shards
 

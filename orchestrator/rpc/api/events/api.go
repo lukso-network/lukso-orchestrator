@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	eth1Types "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	generalTypes "github.com/lukso-network/lukso-orchestrator/shared/types"
 )
@@ -14,16 +13,20 @@ import (
 var lastSendEpoch uint64
 
 type Backend interface {
-	ConsensusInfoByEpochRange(fromEpoch uint64) ([]*generalTypes.MinimalEpochConsensusInfoV2, error)
 	SubscribeNewEpochEvent(chan<- *generalTypes.MinimalEpochConsensusInfoV2) event.Subscription
-	GetSlotStatus(ctx context.Context, slot uint64, hash common.Hash, requestFrom bool) generalTypes.Status
-	LatestEpoch() uint64
 	SubscribeNewVerifiedSlotInfoEvent(chan<- *generalTypes.SlotInfoWithStatus) event.Subscription
+	SubscribeNewReorgInfoEvent(ch chan<- *generalTypes.Reorg) event.Subscription
+
+	ConsensusInfoByEpochRange(fromEpoch uint64) ([]*generalTypes.MinimalEpochConsensusInfoV2, error)
+	LatestEpoch() uint64
+	LatestEpochInfo(ctx context.Context) (*generalTypes.MinimalEpochConsensusInfoV2, error)
+
+	GetSlotStatus(ctx context.Context, slot uint64, hash common.Hash, requestFrom bool) generalTypes.Status
 	VerifiedSlotInfos(fromSlot uint64) (map[uint64]*generalTypes.BlockStatus, error)
-	PendingPandoraHeaders() []*eth1Types.Header
 	LatestFinalizedSlot() uint64
 	StepId(slot uint64) uint64
 	LatestStepId() uint64
+	VerifiedShardInfos(fromSlot uint64) (map[uint64]*generalTypes.MultiShardInfo, error)
 }
 
 // PublicFilterAPI offers support to create and manage filters. This will allow external clients to retrieve various
@@ -105,4 +108,16 @@ func (api *PublicFilterAPI) ConfirmVanBlockHashes(
 		})
 	}
 	return res, nil
+}
+
+// GetShardInfos is a debug api for getting latest shard infos from verified shard info db
+func (api *PublicFilterAPI) GetShardInfos(ctx context.Context) (response map[uint64]*generalTypes.MultiShardInfo, err error) {
+	log.Debug("Serving response for GetShardInfos api....")
+	finalizedSlot := api.backend.LatestFinalizedSlot()
+	shardInfos, err := api.backend.VerifiedShardInfos(finalizedSlot)
+	if err != nil {
+		return nil, err
+	}
+
+	return shardInfos, nil
 }

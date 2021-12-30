@@ -4,6 +4,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+// TODO(Atif)- Need to have more options for http and ws for security purpose
 var (
 	// DataDirFlag defines a path on disk.
 	DataDirFlag = &cli.StringFlag{
@@ -43,6 +44,12 @@ var (
 		Name:  "http.port",
 		Usage: "HTTP-RPC server listening port",
 		Value: DefaultHTTPPort,
+	}
+
+	HTTPVirtualHosts = &cli.StringSliceFlag{
+		Name:  "http.vhosts",
+		Usage: "Comma separated list of virtual hostnames from which to accept requests (server enforced). Accepts '*' wildcard.",
+		Value: cli.NewStringSlice("localhost"),
 	}
 
 	WSEnabledFlag = &cli.BoolFlag{
@@ -100,5 +107,71 @@ var (
 	LogFileName = &cli.StringFlag{
 		Name:  "log-file",
 		Usage: "Specify log file name, relative or absolute",
+	}
+
+	// VanguardGenesisTime specifies time when vanguard node has started
+	VanguardGenesisTime = &cli.Uint64Flag{
+		Name:  "genesis-time",
+		Usage: "Genesis timestamp of vanguard node",
+	}
+
+	SecondsPerSlot = &cli.Uint64Flag{
+		Name:  "seconds-per-slot",
+		Usage: "Seconds per slot",
+	}
+
+	// DisableMonitoringFlag defines a flag to disable the metrics collection.
+	DisableMonitoringFlag = &cli.BoolFlag{
+		Name:  "disable-monitoring",
+		Usage: "Disable monitoring service.",
+	}
+
+	// MonitoringHostFlag defines the host used to serve prometheus metrics.
+	MonitoringHostFlag = &cli.StringFlag{
+		Name:  "monitoring-host",
+		Usage: "Host used for listening and responding metrics for prometheus.",
+		Value: "127.0.0.1",
+	}
+
+	// MonitoringPortFlag defines the http port used to serve prometheus metrics.
+	MonitoringPortFlag = &cli.IntFlag{
+		Name:  "monitoring-port",
+		Usage: "Port used to listening and respond metrics for prometheus.",
+		Value: 9080,
+	}
+
+	// EnableBackupWebhookFlag for users to trigger db backups via an HTTP webhook.
+	EnableBackupWebhookFlag = &cli.BoolFlag{
+		Name:  "enable-db-backup-webhook",
+		Usage: "Serve HTTP handler to initiate database backups. The handler is served on the monitoring port at path /db/backup.",
+	}
+	// BackupWebhookOutputDir to customize the output directory for db backups.
+	BackupWebhookOutputDir = &cli.StringFlag{
+		Name:  "db-backup-output-dir",
+		Usage: "Output directory for db backups",
+	}
+
+	// EnableTracingFlag defines a flag to enable p2p message tracing.
+	EnableTracingFlag = &cli.BoolFlag{
+		Name:  "enable-tracing",
+		Usage: "Enable request tracing.",
+	}
+	// TracingProcessNameFlag defines a flag to specify a process name.
+	TracingProcessNameFlag = &cli.StringFlag{
+		Name:  "tracing-process-name",
+		Usage: "The name to apply to tracing tag \"process_name\"",
+	}
+	// TracingEndpointFlag flag defines the http endpoint for serving traces to Jaeger.
+	TracingEndpointFlag = &cli.StringFlag{
+		Name:  "tracing-endpoint",
+		Usage: "Tracing endpoint defines where beacon chain traces are exposed to Jaeger.",
+		Value: "http://127.0.0.1:14268/api/traces",
+	}
+	// TraceSampleFractionFlag defines a flag to indicate what fraction of p2p
+	// messages are sampled for tracing.
+	TraceSampleFractionFlag = &cli.Float64Flag{
+		Name:  "trace-sample-fraction",
+		Usage: "Indicate what fraction of p2p messages are sampled for tracing.",
+		Value: 0.20,
 	}
 )
