@@ -67,3 +67,19 @@ func (q *VanguardCacheData) GetVanShardSlotNumber() uint64 {
 func (q *VanguardCacheData) IsFinalizedSlot() bool {
 	return q.disableDelete
 }
+
+func (vc *VanguardCacheData) Copy() *VanguardCacheData {
+	cpy := *vc
+	if vc.vanShardInfo != nil {
+		cpy.vanShardInfo = types.CopyVanguardShardInfo(vc.vanShardInfo)
+	}
+	return &cpy
+}
+
+func (pc *PandoraCacheData) Copy() *PandoraCacheData {
+	cpy := *pc
+	if pc.panHeader != nil {
+		cpy.panHeader = types.CopyHeader(pc.GetPanHeader())
+	}
+	return &cpy
+}

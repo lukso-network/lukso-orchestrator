@@ -69,6 +69,21 @@ type VanguardShardInfo struct {
 	ParentRoot     [32]byte
 }
 
+func CopyVanguardShardInfo(data *VanguardShardInfo) *VanguardShardInfo {
+	cpy := *data
+	if cpy.ShardInfo = new(eth2Types.PandoraShard); data.ShardInfo != nil {
+		cpy.ShardInfo.Hash = data.ShardInfo.GetHash()
+		cpy.ShardInfo.ParentHash = data.ShardInfo.GetParentHash()
+		cpy.ShardInfo.BlockNumber = data.ShardInfo.GetBlockNumber()
+		cpy.ShardInfo.ReceiptHash = data.ShardInfo.GetReceiptHash()
+		cpy.ShardInfo.SealHash = data.ShardInfo.GetSealHash()
+		cpy.ShardInfo.TxHash = data.ShardInfo.GetTxHash()
+		cpy.ShardInfo.StateRoot = data.ShardInfo.GetStateRoot()
+		cpy.ShardInfo.Signature = data.ShardInfo.GetSignature()
+	}
+	return &cpy
+}
+
 type BlsSignatureBytes [BLSSignatureSize]byte
 
 // SlotInfo
