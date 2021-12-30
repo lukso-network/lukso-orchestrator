@@ -68,7 +68,7 @@ func (vc *VanguardCache) Put(slot uint64, insertParams *VanCacheInsertParams) er
 func (vc *VanguardCache) Get(slot uint64) *VanguardCacheData {
 	vanShard, found := vc.cache.Get(slot)
 	if found {
-		return vanShard.(*VanguardCacheData)
+		return vanShard.(*VanguardCacheData).Copy()
 	}
 	return nil
 }

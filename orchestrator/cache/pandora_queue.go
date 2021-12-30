@@ -76,7 +76,7 @@ func (pc *PandoraCache) Put(slot uint64, insertParams *PanCacheInsertParams) err
 func (pc *PandoraCache) Get(slot uint64) *PandoraCacheData {
 	panHeader, found := pc.cache.Get(slot)
 	if found {
-		return panHeader.(*PandoraCacheData)
+		return panHeader.(*PandoraCacheData).Copy()
 	}
 	return nil
 }
