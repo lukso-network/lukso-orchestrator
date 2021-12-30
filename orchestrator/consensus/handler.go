@@ -28,7 +28,7 @@ func (s *Service) processPandoraHeader(headerInfo *types.PandoraHeaderInfo) erro
 		// short circuit check, if this header is already in verified sharding info db then send confirmation instantly
 		if shardInfo := s.getShardingInfo(slot); shardInfo != nil && shardInfo.NotNil() {
 			if shardInfo.GetPanShardRoot() == headerHash {
-				log.WithField("shardInfo", shardInfo.FormattedStr()).Debug("Pandora shard header has already verified")
+				log.WithField("shardInfo", shardInfo.FormattedStr()).Info("Pandora shard header has already verified")
 				s.publishBlockConfirmation(shardInfo.GetPanShardRoot(), shardInfo.GetVanSlotRoot(), types.Verified)
 				return nil
 			}
