@@ -147,6 +147,8 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 			PanParentHash: parentShardInfo.GetPanShardRootBytes(),
 			NewSlot:       parentShardInfo.GetSlot(),
 		})
+
+		ReorgDetectedCnt.Inc()
 	}
 
 	nowTime := uint64(time.Now().Unix())
@@ -154,6 +156,9 @@ func (s *Service) processVanguardShardInfo(vanShardInfo *types.VanguardShardInfo
 	if !s.isSyncing() && vanShardInfo.Slot < currentSlot {
 		s.setSyncingStatus(InitialSync)
 		log.Info("Orchestrator is going to re-sync mode!")
+
+		InitialOrResyncCount.Inc()
+		CurSyncingStatus.Set(1)
 	}
 
 	disableDelete := false
@@ -221,6 +226,8 @@ func (s *Service) insertIntoChain(
 				return nil
 			}
 			s.curReorgStatus = nil
+
+			ReorgResolvedCnt.Inc()
 		}
 
 		newShardInfo := utils.PrepareMultiShardData(vanShardInfo, header, TotalExecutionShardCount, ShardsPerVanBlock)
@@ -238,6 +245,9 @@ func (s *Service) insertIntoChain(
 		if s.isSyncing() && vanShardInfo.Slot == currentSlot {
 			s.setSyncingStatus(LiveSync)
 			log.Info("Orchestrator is fully synced!")
+
+			LiveSyncCount.Inc()
+			CurSyncingStatus.Set(0)
 		}
 
 		//removing slot that is already verified
@@ -286,6 +296,11 @@ func (s *Service) writeShardInfoInDB(shardInfo *types.MultiShardInfo) error {
 
 	log.WithField("stepId", nextStepId).WithField("shardInfo", shardInfo.FormattedStr()).
 		Info("Inserted sharding info into verified DB")
+
+	// Metrics
+	LatestVerifiedSlot.Set(float64(shardInfo.GetSlot()))
+	LatestVerifiedBlockNumber.Set(float64(shardInfo.GetPanBlockNumber()))
+
 	return nil
 }
 
@@ -304,6 +319,9 @@ func (s *Service) writeFinalizeInfo(finalizeSlot, finalizeEpoch uint64) {
 			log.WithError(err).Warn("Failed to store new finalized epoch")
 		}
 	}
+
+	LatestFinalizedSlot.Set(float64(finalizeSlot))
+	LatestFinalizedEpoch.Set(float64(finalizeEpoch))
 }
 
 // publishBlockConfirmation

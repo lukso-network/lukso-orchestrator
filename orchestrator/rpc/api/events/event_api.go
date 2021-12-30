@@ -220,6 +220,10 @@ func (api *PublicFilterAPI) SteamConfirmedPanBlockHashes(
 					log.WithField("hash", slotInfoWithStatus.PandoraHeaderHash).Error("Failed to notify slot info status. Could not send over stream.")
 					return
 				}
+
+				if slotInfoWithStatus.Status == generalTypes.Invalid {
+					TotalPanInvalidStatusCnt.Inc()
+				}
 			case <-rpcSub.Err():
 				log.Info("Unsubscribing registered subscriber from SteamConfirmedPanBlockHashes")
 				verifiedSlotInfoSub.Unsubscribe()

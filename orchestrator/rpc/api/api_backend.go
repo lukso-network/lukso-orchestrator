@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/lukso-network/lukso-orchestrator/orchestrator/rpc/api/events"
 	"github.com/lukso-network/lukso-orchestrator/orchestrator/utils"
 	"github.com/pkg/errors"
 
@@ -127,9 +128,10 @@ func (b *Backend) LatestFinalizedSlot() uint64 {
 // GetSlotStatus
 func (b *Backend) GetSlotStatus(ctx context.Context, slot uint64, hash common.Hash, requestFrom bool) types.Status {
 	logPrinter := func(stat types.Status) {
-		log.WithField("slot", slot).
-			WithField("status", stat).
-			Debug("Verification status")
+		log.WithField("slot", slot).WithField("status", stat).Debug("Verification status")
+		if stat == types.Invalid {
+			events.TotalVanInvalidStatusCnt.Inc()
+		}
 	}
 
 	if !requestFrom {

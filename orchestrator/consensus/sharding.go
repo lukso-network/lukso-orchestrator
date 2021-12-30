@@ -9,7 +9,13 @@ import (
 	eth2Types "github.com/prysmaticlabs/prysm/proto/eth/v1alpha1"
 )
 
-func compareShardingInfo(ph *eth1Types.Header, vs *eth2Types.PandoraShard) bool {
+func compareShardingInfo(ph *eth1Types.Header, vs *eth2Types.PandoraShard) (status bool) {
+	defer func() {
+		if !status {
+			TotalMisMatchedShardCnt.Inc()
+		}
+	}()
+
 	if ph == nil || vs == nil {
 		return false
 	}
