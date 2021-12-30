@@ -87,15 +87,19 @@ func (vc *VanguardCache) RemoveByTime(timeStamp time.Time) {
 
 	for _, key := range keys {
 		slot := key.(uint64)
+		if err := vc.MarkInProgress(slot); err != nil {
+			continue
+		}
+
 		queueInfo := vc.Get(slot)
-		if queueInfo != nil && !vc.GetInProgressSlot(slot) && !queueInfo.disableDelete && timeStamp.Sub(queueInfo.entryTimestamp) >= cacheRemovalInterval {
+		if queueInfo != nil && !queueInfo.disableDelete && timeStamp.Sub(queueInfo.entryTimestamp) >= cacheRemovalInterval {
 			if queueInfo.vanShardInfo != nil {
 				log.WithField("slot number", slot).Debug("Removing expired slot info from vanguard cache")
 				vc.cache.Remove(slot)
 				vc.stack.Delete(queueInfo.vanShardInfo.BlockRoot[:])
-				vc.MarkNotInProgress(slot)
 			}
 		}
+		vc.MarkNotInProgress(slot)
 	}
 }
 
