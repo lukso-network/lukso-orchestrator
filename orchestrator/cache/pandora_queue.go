@@ -96,6 +96,9 @@ func (pc *PandoraCache) RemoveByTime(timeStamp time.Time) []*eth1Types.Header {
 
 	for _, key := range keys {
 		slot := key.(uint64)
+		if err := pc.MarkInProgress(slot); err != nil {
+			continue
+		}
 		queueInfo := pc.Get(slot)
 		if queueInfo != nil && !pc.inProgressSlots[slot] && timeStamp.Sub(queueInfo.entryTimestamp) >= cacheRemovalInterval {
 			log.WithField("slot number", slot).Debug("Removing expired slot info from pandora cache")
@@ -103,10 +106,9 @@ func (pc *PandoraCache) RemoveByTime(timeStamp time.Time) []*eth1Types.Header {
 			if queueInfo.panHeader != nil {
 				pc.cache.Remove(slot)
 				pc.stack.Delete(queueInfo.panHeader.Hash().Bytes())
-				pc.MarkNotInProgress(slot)
-
 			}
 		}
+		pc.MarkNotInProgress(slot)
 	}
 	return retVal
 }
@@ -117,13 +119,7 @@ func (pc *PandoraCache) ForceDelSlot(slot uint64) {
 		if slotInfo.panHeader != nil {
 			pc.cache.Remove(slot)
 			pc.stack.Delete(slotInfo.panHeader.Hash().Bytes())
-			pc.MarkNotInProgress(slot)
+			delete(pc.inProgressSlots, slot)
 		}
 	}
-}
-
-func (pc *PandoraCache) GetInProgressSlot(slot uint64) bool {
-	pc.lock.Lock()
-	defer pc.lock.Unlock()
-	return pc.inProgressSlots[slot]
 }
